@@ -1,0 +1,368 @@
+- generic:
+  - generic [aria-hidden]:
+    - generic:
+      - complementary:
+        - button:
+          - generic:
+            - text: HEAL YOUR HEART
+            - generic: EHR workspace
+        - generic: CHARMHEALTH MODULES
+        - navigation:
+          - button:
+            - generic: Home
+          - button:
+            - generic: Patients
+          - button:
+            - generic: Calendar
+          - button:
+            - generic: EECP
+            - generic [aria-hidden]: CARE
+          - button:
+            - generic: Operations
+          - button:
+            - generic: Communication
+          - button:
+            - generic: Labs
+          - button:
+            - generic: Images
+          - button:
+            - generic: Documents
+          - button:
+            - generic: Injections
+          - button:
+            - generic: Referrals
+          - button:
+            - generic: Messages
+          - button:
+            - generic: Channels
+          - button:
+            - generic: Tasks
+          - button:
+            - generic: Billing
+          - button:
+            - generic: Inventory
+          - button:
+            - generic: Analytics
+        - generic:
+          - generic: LOCAL DEVELOPMENT
+          - generic:
+            - generic: PD
+            - generic:
+              - strong: Priya Demo
+              - generic: reception
+            - button
+      - generic:
+        - banner:
+          - generic:
+            - button:
+              - generic:
+                - text: HEAL YOUR HEART
+                - generic: Practice Portal
+          - generic:
+            - generic:
+              - textbox:
+                - /placeholder: Search Patient by Name / ID / Phone
+              - button: Add Patient
+          - generic:
+            - generic: Enable TeleHealth
+            - combobox
+            - button
+            - button
+            - generic:
+              - button:
+                - generic: PR
+                - generic: Priya Demo
+        - main:
+          - generic:
+            - generic:
+              - generic:
+                - generic: Monday, 26 October 2026
+                - heading [level=1]: Your day, at a glance
+                - paragraph: Welcome, Priya Demo. Here’s what needs your attention.
+              - generic:
+                - button: Register patient
+                - button: Book appointment
+            - generic:
+              - generic:
+                - heading [level=2]: Application Modules
+                - generic: 14 Core Modules Available
+              - generic:
+                - generic:
+                  - generic: "56"
+                  - generic: Patients
+                  - generic: Charts & Directory
+                - generic:
+                  - generic: "7"
+                  - generic: Calendar
+                  - generic: Provider Schedules
+                - generic:
+                  - generic: "0"
+                  - generic: Chart Notes
+                  - generic: SOAP & Encounters
+                - generic:
+                  - generic: Active
+                  - generic: Labs
+                  - generic: Biomarkers & Orders
+                - generic:
+                  - generic: DICOM
+                  - generic: Images
+                  - generic: Echo, ECG & CAG
+                - generic:
+                  - generic: Files
+                  - generic: Documents
+                  - generic: Intake & Records
+                - generic:
+                  - generic: MAR
+                  - generic: Injections
+                  - generic: MAR & Vaccines
+                - generic:
+                  - generic: Care
+                  - generic: Referrals
+                  - generic: Specialist In/Out
+                - generic:
+                  - generic: "3"
+                  - generic: Messages
+                  - generic: Secure Inquiries
+                - generic:
+                  - generic: "4"
+                  - generic: Channels
+                  - generic: Team Chat Rooms
+                - generic:
+                  - generic: "3"
+                  - generic: Tasks
+                  - generic: Follow-ups & To-dos
+                - generic:
+                  - generic: INR
+                  - generic: Billing
+                  - generic: Invoices & Ledger
+                - generic:
+                  - generic: Stock
+                  - generic: Inventory
+                  - generic: Supplies & Stock
+                - generic:
+                  - generic: Reports
+                  - generic: Analytics
+                  - generic: Clinical Reports
+            - generic:
+              - generic:
+                - generic:
+                  - generic: Appointments today
+                  - generic: "01"
+                - strong: "7"
+                - generic: Across this branch
+              - generic:
+                - generic:
+                  - generic: Waiting for care
+                  - generic: "02"
+                - strong: "2"
+                - generic: Checked in and ready
+              - generic:
+                - generic:
+                  - generic: Pending tasks
+                  - generic: "03"
+                - strong: "3"
+                - generic: Team follow-up work
+              - generic:
+                - generic:
+                  - generic: Active EECP plans
+                  - generic: "04"
+                - strong: "8"
+                - generic: Continuity of treatment
+            - generic:
+              - generic:
+                - generic:
+                  - generic:
+                    - heading [level=2]: Today's care queue
+                    - paragraph: A shared view of arrivals, consultations, and treatment
+                  - button: View schedule
+                - generic:
+                  - table:
+                    - rowgroup:
+                      - row:
+                        - columnheader: Time
+                        - columnheader: Patient
+                        - columnheader: Visit
+                        - columnheader: Status
+                    - rowgroup:
+                      - row:
+                        - cell: 09:00 am
+                        - cell:
+                          - button: Aarav Demo
+                        - cell:
+                          - text: New consultation
+                          - generic: Dr. Ananya Demo
+                        - cell:
+                          - generic: checked in
+                      - row:
+                        - cell: 10:00 am
+                        - cell:
+                          - button: Mira Sample
+                        - cell:
+                          - text: Follow-up
+                          - generic: Dr. Ananya Demo
+                        - cell:
+                          - generic: checked in
+                      - row:
+                        - cell: 11:00 am
+                        - cell:
+                          - button: Dev Example
+                        - cell:
+                          - text: New consultation
+                          - generic: Dr. Ananya Demo
+                        - cell:
+                          - generic: confirmed
+                      - row:
+                        - cell: 11:00 am
+                        - cell:
+                          - button: Aarav Demo
+                        - cell:
+                          - text: EECP session
+                          - generic: Kavin Demo
+                        - cell:
+                          - generic: confirmed
+                      - row:
+                        - cell: 12:00 pm
+                        - cell:
+                          - button: Leela Demo
+                        - cell:
+                          - text: Follow-up
+                          - generic: Dr. Ananya Demo
+                        - cell:
+                          - generic: confirmed
+                      - row:
+                        - cell: 01:00 pm
+                        - cell:
+                          - button: Arjun Sample
+                        - cell:
+                          - text: New consultation
+                          - generic: Dr. Ananya Demo
+                        - cell:
+                          - generic: confirmed
+                      - row:
+                        - cell: 02:00 pm
+                        - cell:
+                          - button: Tara Example
+                        - cell:
+                          - text: Follow-up
+                          - generic: Dr. Ananya Demo
+                        - cell:
+                          - generic: confirmed
+              - generic:
+                - generic:
+                  - generic:
+                    - generic:
+                      - heading [level=2]: Your attention list
+                      - paragraph: Assigned tasks and recalls
+                  - button:
+                    - generic:
+                      - strong: Arrange follow-up appointment
+                      - generic: Aarav Demo · normal
+                - generic:
+                  - heading [level=2]: One treatment. Continuous care.
+                  - paragraph: Review the next EECP session with its plan, consent, and progress in context.
+                  - button: Open EECP workspace
+            - generic: Development system · Synthetic patients · No live prescribing, payments, or external messaging
+            - generic:
+              - generic:
+                - button:
+                  - generic: Pins
+                - button:
+                  - generic: Chats
+                - button:
+                  - generic: Channels
+                - button:
+                  - generic: Threads
+                - button:
+                  - generic: People
+              - generic: Heal Your Heart EHR · Multi-Branch Practice Portal
+  - dialog [ref=e507]:
+    - generic [ref=e508]:
+      - generic [ref=e509]:
+        - heading "Register a patient" [level=2] [ref=e510]
+        - paragraph [ref=e511]: Changes are saved to the selected patient and branch.
+      - button "Close dialog" [active] [ref=e512] [cursor=pointer]
+    - generic [ref=e516]:
+      - generic [ref=e517]:
+        - generic [ref=e518]:
+          - generic [ref=e519]: First name *
+          - textbox "First name" [ref=e520]
+        - generic [ref=e521]:
+          - generic [ref=e522]: Last name *
+          - textbox "Last name" [ref=e523]
+        - generic [ref=e524]:
+          - generic [ref=e525]: Date of birth *
+          - textbox "Date of birth" [ref=e526]
+        - generic [ref=e527]:
+          - generic [ref=e528]: Sex *
+          - combobox "Sex" [ref=e529]:
+            - option "Select…" [selected]
+            - option "Female"
+            - option "Male"
+            - option "Other"
+            - option "Unknown"
+        - generic [ref=e530]:
+          - generic [ref=e531]: Assigned clinician
+          - combobox "Assigned clinician" [ref=e532]:
+            - option "Select…" [selected]
+            - option "Dr. Ananya Demo"
+        - generic [ref=e533]:
+          - generic [ref=e534]: Mobile phone
+          - textbox "Mobile phone" [ref=e535]
+        - generic [ref=e536]:
+          - generic [ref=e537]: Email
+          - textbox "Email" [ref=e538]
+        - generic [ref=e539]:
+          - generic [ref=e540]: Blood group
+          - textbox "Blood group" [ref=e541]
+        - generic [ref=e542]:
+          - generic [ref=e543]: Residency *
+          - combobox "Residency" [ref=e544]:
+            - option "Select…"
+            - option "Local" [selected]
+            - option "Outstation"
+            - option "NRI"
+            - option "Foreign"
+        - generic [ref=e545]:
+          - generic [ref=e546]: address
+          - textbox "address" [ref=e547]
+        - generic [ref=e548]:
+          - generic [ref=e549]: area
+          - textbox "area" [ref=e550]
+        - generic [ref=e551]:
+          - generic [ref=e552]: city
+          - textbox "city" [ref=e553]
+        - generic [ref=e554]:
+          - generic [ref=e555]: district
+          - textbox "district" [ref=e556]
+        - generic [ref=e557]:
+          - generic [ref=e558]: state
+          - textbox "state" [ref=e559]: Tamil Nadu
+        - generic [ref=e560]:
+          - generic [ref=e561]: postal code
+          - textbox "postal code" [ref=e562]
+        - generic [ref=e563]:
+          - generic [ref=e564]: emergency name
+          - textbox "emergency name" [ref=e565]
+        - generic [ref=e566]:
+          - generic [ref=e567]: emergency phone
+          - textbox "emergency phone" [ref=e568]
+        - generic [ref=e569]:
+          - generic [ref=e570]: referral source
+          - textbox "referral source" [ref=e571]
+        - generic [ref=e572]:
+          - generic [ref=e573]: Patient opted in to future external communication
+          - checkbox "Patient opted in to future external communication" [ref=e574]
+        - generic [ref=e575]:
+          - generic [ref=e576]: Duplicate review override reason (only if prompted)
+          - textbox "Duplicate review override reason (only if prompted)" [ref=e577]
+      - generic [ref=e578]:
+        - strong [ref=e579]: Branch access
+        - generic [ref=e580]:
+          - checkbox "Heal Your Heart · Neelankarai" [checked] [disabled] [ref=e581]
+          - text: Heal Your Heart · Neelankarai
+        - generic [ref=e582]:
+          - checkbox "Heal Your Heart · Royapettah" [ref=e583]
+          - text: Heal Your Heart · Royapettah
+      - generic [ref=e584]:
+        - generic [ref=e585]: External communication remains disabled.
+        - button "Register & open chart" [ref=e586] [cursor=pointer]

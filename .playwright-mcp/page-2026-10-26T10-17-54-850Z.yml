@@ -1,0 +1,78 @@
+- generic [active] [ref=f76e1]:
+  - generic:
+    - banner [ref=f76e2]:
+      - generic "Home":
+        - img "CharmEHR" [ref=f76e4]
+      - generic [ref=f76e5]:
+        - generic "Replace Office Visits with TeleHealth Appointments. Click here to Enable" [ref=f76e6] [cursor=pointer]: Enable TeleHealth
+        - generic [ref=f76e9] [cursor=pointer]:
+          - emphasis [ref=f76e10]
+          - generic [ref=f76e11]: Heal Your Heart Neelankarai - ..
+          - emphasis [ref=f76e12]
+        - generic "Member Notifications" [ref=f76e14] [cursor=pointer]
+        - generic "Settings" [ref=f76e15] [cursor=pointer]
+        - img "photo" [ref=f76e19] [cursor=pointer]
+    - generic [ref=f76e20]:
+      - generic:
+        - generic [ref=f76e23]:
+          - generic [ref=f76e24]:
+            - generic "Patient Search" [ref=f76e25] [cursor=pointer]
+            - textbox "Search Patient by Name / ID" [ref=f76e27]
+          - generic "Add Patient" [ref=f76e28] [cursor=pointer]
+        - list [ref=f76e33]:
+          - listitem [ref=f76e34] [cursor=pointer]: Patients
+          - listitem [ref=f76e38] [cursor=pointer]: Calendar
+          - listitem [ref=f76e42] [cursor=pointer]: Chart Notes
+          - listitem [ref=f76e46] [cursor=pointer]: Labs
+          - listitem [ref=f76e50] [cursor=pointer]: Images
+          - listitem [ref=f76e54] [cursor=pointer]: Documents
+          - listitem [ref=f76e58] [cursor=pointer]: Injections
+          - listitem [ref=f76e62] [cursor=pointer]: Referrals
+          - listitem [ref=f76e66] [cursor=pointer]: Messages
+          - listitem [ref=f76e70] [cursor=pointer]: Channels
+          - listitem [ref=f76e74] [cursor=pointer]: Tasks
+          - listitem [ref=f76e78] [cursor=pointer]: Billing
+          - listitem [ref=f76e82] [cursor=pointer]: Inventory
+          - listitem [ref=f76e86] [cursor=pointer]: Analytics
+        - list [ref=f76e91]:
+          - listitem "Refer a Friend" [ref=f76e92] [cursor=pointer]
+          - listitem "Add-ons" [ref=f76e94] [cursor=pointer]
+          - listitem "Help" [ref=f76e96] [cursor=pointer]
+          - listitem "Keyboard Shortcuts (Shift+K)" [ref=f76e98] [cursor=pointer]
+  - generic [ref=f76e100]:
+    - generic [ref=f76e102]:
+      - generic [ref=f76e103]: "+1"
+      - textbox [ref=f76e104]
+      - generic [ref=f76e105] [cursor=pointer]
+    - generic [ref=f76e106]:
+      - generic [ref=f76e107] [cursor=pointer]: "1"
+      - generic [ref=f76e108] [cursor=pointer]: "2"
+      - generic [ref=f76e109] [cursor=pointer]: "3"
+      - generic [ref=f76e110] [cursor=pointer]: "4"
+      - generic [ref=f76e111] [cursor=pointer]: "5"
+      - generic [ref=f76e112] [cursor=pointer]: "6"
+      - generic [ref=f76e113] [cursor=pointer]: "7"
+      - generic [ref=f76e114] [cursor=pointer]: "8"
+      - generic [ref=f76e115] [cursor=pointer]: "9"
+      - generic [ref=f76e117] [cursor=pointer]: "0"
+      - generic [ref=f76e119] [cursor=pointer]
+  - generic [ref=f76e121]:
+    - generic [ref=f76e123]:
+      - text:       
+      - menubar [ref=f76e124]:
+        - button "pins" [ref=f76e125] [cursor=pointer]:
+          - text: 
+          - generic: My Pins
+        - button "chats" [ref=f76e126] [cursor=pointer]:
+          - text: 
+          - generic: Chats
+        - button "channels" [ref=f76e127] [cursor=pointer]:
+          - text: 
+          - generic: Channels
+        - button "threads" [ref=f76e128] [cursor=pointer]:
+          - text: 
+          - generic: Threads
+        - button "contacts" [ref=f76e129] [cursor=pointer]:
+          - text: 
+          - generic: People
+    - text:   

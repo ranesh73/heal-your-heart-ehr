@@ -1,0 +1,132 @@
+- generic [active] [ref=f64e1]:
+  - generic:
+    - banner [ref=f64e2]:
+      - generic [ref=f64e3] [cursor=pointer]
+      - generic "Home":
+        - img "CharmEHR" [ref=f64e6] [cursor=pointer]
+      - generic [ref=f64e7]:
+        - generic "Replace Office Visits with TeleHealth Appointments. Click here to Enable" [ref=f64e8] [cursor=pointer]: Enable TeleHealth
+        - generic [ref=f64e11] [cursor=pointer]:
+          - generic [ref=f64e13]: Heal Your Heart Neelankarai - ..
+          - generic "Choose Facility" [ref=f64e14]
+        - generic "Member Notifications" [ref=f64e16] [cursor=pointer]
+        - generic "Settings" [ref=f64e17] [cursor=pointer]
+        - img "photo" [ref=f64e20] [cursor=pointer]
+    - generic [ref=f64e22]:
+      - generic [ref=f64e23] [cursor=pointer]
+      - textbox
+      - textbox "Search Patient by Name / ID" [ref=f64e24]
+    - generic [ref=f64e26]:
+      - generic [ref=f64e27]:
+        - generic:
+          - generic:
+            - generic [ref=f64e28]:
+              - generic [ref=f64e29]:
+                - heading "Tasks" [level=2]
+              - generic [ref=f64e30]: Task
+            - generic [ref=f64e33]:
+              - generic [ref=f64e35]:
+                - generic [ref=f64e36]:
+                  - generic [ref=f64e37]: Task View
+                  - combobox [ref=f64e38]:
+                    - option "My Tasks" [selected]
+                    - option "Tasks Assigned to Me"
+                    - option "Tasks Assigned by Me"
+                - generic [ref=f64e39]:
+                  - generic [ref=f64e40]: Categories
+                  - combobox [ref=f64e41]:
+                    - option "All" [selected]
+                    - option "BP Monitor"
+                    - option "Chatbot"
+                    - option "ECG"
+                    - option "Incomplete"
+                    - option "Patient follow up"
+                    - option "Project"
+                    - option "Social Media Comments"
+                - generic [ref=f64e42]:
+                  - generic [ref=f64e43]: Status
+                  - combobox [ref=f64e44]:
+                    - option "Pending" [selected]
+                    - option "In-progress"
+                    - option "Completed"
+                    - option "Due within a week"
+                    - option "All"
+                - generic [ref=f64e45]:
+                  - generic [ref=f64e46]: Priority
+                  - combobox [ref=f64e47]:
+                    - option "All" [selected]
+                    - option "Low"
+                    - option "Medium"
+                    - option "High"
+                    - option "Critical"
+                - generic [ref=f64e48]:
+                  - generic [ref=f64e49]: Search
+                  - generic [ref=f64e50]:
+                    - generic [ref=f64e51] [cursor=pointer]
+                    - textbox "Search Patient by Name / ID" [ref=f64e53]
+              - generic [ref=f64e55]:
+                - button "Delete" [ref=f64e56] [cursor=pointer]
+                - button "Print" [ref=f64e57] [cursor=pointer]
+              - table [ref=f64e61]:
+                - rowgroup [ref=f64e62]:
+                  - row [ref=f64e63]:
+                    - columnheader [ref=f64e64]
+                    - columnheader "Task" [ref=f64e67]
+                    - columnheader "Priority" [ref=f64e68]
+                    - columnheader "Patient" [ref=f64e69]
+                    - columnheader "Assigned by" [ref=f64e70]
+                    - columnheader "Created On" [ref=f64e71] [cursor=pointer]
+                    - columnheader "Due Date" [ref=f64e74] [cursor=pointer]
+                    - columnheader "Status" [ref=f64e75]
+                    - columnheader [ref=f64e76]
+                    - columnheader [ref=f64e77]
+                - rowgroup [ref=f64e78]:
+                  - row [ref=f64e79]:
+                    - cell "No data available" [ref=f64e80]
+      - generic [ref=f64e81]:
+        - list [ref=f64e82]:
+          - listitem [ref=f64e83] [cursor=pointer]:
+            - generic "Charm Assist" [ref=f64e84]
+        - list [ref=f64e85]:
+          - listitem "Refer a Friend" [ref=f64e86] [cursor=pointer]
+          - listitem "Add-ons" [ref=f64e88] [cursor=pointer]
+          - listitem "Help" [ref=f64e90] [cursor=pointer]
+          - listitem "Choose your preferred view" [ref=f64e92] [cursor=pointer]
+          - listitem "Keyboard Shortcuts (Shift+K)" [ref=f64e94] [cursor=pointer]
+  - generic [ref=f64e96]:
+    - generic [ref=f64e98]:
+      - generic [ref=f64e99]: "+1"
+      - textbox [ref=f64e100]
+      - generic [ref=f64e101] [cursor=pointer]
+    - generic [ref=f64e102]:
+      - generic [ref=f64e103] [cursor=pointer]: "1"
+      - generic [ref=f64e104] [cursor=pointer]: "2"
+      - generic [ref=f64e105] [cursor=pointer]: "3"
+      - generic [ref=f64e106] [cursor=pointer]: "4"
+      - generic [ref=f64e107] [cursor=pointer]: "5"
+      - generic [ref=f64e108] [cursor=pointer]: "6"
+      - generic [ref=f64e109] [cursor=pointer]: "7"
+      - generic [ref=f64e110] [cursor=pointer]: "8"
+      - generic [ref=f64e111] [cursor=pointer]: "9"
+      - generic [ref=f64e113] [cursor=pointer]: "0"
+      - generic [ref=f64e115] [cursor=pointer]
+  - generic [ref=f64e117]:
+    - generic [ref=f64e119]:
+      - text:       
+      - menubar [ref=f64e120]:
+        - button "pins" [ref=f64e121] [cursor=pointer]:
+          - text: 
+          - generic: My Pins
+        - button "chats" [ref=f64e122] [cursor=pointer]:
+          - text: 
+          - generic: Chats
+        - button "channels" [ref=f64e123] [cursor=pointer]:
+          - text: 
+          - generic: Channels
+        - button "threads" [ref=f64e124] [cursor=pointer]:
+          - text: 
+          - generic: Threads
+        - button "contacts" [ref=f64e125] [cursor=pointer]:
+          - text: 
+          - generic: People
+    - text:   

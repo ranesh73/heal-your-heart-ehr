@@ -1,0 +1,28 @@
+- generic [active] [ref=e1]:
+  - generic [ref=e18]:
+    - generic [ref=e20]:
+      - generic [ref=e21]:
+        - generic [ref=e22]:
+          - text:  Sign in
+          - generic [ref=e23]: to access charmhealth
+        - text:  
+        - generic [ref=e24]:
+          - generic [ref=e27]:
+            - text:  
+            - textbox "Email address or mobile number" [ref=e28]
+          - generic:
+            - generic [ref=e29] [cursor=pointer]: Change
+            - generic:
+              - textbox "Enter password" [ref=e31]
+              - generic [ref=e32] [cursor=pointer]: 
+          - text:    
+        - text:   
+        - button "Next" [ref=e33] [cursor=pointer]
+      - text:               
+    - text:                 
+  - contentinfo [ref=e34]:
+    - generic [ref=e35]:
+      - text: © 2026,
+      - link "MedicalMine Inc." [ref=e36] [cursor=pointer]:
+        - /url: http://www.charmhealth.com/
+      - text: All Rights Reserved.

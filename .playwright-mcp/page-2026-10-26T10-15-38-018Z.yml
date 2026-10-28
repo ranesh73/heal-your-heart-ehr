@@ -1,0 +1,305 @@
+- generic [active] [ref=f40e1]:
+  - generic:
+    - banner [ref=f40e2]:
+      - generic [ref=f40e3] [cursor=pointer]
+      - generic "Home":
+        - img "CharmEHR" [ref=f40e6] [cursor=pointer]
+      - generic [ref=f40e7]:
+        - generic "Replace Office Visits with TeleHealth Appointments. Click here to Enable" [ref=f40e8] [cursor=pointer]: Enable TeleHealth
+        - generic [ref=f40e11] [cursor=pointer]:
+          - generic [ref=f40e13]: Heal Your Heart Neelankarai - ..
+          - generic "Choose Facility" [ref=f40e14]
+        - generic "Member Notifications" [ref=f40e16] [cursor=pointer]
+        - generic "Settings" [ref=f40e17] [cursor=pointer]
+        - img "photo" [ref=f40e20] [cursor=pointer]
+    - generic [ref=f40e22]:
+      - generic [ref=f40e23] [cursor=pointer]
+      - textbox
+      - textbox "Search Patient by Name / ID" [ref=f40e24]
+    - generic [ref=f40e25]:
+      - generic [ref=f40e27]:
+        - generic:
+          - generic:
+            - generic:
+              - generic:
+                - generic:
+                  - generic [ref=f40e28]:
+                    - generic [ref=f40e29]:
+                      - generic [ref=f40e30] [cursor=pointer]: Inventory
+                      - generic [ref=f40e31] [cursor=pointer]: Supplier
+                      - generic [ref=f40e32] [cursor=pointer]: Category
+                      - generic [ref=f40e33] [cursor=pointer]: Reports
+                    - generic [ref=f40e34]: Inventory
+                  - generic [ref=f40e39]:
+                    - generic [ref=f40e41]:
+                      - generic [ref=f40e42]:
+                        - generic [ref=f40e43]: Category
+                        - combobox [ref=f40e44]:
+                          - option "All" [selected]
+                          - option "Consumables"
+                          - option "Drug"
+                          - option "Drug Medications"
+                          - option "Emergency management"
+                          - option "Injections"
+                          - option "IV Fluids"
+                          - option "Lab Kit"
+                          - option "Supplement"
+                          - option "Syringes"
+                          - option "Vaccine"
+                      - generic [ref=f40e45]:
+                        - generic [ref=f40e46]: Status
+                        - combobox [ref=f40e47]:
+                          - option "Active" [selected]
+                          - option "Inactive"
+                      - generic [ref=f40e48]:
+                        - generic [ref=f40e49]: Products
+                        - generic [ref=f40e50]:
+                          - generic [ref=f40e51] [cursor=pointer]
+                          - textbox "Search By Product Name or Product ID" [ref=f40e52]
+                    - generic [ref=f40e54]:
+                      - generic [ref=f40e55] [cursor=pointer]: Bulk Inventory
+                      - generic [ref=f40e57] [cursor=pointer]: Import / Export Inventory
+                      - generic [ref=f40e58] [cursor=pointer]: Product Update
+                    - table [ref=f40e61]:
+                      - rowgroup [ref=f40e62]:
+                        - row [ref=f40e63]:
+                          - columnheader [ref=f40e64] [cursor=pointer]
+                          - columnheader "Product Name" [ref=f40e68] [cursor=pointer]
+                          - columnheader "Category" [ref=f40e69] [cursor=pointer]
+                          - columnheader "Latest Retail Price" [ref=f40e70] [cursor=pointer]
+                          - columnheader "Stock Quantity" [ref=f40e71] [cursor=pointer]
+                          - columnheader "Reorder Level" [ref=f40e72] [cursor=pointer]
+                          - columnheader "Quantity to be Ordered" [ref=f40e73] [cursor=pointer]
+                          - columnheader [ref=f40e74] [cursor=pointer]
+                      - rowgroup [ref=f40e75]:
+                        - row "10 ML SYRINGE (DISPO VAN) Syringes 14.63 147 -- --" [ref=f40e76] [cursor=pointer]:
+                          - cell [ref=f40e77]
+                          - cell "10 ML SYRINGE (DISPO VAN)" [ref=f40e81]
+                          - cell "Syringes" [ref=f40e82]
+                          - cell "14.63" [ref=f40e83]
+                          - cell "147" [ref=f40e84]
+                          - cell "--" [ref=f40e85]
+                          - cell "--" [ref=f40e86]
+                          - cell [ref=f40e87]
+                        - row "100ML NS 3% intravenous injection IV Fluids 218.37 2 -- --" [ref=f40e89] [cursor=pointer]:
+                          - cell [ref=f40e90]
+                          - cell "100ML NS 3% intravenous injection" [ref=f40e94]
+                          - cell "IV Fluids" [ref=f40e95]
+                          - cell "218.37" [ref=f40e96]
+                          - cell "2" [ref=f40e97]
+                          - cell "--" [ref=f40e98]
+                          - cell "--" [ref=f40e99]
+                          - cell [ref=f40e100]
+                        - row "2.5 ML DISPOVAN SYRINGE injectable injection Injections 9.45 93 -- --" [ref=f40e102] [cursor=pointer]:
+                          - cell [ref=f40e103]
+                          - cell "2.5 ML DISPOVAN SYRINGE injectable injection" [ref=f40e107]
+                          - cell "Injections" [ref=f40e108]
+                          - cell "9.45" [ref=f40e109]
+                          - cell "93" [ref=f40e110]
+                          - cell "--" [ref=f40e111]
+                          - cell "--" [ref=f40e112]
+                          - cell [ref=f40e113]
+                        - row "2.5ML SYRINGE(DISPOVAN) Syringes 8.59 199 10 100" [ref=f40e115] [cursor=pointer]:
+                          - cell [ref=f40e116]
+                          - cell "2.5ML SYRINGE(DISPOVAN)" [ref=f40e120]
+                          - cell "Syringes" [ref=f40e121]
+                          - cell "8.59" [ref=f40e122]
+                          - cell "199" [ref=f40e123]
+                          - cell "10" [ref=f40e124]
+                          - cell "100" [ref=f40e125]
+                          - cell [ref=f40e126]
+                        - row "25% Dextrose intravenous injection IV Fluids 22.40 17 5 --" [ref=f40e128] [cursor=pointer]:
+                          - cell [ref=f40e129]
+                          - cell "25% Dextrose intravenous injection" [ref=f40e133]
+                          - cell "IV Fluids" [ref=f40e134]
+                          - cell "22.40" [ref=f40e135]
+                          - cell "17" [ref=f40e136]
+                          - cell "5" [ref=f40e137]
+                          - cell "--" [ref=f40e138]
+                          - cell [ref=f40e139]
+                        - row "3 ML DISPOVAN SYRINGE injectable injection Injections 10.69 100 -- --" [ref=f40e141] [cursor=pointer]:
+                          - cell [ref=f40e142]
+                          - cell "3 ML DISPOVAN SYRINGE injectable injection" [ref=f40e146]
+                          - cell "Injections" [ref=f40e147]
+                          - cell "10.69" [ref=f40e148]
+                          - cell "100" [ref=f40e149]
+                          - cell "--" [ref=f40e150]
+                          - cell "--" [ref=f40e151]
+                          - cell [ref=f40e152]
+                        - row "5 ML DISPOVAN SYRINGE injectable injection Injections 11.25 99 -- --" [ref=f40e154] [cursor=pointer]:
+                          - cell [ref=f40e155]
+                          - cell "5 ML DISPOVAN SYRINGE injectable injection" [ref=f40e159]
+                          - cell "Injections" [ref=f40e160]
+                          - cell "11.25" [ref=f40e161]
+                          - cell "99" [ref=f40e162]
+                          - cell "--" [ref=f40e163]
+                          - cell "--" [ref=f40e164]
+                          - cell [ref=f40e165]
+                        - row "5% Dextrose intravenous injection IV Fluids 40.57 4 -- --" [ref=f40e167] [cursor=pointer]:
+                          - cell [ref=f40e168]
+                          - cell "5% Dextrose intravenous injection" [ref=f40e172]
+                          - cell "IV Fluids" [ref=f40e173]
+                          - cell "40.57" [ref=f40e174]
+                          - cell "4" [ref=f40e175]
+                          - cell "--" [ref=f40e176]
+                          - cell "--" [ref=f40e177]
+                          - cell [ref=f40e178]
+                        - row "500 ML NS IV FLUID Emergency management 37.23 -1 5 10" [ref=f40e180] [cursor=pointer]:
+                          - cell [ref=f40e181]
+                          - cell "500 ML NS IV FLUID" [ref=f40e185]
+                          - cell "Emergency management" [ref=f40e186]
+                          - cell "37.23" [ref=f40e187]
+                          - cell "-1" [ref=f40e188]
+                          - cell "5" [ref=f40e189]
+                          - cell "10" [ref=f40e190]
+                          - cell [ref=f40e191]
+                        - row "5ML INTRAVENOUS SYRINGE Emergency management 10.25 417 10 100" [ref=f40e193] [cursor=pointer]:
+                          - cell [ref=f40e194]
+                          - cell "5ML INTRAVENOUS SYRINGE" [ref=f40e198]
+                          - cell "Emergency management" [ref=f40e199]
+                          - cell "10.25" [ref=f40e200]
+                          - cell "417" [ref=f40e201]
+                          - cell "10" [ref=f40e202]
+                          - cell "100" [ref=f40e203]
+                          - cell [ref=f40e204]
+                        - row "ACARBOSE 50 MG ORAL TAB oral tablet Drug 171.60 16 -- --" [ref=f40e206] [cursor=pointer]:
+                          - cell [ref=f40e207]
+                          - cell "ACARBOSE 50 MG ORAL TAB oral tablet" [ref=f40e211]
+                          - cell "Drug" [ref=f40e212]
+                          - cell "171.60" [ref=f40e213]
+                          - cell "16" [ref=f40e214]
+                          - cell "--" [ref=f40e215]
+                          - cell "--" [ref=f40e216]
+                          - cell [ref=f40e217]
+                        - row "ACEBROPHLLINE 100+ACETYLCYSTEINE 600 oral tablet Drug 242.00 10 -- --" [ref=f40e219] [cursor=pointer]:
+                          - cell [ref=f40e220]
+                          - cell "ACEBROPHLLINE 100+ACETYLCYSTEINE 600 oral tablet" [ref=f40e224]
+                          - cell "Drug" [ref=f40e225]
+                          - cell "242.00" [ref=f40e226]
+                          - cell "10" [ref=f40e227]
+                          - cell "--" [ref=f40e228]
+                          - cell "--" [ref=f40e229]
+                          - cell [ref=f40e230]
+                        - row "ACETYLCYSTEINE-150MG+TAURINE-500MG Drug 135.00 17 -- --" [ref=f40e232] [cursor=pointer]:
+                          - cell [ref=f40e233]
+                          - cell "ACETYLCYSTEINE-150MG+TAURINE-500MG" [ref=f40e237]
+                          - cell "Drug" [ref=f40e238]
+                          - cell "135.00" [ref=f40e239]
+                          - cell "17" [ref=f40e240]
+                          - cell "--" [ref=f40e241]
+                          - cell "--" [ref=f40e242]
+                          - cell [ref=f40e243]
+                        - row "ACETYLCYTEINE 600 MG oral tablet Drug 277.50 7 -- --" [ref=f40e245] [cursor=pointer]:
+                          - cell [ref=f40e246]
+                          - cell "ACETYLCYTEINE 600 MG oral tablet" [ref=f40e250]
+                          - cell "Drug" [ref=f40e251]
+                          - cell "277.50" [ref=f40e252]
+                          - cell "7" [ref=f40e253]
+                          - cell "--" [ref=f40e254]
+                          - cell "--" [ref=f40e255]
+                          - cell [ref=f40e256]
+                        - row "ADENOSHINE 2 ML subcutaneous injection Injections 198.30 2 -- --" [ref=f40e258] [cursor=pointer]:
+                          - cell [ref=f40e259]
+                          - cell "ADENOSHINE 2 ML subcutaneous injection" [ref=f40e263]
+                          - cell "Injections" [ref=f40e264]
+                          - cell "198.30" [ref=f40e265]
+                          - cell "2" [ref=f40e266]
+                          - cell "--" [ref=f40e267]
+                          - cell "--" [ref=f40e268]
+                          - cell [ref=f40e269]
+                        - row "Adrenaline intravenous injection Injections 13.04 4 3 --" [ref=f40e271] [cursor=pointer]:
+                          - cell [ref=f40e272]
+                          - cell "Adrenaline intravenous injection" [ref=f40e276]
+                          - cell "Injections" [ref=f40e277]
+                          - cell "13.04" [ref=f40e278]
+                          - cell "4" [ref=f40e279]
+                          - cell "3" [ref=f40e280]
+                          - cell "--" [ref=f40e281]
+                          - cell [ref=f40e282]
+                        - row "ADRENALINE subcutaneous injection Injections 13.04 5 -- --" [ref=f40e284] [cursor=pointer]:
+                          - cell [ref=f40e285]
+                          - cell "ADRENALINE subcutaneous injection" [ref=f40e289]
+                          - cell "Injections" [ref=f40e290]
+                          - cell "13.04" [ref=f40e291]
+                          - cell "5" [ref=f40e292]
+                          - cell "--" [ref=f40e293]
+                          - cell "--" [ref=f40e294]
+                          - cell [ref=f40e295]
+                        - row "Aero Neb Emergency management 610.00 0 5 --" [ref=f40e297] [cursor=pointer]:
+                          - cell [ref=f40e298]
+                          - cell "Aero Neb" [ref=f40e302]
+                          - cell "Emergency management" [ref=f40e303]
+                          - cell "610.00" [ref=f40e304]
+                          - cell "0" [ref=f40e305]
+                          - cell "5" [ref=f40e306]
+                          - cell "--" [ref=f40e307]
+                          - cell [ref=f40e308]
+                        - row "AERO NEB MASK Lab Kit 669.00 16 -- --" [ref=f40e310] [cursor=pointer]:
+                          - cell [ref=f40e311]
+                          - cell "AERO NEB MASK" [ref=f40e315]
+                          - cell "Lab Kit" [ref=f40e316]
+                          - cell "669.00" [ref=f40e317]
+                          - cell "16" [ref=f40e318]
+                          - cell "--" [ref=f40e319]
+                          - cell "--" [ref=f40e320]
+                          - cell [ref=f40e321]
+                        - row "Air Hose Consumables 0.00 120 50 --" [ref=f40e323] [cursor=pointer]:
+                          - cell [ref=f40e324]
+                          - cell "Air Hose" [ref=f40e328]
+                          - cell "Consumables" [ref=f40e329]
+                          - cell "0.00" [ref=f40e330]
+                          - cell "120" [ref=f40e331]
+                          - cell "50" [ref=f40e332]
+                          - cell "--" [ref=f40e333]
+                          - cell [ref=f40e334]
+                    - generic [ref=f40e337]:
+                      - generic [ref=f40e338]: 1- 20 of 409
+                      - generic [ref=f40e339] [cursor=pointer]
+                      - generic [ref=f40e341] [cursor=pointer]
+      - generic [ref=f40e343]:
+        - list [ref=f40e344]:
+          - listitem [ref=f40e345] [cursor=pointer]:
+            - generic "Charm Assist" [ref=f40e346]
+        - list [ref=f40e347]:
+          - listitem "Refer a Friend" [ref=f40e348] [cursor=pointer]
+          - listitem "Add-ons" [ref=f40e350] [cursor=pointer]
+          - listitem "Help" [ref=f40e352] [cursor=pointer]
+          - listitem "Choose your preferred view" [ref=f40e354] [cursor=pointer]
+          - listitem "Keyboard Shortcuts (Shift+K)" [ref=f40e356] [cursor=pointer]
+  - generic [ref=f40e358]:
+    - generic [ref=f40e360]:
+      - generic [ref=f40e361]: "+1"
+      - textbox [ref=f40e362]
+      - generic [ref=f40e363] [cursor=pointer]
+    - generic [ref=f40e364]:
+      - generic [ref=f40e365] [cursor=pointer]: "1"
+      - generic [ref=f40e366] [cursor=pointer]: "2"
+      - generic [ref=f40e367] [cursor=pointer]: "3"
+      - generic [ref=f40e368] [cursor=pointer]: "4"
+      - generic [ref=f40e369] [cursor=pointer]: "5"
+      - generic [ref=f40e370] [cursor=pointer]: "6"
+      - generic [ref=f40e371] [cursor=pointer]: "7"
+      - generic [ref=f40e372] [cursor=pointer]: "8"
+      - generic [ref=f40e373] [cursor=pointer]: "9"
+      - generic [ref=f40e375] [cursor=pointer]: "0"
+      - generic [ref=f40e377] [cursor=pointer]
+  - generic [ref=f40e379]:
+    - generic [ref=f40e381]:
+      - text:       
+      - menubar [ref=f40e382]:
+        - button "pins" [ref=f40e383] [cursor=pointer]:
+          - text: 
+          - generic: My Pins
+        - button "chats" [ref=f40e384] [cursor=pointer]:
+          - text: 
+          - generic: Chats
+        - button "channels" [ref=f40e385] [cursor=pointer]:
+          - text: 
+          - generic: Channels
+        - button "threads" [ref=f40e386] [cursor=pointer]:
+          - text: 
+          - generic: Threads
+        - button "contacts" [ref=f40e387] [cursor=pointer]:
+          - text: 
+          - generic: People
+    - text:   

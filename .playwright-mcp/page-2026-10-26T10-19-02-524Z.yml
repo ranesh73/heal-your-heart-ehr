@@ -1,0 +1,239 @@
+- generic [active] [ref=f104e1]:
+  - generic:
+    - banner [ref=f104e2]:
+      - generic [ref=f104e3] [cursor=pointer]
+      - generic "Home":
+        - img "CharmEHR" [ref=f104e6] [cursor=pointer]
+      - generic [ref=f104e7]:
+        - generic "Replace Office Visits with TeleHealth Appointments. Click here to Enable" [ref=f104e8] [cursor=pointer]: Enable TeleHealth
+        - generic [ref=f104e11] [cursor=pointer]:
+          - generic [ref=f104e13]: Heal Your Heart Neelankarai - ..
+          - generic "Choose Facility" [ref=f104e14]
+        - generic "Member Notifications" [ref=f104e16] [cursor=pointer]
+        - generic "Settings" [ref=f104e17] [cursor=pointer]
+        - img "photo" [ref=f104e20] [cursor=pointer]
+    - generic [ref=f104e22]:
+      - generic [ref=f104e23] [cursor=pointer]
+      - textbox
+      - textbox "Search Patient by Name / ID" [ref=f104e24]
+    - generic [ref=f104e25]:
+      - generic [ref=f104e27]:
+        - generic:
+          - generic:
+            - generic:
+              - generic [ref=f104e28]:
+                - generic [ref=f104e29]:
+                  - generic [ref=f104e30] [cursor=pointer]: Referral Out
+                  - generic [ref=f104e32] [cursor=pointer]: Referral In
+                - generic "Add Referral" [ref=f104e35] [cursor=pointer]: Referral Out
+              - generic [ref=f104e37]:
+                - generic [ref=f104e39]:
+                  - generic [ref=f104e40]:
+                    - generic [ref=f104e41]: Referral From
+                    - combobox [ref=f104e42]:
+                      - option "-- Select --"
+                      - option "Aakash Dr"
+                      - option "Aksharra P"
+                      - option "Chandra Mohan R"
+                      - option "Dr.Raja Ganesh R"
+                      - option "Dr. Ebinesh Joel"
+                      - option "Dr. Elakkiya M"
+                      - option "Hariharan S"
+                      - option "Leelarani H"
+                      - option "lisiya R"
+                      - option "Nishal Roshan NM"
+                      - option "Dr. Ramasamy S"
+                      - option "Ranesh B" [selected]
+                      - option "Sanjana K"
+                      - option "Susan Sekar"
+                      - option "Vinoth M"
+                  - generic [ref=f104e43]:
+                    - generic [ref=f104e44]: Referral To
+                    - generic [ref=f104e46]:
+                      - combobox [ref=f104e47]:
+                        - option "-- Select --" [selected]
+                        - option "External"
+                        - option "Internal"
+                      - combobox [disabled] [ref=f104e49]:
+                        - option "-- Select --" [selected]
+                        - option "Dr. A . MD,D.M., KRISHNAMURTHY"
+                        - option "Dr. Alal Sundram ( Surgery )"
+                        - option "Dr. Anderson Diagnostics centre ( Radiology )"
+                        - option "Dr. Aravind sir ( Orthopedics )"
+                        - option "Dr. Arul E.D ( Cardiology )"
+                        - option "Dr. Arulnithi Ayyanathan ( Cardiology )"
+                        - option "Dr. AVR SCANS"
+                        - option "Dr. AZHAR WAHAB TADAS KMC 56472"
+                        - option "Dr. Bharath Kumar ( Cardiology )"
+                        - option "Dr. Bharath Raj Kidambi ( Cardiology )"
+                        - option "Dr. Billroth Hospital"
+                        - option ". Casuality Department ( Cardiology )"
+                        - option "Dr. Causuality Officer Emergency department ( Emergency Medicine )"
+                        - option "Dr. Chettinad hospital ( Cardiology )"
+                        - option "Dr. Chokkalingam M ( Cardiology )"
+                        - option "Dr. CMO . ( Cardiology )"
+                        - option "Dr. Dhandapani V.E ( Cardiology )"
+                        - option ". Dr Melvin ( Nephrology )"
+                        - option "Dr. Dr Saravana ( Radiology )"
+                        - option ". Dr Venkataraman ( Nephrology )"
+                        - option "Dr. Dr. Sadhanandham S ( Cardiology )"
+                        - option "Dr. Dr. Sanjay Mittal ( Cardiology )"
+                        - option "Dr. Dr. Thirumalai P ( Cardiology )"
+                        - option "Dr. Dr.Ajay Rathool ( Nephrology )"
+                        - option "Dr. Dr.Anantharaman R ( Cardiology )"
+                        - option "Dr. Dr.P Muthusamy ( Cardiology )"
+                        - option "Dr. Dr.Padhmavathi Y ( OB/GYN )"
+                        - option "Dr. Dr.Prabhu E ( Internal Medicine )"
+                        - option "Dr. Dr.Rahmath Banu ( Radiology )"
+                        - option "Dr. Ganesan MBBS.,MRCP.,FRCP ( Cardiology )"
+                        - option "Dr. GANESAN N MD., DM ( Cardiology )"
+                        - option "Dr. Ganesh S ( Gastroenterology )"
+                        - option "Dr. Gemini scans"
+                        - option "Dr. Gemini Scans ( Radiology )"
+                        - option "Dr. GM Heart care"
+                        - option "Dr. Gov Royapettah Hospital Emergency Department ( Cardiology )"
+                        - option "Dr. Gowri Shankar ( Cardiology )"
+                        - option "Dr. Kailash G.S ( Pulmonology )"
+                        - option "Dr. Kannan R ( Gastroenterology )"
+                        - option "DR. Karthick Ramalingam"
+                        - option "Dr. Karthik Natarajan ( Pain Management )"
+                        - option "Dr. Kesavamoorthy B ( Cardiology )"
+                        - option "Dr. Lakshimipathy K.M ( Radiology )"
+                        - option "Dr. Lakshmipathy K.M ( Radiology )"
+                        - option "Dr. Madan Mohan B ( Cardiology )"
+                        - option "Dr. Madras Medical Mission HOSPITAL ( Cardiology )"
+                        - option "Dr. Madras Medical Mission Hospital Hospital ( Cardiology )"
+                        - option ". Maruti scans and Labs ( Radiology )"
+                        - option "Dr. Mathaiyan K ( Orthopedics )"
+                        - option ". Medall Diagnostics adayar ( Radiology )"
+                        - option "Dr. Meenakshi A ( OB/GYN )"
+                        - option "Dr. MIOT HOSPITAL Cardiology Department ( Cardiology )"
+                        - option "Dr. Mira Govindarajan ( Cardiology )"
+                        - option "Dr. Mohammed ali abith( Radiology )"
+                        - option "Dr. Mr. Sanjeev ( Cardiology )"
+                        - option "Dr. Mr. Sanjeev ( Cardiology )"
+                        - option "Dr. Mr. Sanjeev ( Cardiology )"
+                        - option "Dr. Mr. Saravana ( Radiology )"
+                        - option "Dr. Mr. Saravana ( Radiology )"
+                        - option "Dr. Murugesan V ( Cardiology )"
+                        - option "Dr. Nisreen Dr ( Radiology )"
+                        - option "Dr. Orbito asia Diagnostics"
+                        - option "Dr. P. Muthusamy ( Cardiology )"
+                        - option "Dr. P. VIGNESH MDRD ( Radiology )"
+                        - option "Dr. Prabhakar Kannan ( Internal Medicine )"
+                        - option "Dr. Pradeep G Nayar( Cardiology )"
+                        - option "Dr. Prof Guru Prasad Sogunuru ( Cardiology )"
+                        - option "Dr. Promet Hospital. Promet Hospital ( Cardiology )"
+                        - option "Dr. Radhika G ( OB/GYN )"
+                        - option "Dr. RAHMATH BANU ( Radiology )"
+                        - option "Dr. RAHMATH BANU ( Radiology )"
+                        - option "Dr. Rajkumar Kulasekaran ( Pulmonology )"
+                        - option "Dr. Ram Kumar ( Radiology )"
+                        - option "Dr. Ramasamy S ( Cardiology )"
+                        - option "Dr. Ramasamy s ( Cardiology )"
+                        - option "Dr. Ramasamy S"
+                        - option "Dr. Ramasamy Subramanian ( Cardiology )"
+                        - option "Dr. Ramasamy Subramanian ( Cardiology )"
+                        - option "Dr. Ramasamy Subramanian ( Cardiology )"
+                        - option "Dr. Ramasamy Subramanian ( Cardiology )"
+                        - option "DR. RAVICHANDRAN EDWIN ( Cardiology )"
+                        - option "Dr. Ref Out Ref"
+                        - option "Dr. Refai Showkathali ( Cardiology )"
+                        - option "Dr. ROOPA R KMC 54975"
+                        - option "Dr. Royapettah Gov medical collge Hospital ( Cardiology )"
+                        - option "Dr. SADATH KUMAR KMC 72392"
+                        - option "Dr. Saikishore S.N ( Pulmonology )"
+                        - option "Dr. Santhosh S ( Radiology )"
+                        - option "Dr. Sarath Raj J ( Internal Medicine )"
+                        - option "Dr. Saravana Dr ( Radiology )"
+                        - option ". Saravana Dr ( Radiology )"
+                        - option "Dr. Shahid Scans"
+                        - option "Dr. Shanmugam Sundaram D ( Cardiology )"
+                        - option "Dr. Shiva Balan ( Urology )"
+                        - option ". SIMS HOSPITAL ( Cardiology )"
+                        - option "Dr. sivabalan urologist"
+                        - option ". Sridhar Dr ( Physical Medicine )"
+                        - option "Dr. SUBRAMANIAN N MD., DM(CARD) FRCP., FACC ( Cardiology )"
+                        - option "Dr. Sugan Raj ( Psychiatry )"
+                        - option "Dr. SUMITHRA L"
+                        - option "Dr. suresh cardiologist ( Cardiology )"
+                        - option "Dr. THIRUMALAI P ( Cardiology )"
+                        - option "Dr. Thirumoorthi K ( Acupuncture )"
+                        - option "Dr. Trust Life Medical centre"
+                        - option ". Trust Life Medical centre"
+                        - option ". UNI SCAN CENTER ( Radiology )"
+                        - option ". Venkatraman Dr ( Nephrology )"
+                  - generic [ref=f104e50]:
+                    - generic [ref=f104e51]: Request Status
+                    - combobox [ref=f104e52]:
+                      - option "All" [selected]
+                      - option "Sent"
+                      - option "Draft"
+                  - generic [ref=f104e53]:
+                    - generic [ref=f104e54]: Response Status
+                    - combobox [ref=f104e55]:
+                      - option "All" [selected]
+                      - option "To Be Reviewed"
+                      - option "Pending"
+                      - option "Reviewed"
+                  - generic [ref=f104e56]:
+                    - generic [ref=f104e57]: Patient
+                    - textbox "Search Patient by Name / ID" [ref=f104e60]
+                - table [ref=f104e63]:
+                  - rowgroup [ref=f104e64]:
+                    - row [ref=f104e65]:
+                      - columnheader "Patient" [ref=f104e66]
+                      - columnheader "Referral From" [ref=f104e67]
+                      - columnheader "Referral To" [ref=f104e68]
+                      - columnheader "Date" [ref=f104e69] [cursor=pointer]
+                      - columnheader "Response Status" [ref=f104e72]
+                  - rowgroup [ref=f104e73]:
+                    - row [ref=f104e74]:
+                      - cell "No data available" [ref=f104e75]
+      - generic [ref=f104e76]:
+        - list [ref=f104e77]:
+          - listitem [ref=f104e78] [cursor=pointer]:
+            - generic "Charm Assist" [ref=f104e79]
+        - list [ref=f104e80]:
+          - listitem "Refer a Friend" [ref=f104e81] [cursor=pointer]
+          - listitem "Add-ons" [ref=f104e83] [cursor=pointer]
+          - listitem "Help" [ref=f104e85] [cursor=pointer]
+          - listitem "Choose your preferred view" [ref=f104e87] [cursor=pointer]
+          - listitem "Keyboard Shortcuts (Shift+K)" [ref=f104e89] [cursor=pointer]
+  - generic [ref=f104e91]:
+    - generic [ref=f104e93]:
+      - generic [ref=f104e94]: "+1"
+      - textbox [ref=f104e95]
+      - generic [ref=f104e96] [cursor=pointer]
+    - generic [ref=f104e97]:
+      - generic [ref=f104e98] [cursor=pointer]: "1"
+      - generic [ref=f104e99] [cursor=pointer]: "2"
+      - generic [ref=f104e100] [cursor=pointer]: "3"
+      - generic [ref=f104e101] [cursor=pointer]: "4"
+      - generic [ref=f104e102] [cursor=pointer]: "5"
+      - generic [ref=f104e103] [cursor=pointer]: "6"
+      - generic [ref=f104e104] [cursor=pointer]: "7"
+      - generic [ref=f104e105] [cursor=pointer]: "8"
+      - generic [ref=f104e106] [cursor=pointer]: "9"
+      - generic [ref=f104e108] [cursor=pointer]: "0"
+      - generic [ref=f104e110] [cursor=pointer]
+  - generic [ref=f104e112]:
+    - generic [ref=f104e114]:
+      - text:       
+      - menubar [ref=f104e115]:
+        - button "pins" [ref=f104e116] [cursor=pointer]:
+          - text: 
+          - generic: My Pins
+        - button "chats" [ref=f104e117] [cursor=pointer]:
+          - text: 
+          - generic: Chats
+        - button "channels" [ref=f104e118] [cursor=pointer]:
+          - text: 
+          - generic: Channels
+        - button "threads" [ref=f104e119] [cursor=pointer]:
+          - text: 
+          - generic: Threads
+        - button "contacts" [ref=f104e120] [cursor=pointer]:
+          - text: 
+          - generic: People
+    - text:   

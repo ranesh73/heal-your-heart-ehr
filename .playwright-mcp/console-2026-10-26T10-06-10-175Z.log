@@ -1,0 +1,257 @@
+[    1095ms] [LOG] %cSTOP! color:red;font-size:xx-large;font-weight:bold; @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/security.min.js:0
+[    1095ms] [LOG] %cThis is a browser feature intended for developers. Do not enter or paste code which you don't understand. It may allow attackers to steal your information or impersonate you.
+See https://en.wikipedia.org/wiki/Self-XSS for more details font-size:large; @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/security.min.js:0
+[    1508ms] [LOG] claimOwnership  - owner @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[    1858ms] Identifier 'PrescriptionHtml' has already been declared
+[   58880ms] [LOG] onmessage >>  @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[   58880ms] [LOG] setTimeout(claimOwnership >>  @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[   58884ms] [LOG] onmessage >>  @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[   58884ms] [LOG] releaseOwnership >>  @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[   58978ms] [LOG] claimOwnership  - owner @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[   62511ms] [LOG] onmessage >>  @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[   62511ms] [LOG] releaseOwnership >>  @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  113671ms] [LOG] onmessage >>  @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  113671ms] [LOG] releaseOwnership >>  @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  135297ms] [LOG] onmessage >>  @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  135297ms] [LOG] releaseOwnership >>  @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  157940ms] [LOG] onmessage >>  @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  157940ms] [LOG] releaseOwnership >>  @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  169740ms] [LOG] onmessage >>  @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  169740ms] [LOG] releaseOwnership >>  @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  184398ms] [LOG] onmessage >>  @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  184398ms] [LOG] releaseOwnership >>  @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  210439ms] [LOG] onmessage >>  @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  210439ms] [LOG] releaseOwnership >>  @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  211720ms] [LOG] onmessage >>  @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  211720ms] [LOG] releaseOwnership >>  @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  264214ms] [LOG] onmessage >>  @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  264214ms] [LOG] releaseOwnership >>  @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  284635ms] [LOG] onmessage >>  @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  284635ms] [LOG] releaseOwnership >>  @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  303990ms] [LOG] onmessage >>  @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  303990ms] [LOG] releaseOwnership >>  @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  319155ms] [LOG] onmessage >>  @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  319155ms] [LOG] releaseOwnership >>  @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  337658ms] [LOG] onmessage >>  @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  337658ms] [LOG] releaseOwnership >>  @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  349489ms] [LOG] onmessage >>  @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  349490ms] [LOG] releaseOwnership >>  @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  360054ms] [LOG] onmessage >>  @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  360054ms] [LOG] setTimeout(claimOwnership >>  @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  360056ms] [LOG] onmessage >>  @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  360056ms] [LOG] releaseOwnership >>  @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  360104ms] [LOG] claimOwnership  - owner @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  363135ms] [LOG] onmessage >>  @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  363135ms] [LOG] releaseOwnership >>  @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  386629ms] [LOG] onmessage >>  @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  386629ms] [LOG] setTimeout(claimOwnership >>  @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  386631ms] [LOG] onmessage >>  @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  386631ms] [LOG] releaseOwnership >>  @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  386680ms] [LOG] claimOwnership  - owner @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  389397ms] [LOG] onmessage >>  @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  389397ms] [LOG] releaseOwnership >>  @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  390178ms] [LOG] onmessage >>  @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  390178ms] [LOG] releaseOwnership >>  @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  406459ms] [LOG] onmessage >>  @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  406459ms] [LOG] setTimeout(claimOwnership >>  @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  406461ms] [LOG] onmessage >>  @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  406461ms] [LOG] releaseOwnership >>  @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  406523ms] [LOG] claimOwnership  - owner @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  409147ms] [LOG] onmessage >>  @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  409147ms] [LOG] releaseOwnership >>  @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  424310ms] [LOG] onmessage >>  @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  424310ms] [LOG] setTimeout(claimOwnership >>  @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  424311ms] [LOG] onmessage >>  @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  424311ms] [LOG] releaseOwnership >>  @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  424360ms] [LOG] claimOwnership  - owner @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  426898ms] [LOG] onmessage >>  @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  426898ms] [LOG] releaseOwnership >>  @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  442425ms] [LOG] onmessage >>  @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  442425ms] [LOG] setTimeout(claimOwnership >>  @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  442426ms] [LOG] onmessage >>  @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  442427ms] [LOG] releaseOwnership >>  @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  442481ms] [LOG] claimOwnership  - owner @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  445057ms] [LOG] onmessage >>  @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  445058ms] [LOG] releaseOwnership >>  @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  455635ms] [LOG] onmessage >>  @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  455635ms] [LOG] setTimeout(claimOwnership >>  @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  455636ms] [LOG] onmessage >>  @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  455636ms] [LOG] releaseOwnership >>  @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  455686ms] [LOG] claimOwnership  - owner @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  458667ms] [LOG] onmessage >>  @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  458667ms] [LOG] releaseOwnership >>  @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  459345ms] [LOG] onmessage >>  @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  459345ms] [LOG] releaseOwnership >>  @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  474098ms] [LOG] onmessage >>  @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  474098ms] [LOG] releaseOwnership >>  @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  487708ms] [LOG] onmessage >>  @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  487708ms] [LOG] releaseOwnership >>  @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  524562ms] [LOG] onmessage >>  @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  524562ms] [LOG] setTimeout(claimOwnership >>  @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  524564ms] [LOG] onmessage >>  @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  524564ms] [LOG] releaseOwnership >>  @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  524618ms] [LOG] claimOwnership  - owner @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  527838ms] [LOG] onmessage >>  @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  527839ms] [LOG] releaseOwnership >>  @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  564625ms] [LOG] onmessage >>  @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  564625ms] [LOG] setTimeout(claimOwnership >>  @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  564626ms] [LOG] onmessage >>  @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  564626ms] [LOG] releaseOwnership >>  @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  564675ms] [LOG] claimOwnership  - owner @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  567332ms] [LOG] onmessage >>  @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  567332ms] [LOG] releaseOwnership >>  @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  586511ms] [LOG] onmessage >>  @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  586511ms] [LOG] setTimeout(claimOwnership >>  @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  586514ms] [LOG] onmessage >>  @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  586514ms] [LOG] releaseOwnership >>  @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  586565ms] [LOG] claimOwnership  - owner @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  589353ms] [LOG] onmessage >>  @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  589353ms] [LOG] releaseOwnership >>  @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  602105ms] [LOG] onmessage >>  @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  602105ms] [LOG] setTimeout(claimOwnership >>  @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  602106ms] [LOG] onmessage >>  @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  602106ms] [LOG] releaseOwnership >>  @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  602155ms] [LOG] claimOwnership  - owner @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  605085ms] [LOG] onmessage >>  @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  605085ms] [LOG] releaseOwnership >>  @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  605519ms] [LOG] onmessage >>  @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  605519ms] [LOG] releaseOwnership >>  @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  605779ms] [LOG] onmessage >>  @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  605779ms] [LOG] releaseOwnership >>  @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  620156ms] [LOG] onmessage >>  @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  620156ms] [LOG] setTimeout(claimOwnership >>  @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  620159ms] [LOG] onmessage >>  @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  620159ms] [LOG] releaseOwnership >>  @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  620213ms] [LOG] claimOwnership  - owner @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  622636ms] [LOG] onmessage >>  @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  622636ms] [LOG] releaseOwnership >>  @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  628900ms] [LOG] onmessage >>  @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  628900ms] [LOG] setTimeout(claimOwnership >>  @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  628902ms] [LOG] onmessage >>  @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  628902ms] [LOG] releaseOwnership >>  @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  628953ms] [LOG] claimOwnership  - owner @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  631460ms] [LOG] onmessage >>  @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  631460ms] [LOG] releaseOwnership >>  @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  659156ms] [LOG] onmessage >>  @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  659156ms] [LOG] setTimeout(claimOwnership >>  @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  659158ms] [LOG] onmessage >>  @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  659158ms] [LOG] releaseOwnership >>  @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  659210ms] [LOG] claimOwnership  - owner @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  661992ms] [LOG] onmessage >>  @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  661992ms] [LOG] releaseOwnership >>  @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  667902ms] [LOG] onmessage >>  @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  667902ms] [LOG] setTimeout(claimOwnership >>  @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  667903ms] [LOG] onmessage >>  @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  667904ms] [LOG] releaseOwnership >>  @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  667959ms] [LOG] claimOwnership  - owner @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  670297ms] [LOG] onmessage >>  @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  670297ms] [LOG] releaseOwnership >>  @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  680717ms] [LOG] onmessage >>  @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  680717ms] [LOG] setTimeout(claimOwnership >>  @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  680719ms] [LOG] onmessage >>  @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  680719ms] [LOG] releaseOwnership >>  @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  680771ms] [LOG] claimOwnership  - owner @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  683515ms] [LOG] onmessage >>  @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  683515ms] [LOG] releaseOwnership >>  @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  689477ms] [LOG] onmessage >>  @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  689477ms] [LOG] setTimeout(claimOwnership >>  @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  689479ms] [LOG] onmessage >>  @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  689479ms] [LOG] releaseOwnership >>  @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  689528ms] [LOG] claimOwnership  - owner @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  691822ms] [LOG] onmessage >>  @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  691822ms] [LOG] releaseOwnership >>  @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  701329ms] [LOG] onmessage >>  @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  701329ms] [LOG] setTimeout(claimOwnership >>  @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  701330ms] [LOG] onmessage >>  @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  701330ms] [LOG] releaseOwnership >>  @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  701381ms] [LOG] claimOwnership  - owner @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  704247ms] [LOG] onmessage >>  @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  704247ms] [LOG] releaseOwnership >>  @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  709144ms] [LOG] onmessage >>  @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  709144ms] [LOG] setTimeout(claimOwnership >>  @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  709146ms] [LOG] onmessage >>  @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  709146ms] [LOG] releaseOwnership >>  @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  709201ms] [LOG] claimOwnership  - owner @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  711647ms] [LOG] onmessage >>  @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  711648ms] [LOG] releaseOwnership >>  @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  712398ms] [LOG] onmessage >>  @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  712398ms] [LOG] releaseOwnership >>  @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  720899ms] [LOG] onmessage >>  @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  720899ms] [LOG] setTimeout(claimOwnership >>  @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  720902ms] [LOG] onmessage >>  @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  720902ms] [LOG] releaseOwnership >>  @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  720959ms] [LOG] claimOwnership  - owner @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  723502ms] [LOG] onmessage >>  @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  723503ms] [LOG] releaseOwnership >>  @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  729342ms] [LOG] onmessage >>  @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  729342ms] [LOG] setTimeout(claimOwnership >>  @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  729343ms] [LOG] onmessage >>  @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  729344ms] [LOG] releaseOwnership >>  @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  729393ms] [LOG] claimOwnership  - owner @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  731657ms] [LOG] onmessage >>  @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  731657ms] [LOG] releaseOwnership >>  @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  732412ms] [LOG] onmessage >>  @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  732412ms] [LOG] releaseOwnership >>  @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  742656ms] [LOG] onmessage >>  @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  742656ms] [LOG] setTimeout(claimOwnership >>  @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  742658ms] [LOG] onmessage >>  @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  742658ms] [LOG] releaseOwnership >>  @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  742707ms] [LOG] claimOwnership  - owner @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  745425ms] [LOG] onmessage >>  @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  745426ms] [LOG] releaseOwnership >>  @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  749566ms] [LOG] onmessage >>  @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  749566ms] [LOG] setTimeout(claimOwnership >>  @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  749567ms] [LOG] onmessage >>  @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  749568ms] [LOG] releaseOwnership >>  @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  749616ms] [LOG] claimOwnership  - owner @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  751868ms] [LOG] onmessage >>  @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  751869ms] [LOG] releaseOwnership >>  @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  752584ms] [LOG] onmessage >>  @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  752584ms] [LOG] releaseOwnership >>  @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  761146ms] [LOG] onmessage >>  @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  761146ms] [LOG] setTimeout(claimOwnership >>  @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  761150ms] [LOG] onmessage >>  @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  761150ms] [LOG] releaseOwnership >>  @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  761202ms] [LOG] claimOwnership  - owner @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  763900ms] [LOG] onmessage >>  @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  763900ms] [LOG] releaseOwnership >>  @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  768733ms] [LOG] onmessage >>  @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  768733ms] [LOG] setTimeout(claimOwnership >>  @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  768735ms] [LOG] onmessage >>  @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  768735ms] [LOG] releaseOwnership >>  @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  768788ms] [LOG] claimOwnership  - owner @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  771483ms] [LOG] onmessage >>  @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  771483ms] [LOG] releaseOwnership >>  @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  772306ms] [LOG] onmessage >>  @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  772306ms] [LOG] releaseOwnership >>  @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  784223ms] [LOG] onmessage >>  @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  784223ms] [LOG] setTimeout(claimOwnership >>  @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  784226ms] [LOG] onmessage >>  @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  784226ms] [LOG] releaseOwnership >>  @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  784275ms] [LOG] claimOwnership  - owner @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  786823ms] [LOG] onmessage >>  @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  786823ms] [LOG] releaseOwnership >>  @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  795447ms] [LOG] onmessage >>  @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  795447ms] [LOG] setTimeout(claimOwnership >>  @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  795448ms] [LOG] onmessage >>  @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  795448ms] [LOG] releaseOwnership >>  @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  795497ms] [LOG] claimOwnership  - owner @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  797598ms] [LOG] onmessage >>  @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  797598ms] [LOG] releaseOwnership >>  @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[ 2785243ms] [ERROR] WebSocket connection to 'wss://wms.charmtracker.com/pconnect?prd=CM&i=NENQ006MzU1NjY1MDUwOTUzMDAyNzE5MDoyMDAwMTQ2MzY2MTo3MToxODcwNzE0MQ%253D%253D&xa=AAAAAAIBAAAALMQajTeC0kasoWaCmtNCZ4mXmpCimNjgAugJak6A13VhzArRXyOo8KZbdtspAAAAQdEaGt4SkggHr017RIYupoipFQk2ZNVZUGOFsPdK1Voocwsq1MrHAEj6MLD4zNx4oI578El5fLrS6t4V4hOuKNGXAAAAMQAAAAA%3D&idle=true&useagent=true&page_visible=true&tid=20001463661_CM_1793009171245_5325' failed: Error in connection establishment: net::ERR_NAME_NOT_RESOLVED @ https://wms.charmtracker.com/v2/wmsconnector.html?tabid=20001463661_CM_1793009171245_5325&wmsid=20001463661&nocache=1793009172127&frameorigin=https%3A%2F%2Fehr2.charmtracker.com:10
+[ 2792188ms] [WARNING] WebSocket connection to 'wss://wms.charmtracker.com/pconnect?prd=CM&i=NENQ006MzU1NjY1MDUwOTUzMDAyNzE5MDoyMDAwMTQ2MzY2MTo3MToxODcwNzE0MQ%253D%253D&xa=AAAAAAIBAAAALMQajTeC0kasoWaCmtNCZ4mXmpCimNjgAugJak6A13VhzArRXyOo8KZbdtspAAAAQdEaGt4SkggHr017RIYupoipFQk2ZNVZUGOFsPdK1Voocwsq1MrHAEj6MLD4zNx4oI578El5fLrS6t4V4hOuKNGXAAAAMQAAAAA%3D&idle=true&useagent=true&page_visible=true&tid=20001463661_CM_1793009171245_5325' failed: WebSocket is closed before the connection is established. @ https://wms.charmtracker.com/v2/wmsconnector.html?tabid=20001463661_CM_1793009171245_5325&wmsid=20001463661&nocache=1793009172127&frameorigin=https%3A%2F%2Fehr2.charmtracker.com:10
+[ 2799498ms] [ERROR] WebSocket connection to 'wss://wms.charmtracker.com/pconnect?prd=CM&i=NENQ006MzU1NjY1MDUwOTUzMDAyNzE5MDoyMDAwMTQ2MzY2MTo3MToxODcwNzE0MQ%253D%253D&xa=AAAAAAIBAAAALMQajTeC0kasoWaCmtNCZ4mXmpCimNjgAugJak6A13VhzArRXyOo8KZbdtspAAAAQdEaGt4SkggHr017RIYupoipFQk2ZNVZUGOFsPdK1Voocwsq1MrHAEj6MLD4zNx4oI578El5fLrS6t4V4hOuKNGXAAAAMQAAAAA%3D&idle=true&useagent=true&page_visible=true&tid=20001463661_CM_1793009171245_5325' failed: Error in connection establishment: net::ERR_INTERNET_DISCONNECTED @ https://wms.charmtracker.com/v2/wmsconnector.html?tabid=20001463661_CM_1793009171245_5325&wmsid=20001463661&nocache=1793009172127&frameorigin=https%3A%2F%2Fehr2.charmtracker.com:10
+[ 2811743ms] [ERROR] Failed to load resource: net::ERR_INTERNET_DISCONNECTED @ https://static.zohocdn.com/ichat/images/a29a4f41_spacer.gif?nocache=1793011969673:0
+[ 2823098ms] [ERROR] WebSocket connection to 'wss://wms.charmtracker.com/pconnect?prd=CM&i=NENQ006MzU1NjY1MDUwOTUzMDAyNzE5MDoyMDAwMTQ2MzY2MTo3MToxODcwNzE0MQ%253D%253D&xa=AAAAAAIBAAAALMQajTeC0kasoWaCmtNCZ4mXmpCimNjgAugJak6A13VhzArRXyOo8KZbdtspAAAAQdEaGt4SkggHr017RIYupoipFQk2ZNVZUGOFsPdK1Voocwsq1MrHAEj6MLD4zNx4oI578El5fLrS6t4V4hOuKNGXAAAAMQAAAAA%3D&idle=true&useagent=true&page_visible=true&tid=20001463661_CM_1793009171245_5325' failed: Error in connection establishment: net::ERR_NAME_NOT_RESOLVED @ https://wms.charmtracker.com/v2/wmsconnector.html?tabid=20001463661_CM_1793009171245_5325&wmsid=20001463661&nocache=1793009172127&frameorigin=https%3A%2F%2Fehr2.charmtracker.com:10
+[ 2827417ms] [ERROR] WebSocket connection to 'wss://wms.charmtracker.com/pconnect?prd=CM&i=NENQ006MzU1NjY1MDUwOTUzMDAyNzE5MDoyMDAwMTQ2MzY2MTo3MToxODcwNzE0MQ%253D%253D&xa=AAAAAAIBAAAALMQajTeC0kasoWaCmtNCZ4mXmpCimNjgAugJak6A13VhzArRXyOo8KZbdtspAAAAQdEaGt4SkggHr017RIYupoipFQk2ZNVZUGOFsPdK1Voocwsq1MrHAEj6MLD4zNx4oI578El5fLrS6t4V4hOuKNGXAAAAMQAAAAA%3D&idle=true&useagent=true&page_visible=true&tid=20001463661_CM_1793009171245_5325' failed: Error in connection establishment: net::ERR_NAME_NOT_RESOLVED @ https://wms.charmtracker.com/v2/wmsconnector.html?tabid=20001463661_CM_1793009171245_5325&wmsid=20001463661&nocache=1793009172127&frameorigin=https%3A%2F%2Fehr2.charmtracker.com:10
+[ 2832435ms] [ERROR] Failed to load resource: net::ERR_NAME_NOT_RESOLVED @ https://static.zohocdn.com/ichat/images/a29a4f41_spacer.gif?nocache=1793011997592:0
+[ 2834447ms] [ERROR] WebSocket connection to 'wss://wms.charmtracker.com/pconnect?prd=CM&i=NENQ006MzU1NjY1MDUwOTUzMDAyNzE5MDoyMDAwMTQ2MzY2MTo3MToxODcwNzE0MQ%253D%253D&xa=AAAAAAIBAAAALMQajTeC0kasoWaCmtNCZ4mXmpCimNjgAugJak6A13VhzArRXyOo8KZbdtspAAAAQdEaGt4SkggHr017RIYupoipFQk2ZNVZUGOFsPdK1Voocwsq1MrHAEj6MLD4zNx4oI578El5fLrS6t4V4hOuKNGXAAAAMQAAAAA%3D&idle=true&useagent=true&page_visible=true&tid=20001463661_CM_1793009171245_5325' failed: Error in connection establishment: net::ERR_NAME_NOT_RESOLVED @ https://wms.charmtracker.com/v2/wmsconnector.html?tabid=20001463661_CM_1793009171245_5325&wmsid=20001463661&nocache=1793009172127&frameorigin=https%3A%2F%2Fehr2.charmtracker.com:10
+[ 2838008ms] [ERROR] Failed to load resource: net::ERR_INTERNET_DISCONNECTED @ https://static.zohocdn.com/ichat/images/a29a4f41_spacer.gif?nocache=1793012004622:0
+[ 2838651ms] [ERROR] Failed to load resource: net::ERR_INTERNET_DISCONNECTED @ https://static.zohocdn.com/ichat/images/a29a4f41_spacer.gif?nocache=1793012008632:0
+[ 2844363ms] [ERROR] WebSocket connection to 'wss://wms.charmtracker.com/pconnect?prd=CM&i=NENQ006MzU1NjY1MDUwOTUzMDAyNzE5MDoyMDAwMTQ2MzY2MTo3MToxODcwNzE0MQ%253D%253D&xa=AAAAAAIBAAAALMQajTeC0kasoWaCmtNCZ4mXmpCimNjgAugJak6A13VhzArRXyOo8KZbdtspAAAAQdEaGt4SkggHr017RIYupoipFQk2ZNVZUGOFsPdK1Voocwsq1MrHAEj6MLD4zNx4oI578El5fLrS6t4V4hOuKNGXAAAAMQAAAAA%3D&idle=true&useagent=true&page_visible=true&tid=20001463661_CM_1793009171245_5325' failed: Error in connection establishment: net::ERR_NAME_NOT_RESOLVED @ https://wms.charmtracker.com/v2/wmsconnector.html?tabid=20001463661_CM_1793009171245_5325&wmsid=20001463661&nocache=1793009172127&frameorigin=https%3A%2F%2Fehr2.charmtracker.com:10
+[ 2855927ms] [ERROR] WebSocket connection to 'wss://wms.charmtracker.com/pconnect?prd=CM&i=NENQ006MzU1NjY1MDUwOTUzMDAyNzE5MDoyMDAwMTQ2MzY2MTo3MToxODcwNzE0MQ%253D%253D&xa=AAAAAAIBAAAALMQajTeC0kasoWaCmtNCZ4mXmpCimNjgAugJak6A13VhzArRXyOo8KZbdtspAAAAQdEaGt4SkggHr017RIYupoipFQk2ZNVZUGOFsPdK1Voocwsq1MrHAEj6MLD4zNx4oI578El5fLrS6t4V4hOuKNGXAAAAMQAAAAA%3D&idle=true&useagent=true&page_visible=true&tid=20001463661_CM_1793009171245_5325' failed: Error in connection establishment: net::ERR_ADDRESS_UNREACHABLE @ https://wms.charmtracker.com/v2/wmsconnector.html?tabid=20001463661_CM_1793009171245_5325&wmsid=20001463661&nocache=1793009172127&frameorigin=https%3A%2F%2Fehr2.charmtracker.com:10
+[ 2855953ms] [ERROR] Failed to load resource: net::ERR_ADDRESS_UNREACHABLE @ https://static.zohocdn.com/ichat/images/a29a4f41_spacer.gif?nocache=1793012026102:0
+[ 2897219ms] [ERROR] WebSocket connection to 'wss://wms.charmtracker.com/pconnect?prd=CM&i=NENQ006MzU1NjY1MDUwOTUzMDAyNzE5MDoyMDAwMTQ2MzY2MTo3MToxODcwNzE0MQ%253D%253D&xa=AAAAAAIBAAAALMQajTeC0kasoWaCmtNCZ4mXmpCimNjgAugJak6A13VhzArRXyOo8KZbdtspAAAAQdEaGt4SkggHr017RIYupoipFQk2ZNVZUGOFsPdK1Voocwsq1MrHAEj6MLD4zNx4oI578El5fLrS6t4V4hOuKNGXAAAAMQAAAAA%3D&idle=true&useagent=true&page_visible=true&tid=20001463661_CM_1793009171245_5325' failed: Error in connection establishment: net::ERR_NAME_NOT_RESOLVED @ https://wms.charmtracker.com/v2/wmsconnector.html?tabid=20001463661_CM_1793009171245_5325&wmsid=20001463661&nocache=1793009172127&frameorigin=https%3A%2F%2Fehr2.charmtracker.com:10
+[ 2909482ms] [ERROR] Failed to load resource: net::ERR_NAME_NOT_RESOLVED @ https://static.zohocdn.com/ichat/images/a29a4f41_spacer.gif?nocache=1793012067394:0
+[ 2957659ms] [LOG] onmessage >>  @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[ 2957659ms] [LOG] setTimeout(claimOwnership >>  @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0

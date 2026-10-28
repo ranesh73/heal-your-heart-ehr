@@ -1,0 +1,42 @@
+- generic [ref=e3]:
+  - generic [ref=e4]:
+    - generic [ref=e9]:
+      - text: HEAL YOUR HEART
+      - generic [ref=e10]: Clinical workspace
+    - generic [ref=e11]:
+      - text: Built around continuity of care
+      - heading "Every visit. One patient story." [level=1] [ref=e12]: Every visit.One patient story.
+      - paragraph [ref=e13]: A connected workspace for cardiology, EECP treatment, and the people who make care happen.
+    - generic [ref=e20]: Cardiology & EECP · Multi-branch practice management
+  - generic [ref=e22]:
+    - generic [ref=e23]: CharmHealth Practice Portal
+    - heading "Welcome to your workspace" [level=2] [ref=e24]
+    - paragraph [ref=e25]: Sign in with your staff account to continue.
+    - generic [ref=e26]:
+      - generic [ref=e27]:
+        - generic [ref=e28]: Staff email
+        - textbox "Staff email" [ref=e29]: doctor@demo.local
+      - generic [ref=e30]:
+        - generic [ref=e31]:
+          - generic [ref=e32]: Password
+          - button "Toggle password visibility" [ref=e33] [cursor=pointer]: Show
+        - textbox "Password" [ref=e37]
+      - generic [ref=e38]:
+        - generic [ref=e39] [cursor=pointer]:
+          - checkbox "Remember email" [checked] [ref=e40]
+          - generic [ref=e41]: Remember email
+        - generic [ref=e42] [cursor=pointer]: Forgot password?
+      - button "Sign in to workspace" [ref=e43] [cursor=pointer]
+    - generic [ref=e47]:
+      - text: "QUICK DEMO ROLES:"
+      - generic [ref=e48]:
+        - button "Doctor" [ref=e49] [cursor=pointer]
+        - button "Assistant" [ref=e50] [cursor=pointer]
+        - button "Therapist" [ref=e51] [cursor=pointer]
+        - button "Reception" [ref=e52] [cursor=pointer]
+        - button "Billing" [ref=e53] [cursor=pointer]
+        - button "Admin" [ref=e54] [cursor=pointer]
+    - paragraph [ref=e59]:
+      - text: Synthetic demonstration data only. Local demo credentials are in
+      - code [ref=e60]: .demo-credentials.txt
+      - text: in the project folder.

@@ -1,0 +1,243 @@
+- generic [ref=e61]:
+  - complementary [ref=e62]:
+    - button "HEAL YOUR HEART EHR workspace" [ref=e63] [cursor=pointer]:
+      - generic [ref=e67]:
+        - text: HEAL YOUR HEART
+        - generic [ref=e68]: EHR workspace
+    - generic [ref=e69]: CHARMHEALTH MODULES
+    - navigation [ref=e70]:
+      - button "Home" [ref=e71] [cursor=pointer]
+      - button "Patients" [ref=e78] [cursor=pointer]
+      - button "Calendar" [ref=e85] [cursor=pointer]
+      - button "EECP" [ref=e89] [cursor=pointer]:
+        - generic [aria-hidden] [ref=e93]: CARE
+      - button "Operations" [ref=e94] [cursor=pointer]
+      - button "Communication" [ref=e98] [cursor=pointer]
+      - button "Labs" [ref=e103] [cursor=pointer]
+      - button "Images" [ref=e107] [cursor=pointer]
+      - button "Documents" [ref=e113] [cursor=pointer]
+      - button "Injections" [ref=e118] [cursor=pointer]
+      - button "Referrals" [ref=e127] [cursor=pointer]
+      - button "Messages" [ref=e135] [cursor=pointer]
+      - button "Channels" [ref=e140] [cursor=pointer]
+      - button "Tasks" [ref=e145] [cursor=pointer]
+      - button "Billing" [ref=e150] [cursor=pointer]
+      - button "Inventory" [ref=e154] [cursor=pointer]
+      - button "Analytics" [ref=e160] [cursor=pointer]
+    - generic [ref=e164]:
+      - generic [ref=e165]: LOCAL DEVELOPMENT
+      - generic [ref=e167]:
+        - generic [ref=e168]: PD
+        - generic [ref=e169]:
+          - strong [ref=e170]: Priya Demo
+          - generic [ref=e171]: reception
+        - button "Sign out" [ref=e172] [cursor=pointer]
+  - generic [ref=e176]:
+    - banner [ref=e177]:
+      - button "HEAL YOUR HEART Practice Portal" [ref=e179] [cursor=pointer]:
+        - generic [ref=e183]:
+          - text: HEAL YOUR HEART
+          - generic [ref=e184]: Practice Portal
+      - generic [ref=e186]:
+        - textbox "Find a patient" [ref=e190]:
+          - /placeholder: Search Patient by Name / ID / Phone
+        - button "Add Patient" [ref=e191] [cursor=pointer]
+      - generic [ref=e193]:
+        - generic [ref=e194]: Enable TeleHealth
+        - combobox "Active branch" [ref=e197] [cursor=pointer]:
+          - option "Neelankarai" [selected]
+          - option "Royapettah"
+        - button "Notifications" [ref=e198] [cursor=pointer]
+        - button "Settings" [ref=e203] [cursor=pointer]
+        - button "PR Priya Demo" [ref=e208] [cursor=pointer]:
+          - generic [ref=e209]: PR
+          - generic [ref=e210]: Priya Demo
+    - main [ref=e213]:
+      - generic [ref=e214]:
+        - generic [ref=e215]:
+          - generic [ref=e216]:
+            - generic [ref=e217]: Monday, 26 October 2026
+            - heading "Your day, at a glance" [level=1] [ref=e218]
+            - paragraph [ref=e219]: Welcome, Priya Demo. Here’s what needs your attention.
+          - generic [ref=e220]:
+            - button "Register patient" [ref=e221] [cursor=pointer]
+            - button "Book appointment" [ref=e223] [cursor=pointer]
+        - generic [ref=e225]:
+          - generic [ref=e226]:
+            - heading "Application Modules" [level=2] [ref=e227]
+            - generic [ref=e228]: 14 Core Modules Available
+          - generic [ref=e229]:
+            - generic [ref=e230] [cursor=pointer]:
+              - generic [ref=e231]: "56"
+              - generic [ref=e238]: Patients
+              - generic [ref=e239]: Charts & Directory
+            - generic [ref=e240] [cursor=pointer]:
+              - generic [ref=e241]: "7"
+              - generic [ref=e245]: Calendar
+              - generic [ref=e246]: Provider Schedules
+            - generic [ref=e247] [cursor=pointer]:
+              - generic [ref=e248]: "0"
+              - generic [ref=e254]: Chart Notes
+              - generic [ref=e255]: SOAP & Encounters
+            - generic [ref=e256] [cursor=pointer]:
+              - generic [ref=e257]: Active
+              - generic [ref=e261]: Labs
+              - generic [ref=e262]: Biomarkers & Orders
+            - generic [ref=e263] [cursor=pointer]:
+              - generic [ref=e264]: DICOM
+              - generic [ref=e270]: Images
+              - generic [ref=e271]: Echo, ECG & CAG
+            - generic [ref=e272] [cursor=pointer]:
+              - generic [ref=e273]: Files
+              - generic [ref=e278]: Documents
+              - generic [ref=e279]: Intake & Records
+            - generic [ref=e280] [cursor=pointer]:
+              - generic [ref=e281]: MAR
+              - generic [ref=e290]: Injections
+              - generic [ref=e291]: MAR & Vaccines
+            - generic [ref=e292] [cursor=pointer]:
+              - generic [ref=e293]: Care
+              - generic [ref=e301]: Referrals
+              - generic [ref=e302]: Specialist In/Out
+            - generic [ref=e303] [cursor=pointer]:
+              - generic [ref=e304]: "3"
+              - generic [ref=e309]: Messages
+              - generic [ref=e310]: Secure Inquiries
+            - generic [ref=e311] [cursor=pointer]:
+              - generic [ref=e312]: "4"
+              - generic [ref=e317]: Channels
+              - generic [ref=e318]: Team Chat Rooms
+            - generic [ref=e319] [cursor=pointer]:
+              - generic [ref=e320]: "3"
+              - generic [ref=e325]: Tasks
+              - generic [ref=e326]: Follow-ups & To-dos
+            - generic [ref=e327] [cursor=pointer]:
+              - generic [ref=e328]: INR
+              - generic [ref=e332]: Billing
+              - generic [ref=e333]: Invoices & Ledger
+            - generic [ref=e334] [cursor=pointer]:
+              - generic [ref=e335]: Stock
+              - generic [ref=e341]: Inventory
+              - generic [ref=e342]: Supplies & Stock
+            - generic [ref=e343] [cursor=pointer]:
+              - generic [ref=e344]: Reports
+              - generic [ref=e348]: Analytics
+              - generic [ref=e349]: Clinical Reports
+        - generic [ref=e350]:
+          - generic [ref=e351]:
+            - generic [ref=e352]:
+              - generic [ref=e353]: Appointments today
+              - generic [ref=e354]: "01"
+            - strong [ref=e355]: "7"
+            - generic [ref=e356]: Across this branch
+          - generic [ref=e357]:
+            - generic [ref=e358]:
+              - generic [ref=e359]: Waiting for care
+              - generic [ref=e360]: "02"
+            - strong [ref=e361]: "2"
+            - generic [ref=e362]: Checked in and ready
+          - generic [ref=e363]:
+            - generic [ref=e364]:
+              - generic [ref=e365]: Pending tasks
+              - generic [ref=e366]: "03"
+            - strong [ref=e367]: "3"
+            - generic [ref=e368]: Team follow-up work
+          - generic [ref=e369]:
+            - generic [ref=e370]:
+              - generic [ref=e371]: Active EECP plans
+              - generic [ref=e372]: "04"
+            - strong [ref=e373]: "8"
+            - generic [ref=e374]: Continuity of treatment
+        - generic [ref=e375]:
+          - generic [ref=e376]:
+            - generic [ref=e377]:
+              - generic [ref=e378]:
+                - heading "Today's care queue" [level=2] [ref=e379]
+                - paragraph [ref=e380]: A shared view of arrivals, consultations, and treatment
+              - button "View schedule" [ref=e381] [cursor=pointer]
+            - table [ref=e386]:
+              - rowgroup [ref=e387]:
+                - row [ref=e388]:
+                  - columnheader "Time" [ref=e389]
+                  - columnheader "Patient" [ref=e390]
+                  - columnheader "Visit" [ref=e391]
+                  - columnheader "Status" [ref=e392]
+              - rowgroup [ref=e393]:
+                - row [ref=e394]:
+                  - cell "09:00 am" [ref=e395]
+                  - cell [ref=e396]:
+                    - button "Aarav Demo" [ref=e397] [cursor=pointer]
+                  - cell "New consultation Dr. Ananya Demo" [ref=e398]:
+                    - text: New consultation
+                    - generic [ref=e399]: Dr. Ananya Demo
+                  - cell "checked in" [ref=e400]
+                - row [ref=e402]:
+                  - cell "10:00 am" [ref=e403]
+                  - cell [ref=e404]:
+                    - button "Mira Sample" [ref=e405] [cursor=pointer]
+                  - cell "Follow-up Dr. Ananya Demo" [ref=e406]:
+                    - text: Follow-up
+                    - generic [ref=e407]: Dr. Ananya Demo
+                  - cell "checked in" [ref=e408]
+                - row [ref=e410]:
+                  - cell "11:00 am" [ref=e411]
+                  - cell [ref=e412]:
+                    - button "Dev Example" [ref=e413] [cursor=pointer]
+                  - cell "New consultation Dr. Ananya Demo" [ref=e414]:
+                    - text: New consultation
+                    - generic [ref=e415]: Dr. Ananya Demo
+                  - cell "confirmed" [ref=e416]
+                - row [ref=e418]:
+                  - cell "11:00 am" [ref=e419]
+                  - cell [ref=e420]:
+                    - button "Aarav Demo" [ref=e421] [cursor=pointer]
+                  - cell "EECP session Kavin Demo" [ref=e422]:
+                    - text: EECP session
+                    - generic [ref=e423]: Kavin Demo
+                  - cell "confirmed" [ref=e424]
+                - row [ref=e426]:
+                  - cell "12:00 pm" [ref=e427]
+                  - cell [ref=e428]:
+                    - button "Leela Demo" [ref=e429] [cursor=pointer]
+                  - cell "Follow-up Dr. Ananya Demo" [ref=e430]:
+                    - text: Follow-up
+                    - generic [ref=e431]: Dr. Ananya Demo
+                  - cell "confirmed" [ref=e432]
+                - row [ref=e434]:
+                  - cell "01:00 pm" [ref=e435]
+                  - cell [ref=e436]:
+                    - button "Arjun Sample" [ref=e437] [cursor=pointer]
+                  - cell "New consultation Dr. Ananya Demo" [ref=e438]:
+                    - text: New consultation
+                    - generic [ref=e439]: Dr. Ananya Demo
+                  - cell "confirmed" [ref=e440]
+                - row [ref=e442]:
+                  - cell "02:00 pm" [ref=e443]
+                  - cell [ref=e444]:
+                    - button "Tara Example" [ref=e445] [cursor=pointer]
+                  - cell "Follow-up Dr. Ananya Demo" [ref=e446]:
+                    - text: Follow-up
+                    - generic [ref=e447]: Dr. Ananya Demo
+                  - cell "confirmed" [ref=e448]
+          - generic [ref=e450]:
+            - generic [ref=e451]:
+              - generic [ref=e453]:
+                - heading "Your attention list" [level=2] [ref=e454]
+                - paragraph [ref=e455]: Assigned tasks and recalls
+              - button "Arrange follow-up appointment Aarav Demo · normal" [ref=e456] [cursor=pointer]:
+                - generic [ref=e458]:
+                  - strong [ref=e459]: Arrange follow-up appointment
+                  - generic [ref=e460]: Aarav Demo · normal
+            - generic [ref=e463]:
+              - heading "One treatment. Continuous care." [level=2] [ref=e466]
+              - paragraph [ref=e467]: Review the next EECP session with its plan, consent, and progress in context.
+              - button "Open EECP workspace" [ref=e468] [cursor=pointer]
+        - generic [ref=e472]: Development system · Synthetic patients · No live prescribing, payments, or external messaging
+        - generic [ref=e476]:
+          - generic [ref=e477]:
+            - button "Pins" [ref=e478] [cursor=pointer]
+            - button "Chats" [ref=e482] [cursor=pointer]
+            - button "Channels" [ref=e486] [cursor=pointer]
+            - button "Threads" [ref=e491] [cursor=pointer]
+            - button "People" [ref=e497] [cursor=pointer]
+          - generic [ref=e504]: Heal Your Heart EHR · Multi-Branch Practice Portal

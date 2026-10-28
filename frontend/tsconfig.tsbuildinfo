@@ -1,0 +1,1 @@
+{"root":["./src/api.ts","./src/clinicalmodules.tsx","./src/context.tsx","./src/eecp.tsx","./src/forms.tsx","./src/main.tsx","./src/operations.tsx","./src/patients.tsx","./src/ui.tsx","./vite.config.ts","./tests/capture.spec.ts","./tests/ui.spec.ts","./playwright.config.ts"],"version":"5.7.3"}

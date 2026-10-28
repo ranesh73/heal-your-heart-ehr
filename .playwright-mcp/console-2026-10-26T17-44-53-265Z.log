@@ -1,0 +1,12 @@
+[     677ms] [ERROR] Failed to load resource: the server responded with a status of 401 (Unauthorized) @ http://127.0.0.1:8000/api/auth/me:0
+[  478870ms] Error: Minified React error #310; visit https://react.dev/errors/310 for the full message or use the non-minified dev environment for full errors and additional helpful warnings.
+    at Pe (http://127.0.0.1:8000/assets/index-Bsxgx03b.js:24:51063)
+    at Hs (http://127.0.0.1:8000/assets/index-Bsxgx03b.js:24:52158)
+    at Object.useState (http://127.0.0.1:8000/assets/index-Bsxgx03b.js:24:64459)
+    at m.useState (http://127.0.0.1:8000/assets/query-BdVT5ode.js:17:7737)
+    at hx (http://127.0.0.1:8000/assets/index-Bsxgx03b.js:270:91017)
+    at Bu (http://127.0.0.1:8000/assets/index-Bsxgx03b.js:24:49782)
+    at nr (http://127.0.0.1:8000/assets/index-Bsxgx03b.js:24:72833)
+    at fm (http://127.0.0.1:8000/assets/index-Bsxgx03b.js:24:83830)
+    at Wm (http://127.0.0.1:8000/assets/index-Bsxgx03b.js:24:129527)
+    at Nv (http://127.0.0.1:8000/assets/index-Bsxgx03b.js:24:128571)

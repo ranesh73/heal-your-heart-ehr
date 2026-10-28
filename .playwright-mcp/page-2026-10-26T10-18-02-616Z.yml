@@ -1,0 +1,118 @@
+- generic [active] [ref=f80e1]:
+  - generic:
+    - banner [ref=f80e2]:
+      - generic [ref=f80e3] [cursor=pointer]
+      - generic "Home":
+        - img "CharmEHR" [ref=f80e6] [cursor=pointer]
+      - generic [ref=f80e7]:
+        - generic "Replace Office Visits with TeleHealth Appointments. Click here to Enable" [ref=f80e8] [cursor=pointer]: Enable TeleHealth
+        - generic [ref=f80e11] [cursor=pointer]:
+          - generic [ref=f80e13]: Heal Your Heart Neelankarai - ..
+          - generic "Choose Facility" [ref=f80e14]
+        - generic "Member Notifications" [ref=f80e16] [cursor=pointer]
+        - generic "Settings" [ref=f80e17] [cursor=pointer]
+        - img "photo" [ref=f80e20] [cursor=pointer]
+    - generic [ref=f80e22]:
+      - generic [ref=f80e23] [cursor=pointer]
+      - textbox
+      - textbox "Search Patient by Name / ID" [ref=f80e24]
+    - generic [ref=f80e25]:
+      - generic [ref=f80e27]:
+        - generic:
+          - generic:
+            - generic:
+              - generic [ref=f80e28]:
+                - generic [ref=f80e29]:
+                  - generic [ref=f80e30] [cursor=pointer]: Lab Results
+                  - generic [ref=f80e31] [cursor=pointer]: Lab Orders
+                - generic "Add new lab result" [ref=f80e34] [cursor=pointer]: Lab Result
+              - generic [ref=f80e36]:
+                - generic [ref=f80e38]:
+                  - generic [ref=f80e39]:
+                    - generic [ref=f80e40]: Reviewer
+                    - combobox [ref=f80e41]:
+                      - option "All"
+                      - option "Aakash Dr"
+                      - option "Aksharra P"
+                      - option "Chandra Mohan R"
+                      - option "Dr.Raja Ganesh R"
+                      - option "Dr. Ebinesh Joel"
+                      - option "Dr. Elakkiya M"
+                      - option "Hariharan S"
+                      - option "Leelarani H"
+                      - option "lisiya R"
+                      - option "Nishal Roshan NM"
+                      - option "Dr. Ramasamy S"
+                      - option "Ranesh B" [selected]
+                      - option "Sanjana K"
+                      - option "Susan Sekar"
+                      - option "Vinoth M"
+                  - generic [ref=f80e42]:
+                    - generic [ref=f80e43]: Status
+                    - combobox [ref=f80e44]:
+                      - option "Unsigned" [selected]
+                      - option "Signed"
+                  - generic [ref=f80e45]:
+                    - generic [ref=f80e46]: Search
+                    - generic [ref=f80e47]:
+                      - generic [ref=f80e48] [cursor=pointer]
+                      - textbox "Search Patient by Name / ID" [ref=f80e50]
+                - table [ref=f80e52]:
+                  - rowgroup [ref=f80e53]:
+                    - row [ref=f80e54]:
+                      - columnheader "Patient" [ref=f80e55] [cursor=pointer]
+                      - columnheader "Tests" [ref=f80e58]
+                      - columnheader "Lab" [ref=f80e59]
+                      - columnheader "Date" [ref=f80e60] [cursor=pointer]
+                      - columnheader "Param Interpretation" [ref=f80e63]
+                      - columnheader [ref=f80e64]
+                  - rowgroup [ref=f80e65]:
+                    - row [ref=f80e66]:
+                      - cell "No lab results for review" [ref=f80e67]
+      - generic [ref=f80e68]:
+        - list [ref=f80e69]:
+          - listitem [ref=f80e70] [cursor=pointer]:
+            - generic "Charm Assist" [ref=f80e71]
+        - list [ref=f80e72]:
+          - listitem "Refer a Friend" [ref=f80e73] [cursor=pointer]
+          - listitem "Add-ons" [ref=f80e75] [cursor=pointer]
+          - listitem "Help" [ref=f80e77] [cursor=pointer]
+          - listitem "Choose your preferred view" [ref=f80e79] [cursor=pointer]
+          - listitem "Keyboard Shortcuts (Shift+K)" [ref=f80e81] [cursor=pointer]
+  - generic [ref=f80e83]:
+    - generic [ref=f80e85]:
+      - generic [ref=f80e86]: "+1"
+      - textbox [ref=f80e87]
+      - generic [ref=f80e88] [cursor=pointer]
+    - generic [ref=f80e89]:
+      - generic [ref=f80e90] [cursor=pointer]: "1"
+      - generic [ref=f80e91] [cursor=pointer]: "2"
+      - generic [ref=f80e92] [cursor=pointer]: "3"
+      - generic [ref=f80e93] [cursor=pointer]: "4"
+      - generic [ref=f80e94] [cursor=pointer]: "5"
+      - generic [ref=f80e95] [cursor=pointer]: "6"
+      - generic [ref=f80e96] [cursor=pointer]: "7"
+      - generic [ref=f80e97] [cursor=pointer]: "8"
+      - generic [ref=f80e98] [cursor=pointer]: "9"
+      - generic [ref=f80e100] [cursor=pointer]: "0"
+      - generic [ref=f80e102] [cursor=pointer]
+  - generic [ref=f80e104]:
+    - generic [ref=f80e106]:
+      - text:       
+      - menubar [ref=f80e107]:
+        - button "pins" [ref=f80e108] [cursor=pointer]:
+          - text: 
+          - generic: My Pins
+        - button "chats" [ref=f80e109] [cursor=pointer]:
+          - text: 
+          - generic: Chats
+        - button "channels" [ref=f80e110] [cursor=pointer]:
+          - text: 
+          - generic: Channels
+        - button "threads" [ref=f80e111] [cursor=pointer]:
+          - text: 
+          - generic: Threads
+        - button "contacts" [ref=f80e112] [cursor=pointer]:
+          - text: 
+          - generic: People
+    - text:   

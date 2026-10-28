@@ -1,0 +1,630 @@
+- generic [ref=f32e1]:
+  - generic:
+    - banner [ref=f32e2]:
+      - generic [ref=f32e3] [cursor=pointer]
+      - generic "Home":
+        - img "CharmEHR" [ref=f32e6] [cursor=pointer]
+      - generic [ref=f32e7]:
+        - generic "Replace Office Visits with TeleHealth Appointments. Click here to Enable" [ref=f32e8] [cursor=pointer]: Enable TeleHealth
+        - generic [ref=f32e11] [cursor=pointer]:
+          - generic [ref=f32e13]: Heal Your Heart Neelankarai - ..
+          - generic "Choose Facility" [ref=f32e14]
+        - generic "Member Notifications" [ref=f32e16] [cursor=pointer]
+        - generic "Settings" [ref=f32e17] [cursor=pointer]
+        - img "photo" [ref=f32e20] [cursor=pointer]
+    - generic [ref=f32e22]:
+      - generic [ref=f32e23] [cursor=pointer]
+      - textbox
+      - textbox "Search Patient by Name / ID" [ref=f32e24]
+    - generic [ref=f32e26]:
+      - generic [ref=f32e27]:
+        - generic:
+          - generic:
+            - generic:
+              - generic [ref=f32e28]:
+                - generic [ref=f32e29]:
+                  - generic [ref=f32e30] [cursor=pointer]: Dashboard
+                  - generic [ref=f32e31] [cursor=pointer]: Invoices
+                  - generic [ref=f32e32] [cursor=pointer]: Receipts
+                - heading [level=2]
+                - generic [ref=f32e80]: Payment
+              - generic [ref=f32e33]:
+                - generic:
+                  - generic:
+                    - generic [ref=f32e965]:
+                      - generic [ref=f32e966]:
+                        - generic [ref=f32e967]:
+                          - generic [ref=f32e968]: Date Range
+                          - combobox [ref=f32e969]:
+                            - option "Today"
+                            - option "Last 7 days"
+                            - option "This Month"
+                            - option "This Quarter"
+                            - option "This Year"
+                            - option "────────────" [disabled]
+                            - option "Yesterday"
+                            - option "Previous Month"
+                            - option "Previous Quarter"
+                            - option "Previous Year"
+                            - option "────────────" [disabled]
+                            - option "All" [selected]
+                        - generic [ref=f32e970]:
+                          - generic [ref=f32e971]: Search Options
+                          - generic [ref=f32e972]:
+                            - generic [ref=f32e973] [cursor=pointer]
+                            - textbox "Receipt Number" [ref=f32e975]
+                        - generic [ref=f32e976]:
+                          - generic [ref=f32e977]: Patient
+                          - generic [ref=f32e978]:
+                            - generic [ref=f32e979] [cursor=pointer]
+                            - textbox "Search Patient by Name / ID" [active] [ref=f32e981]
+                      - generic "Receipt Watchlist" [ref=f32e983] [cursor=pointer]
+                    - generic [ref=f32e986]:
+                      - button "Print" [ref=f32e988] [cursor=pointer]
+                      - button "Send Receipt" [ref=f32e992] [cursor=pointer]
+                    - generic:
+                      - table [ref=f32e997]:
+                        - rowgroup [ref=f32e998]:
+                          - row [ref=f32e999]:
+                            - columnheader [ref=f32e1000]
+                            - columnheader "Payment Date" [ref=f32e1003] [cursor=pointer]
+                            - columnheader "Patient Name" [ref=f32e1004] [cursor=pointer]
+                            - 'columnheader "Receipt #" [ref=f32e1005] [cursor=pointer]'
+                            - columnheader "Amount" [ref=f32e1006]
+                            - columnheader "Payment Method" [ref=f32e1007] [cursor=pointer]
+                            - columnheader "Refund Amount" [ref=f32e1008]
+                            - columnheader "Unused Payment" [ref=f32e1009]
+                            - columnheader [ref=f32e1010]
+                        - rowgroup [ref=f32e1011]:
+                          - row [ref=f32e1012] [cursor=pointer]:
+                            - cell [ref=f32e1013]
+                            - cell "Oct 26, 2026" [ref=f32e1016]
+                            - cell "Seerangaie K [HUHNKR6627]" [ref=f32e1018]
+                            - cell "NELREC-28875" [ref=f32e1019]
+                            - cell "1500.00" [ref=f32e1020]
+                            - cell "UPI" [ref=f32e1021]
+                            - cell "0.00" [ref=f32e1023]
+                            - cell "0.00" [ref=f32e1024]
+                            - cell [ref=f32e1025]
+                          - row [ref=f32e1027] [cursor=pointer]:
+                            - cell [ref=f32e1028]
+                            - cell "Oct 26, 2026" [ref=f32e1031]
+                            - cell "Jayanthi K [HUHRYP0168]" [ref=f32e1033]
+                            - cell "NELREC-28874" [ref=f32e1034]
+                            - cell "9500.00" [ref=f32e1035]
+                            - cell "Cash" [ref=f32e1036]
+                            - cell "0.00" [ref=f32e1038]
+                            - cell "0.00" [ref=f32e1039]
+                            - cell [ref=f32e1040]
+                          - row [ref=f32e1042] [cursor=pointer]:
+                            - cell [ref=f32e1043]
+                            - cell "Oct 26, 2026" [ref=f32e1046]
+                            - cell "Suresh Vempalli [HUHRYP2337]" [ref=f32e1048]
+                            - cell "NELREC-28873" [ref=f32e1049]
+                            - cell "2500.00" [ref=f32e1050]
+                            - cell "UPI" [ref=f32e1051]
+                            - cell "0.00" [ref=f32e1053]
+                            - cell "0.00" [ref=f32e1054]
+                            - cell [ref=f32e1055]
+                          - row [ref=f32e1057] [cursor=pointer]:
+                            - cell [ref=f32e1058]
+                            - cell "Oct 26, 2026" [ref=f32e1061]
+                            - cell "Uma Thirumurthy [HUHNKR7170]" [ref=f32e1063]
+                            - cell "NELREC-28872" [ref=f32e1064]
+                            - cell "5600.00" [ref=f32e1065]
+                            - cell "UPI" [ref=f32e1066]
+                            - cell "0.00" [ref=f32e1068]
+                            - cell "0.00" [ref=f32e1069]
+                            - cell [ref=f32e1070]
+                          - row [ref=f32e1072] [cursor=pointer]:
+                            - cell [ref=f32e1073]
+                            - cell "Oct 26, 2026" [ref=f32e1076]
+                            - cell "Uma Thirumurthy [HUHNKR7170]" [ref=f32e1078]
+                            - cell "NELREC-28871" [ref=f32e1079]
+                            - cell "2000.00" [ref=f32e1080]
+                            - cell "UPI" [ref=f32e1081]
+                            - cell "0.00" [ref=f32e1083]
+                            - cell "0.00" [ref=f32e1084]
+                            - cell [ref=f32e1085]
+                          - row [ref=f32e1087] [cursor=pointer]:
+                            - cell [ref=f32e1088]
+                            - cell "Oct 26, 2026" [ref=f32e1091]
+                            - cell "Parvathy Dhakshanamoorthy [HUHNKR6323]" [ref=f32e1093]
+                            - cell "NELREC-28870" [ref=f32e1094]
+                            - cell "2500.00" [ref=f32e1095]
+                            - cell "Cash" [ref=f32e1096]
+                            - cell "0.00" [ref=f32e1098]
+                            - cell "0.00" [ref=f32e1099]
+                            - cell [ref=f32e1100]
+                          - row [ref=f32e1102] [cursor=pointer]:
+                            - cell [ref=f32e1103]
+                            - cell "Oct 26, 2026" [ref=f32e1106]
+                            - cell "Kalpagam Ramasamy [HUHNKR7151]" [ref=f32e1108]
+                            - cell "NELREC-28869" [ref=f32e1109]
+                            - cell "65000.00" [ref=f32e1110]
+                            - cell "Cheque" [ref=f32e1111]
+                            - cell "0.00" [ref=f32e1113]
+                            - cell "0.00" [ref=f32e1114]
+                            - cell [ref=f32e1115]
+                          - row [ref=f32e1117] [cursor=pointer]:
+                            - cell [ref=f32e1118]
+                            - cell "Oct 26, 2026" [ref=f32e1121]
+                            - cell "Shanthakumar Sathappan [HUHNKR6576]" [ref=f32e1123]
+                            - cell "NELREC-28868" [ref=f32e1124]
+                            - cell "2000.00" [ref=f32e1125]
+                            - cell "UPI" [ref=f32e1126]
+                            - cell "0.00" [ref=f32e1128]
+                            - cell "0.00" [ref=f32e1129]
+                            - cell [ref=f32e1130]
+                          - row [ref=f32e1132] [cursor=pointer]:
+                            - cell [ref=f32e1133]
+                            - cell "Oct 26, 2026" [ref=f32e1136]
+                            - cell "Shanthakumar Sathappan [HUHNKR6576]" [ref=f32e1138]
+                            - cell "NELREC-28867" [ref=f32e1139]
+                            - cell "2400.00" [ref=f32e1140]
+                            - cell "UPI" [ref=f32e1141]
+                            - cell "0.00" [ref=f32e1143]
+                            - cell "0.00" [ref=f32e1144]
+                            - cell [ref=f32e1145]
+                          - row [ref=f32e1147] [cursor=pointer]:
+                            - cell [ref=f32e1148]
+                            - cell "Oct 26, 2026" [ref=f32e1151]
+                            - cell "Shanthakumar Sathappan [HUHNKR6576]" [ref=f32e1153]
+                            - cell "NELREC-28866" [ref=f32e1154]
+                            - cell "3000.00" [ref=f32e1155]
+                            - cell "Cash" [ref=f32e1156]
+                            - cell "0.00" [ref=f32e1158]
+                            - cell "0.00" [ref=f32e1159]
+                            - cell [ref=f32e1160]
+                          - row [ref=f32e1162] [cursor=pointer]:
+                            - cell [ref=f32e1163]
+                            - cell "Oct 26, 2026" [ref=f32e1166]
+                            - cell "Sandipan R [HUHNKR2450]" [ref=f32e1168]
+                            - cell "NELREC-28865" [ref=f32e1169]
+                            - cell "17500.00" [ref=f32e1170]
+                            - cell "UPI" [ref=f32e1171]
+                            - cell "0.00" [ref=f32e1173]
+                            - cell "0.00" [ref=f32e1174]
+                            - cell [ref=f32e1175]
+                          - row [ref=f32e1177] [cursor=pointer]:
+                            - cell [ref=f32e1178]
+                            - cell "Oct 26, 2026" [ref=f32e1181]
+                            - cell "Parveen S E [HUHNKR2275]" [ref=f32e1183]
+                            - cell "NELREC-28864" [ref=f32e1184]
+                            - cell "500.00" [ref=f32e1185]
+                            - cell "Cash" [ref=f32e1186]
+                            - cell "0.00" [ref=f32e1188]
+                            - cell "0.00" [ref=f32e1189]
+                            - cell [ref=f32e1190]
+                          - row [ref=f32e1192] [cursor=pointer]:
+                            - cell [ref=f32e1193]
+                            - cell "Oct 26, 2026" [ref=f32e1196]
+                            - cell "Shankar R [HUHNKR3358]" [ref=f32e1198]
+                            - cell "NELREC-28863" [ref=f32e1199]
+                            - cell "500.00" [ref=f32e1200]
+                            - cell "UPI" [ref=f32e1201]
+                            - cell "0.00" [ref=f32e1203]
+                            - cell "0.00" [ref=f32e1204]
+                            - cell [ref=f32e1205]
+                          - row [ref=f32e1207] [cursor=pointer]:
+                            - cell [ref=f32e1208]
+                            - cell "Oct 26, 2026" [ref=f32e1211]
+                            - cell "Shankar R [HUHNKR3358]" [ref=f32e1213]
+                            - cell "NELREC-28862" [ref=f32e1214]
+                            - cell "3400.00" [ref=f32e1215]
+                            - cell "UPI" [ref=f32e1216]
+                            - cell "0.00" [ref=f32e1218]
+                            - cell "0.00" [ref=f32e1219]
+                            - cell [ref=f32e1220]
+                          - row [ref=f32e1222] [cursor=pointer]:
+                            - cell [ref=f32e1223]
+                            - cell "Oct 26, 2026" [ref=f32e1226]
+                            - cell "Jayanthi K [HUHRYP0168]" [ref=f32e1228]
+                            - cell "NELREC-28861" [ref=f32e1229]
+                            - cell "3500.00" [ref=f32e1230]
+                            - cell "UPI" [ref=f32e1231]
+                            - cell "0.00" [ref=f32e1233]
+                            - cell "0.00" [ref=f32e1234]
+                            - cell [ref=f32e1235]
+                          - row [ref=f32e1237] [cursor=pointer]:
+                            - cell [ref=f32e1238]
+                            - cell "Oct 26, 2026" [ref=f32e1241]
+                            - cell "Sandipan R [HUHNKR2450]" [ref=f32e1243]
+                            - cell "NELREC-28860" [ref=f32e1244]
+                            - cell "500.00" [ref=f32e1245]
+                            - cell "UPI" [ref=f32e1246]
+                            - cell "0.00" [ref=f32e1248]
+                            - cell "0.00" [ref=f32e1249]
+                            - cell [ref=f32e1250]
+                          - row [ref=f32e1252] [cursor=pointer]:
+                            - cell [ref=f32e1253]
+                            - cell "Oct 26, 2026" [ref=f32e1256]
+                            - cell "Sandipan R [HUHNKR2450]" [ref=f32e1258]
+                            - cell "NELREC-28859" [ref=f32e1259]
+                            - cell "6300.00" [ref=f32e1260]
+                            - cell "UPI" [ref=f32e1261]
+                            - cell "0.00" [ref=f32e1263]
+                            - cell "0.00" [ref=f32e1264]
+                            - cell [ref=f32e1265]
+                          - row [ref=f32e1267] [cursor=pointer]:
+                            - cell [ref=f32e1268]
+                            - cell "Oct 26, 2026" [ref=f32e1271]
+                            - cell "Jayanthi Sangameshwaran [HUHNKR3708]" [ref=f32e1273]
+                            - cell "NELREC-28858" [ref=f32e1274]
+                            - cell "750.00" [ref=f32e1275]
+                            - cell "UPI" [ref=f32e1276]
+                            - cell "0.00" [ref=f32e1278]
+                            - cell "0.00" [ref=f32e1279]
+                            - cell [ref=f32e1280]
+                          - row [ref=f32e1282] [cursor=pointer]:
+                            - cell [ref=f32e1283]
+                            - cell "Oct 26, 2026" [ref=f32e1286]
+                            - cell "Jayanthi Sangameshwaran [HUHNKR3708]" [ref=f32e1288]
+                            - cell "NELREC-28857" [ref=f32e1289]
+                            - cell "500.00" [ref=f32e1290]
+                            - cell "UPI" [ref=f32e1291]
+                            - cell "0.00" [ref=f32e1293]
+                            - cell "0.00" [ref=f32e1294]
+                            - cell [ref=f32e1295]
+                          - row [ref=f32e1297] [cursor=pointer]:
+                            - cell [ref=f32e1298]
+                            - cell "Oct 26, 2026" [ref=f32e1301]
+                            - cell "James Kulandairaj I [HUHNKR3283]" [ref=f32e1303]
+                            - cell "NELREC-28856" [ref=f32e1304]
+                            - cell "6900.00" [ref=f32e1305]
+                            - cell "UPI" [ref=f32e1306]
+                            - cell "0.00" [ref=f32e1308]
+                            - cell "0.00" [ref=f32e1309]
+                            - cell [ref=f32e1310]
+                          - row [ref=f32e1312] [cursor=pointer]:
+                            - cell [ref=f32e1313]
+                            - cell "Oct 26, 2026" [ref=f32e1316]
+                            - cell "Footman R [HUHRYP0945]" [ref=f32e1318]
+                            - cell "NELREC-28855" [ref=f32e1319]
+                            - cell "2500.00" [ref=f32e1320]
+                            - cell "Cash" [ref=f32e1321]
+                            - cell "0.00" [ref=f32e1323]
+                            - cell "0.00" [ref=f32e1324]
+                            - cell [ref=f32e1325]
+                          - row [ref=f32e1327] [cursor=pointer]:
+                            - cell [ref=f32e1328]
+                            - cell "Oct 24, 2026" [ref=f32e1331]
+                            - cell "Mohammed Nazer Jabbar Caadier [HUHNKR7006]" [ref=f32e1333]
+                            - cell "NELREC-28854" [ref=f32e1334]
+                            - cell "1000.00" [ref=f32e1335]
+                            - cell "UPI" [ref=f32e1336]
+                            - cell "0.00" [ref=f32e1338]
+                            - cell "0.00" [ref=f32e1339]
+                            - cell [ref=f32e1340]
+                          - row [ref=f32e1342] [cursor=pointer]:
+                            - cell [ref=f32e1343]
+                            - cell "Oct 24, 2026" [ref=f32e1346]
+                            - cell "Jayanthi K [HUHRYP0168]" [ref=f32e1348]
+                            - cell "NELREC-28853" [ref=f32e1349]
+                            - cell "10000.00" [ref=f32e1350]
+                            - cell "UPI" [ref=f32e1351]
+                            - cell "0.00" [ref=f32e1353]
+                            - cell "0.00" [ref=f32e1354]
+                            - cell [ref=f32e1355]
+                          - row [ref=f32e1357] [cursor=pointer]:
+                            - cell [ref=f32e1358]
+                            - cell "Oct 24, 2026" [ref=f32e1361]
+                            - cell "Sampath Kaliyaperumal [HUHNKR3864]" [ref=f32e1363]
+                            - cell "NELREC-28852" [ref=f32e1364]
+                            - cell "10000.00" [ref=f32e1365]
+                            - cell "UPI" [ref=f32e1366]
+                            - cell "0.00" [ref=f32e1368]
+                            - cell "10000.00" [ref=f32e1369]
+                            - cell [ref=f32e1370]
+                          - row [ref=f32e1372] [cursor=pointer]:
+                            - cell [ref=f32e1373]
+                            - cell "Oct 24, 2026" [ref=f32e1376]
+                            - cell "Hafeezur Rahman [HUHNKR7168]" [ref=f32e1378]
+                            - cell "NELREC-28851" [ref=f32e1379]
+                            - cell "1000.00" [ref=f32e1380]
+                            - cell "UPI" [ref=f32e1381]
+                            - cell "0.00" [ref=f32e1383]
+                            - cell "0.00" [ref=f32e1384]
+                            - cell [ref=f32e1385]
+                          - row [ref=f32e1387] [cursor=pointer]:
+                            - cell [ref=f32e1388]
+                            - cell "Oct 24, 2026" [ref=f32e1391]
+                            - cell "Perumal Ranganathan [HUHNKR6604]" [ref=f32e1393]
+                            - cell "NELREC-28850" [ref=f32e1394]
+                            - cell "500.00" [ref=f32e1395]
+                            - cell "UPI" [ref=f32e1396]
+                            - cell "0.00" [ref=f32e1398]
+                            - cell "0.00" [ref=f32e1399]
+                            - cell [ref=f32e1400]
+                          - row [ref=f32e1402] [cursor=pointer]:
+                            - cell [ref=f32e1403]
+                            - cell "Oct 24, 2026" [ref=f32e1406]
+                            - cell "Harish Kumar Gopalakrishnan [HUHNKR7162]" [ref=f32e1408]
+                            - cell "NELREC-28849" [ref=f32e1409]
+                            - cell "400.00" [ref=f32e1410]
+                            - cell "Cash" [ref=f32e1411]
+                            - cell "0.00" [ref=f32e1413]
+                            - cell "0.00" [ref=f32e1414]
+                            - cell [ref=f32e1415]
+                          - row [ref=f32e1417] [cursor=pointer]:
+                            - cell [ref=f32e1418]
+                            - cell "Oct 24, 2026" [ref=f32e1421]
+                            - cell "Harish Kumar Gopalakrishnan [HUHNKR7162]" [ref=f32e1423]
+                            - cell "NELREC-28848" [ref=f32e1424]
+                            - cell "1500.00" [ref=f32e1425]
+                            - cell "Cash" [ref=f32e1426]
+                            - cell "0.00" [ref=f32e1428]
+                            - cell "0.00" [ref=f32e1429]
+                            - cell [ref=f32e1430]
+                          - row [ref=f32e1432] [cursor=pointer]:
+                            - cell [ref=f32e1433]
+                            - cell "Oct 24, 2026" [ref=f32e1436]
+                            - cell "Prakashkumar S [HUHNKR4197]" [ref=f32e1438]
+                            - cell "NELREC-28847" [ref=f32e1439]
+                            - cell "3500.00" [ref=f32e1440]
+                            - cell "UPI" [ref=f32e1441]
+                            - cell "0.00" [ref=f32e1443]
+                            - cell "0.00" [ref=f32e1444]
+                            - cell [ref=f32e1445]
+                          - row [ref=f32e1447] [cursor=pointer]:
+                            - cell [ref=f32e1448]
+                            - cell "Oct 24, 2026" [ref=f32e1451]
+                            - cell "Periasamy Thangamuthu [HUHNKR7154]" [ref=f32e1453]
+                            - cell "NELREC-28846" [ref=f32e1454]
+                            - cell "1000.00" [ref=f32e1455]
+                            - cell "UPI" [ref=f32e1456]
+                            - cell "0.00" [ref=f32e1458]
+                            - cell "0.00" [ref=f32e1459]
+                            - cell [ref=f32e1460]
+                          - row [ref=f32e1462] [cursor=pointer]:
+                            - cell [ref=f32e1463]
+                            - cell "Oct 24, 2026" [ref=f32e1466]
+                            - cell "Periasamy Thangamuthu [HUHNKR7154]" [ref=f32e1468]
+                            - cell "NELREC-28845" [ref=f32e1469]
+                            - cell "7700.00" [ref=f32e1470]
+                            - cell "UPI" [ref=f32e1471]
+                            - cell "0.00" [ref=f32e1473]
+                            - cell "0.00" [ref=f32e1474]
+                            - cell [ref=f32e1475]
+                          - row [ref=f32e1477] [cursor=pointer]:
+                            - cell [ref=f32e1478]
+                            - cell "Oct 21, 2026" [ref=f32e1481]
+                            - cell "Pandiyarajan Duraipandi [HUHNKR6199]" [ref=f32e1483]
+                            - cell "NELREC-28844" [ref=f32e1484]
+                            - cell "10000.00" [ref=f32e1485]
+                            - cell "UPI" [ref=f32e1486]
+                            - cell "0.00" [ref=f32e1488]
+                            - cell "0.00" [ref=f32e1489]
+                            - cell [ref=f32e1490]
+                          - row [ref=f32e1492] [cursor=pointer]:
+                            - cell [ref=f32e1493]
+                            - cell "Oct 17, 2026" [ref=f32e1496]
+                            - cell "Lakshmi V [HUHNKR6942]" [ref=f32e1498]
+                            - cell "NELREC-28843" [ref=f32e1499]
+                            - cell "8500.00" [ref=f32e1500]
+                            - cell "UPI" [ref=f32e1501]
+                            - cell "0.00" [ref=f32e1503]
+                            - cell "0.00" [ref=f32e1504]
+                            - cell [ref=f32e1505]
+                          - row [ref=f32e1507] [cursor=pointer]:
+                            - cell [ref=f32e1508]
+                            - cell "Oct 17, 2026" [ref=f32e1511]
+                            - cell "Lakshmi V [HUHNKR6942]" [ref=f32e1513]
+                            - cell "NELREC-28842" [ref=f32e1514]
+                            - cell "25000.00" [ref=f32e1515]
+                            - cell "UPI" [ref=f32e1516]
+                            - cell "0.00" [ref=f32e1518]
+                            - cell "0.00" [ref=f32e1519]
+                            - cell [ref=f32e1520]
+                          - row [ref=f32e1522] [cursor=pointer]:
+                            - cell [ref=f32e1523]
+                            - cell "Oct 06, 2026" [ref=f32e1526]
+                            - cell "Lakshmi V [HUHNKR6942]" [ref=f32e1528]
+                            - cell "NELREC-28841" [ref=f32e1529]
+                            - cell "49000.00" [ref=f32e1530]
+                            - cell "UPI" [ref=f32e1531]
+                            - cell "0.00" [ref=f32e1533]
+                            - cell "0.00" [ref=f32e1534]
+                            - cell [ref=f32e1535]
+                          - row [ref=f32e1537] [cursor=pointer]:
+                            - cell [ref=f32e1538]
+                            - cell "Oct 24, 2026" [ref=f32e1541]
+                            - cell "Sekar Raji [HUHNKR6838]" [ref=f32e1543]
+                            - cell "NELREC-28840" [ref=f32e1544]
+                            - cell "7000.00" [ref=f32e1545]
+                            - cell "UPI" [ref=f32e1546]
+                            - cell "0.00" [ref=f32e1548]
+                            - cell "0.00" [ref=f32e1549]
+                            - cell [ref=f32e1550]
+                          - row [ref=f32e1552] [cursor=pointer]:
+                            - cell [ref=f32e1553]
+                            - cell "Oct 24, 2026" [ref=f32e1556]
+                            - cell "Sundarlingam Periyasamy [HUHNKR6803]" [ref=f32e1558]
+                            - cell "NELREC-28839" [ref=f32e1559]
+                            - cell "500.00" [ref=f32e1560]
+                            - cell "UPI" [ref=f32e1561]
+                            - cell "0.00" [ref=f32e1563]
+                            - cell "0.00" [ref=f32e1564]
+                            - cell [ref=f32e1565]
+                          - row [ref=f32e1567] [cursor=pointer]:
+                            - cell [ref=f32e1568]
+                            - cell "Oct 24, 2026" [ref=f32e1571]
+                            - cell "Mumtaj Abdul Rahman [HUHNKR7167]" [ref=f32e1573]
+                            - cell "NELREC-28838" [ref=f32e1574]
+                            - cell "500.00" [ref=f32e1575]
+                            - cell "UPI" [ref=f32e1576]
+                            - cell "0.00" [ref=f32e1578]
+                            - cell "0.00" [ref=f32e1579]
+                            - cell [ref=f32e1580]
+                          - row [ref=f32e1582] [cursor=pointer]:
+                            - cell [ref=f32e1583]
+                            - cell "Oct 24, 2026" [ref=f32e1586]
+                            - cell "Footman R [HUHRYP0945]" [ref=f32e1588]
+                            - cell "NELREC-28837" [ref=f32e1589]
+                            - cell "500.00" [ref=f32e1590]
+                            - cell "Cash" [ref=f32e1591]
+                            - cell "0.00" [ref=f32e1593]
+                            - cell "0.00" [ref=f32e1594]
+                            - cell [ref=f32e1595]
+                          - row [ref=f32e1597] [cursor=pointer]:
+                            - cell [ref=f32e1598]
+                            - cell "Oct 24, 2026" [ref=f32e1601]
+                            - cell "Footman R [HUHRYP0945]" [ref=f32e1603]
+                            - cell "NELREC-28836" [ref=f32e1604]
+                            - cell "8300.00" [ref=f32e1605]
+                            - cell "Cash" [ref=f32e1606]
+                            - cell "0.00" [ref=f32e1608]
+                            - cell "0.00" [ref=f32e1609]
+                            - cell [ref=f32e1610]
+                          - row [ref=f32e1612] [cursor=pointer]:
+                            - cell [ref=f32e1613]
+                            - cell "Oct 24, 2026" [ref=f32e1616]
+                            - cell "Logeshwari Perumal [HUHNKR7067]" [ref=f32e1618]
+                            - cell "NELREC-28835" [ref=f32e1619]
+                            - cell "40000.00" [ref=f32e1620]
+                            - cell "UPI" [ref=f32e1621]
+                            - cell "0.00" [ref=f32e1623]
+                            - cell "0.00" [ref=f32e1624]
+                            - cell [ref=f32e1625]
+                          - row [ref=f32e1627] [cursor=pointer]:
+                            - cell [ref=f32e1628]
+                            - cell "Oct 24, 2026" [ref=f32e1631]
+                            - cell "Paulraj Arulappan [HUHNKR7041]" [ref=f32e1633]
+                            - cell "NELREC-28834" [ref=f32e1634]
+                            - cell "57500.00" [ref=f32e1635]
+                            - cell "UPI" [ref=f32e1636]
+                            - cell "0.00" [ref=f32e1638]
+                            - cell "0.00" [ref=f32e1639]
+                            - cell [ref=f32e1640]
+                          - row [ref=f32e1642] [cursor=pointer]:
+                            - cell [ref=f32e1643]
+                            - cell "Oct 24, 2026" [ref=f32e1646]
+                            - cell "Munusamy Sivakozhunthu [HUHNKR6992]" [ref=f32e1648]
+                            - cell "NELREC-28833" [ref=f32e1649]
+                            - cell "57500.00" [ref=f32e1650]
+                            - cell "Cash" [ref=f32e1651]
+                            - cell "0.00" [ref=f32e1653]
+                            - cell "0.00" [ref=f32e1654]
+                            - cell [ref=f32e1655]
+                          - row [ref=f32e1657] [cursor=pointer]:
+                            - cell [ref=f32e1658]
+                            - cell "Oct 24, 2026" [ref=f32e1661]
+                            - cell "Dhilip Kumar Dhandapani [HUHNKR7139]" [ref=f32e1663]
+                            - cell "NELREC-28832" [ref=f32e1664]
+                            - cell "400.00" [ref=f32e1665]
+                            - cell "UPI" [ref=f32e1666]
+                            - cell "0.00" [ref=f32e1668]
+                            - cell "0.00" [ref=f32e1669]
+                            - cell [ref=f32e1670]
+                          - row [ref=f32e1672] [cursor=pointer]:
+                            - cell [ref=f32e1673]
+                            - cell "Oct 24, 2026" [ref=f32e1676]
+                            - cell "Dhilip Kumar Dhandapani [HUHNKR7139]" [ref=f32e1678]
+                            - cell "NELREC-28831" [ref=f32e1679]
+                            - cell "3100.00" [ref=f32e1680]
+                            - cell "UPI" [ref=f32e1681]
+                            - cell "0.00" [ref=f32e1683]
+                            - cell "0.00" [ref=f32e1684]
+                            - cell [ref=f32e1685]
+                          - row [ref=f32e1687] [cursor=pointer]:
+                            - cell [ref=f32e1688]
+                            - cell "Oct 24, 2026" [ref=f32e1691]
+                            - cell "Ramesh Babu Kuppusamy [HUHRYP2513]" [ref=f32e1693]
+                            - cell "NELREC-28830" [ref=f32e1694]
+                            - cell "500.00" [ref=f32e1695]
+                            - cell "Cash" [ref=f32e1696]
+                            - cell "0.00" [ref=f32e1698]
+                            - cell "0.00" [ref=f32e1699]
+                            - cell [ref=f32e1700]
+                          - row [ref=f32e1702] [cursor=pointer]:
+                            - cell [ref=f32e1703]
+                            - cell "Oct 24, 2026" [ref=f32e1706]
+                            - cell "Ramesh Babu Kuppusamy [HUHRYP2513]" [ref=f32e1708]
+                            - cell "NELREC-28829" [ref=f32e1709]
+                            - cell "5600.00" [ref=f32e1710]
+                            - cell "Cash" [ref=f32e1711]
+                            - cell "0.00" [ref=f32e1713]
+                            - cell "0.00" [ref=f32e1714]
+                            - cell [ref=f32e1715]
+                          - row [ref=f32e1717] [cursor=pointer]:
+                            - cell [ref=f32e1718]
+                            - cell "Oct 24, 2026" [ref=f32e1721]
+                            - cell "Dhilip Kumar Dhandapani [HUHNKR7139]" [ref=f32e1723]
+                            - cell "NELREC-28828" [ref=f32e1724]
+                            - cell "3500.00" [ref=f32e1725]
+                            - cell "UPI" [ref=f32e1726]
+                            - cell "0.00" [ref=f32e1728]
+                            - cell "0.00" [ref=f32e1729]
+                            - cell [ref=f32e1730]
+                          - row [ref=f32e1732] [cursor=pointer]:
+                            - cell [ref=f32e1733]
+                            - cell "Oct 24, 2026" [ref=f32e1736]
+                            - cell "Abdul Rahiman Abdul Azeez [HUHRYP2545]" [ref=f32e1738]
+                            - cell "NELREC-28827" [ref=f32e1739]
+                            - cell "50000.00" [ref=f32e1740]
+                            - cell "UPI" [ref=f32e1741]
+                            - cell "0.00" [ref=f32e1743]
+                            - cell "0.00" [ref=f32e1744]
+                            - cell [ref=f32e1745]
+                          - row [ref=f32e1747] [cursor=pointer]:
+                            - cell [ref=f32e1748]
+                            - cell "Oct 24, 2026" [ref=f32e1751]
+                            - cell "Halima Kamal Mohamed [HUHNKR7043]" [ref=f32e1753]
+                            - cell "NELREC-28826" [ref=f32e1754]
+                            - cell "1000.00" [ref=f32e1755]
+                            - cell "Cash" [ref=f32e1756]
+                            - cell "0.00" [ref=f32e1758]
+                            - cell "0.00" [ref=f32e1759]
+                            - cell [ref=f32e1760]
+                      - generic [ref=f32e1763]:
+                        - generic [ref=f32e1764]: 1-50 Total Count
+                        - generic [ref=f32e1765] [cursor=pointer]
+                        - generic [ref=f32e1767] [cursor=pointer]
+      - generic [ref=f32e34]:
+        - list [ref=f32e35]:
+          - listitem [ref=f32e36] [cursor=pointer]:
+            - generic "Charm Assist" [ref=f32e37]
+        - list [ref=f32e38]:
+          - listitem "Refer a Friend" [ref=f32e39] [cursor=pointer]
+          - listitem "Add-ons" [ref=f32e41] [cursor=pointer]
+          - listitem "Help" [ref=f32e43] [cursor=pointer]
+          - listitem "Choose your preferred view" [ref=f32e45] [cursor=pointer]
+          - listitem "Keyboard Shortcuts (Shift+K)" [ref=f32e47] [cursor=pointer]
+  - generic [ref=f32e49]:
+    - generic [ref=f32e51]:
+      - generic [ref=f32e52]: "+1"
+      - textbox [ref=f32e53]
+      - generic [ref=f32e54] [cursor=pointer]
+    - generic [ref=f32e55]:
+      - generic [ref=f32e56] [cursor=pointer]: "1"
+      - generic [ref=f32e57] [cursor=pointer]: "2"
+      - generic [ref=f32e58] [cursor=pointer]: "3"
+      - generic [ref=f32e59] [cursor=pointer]: "4"
+      - generic [ref=f32e60] [cursor=pointer]: "5"
+      - generic [ref=f32e61] [cursor=pointer]: "6"
+      - generic [ref=f32e62] [cursor=pointer]: "7"
+      - generic [ref=f32e63] [cursor=pointer]: "8"
+      - generic [ref=f32e64] [cursor=pointer]: "9"
+      - generic [ref=f32e66] [cursor=pointer]: "0"
+      - generic [ref=f32e68] [cursor=pointer]
+  - generic [ref=f32e70]:
+    - generic [ref=f32e72]:
+      - text:       
+      - menubar [ref=f32e73]:
+        - button "pins" [ref=f32e74] [cursor=pointer]:
+          - text: 
+          - generic: My Pins
+        - button "chats" [ref=f32e75] [cursor=pointer]:
+          - text: 
+          - generic: Chats
+          - generic "1" [ref=f32e962]
+        - button "channels" [ref=f32e76] [cursor=pointer]:
+          - text: 
+          - generic: Channels
+        - button "threads" [ref=f32e77] [cursor=pointer]:
+          - text: 
+          - generic: Threads
+        - button "contacts" [ref=f32e78] [cursor=pointer]:
+          - text: 
+          - generic: People
+    - text:   

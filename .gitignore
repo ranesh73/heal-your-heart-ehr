@@ -1,0 +1,12 @@
+.env
+.demo-credentials.txt
+.venv/
+node_modules/
+dist/
+__pycache__/
+.pytest_cache/
+*.db
+*.db-*
+data/
+test-results/
+playwright-report/

@@ -1,0 +1,244 @@
+[    3197ms] [VERBOSE] [DOM] Password field is not contained in a form: (More info: https://goo.gl/9p2vKq) %o @ https://accounts.charmtracker.com/signin?hide_signup=true&hide_secure=true&hide_gsignup=true&servicename=charmhealth&serviceurl=https://ehr.charmtracker.com%2Fehr%2Fmain.do:0
+[    3198ms] [VERBOSE] [DOM] Password field is not contained in a form: (More info: https://goo.gl/9p2vKq) %o @ https://accounts.charmtracker.com/signin?hide_signup=true&hide_secure=true&hide_gsignup=true&servicename=charmhealth&serviceurl=https://ehr.charmtracker.com%2Fehr%2Fmain.do:0
+[  128959ms] Identifier 'PrescriptionHtml' has already been declared
+[  128969ms] [LOG] claimOwnership  - owner @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  129540ms] Uncaught ReferenceError: d3 is not defined
+    at <anonymous> (https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/zohochart/zc.min.js:0:735)
+    at <anonymous> (https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/zohochart/zc.min.js:0:139)
+    at <anonymous> (https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/zohochart/zc.min.js:0:161)
+[  129562ms] ReferenceError: phoneCalls is not defined
+    at WmsUIImpl.UIReady (https://ehr2.charmtracker.com/ehr/physician/home.do?&FACILITY_ID=cfa2e6c79f3682ae98ee2e5ce9d5cc8ab3e573769757a518:1122:6)
+    at https://static.zohocdn.com/ichat/js/Sep_07_2026_14490476_wmsbar.js:1:1459367
+[  191630ms] [LOG] claimOwnership  - owner @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  194757ms] [LOG] onmessage >>  @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  194757ms] [LOG] releaseOwnership >>  @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  251751ms] [LOG] releaseOwnership beforeunload>>  @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  251764ms] [LOG] claimOwnership  - owner @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  251867ms] [LOG] onmessage >>  @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  251867ms] [LOG] releaseOwnership >>  @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  255016ms] [LOG] claimOwnership  - owner @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  255399ms] Identifier 'PrescriptionHtml' has already been declared
+[  294459ms] [LOG] false @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  306559ms] [LOG] claimOwnership  - owner @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  328183ms] [LOG] claimOwnership  - owner @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  350827ms] [LOG] claimOwnership  - owner @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  362628ms] [LOG] claimOwnership  - owner @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  377286ms] [LOG] claimOwnership  - owner @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  403328ms] [LOG] onmessage >>  @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  403329ms] [LOG] releaseOwnership >>  @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  404609ms] [LOG] onmessage >>  @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  404609ms] [LOG] releaseOwnership >>  @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  457102ms] [LOG] claimOwnership  - owner @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  477523ms] [LOG] claimOwnership  - owner @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  496878ms] [LOG] claimOwnership  - owner @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  512043ms] [LOG] claimOwnership  - owner @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  530546ms] [LOG] claimOwnership  - owner @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  542375ms] [LOG] claimOwnership  - owner @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  552936ms] [LOG] releaseOwnership beforeunload>>  @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  552941ms] [LOG] claimOwnership  - owner @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  552994ms] [LOG] onmessage >>  @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  552994ms] [LOG] releaseOwnership >>  @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  555703ms] [LOG] claimOwnership  - owner @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  556022ms] Identifier 'PrescriptionHtml' has already been declared
+[  579511ms] [LOG] releaseOwnership beforeunload>>  @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  579517ms] [LOG] claimOwnership  - owner @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  579570ms] [LOG] onmessage >>  @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  579570ms] [LOG] releaseOwnership >>  @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  581993ms] [LOG] claimOwnership  - owner @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  582285ms] Identifier 'PrescriptionHtml' has already been declared
+[  582765ms] [LOG] claimOwnership  - owner @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  583082ms] [LOG] Rendering event :1050006000046275015 @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  583083ms] [LOG] Rendering event :1050006000046243369 @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  583083ms] [LOG] Rendering event :1050006000045889437 @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  583084ms] [LOG] Rendering event :1050006000046515090 @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  583084ms] [LOG] Rendering event :1050006000046341327 @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  599338ms] [LOG] releaseOwnership beforeunload>>  @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  599346ms] [LOG] claimOwnership  - owner @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  599412ms] [LOG] onmessage >>  @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  599412ms] [LOG] releaseOwnership >>  @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  601721ms] [LOG] claimOwnership  - owner @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  602034ms] Identifier 'PrescriptionHtml' has already been declared
+[  617193ms] [LOG] releaseOwnership beforeunload>>  @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  617198ms] [LOG] claimOwnership  - owner @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  617250ms] [LOG] onmessage >>  @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  617250ms] [LOG] releaseOwnership >>  @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  619466ms] Identifier 'PrescriptionHtml' has already been declared
+[  619475ms] [LOG] claimOwnership  - owner @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  635308ms] [LOG] releaseOwnership beforeunload>>  @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  635314ms] [LOG] claimOwnership  - owner @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  635370ms] [LOG] onmessage >>  @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  635370ms] [LOG] releaseOwnership >>  @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  637578ms] [LOG] claimOwnership  - owner @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  637944ms] Identifier 'PrescriptionHtml' has already been declared
+[  648517ms] [LOG] releaseOwnership beforeunload>>  @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  648523ms] [LOG] claimOwnership  - owner @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  648575ms] [LOG] onmessage >>  @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  648575ms] [LOG] releaseOwnership >>  @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  651248ms] Identifier 'PrescriptionHtml' has already been declared
+[  651257ms] [LOG] claimOwnership  - owner @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  652230ms] [LOG] claimOwnership  - owner @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  666985ms] [LOG] claimOwnership  - owner @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  680594ms] [LOG] claimOwnership  - owner @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  717445ms] [LOG] releaseOwnership beforeunload>>  @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  717448ms] [LOG] claimOwnership  - owner @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  717507ms] [LOG] onmessage >>  @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  717507ms] [LOG] releaseOwnership >>  @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  720413ms] Identifier 'PrescriptionHtml' has already been declared
+[  720419ms] [LOG] claimOwnership  - owner @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  757504ms] [LOG] releaseOwnership beforeunload>>  @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  757513ms] [LOG] claimOwnership  - owner @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  757565ms] [LOG] onmessage >>  @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  757565ms] [LOG] releaseOwnership >>  @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  759922ms] [LOG] claimOwnership  - owner @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  760220ms] Identifier 'PrescriptionHtml' has already been declared
+[  779395ms] [LOG] releaseOwnership beforeunload>>  @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  779399ms] [LOG] claimOwnership  - owner @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  779455ms] [LOG] onmessage >>  @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  779455ms] [LOG] releaseOwnership >>  @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  781491ms] [LOG] %cSTOP! color:red;font-size:xx-large;font-weight:bold; @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/security.min.js:0
+[  781491ms] [LOG] %cThis is a browser feature intended for developers. Do not enter or paste code which you don't understand. It may allow attackers to steal your information or impersonate you.
+See https://en.wikipedia.org/wiki/Self-XSS for more details font-size:large; @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/security.min.js:0
+[  781920ms] [LOG] claimOwnership  - owner @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  782239ms] Identifier 'PrescriptionHtml' has already been declared
+[  794980ms] [LOG] releaseOwnership beforeunload>>  @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  794993ms] [LOG] claimOwnership  - owner @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  795044ms] [LOG] onmessage >>  @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  795045ms] [LOG] releaseOwnership >>  @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  797331ms] [LOG] %cSTOP! color:red;font-size:xx-large;font-weight:bold; @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/security.min.js:0
+[  797332ms] [LOG] %cThis is a browser feature intended for developers. Do not enter or paste code which you don't understand. It may allow attackers to steal your information or impersonate you.
+See https://en.wikipedia.org/wiki/Self-XSS for more details font-size:large; @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/security.min.js:0
+[  797675ms] [LOG] claimOwnership  - owner @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  797972ms] Identifier 'PrescriptionHtml' has already been declared
+[  798403ms] [LOG] claimOwnership  - owner @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  798667ms] [LOG] claimOwnership  - owner @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  813035ms] [LOG] releaseOwnership beforeunload>>  @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  813044ms] [LOG] claimOwnership  - owner @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  813102ms] [LOG] onmessage >>  @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  813103ms] [LOG] releaseOwnership >>  @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  815245ms] Identifier 'PrescriptionHtml' has already been declared
+[  815249ms] [LOG] claimOwnership  - owner @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  821780ms] [LOG] releaseOwnership beforeunload>>  @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  821788ms] [LOG] claimOwnership  - owner @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  821842ms] [LOG] onmessage >>  @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  821842ms] [LOG] releaseOwnership >>  @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  823996ms] [LOG] claimOwnership  - owner @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  824347ms] Identifier 'PrescriptionHtml' has already been declared
+[  852040ms] [LOG] releaseOwnership beforeunload>>  @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  852045ms] [LOG] claimOwnership  - owner @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  852099ms] [LOG] onmessage >>  @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  852099ms] [LOG] releaseOwnership >>  @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  854578ms] [LOG] claimOwnership  - owner @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  854879ms] Identifier 'PrescriptionHtml' has already been declared
+[  860783ms] [LOG] releaseOwnership beforeunload>>  @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  860790ms] [LOG] claimOwnership  - owner @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  860848ms] [LOG] onmessage >>  @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  860848ms] [LOG] releaseOwnership >>  @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  862884ms] [LOG] claimOwnership  - owner @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  863184ms] Identifier 'PrescriptionHtml' has already been declared
+[  873599ms] [LOG] releaseOwnership beforeunload>>  @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  873605ms] [LOG] claimOwnership  - owner @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  873660ms] [LOG] onmessage >>  @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  873660ms] [LOG] releaseOwnership >>  @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  876082ms] [LOG] claimOwnership  - owner @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  876402ms] Identifier 'PrescriptionHtml' has already been declared
+[  882359ms] [LOG] releaseOwnership beforeunload>>  @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  882365ms] [LOG] claimOwnership  - owner @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  882417ms] [LOG] onmessage >>  @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  882417ms] [LOG] releaseOwnership >>  @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  884407ms] [LOG] claimOwnership  - owner @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  884708ms] Identifier 'PrescriptionHtml' has already been declared
+[  885106ms] [LOG] Documents @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  894212ms] [LOG] releaseOwnership beforeunload>>  @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  894217ms] [LOG] claimOwnership  - owner @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  894271ms] [LOG] onmessage >>  @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  894271ms] [LOG] releaseOwnership >>  @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  896837ms] [LOG] claimOwnership  - owner @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  897138ms] Identifier 'PrescriptionHtml' has already been declared
+[  897148ms] Uncaught ReferenceError: d3 is not defined
+    at <anonymous> (https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/zohochart/zc.min.js:0:735)
+    at <anonymous> (https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/zohochart/zc.min.js:0:139)
+    at <anonymous> (https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/zohochart/zc.min.js:0:161)
+[  902025ms] [LOG] releaseOwnership beforeunload>>  @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  902032ms] [LOG] claimOwnership  - owner @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  902090ms] [LOG] onmessage >>  @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  902090ms] [LOG] releaseOwnership >>  @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  904249ms] Identifier 'PrescriptionHtml' has already been declared
+[  904255ms] [LOG] claimOwnership  - owner @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  905278ms] [LOG] claimOwnership  - owner @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  913782ms] [LOG] releaseOwnership beforeunload>>  @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  913787ms] [LOG] claimOwnership  - owner @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  913848ms] [LOG] onmessage >>  @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  913848ms] [LOG] releaseOwnership >>  @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  916065ms] [LOG] claimOwnership  - owner @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  916389ms] Identifier 'PrescriptionHtml' has already been declared
+[  922221ms] [LOG] releaseOwnership beforeunload>>  @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  922229ms] [LOG] claimOwnership  - owner @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  922282ms] [LOG] onmessage >>  @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  922283ms] [LOG] releaseOwnership >>  @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  924235ms] [LOG] claimOwnership  - owner @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  924544ms] Identifier 'PrescriptionHtml' has already been declared
+[  925298ms] [LOG] claimOwnership  - owner @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  935537ms] [LOG] releaseOwnership beforeunload>>  @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  935544ms] [LOG] claimOwnership  - owner @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  935597ms] [LOG] onmessage >>  @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  935597ms] [LOG] releaseOwnership >>  @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  937635ms] [LOG] %cSTOP! color:red;font-size:xx-large;font-weight:bold; @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/security.min.js:0
+[  937635ms] [LOG] %cThis is a browser feature intended for developers. Do not enter or paste code which you don't understand. It may allow attackers to steal your information or impersonate you.
+See https://en.wikipedia.org/wiki/Self-XSS for more details font-size:large; @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/security.min.js:0
+[  938017ms] [LOG] claimOwnership  - owner @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  938312ms] Identifier 'PrescriptionHtml' has already been declared
+[  942447ms] [LOG] releaseOwnership beforeunload>>  @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  942454ms] [LOG] claimOwnership  - owner @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  942506ms] [LOG] onmessage >>  @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  942506ms] [LOG] releaseOwnership >>  @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  944467ms] Identifier 'PrescriptionHtml' has already been declared
+[  944476ms] [LOG] claimOwnership  - owner @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  945467ms] [LOG] claimOwnership  - owner @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  954030ms] [LOG] releaseOwnership beforeunload>>  @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  954034ms] [LOG] claimOwnership  - owner @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  954091ms] [LOG] onmessage >>  @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  954091ms] [LOG] releaseOwnership >>  @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  956449ms] [LOG] claimOwnership  - owner @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  956788ms] Identifier 'PrescriptionHtml' has already been declared
+[  961615ms] [LOG] releaseOwnership beforeunload>>  @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  961620ms] [LOG] claimOwnership  - owner @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  961677ms] [LOG] onmessage >>  @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  961678ms] [LOG] releaseOwnership >>  @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  964062ms] [LOG] claimOwnership  - owner @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  964371ms] Identifier 'PrescriptionHtml' has already been declared
+[  965189ms] [LOG] claimOwnership  - owner @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  977106ms] [LOG] releaseOwnership beforeunload>>  @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  977112ms] [LOG] claimOwnership  - owner @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  977164ms] [LOG] onmessage >>  @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  977164ms] [LOG] releaseOwnership >>  @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  979384ms] [LOG] claimOwnership  - owner @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  979710ms] Identifier 'PrescriptionHtml' has already been declared
+[  988329ms] [LOG] releaseOwnership beforeunload>>  @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  988335ms] [LOG] claimOwnership  - owner @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  988387ms] [LOG] onmessage >>  @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  988387ms] [LOG] releaseOwnership >>  @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  989839ms] [LOG] %cSTOP! color:red;font-size:xx-large;font-weight:bold; @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/security.min.js:0
+[  989840ms] [LOG] %cThis is a browser feature intended for developers. Do not enter or paste code which you don't understand. It may allow attackers to steal your information or impersonate you.
+See https://en.wikipedia.org/wiki/Self-XSS for more details font-size:large; @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/security.min.js:0
+[  990185ms] [LOG] claimOwnership  - owner @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[  990485ms] Identifier 'PrescriptionHtml' has already been declared
+[  990987ms] [WARNING] Mixed Content: The page at 'https://ehr2.charmtracker.com/ehr/physician/chatSettings.do?method=fetchChannelsLayout&FACILITY_ID=cfa2e6c79f3682ae98ee2e5ce9d5cc8ab3e573769757a518' was loaded over HTTPS, but requested an insecure element 'http://chat.charmtracker.com/company/20423110/channel/T14074000000190001_20423110_1724483832633/photo.do'. This request was automatically upgraded to HTTPS, For more information see https://blog.chromium.org/2019/10/no-more-mixed-messages-about-https.html @ https://ehr2.charmtracker.com/ehr/physician/chatSettings.do?method=fetchChannelsLayout&FACILITY_ID=cfa2e6c79f3682ae98ee2e5ce9d5cc8ab3e573769757a518:0
+[ 2978133ms] [ERROR] WebSocket connection to 'wss://wms.charmtracker.com/pconnect?prd=CM&i=NENQ006MzU1NjY1MDUwOTUzMDAyNzM3MDoyMDAwMTQ2MzY2MTo3MToxODcwNzE0MQ%253D%253D&xa=AAAAAAIBAAAALPRerspUdMsR8Thp%2FkEdnbWYsYWRfnw%2BSz3Wobh9DdlpVa1wyhvRwdyyXux4AAAAQfo1L2aI3TnRda0VoaGAfESl9nCCzYNy94826ea3JF8EN90N%2BKwhhn02lFPibeEmkh%2BSPRsnaz0hCT6cSyC219JbAAAAMQAAAAA%3D&idle=true&useagent=true&page_visible=true&tid=20001463661_CM_1793009967121_6118' failed: Error in connection establishment: net::ERR_NAME_NOT_RESOLVED @ https://wms.charmtracker.com/v2/wmsconnector.html?tabid=20001463661_CM_1793009967121_6118&wmsid=20001463661&nocache=1793009967943&frameorigin=https%3A%2F%2Fehr2.charmtracker.com:10
+[ 2992386ms] [ERROR] WebSocket connection to 'wss://wms.charmtracker.com/pconnect?prd=CM&i=NENQ006MzU1NjY1MDUwOTUzMDAyNzM3MDoyMDAwMTQ2MzY2MTo3MToxODcwNzE0MQ%253D%253D&xa=AAAAAAIBAAAALPRerspUdMsR8Thp%2FkEdnbWYsYWRfnw%2BSz3Wobh9DdlpVa1wyhvRwdyyXux4AAAAQfo1L2aI3TnRda0VoaGAfESl9nCCzYNy94826ea3JF8EN90N%2BKwhhn02lFPibeEmkh%2BSPRsnaz0hCT6cSyC219JbAAAAMQAAAAA%3D&idle=true&useagent=true&page_visible=true&tid=20001463661_CM_1793009967121_6118' failed: Error in connection establishment: net::ERR_INTERNET_DISCONNECTED @ https://wms.charmtracker.com/v2/wmsconnector.html?tabid=20001463661_CM_1793009967121_6118&wmsid=20001463661&nocache=1793009967943&frameorigin=https%3A%2F%2Fehr2.charmtracker.com:10
+[ 3004631ms] [ERROR] Failed to load resource: net::ERR_INTERNET_DISCONNECTED @ https://static.zohocdn.com/ichat/images/a29a4f41_spacer.gif?nocache=1793011956313:0
+[ 3012829ms] [ERROR] WebSocket connection to 'wss://wms.charmtracker.com/pconnect?prd=CM&i=NENQ006MzU1NjY1MDUwOTUzMDAyNzM3MDoyMDAwMTQ2MzY2MTo3MToxODcwNzE0MQ%253D%253D&xa=AAAAAAIBAAAALPRerspUdMsR8Thp%2FkEdnbWYsYWRfnw%2BSz3Wobh9DdlpVa1wyhvRwdyyXux4AAAAQfo1L2aI3TnRda0VoaGAfESl9nCCzYNy94826ea3JF8EN90N%2BKwhhn02lFPibeEmkh%2BSPRsnaz0hCT6cSyC219JbAAAAMQAAAAA%3D&idle=true&useagent=true&page_visible=true&tid=20001463661_CM_1793009967121_6118' failed: Error in connection establishment: net::ERR_NAME_NOT_RESOLVED @ https://wms.charmtracker.com/v2/wmsconnector.html?tabid=20001463661_CM_1793009967121_6118&wmsid=20001463661&nocache=1793009967943&frameorigin=https%3A%2F%2Fehr2.charmtracker.com:10
+[ 3015985ms] [ERROR] Failed to load resource: net::ERR_NETWORK_CHANGED @ https://static.zohocdn.com/ichat/images/a29a4f41_spacer.gif?nocache=1793011990115:0
+[ 3020305ms] [ERROR] WebSocket connection to 'wss://wms.charmtracker.com/pconnect?prd=CM&i=NENQ006MzU1NjY1MDUwOTUzMDAyNzM3MDoyMDAwMTQ2MzY2MTo3MToxODcwNzE0MQ%253D%253D&xa=AAAAAAIBAAAALPRerspUdMsR8Thp%2FkEdnbWYsYWRfnw%2BSz3Wobh9DdlpVa1wyhvRwdyyXux4AAAAQfo1L2aI3TnRda0VoaGAfESl9nCCzYNy94826ea3JF8EN90N%2BKwhhn02lFPibeEmkh%2BSPRsnaz0hCT6cSyC219JbAAAAMQAAAAA%3D&idle=true&useagent=true&page_visible=true&tid=20001463661_CM_1793009967121_6118' failed: Error in connection establishment: net::ERR_NAME_NOT_RESOLVED @ https://wms.charmtracker.com/v2/wmsconnector.html?tabid=20001463661_CM_1793009967121_6118&wmsid=20001463661&nocache=1793009967943&frameorigin=https%3A%2F%2Fehr2.charmtracker.com:10
+[ 3020637ms] [ERROR] Failed to load resource: net::ERR_NAME_NOT_RESOLVED @ https://static.zohocdn.com/ichat/images/a29a4f41_spacer.gif?nocache=1793011997591:0
+[ 3027338ms] [ERROR] WebSocket connection to 'wss://wms.charmtracker.com/pconnect?prd=CM&i=NENQ006MzU1NjY1MDUwOTUzMDAyNzM3MDoyMDAwMTQ2MzY2MTo3MToxODcwNzE0MQ%253D%253D&xa=AAAAAAIBAAAALPRerspUdMsR8Thp%2FkEdnbWYsYWRfnw%2BSz3Wobh9DdlpVa1wyhvRwdyyXux4AAAAQfo1L2aI3TnRda0VoaGAfESl9nCCzYNy94826ea3JF8EN90N%2BKwhhn02lFPibeEmkh%2BSPRsnaz0hCT6cSyC219JbAAAAMQAAAAA%3D&idle=true&useagent=true&page_visible=true&tid=20001463661_CM_1793009967121_6118' failed: Error in connection establishment: net::ERR_NAME_NOT_RESOLVED @ https://wms.charmtracker.com/v2/wmsconnector.html?tabid=20001463661_CM_1793009967121_6118&wmsid=20001463661&nocache=1793009967943&frameorigin=https%3A%2F%2Fehr2.charmtracker.com:10
+[ 3030898ms] [ERROR] Failed to load resource: net::ERR_INTERNET_DISCONNECTED @ https://static.zohocdn.com/ichat/images/a29a4f41_spacer.gif?nocache=1793012004624:0
+[ 3031546ms] [ERROR] Failed to load resource: net::ERR_INTERNET_DISCONNECTED @ https://static.zohocdn.com/ichat/images/a29a4f41_spacer.gif?nocache=1793012008751:0
+[ 3037251ms] [ERROR] WebSocket connection to 'wss://wms.charmtracker.com/pconnect?prd=CM&i=NENQ006MzU1NjY1MDUwOTUzMDAyNzM3MDoyMDAwMTQ2MzY2MTo3MToxODcwNzE0MQ%253D%253D&xa=AAAAAAIBAAAALPRerspUdMsR8Thp%2FkEdnbWYsYWRfnw%2BSz3Wobh9DdlpVa1wyhvRwdyyXux4AAAAQfo1L2aI3TnRda0VoaGAfESl9nCCzYNy94826ea3JF8EN90N%2BKwhhn02lFPibeEmkh%2BSPRsnaz0hCT6cSyC219JbAAAAMQAAAAA%3D&idle=true&useagent=true&page_visible=true&tid=20001463661_CM_1793009967121_6118' failed: Error in connection establishment: net::ERR_NAME_NOT_RESOLVED @ https://wms.charmtracker.com/v2/wmsconnector.html?tabid=20001463661_CM_1793009967121_6118&wmsid=20001463661&nocache=1793009967943&frameorigin=https%3A%2F%2Fehr2.charmtracker.com:10
+[ 3048793ms] [ERROR] WebSocket connection to 'wss://wms.charmtracker.com/pconnect?prd=CM&i=NENQ006MzU1NjY1MDUwOTUzMDAyNzM3MDoyMDAwMTQ2MzY2MTo3MToxODcwNzE0MQ%253D%253D&xa=AAAAAAIBAAAALPRerspUdMsR8Thp%2FkEdnbWYsYWRfnw%2BSz3Wobh9DdlpVa1wyhvRwdyyXux4AAAAQfo1L2aI3TnRda0VoaGAfESl9nCCzYNy94826ea3JF8EN90N%2BKwhhn02lFPibeEmkh%2BSPRsnaz0hCT6cSyC219JbAAAAMQAAAAA%3D&idle=true&useagent=true&page_visible=true&tid=20001463661_CM_1793009967121_6118' failed: Error during WebSocket handshake: net::ERR_CONNECTION_RESET @ https://wms.charmtracker.com/v2/wmsconnector.html?tabid=20001463661_CM_1793009967121_6118&wmsid=20001463661&nocache=1793009967943&frameorigin=https%3A%2F%2Fehr2.charmtracker.com:10
+[ 3048842ms] [ERROR] Failed to load resource: net::ERR_ADDRESS_UNREACHABLE @ https://static.zohocdn.com/ichat/images/a29a4f41_spacer.gif?nocache=1793012026079:0
+[ 3090109ms] [ERROR] WebSocket connection to 'wss://wms.charmtracker.com/pconnect?prd=CM&i=NENQ006MzU1NjY1MDUwOTUzMDAyNzM3MDoyMDAwMTQ2MzY2MTo3MToxODcwNzE0MQ%253D%253D&xa=AAAAAAIBAAAALPRerspUdMsR8Thp%2FkEdnbWYsYWRfnw%2BSz3Wobh9DdlpVa1wyhvRwdyyXux4AAAAQfo1L2aI3TnRda0VoaGAfESl9nCCzYNy94826ea3JF8EN90N%2BKwhhn02lFPibeEmkh%2BSPRsnaz0hCT6cSyC219JbAAAAMQAAAAA%3D&idle=true&useagent=true&page_visible=true&tid=20001463661_CM_1793009967121_6118' failed: Error in connection establishment: net::ERR_NAME_NOT_RESOLVED @ https://wms.charmtracker.com/v2/wmsconnector.html?tabid=20001463661_CM_1793009967121_6118&wmsid=20001463661&nocache=1793009967943&frameorigin=https%3A%2F%2Fehr2.charmtracker.com:10
+[ 3102373ms] [ERROR] Failed to load resource: net::ERR_NAME_NOT_RESOLVED @ https://static.zohocdn.com/ichat/images/a29a4f41_spacer.gif?nocache=1793012067396:0
+[ 3114043ms] [ERROR] WebSocket connection to 'wss://wms.charmtracker.com/pconnect?prd=CM&i=NENQ006MzU1NjY1MDUwOTUzMDAyNzM3MDoyMDAwMTQ2MzY2MTo3MToxODcwNzE0MQ%253D%253D&xa=AAAAAAIBAAAALPRerspUdMsR8Thp%2FkEdnbWYsYWRfnw%2BSz3Wobh9DdlpVa1wyhvRwdyyXux4AAAAQfo1L2aI3TnRda0VoaGAfESl9nCCzYNy94826ea3JF8EN90N%2BKwhhn02lFPibeEmkh%2BSPRsnaz0hCT6cSyC219JbAAAAMQAAAAA%3D&idle=true&useagent=true&page_visible=true&tid=20001463661_CM_1793009967121_6118' failed: Error in connection establishment: net::ERR_NAME_NOT_RESOLVED @ https://wms.charmtracker.com/v2/wmsconnector.html?tabid=20001463661_CM_1793009967121_6118&wmsid=20001463661&nocache=1793009967943&frameorigin=https%3A%2F%2Fehr2.charmtracker.com:10
+[ 3115752ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_ABORTED @ https://static.zohocdn.com/ichat/images/a29a4f41_spacer.gif?nocache=1793012091330:0
+[ 3150545ms] [LOG] releaseOwnership beforeunload>>  @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[ 3150552ms] [LOG] onmessage >>  @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0

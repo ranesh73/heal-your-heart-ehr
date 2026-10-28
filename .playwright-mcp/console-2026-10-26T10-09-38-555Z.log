@@ -1,0 +1,11 @@
+[    1100ms] [LOG] %cSTOP! color:red;font-size:xx-large;font-weight:bold; @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/security.min.js:0
+[    1100ms] [LOG] %cThis is a browser feature intended for developers. Do not enter or paste code which you don't understand. It may allow attackers to steal your information or impersonate you.
+See https://en.wikipedia.org/wiki/Self-XSS for more details font-size:large; @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/security.min.js:0
+[    1737ms] Identifier 'PrescriptionHtml' has already been declared
+[    1757ms] [LOG] claimOwnership  - owner @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[    3339ms] [LOG] claimOwnership  - owner @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[    4443ms] [LOG] [] @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[    4443ms] [LOG] [] @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[    4752ms] [LOG] check enc collab @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/encounter.min.js:0
+[    4798ms] [LOG] SOAP Note autosaved... @ https://static.charmtracker.com/ctracker/MEHR2391/ehr/js/common.min.js:0
+[    5033ms] [ERROR] Failed to load resource: the server responded with a status of 400 () @ https://ehr2.charmtracker.com/api/ehr/v1/encounters/1050006000045825034/recommendations/available?is_soap_encounter=true&_=1793009379622:0
