@@ -160,6 +160,10 @@ test("doctor saves, assistant records vitals, doctor signs and amends", async ({
   await page.goto("/#/patients/" + p.id);
   await page.locator(".charm-circle-action-btn.plus-btn").click();
   await page.getByRole("button", { name: "Start consultation" }).click();
+  const createModalBtn = page.getByRole("button", { name: "Create", exact: true });
+  if (await createModalBtn.isVisible()) {
+    await createModalBtn.click();
+  }
   await expect(
     page.getByText("ACTIVE CONSULTATION", { exact: true }),
   ).toBeVisible();

@@ -1039,6 +1039,7 @@ export function MedicationsSection({
                 variant="primary"
                 onClick={() => setModal("add")}
                 title="Prescribe Medication"
+                aria-label="+ Medication"
               >
                 <Plus size={15} style={{ marginRight: 4 }} /> Medication
               </Button>
@@ -1587,7 +1588,7 @@ export function InjectionsSection({
             Templates
           </Button>
           {writable && (
-            <Button variant="primary" onClick={() => setModal("add")}>
+            <Button variant="primary" onClick={() => setModal("add")} aria-label="+ Injection">
               <Plus size={15} style={{ marginRight: 4 }} /> Injection
             </Button>
           )}

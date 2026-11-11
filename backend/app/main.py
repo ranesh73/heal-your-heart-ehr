@@ -7,10 +7,10 @@ from fastapi.responses import JSONResponse, FileResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import ValidationError
 from sqlalchemy.exc import IntegrityError
-from . import identity, patients, scheduling, clinical, eecp, operations
+from . import identity, patients, scheduling, clinical, eecp, operations, settings_router
 
 app=FastAPI(title='Heal Your Heart EHR',version='0.1.0',docs_url='/api/docs' if os.getenv('EHR_API_DOCS')=='1' else None,redoc_url=None,openapi_url='/api/openapi.json' if os.getenv('EHR_API_DOCS')=='1' else None)
-for router in (identity.router,patients.router,scheduling.router,clinical.router,eecp.router,operations.router): app.include_router(router)
+for router in (identity.router,patients.router,scheduling.router,clinical.router,eecp.router,operations.router,settings_router.router): app.include_router(router)
 
 
 @app.middleware('http')

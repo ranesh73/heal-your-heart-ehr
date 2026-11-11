@@ -1346,7 +1346,7 @@ export function NewEncounterModal({
     "Video Consult"
   );
   const [chartType, setChartType] = useState<"Quick" | "Brief" | "Comprehensive" | "SOAP Template">(
-    "Brief"
+    "SOAP Template"
   );
 
   const practiceVisitTypes = [

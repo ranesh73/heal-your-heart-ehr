@@ -25,6 +25,8 @@ class Facility(Entity, Base):
     code = Column(String(20), unique=True, nullable=False)
     name = Column(String(150), nullable=False)
     address = Column(Text, default='')
+    phone = Column(String(50), default='')
+    mobile = Column(String(50), default='')
     active = Column(Boolean, default=True, nullable=False)
 
 

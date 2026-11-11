@@ -277,9 +277,19 @@ class StaffInput(Input):
 
 
 class FacilityInput(Input):
-    code: str = Field(pattern=r'^[A-Z0-9-]{2,20}$')
+    code: str = Field(pattern=r'^[A-Za-z0-9-]{2,20}$')
     name: str = Field(min_length=1,max_length=150)
     address: str = Field(default='',max_length=2000)
+    phone: str | None = None
+    mobile: str | None = None
+    city: str | None = None
+    state: str | None = None
+    country: str | None = None
+    zip_code: str | None = None
+    timezone: str | None = None
+    contact_person: str | None = None
+    tax_id: str | None = None
+    active: bool = True
 
 
 class ResourceInput(Input):
