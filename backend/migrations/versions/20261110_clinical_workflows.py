@@ -114,6 +114,14 @@ def upgrade():
         if 'treatment_notes' not in enc_cols:
             batch_op.add_column(sa.Column('treatment_notes', sa.Text(), server_default='', nullable=True))
 
+    # 6. Add columns to facilities table
+    fac_cols = [c['name'] for c in insp.get_columns('facilities')]
+    with op.batch_alter_table('facilities') as batch_op:
+        if 'phone' not in fac_cols:
+            batch_op.add_column(sa.Column('phone', sa.String(50), server_default='', nullable=True))
+        if 'mobile' not in fac_cols:
+            batch_op.add_column(sa.Column('mobile', sa.String(50), server_default='', nullable=True))
+
 
 def downgrade():
     with op.batch_alter_table('encounters') as batch_op:
