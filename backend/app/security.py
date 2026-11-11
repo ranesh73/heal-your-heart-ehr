@@ -8,7 +8,7 @@ from .db import get_db
 from .models import StaffSession, User, UserFacility, Facility, Patient, PatientFacility, AuditEvent, Sequence, now
 
 CLINICAL = {'doctor','assistant','therapist','admin'}
-BILLING = {'billing','reception','admin'}
+BILLING = {'billing','reception','admin','doctor'}
 SCHEDULING = {'reception','doctor','therapist','admin'}
 
 

@@ -75,21 +75,35 @@ def records(kind:str,c=Depends(context)):
         out = []
         for r in rows:
             d = serialize(r)
+            p = c.db.get(m.Patient, r.patient_id)
+            if p:
+                d['patient_name'] = f"{p.first_name} {p.last_name}".strip()
+                d['patient_mrn'] = p.mrn
             if r.administered_by:
                 staff = c.db.get(m.User, r.administered_by)
                 if staff: d['administered_by_name'] = staff.name
+            if r.author_id:
+                staff = c.db.get(m.User, r.author_id)
+                if staff: d['ordered_by_name'] = f"Dr. {staff.name}" if not staff.name.startswith("Dr.") else staff.name
             out.append(d)
         return out
     if kind == 'vaccines':
         out = []
         for r in rows:
             d = serialize(r)
+            p = c.db.get(m.Patient, r.patient_id)
+            if p:
+                d['patient_name'] = f"{p.first_name} {p.last_name}".strip()
+                d['patient_mrn'] = p.mrn
             if r.administered_by:
                 staff = c.db.get(m.User, r.administered_by)
                 if staff: d['administered_by_name'] = staff.name
             if r.ordered_by:
                 staff = c.db.get(m.User, r.ordered_by)
-                if staff: d['ordered_by_name'] = staff.name
+                if staff: d['ordered_by_name'] = f"Dr. {staff.name}" if not staff.name.startswith("Dr.") else staff.name
+            elif r.author_id:
+                staff = c.db.get(m.User, r.author_id)
+                if staff: d['ordered_by_name'] = f"Dr. {staff.name}" if not staff.name.startswith("Dr.") else staff.name
             out.append(d)
         return out
     return [serialize(x) for x in rows]

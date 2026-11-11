@@ -79,7 +79,7 @@ def cancel(identifier:str,data:s.Version,c=Depends(context)):
 
 @router.get('/inventory')
 def inventory(c=Depends(context)):
-    c.allow({'admin','reception','therapist'})
+    c.allow({'admin','reception','therapist','doctor'})
     result=[]
     for item in c.db.scalars(select(m.InventoryItem).where(m.InventoryItem.facility_id==c.facility_id).order_by(m.InventoryItem.name)):
         row=serialize(item)
@@ -91,14 +91,14 @@ def inventory(c=Depends(context)):
 
 @router.post('/inventory')
 def create_item(data:s.InventoryInput,c=Depends(context)):
-    c.allow({'admin','reception'})
+    c.allow({'admin','reception','doctor'})
     row=m.InventoryItem(facility_id=c.facility_id,**data.model_dump()); c.db.add(row); c.audit('create_inventory_item',row)
     return serialize(row)
 
 
 @router.post('/inventory/{identifier}/movements')
 def stock(identifier:str,data:s.StockInput,c=Depends(context)):
-    c.allow({'admin','reception','therapist'}); row=c.record(m.InventoryItem,identifier)
+    c.allow({'admin','reception','therapist','doctor'}); row=c.record(m.InventoryItem,identifier)
     current=c.db.scalar(select(func.coalesce(func.sum(m.StockMovement.quantity),0)).where(m.StockMovement.item_id==row.id))
     if not data.quantity or current+data.quantity<0: raise HTTPException(409,'Stock movement would create an invalid balance')
     move=m.StockMovement(item_id=row.id,actor_id=c.user.id,**data.model_dump()); c.db.add(move); c.audit('stock_movement',row)

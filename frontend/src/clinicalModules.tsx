@@ -60,6 +60,7 @@ import {
 
 import { CharmLabOrders } from "./charmLabOrders";
 import { CharmImages } from "./charmImages";
+import { CharmInjectionsGlobal } from "./charmInjectionsGlobal";
 
 /* ==========================================================================
    1. LABS & DIAGNOSTIC RESULTS MODULE (/labs) - CHARMHEALTH GLOBAL REPLICA
@@ -251,146 +252,10 @@ export function DocumentsPage() {
 }
 
 /* ==========================================================================
-   4. INJECTIONS & VACCINES MODULE (/injections)
+   4. INJECTIONS & VACCINES MODULE (/injections) - CHARMHEALTH GLOBAL REPLICA
    ========================================================================== */
 export function InjectionsPage() {
-  const { patients, staff, notify } = useApp();
-  const [modal, setModal] = useState(false);
-
-  const mockInjections = [
-    {
-      id: "inj-1",
-      name: "Heparin Sodium 5,000 IU/mL",
-      type: "Injection",
-      dose: "5,000 IU",
-      route: "Subcutaneous",
-      site: "Abdomen left lower quadrant",
-      lot: "HEP-2026-8841",
-      patient_id: patients[0]?.id || "p1",
-      admin_by: staff[0]?.name || "Nurse",
-      date: "2026-10-26T09:30:00Z",
-    },
-    {
-      id: "inj-2",
-      name: "Influenza Vaccine (Quadrivalent)",
-      type: "Vaccine",
-      dose: "0.5 mL",
-      route: "Intramuscular",
-      site: "Right Deltoid",
-      lot: "FL-99321",
-      patient_id: patients[1]?.id || "p2",
-      admin_by: staff[1]?.name || "Nurse",
-      date: "2026-10-25T11:00:00Z",
-    },
-  ];
-
-  return (
-    <div className="charm-module-wrap">
-      <PageHeading
-        eyebrow="Clinical Administration"
-        title="Injections & Vaccines"
-        description="Medication administration records (MAR), immunization schedules, and lot tracking."
-        actions={
-          <Button onClick={() => setModal(true)}>
-            <Plus size={15} />
-            Record Administration
-          </Button>
-        }
-      />
-
-      <Table
-        rows={mockInjections}
-        columns={[
-          {
-            title: "Drug / Vaccine",
-            render: (r) => (
-              <div>
-                <strong>{r.name}</strong>
-                <small className="cell-sub">{r.type} · Lot: {r.lot}</small>
-              </div>
-            ),
-          },
-          {
-            title: "Patient",
-            render: (r) => (
-              <button
-                className="text-link"
-                onClick={() => navigate("/patients/" + r.patient_id)}
-              >
-                {patientName(r.patient_id, patients)}
-              </button>
-            ),
-          },
-          {
-            title: "Dosage & Route",
-            render: (r) => (
-              <span>{r.dose} via {r.route} ({r.site})</span>
-            ),
-          },
-          {
-            title: "Administered By",
-            render: (r) => <span>{r.admin_by}</span>,
-          },
-          {
-            title: "Date & Time",
-            render: (r) => <span className="mono">{dateTime(r.date)}</span>,
-          },
-        ]}
-        empty="No injections or vaccines recorded."
-      />
-
-      {modal && (
-        <Modal title="Record In-Clinic Administration" onClose={() => setModal(false)}>
-          <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-            <label className="field">
-              <span>Patient</span>
-              <select>
-                {patients.map((p) => (
-                  <option key={p.id} value={p.id}>
-                    {p.name} ({p.mrn})
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label className="field">
-              <span>Medication / Vaccine</span>
-              <input placeholder="e.g. Vitamin B12 / Heparin / Tetanus Toxoid" />
-            </label>
-            <label className="field">
-              <span>Dose & Unit</span>
-              <input placeholder="e.g. 1000 mcg or 5000 IU" />
-            </label>
-            <label className="field">
-              <span>Route & Anatomical Site</span>
-              <select>
-                <option value="im-r-deltoid">Intramuscular (IM) · Right Deltoid</option>
-                <option value="im-l-deltoid">Intramuscular (IM) · Left Deltoid</option>
-                <option value="sc-abdomen">Subcutaneous (SC) · Abdomen</option>
-                <option value="iv-push">Intravenous (IV) Push</option>
-              </select>
-            </label>
-            <label className="field">
-              <span>Batch / Lot Number</span>
-              <input placeholder="e.g. LOT-2026-X49" />
-            </label>
-            <div className="actions" style={{ justifyContent: "flex-end" }}>
-              <Button variant="secondary" onClick={() => setModal(false)}>
-                Cancel
-              </Button>
-              <Button
-                onClick={() => {
-                  notify("Administration record logged to MAR.");
-                  setModal(false);
-                }}
-              >
-                Save Record
-              </Button>
-            </div>
-          </div>
-        </Modal>
-      )}
-    </div>
-  );
+  return <CharmInjectionsGlobal />;
 }
 
 /* ==========================================================================

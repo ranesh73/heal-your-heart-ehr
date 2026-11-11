@@ -12,4 +12,4 @@ export const AppContext = createContext<{
 }>({} as any);
 export const useApp = () => useContext(AppContext);
 export const clinicalRoles = ["doctor", "assistant", "therapist", "admin"];
-export const billingRoles = ["admin", "reception", "billing"];
+export const billingRoles = ["admin", "reception", "billing", "doctor"];

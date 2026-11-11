@@ -2556,46 +2556,66 @@ function Analytics() {
   );
 }
 
-export function OperationsPage({ initialTab = "Schedule" }: { initialTab?: string } = {}) {
+export function CalendarPage() {
+  return <Schedule />;
+}
+
+export function BillingPage() {
   const { user } = useApp();
-  const tabs = [
-    "Schedule",
-    ...(billingRoles.includes(user.role) ? ["Billing"] : []),
-    ...(["admin", "reception", "therapist"].includes(user.role)
-      ? ["Inventory"]
-      : []),
-    ...(["admin", "doctor", "billing", "reception"].includes(user.role)
-      ? ["Analytics"]
-      : []),
-  ];
-  const [tab, setTab] = useState(initialTab);
   const invoices = useQuery({
     queryKey: ["invoices", branch],
     queryFn: () => api<Row[]>("/invoices"),
-    enabled: billingRoles.includes(user.role) && tab === "Billing",
   });
   return (
     <>
       <PageHeading
-        eyebrow="Practice operations"
-        title="Keep the clinic moving"
-        description="Scheduling, resource allocation, and branch operations in one place."
+        eyebrow="Practice Billing"
+        title="Invoices & Collections"
+        description="Patient billing, receipts, payment recording, and balance reconciliation."
       />
-      <Tabs items={tabs} value={tab} onChange={setTab} />
-      {tab === "Schedule" && <Schedule />}
-      {tab === "Billing" &&
-        (invoices.isLoading ? (
-          <Loading />
-        ) : (
-          <>
-            <ErrorBox error={invoices.error} />
-            <BillingTable rows={invoices.data || []} />
-          </>
-        ))}
-      {tab === "Inventory" && <Inventory />}
-      {tab === "Analytics" && <Analytics />}
+      {invoices.isLoading ? (
+        <Loading />
+      ) : (
+        <>
+          <ErrorBox error={invoices.error} />
+          <BillingTable rows={invoices.data || []} />
+        </>
+      )}
     </>
   );
+}
+
+export function InventoryPage() {
+  return (
+    <>
+      <PageHeading
+        eyebrow="Clinic Logistics"
+        title="Medical Inventory & Supplies"
+        description="Pharmaceuticals, consumable supplies, and stock balance tracking."
+      />
+      <Inventory />
+    </>
+  );
+}
+
+export function AnalyticsPage() {
+  return (
+    <>
+      <PageHeading
+        eyebrow="Practice Intelligence"
+        title="Analytics & Performance"
+        description="Branch metrics, appointment outcomes, and clinical volume trends."
+      />
+      <Analytics />
+    </>
+  );
+}
+
+export function OperationsPage({ initialTab = "Schedule" }: { initialTab?: string } = {}) {
+  if (initialTab === "Billing") return <BillingPage />;
+  if (initialTab === "Inventory") return <InventoryPage />;
+  if (initialTab === "Analytics") return <AnalyticsPage />;
+  return <CalendarPage />;
 }
 
 export function CommunicationPage() {

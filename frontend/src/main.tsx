@@ -89,6 +89,10 @@ import {
 import { EECPPage } from "./eecp";
 import {
   OperationsPage,
+  CalendarPage,
+  BillingPage,
+  InventoryPage,
+  AnalyticsPage,
   CommunicationPage,
   AdministrationPage,
 } from "./operations";
@@ -861,12 +865,12 @@ function Workspace() {
             {page === "patients" &&
               (parts[1] ? <PatientChart id={parts[1]} /> : <PatientsPage />)}
             {(page === "clinical" || page === "chart-notes") && <ClinicalPage />}
-            {page === "calendar" && <OperationsPage initialTab="Schedule" />}
+            {page === "calendar" && <CalendarPage />}
             {page === "encounter" && (
               <EncounterEditor id={parts[1]} patientId={parts[2]} />
             )}
             {page === "eecp" && <EECPPage />}
-            {page === "operations" && <OperationsPage />}
+            {page === "operations" && <CalendarPage />}
             {page === "communication" && <CommunicationPage />}
             {page === "administration" && <AdministrationPage />}
             {page === "settings" && <AdministrationPage />}
@@ -878,9 +882,9 @@ function Workspace() {
             {page === "messages" && <MessagesPage />}
             {page === "channels" && <ChannelsPage />}
             {page === "tasks" && <TasksPage />}
-            {page === "billing" && <OperationsPage initialTab="Billing" />}
-            {page === "inventory" && <OperationsPage initialTab="Inventory" />}
-            {page === "analytics" && <OperationsPage initialTab="Analytics" />}
+            {page === "billing" && <BillingPage />}
+            {page === "inventory" && <InventoryPage />}
+            {page === "analytics" && <AnalyticsPage />}
             {![
               "home",
               "patients",
