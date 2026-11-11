@@ -1028,10 +1028,11 @@ export function CharmImages({ patientId, encounterId, isGlobal }: CharmImagesPro
 
             <button
               onClick={handleAddTest}
-              className="charm-btn-orange"
+              className="charm-btn-teal"
               style={{
                 padding: "7px 18px",
-                background: "var(--brand-teal-primary)",
+                background: "var(--brand-teal-primary, #00838f)",
+                backgroundColor: "#00838f",
                 color: "#ffffff",
                 border: "none",
                 borderRadius: 4,
@@ -1442,10 +1443,11 @@ export function CharmImages({ patientId, encounterId, isGlobal }: CharmImagesPro
                   handleOpenAddOrder();
                 }
               }}
-              className="charm-btn-orange"
+              className="charm-btn-teal"
               style={{
                 padding: "6px 14px",
-                background: "var(--brand-teal-primary)",
+                background: "var(--brand-teal-primary, #00838f)",
+                backgroundColor: "#00838f",
                 color: "#ffffff",
                 border: "none",
                 borderRadius: 4,
@@ -1705,10 +1707,11 @@ export function CharmImages({ patientId, encounterId, isGlobal }: CharmImagesPro
             {/* Teal "+ Image Order" Button */}
             <button
               onClick={handleOpenAddOrder}
-              className="charm-btn-orange"
+              className="charm-btn-teal"
               style={{
                 padding: "6px 14px",
-                background: "var(--brand-teal-primary)",
+                background: "var(--brand-teal-primary, #00838f)",
+                backgroundColor: "#00838f",
                 color: "#ffffff",
                 border: "none",
                 borderRadius: 4,

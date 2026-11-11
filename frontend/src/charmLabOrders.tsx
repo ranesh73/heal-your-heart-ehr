@@ -234,7 +234,7 @@ export function CharmLabOrders({ patientId, encounterId, isGlobal }: CharmLabOrd
         const meta = JSON.parse(order.order_metadata);
         if (meta.template_name) return meta.template_name;
         if (meta.primary_lab) return meta.primary_lab;
-      } catch {}
+      } catch { }
     }
     if (order.name && order.name.includes(" · ")) {
       return order.name.split(" · ")[0].trim();
@@ -386,16 +386,16 @@ export function CharmLabOrders({ patientId, encounterId, isGlobal }: CharmLabOrd
         {viewMode === "list" && activeSubTab === "orders" && (
           <button
             type="button"
-            className="charm-btn-orange"
+            className="charm-btn-teal"
             style={{
-              backgroundColor: "#ea580c",
+              backgroundColor: "#00838f",
               color: "#ffffff",
               border: "none",
               borderRadius: "4px",
-              padding: "7px 14px",
+              padding: "7px 16px",
               fontSize: "0.85rem",
               fontWeight: 600,
-              display: "flex",
+              display: "inline-flex",
               alignItems: "center",
               gap: "6px",
               cursor: "pointer",
@@ -404,23 +404,23 @@ export function CharmLabOrders({ patientId, encounterId, isGlobal }: CharmLabOrd
             onClick={() => setViewMode("add_order")}
           >
             <Plus size={15} />
-            + Lab Order
+            Lab Order
           </button>
         )}
 
         {viewMode === "list" && activeSubTab === "results" && (
           <button
             type="button"
-            className="charm-btn-orange"
+            className="charm-btn-teal"
             style={{
-              backgroundColor: "#ea580c",
+              backgroundColor: "#00838f",
               color: "#ffffff",
               border: "none",
               borderRadius: "4px",
-              padding: "7px 14px",
+              padding: "7px 16px",
               fontSize: "0.85rem",
               fontWeight: 600,
-              display: "flex",
+              display: "inline-flex",
               alignItems: "center",
               gap: "6px",
               cursor: "pointer",
@@ -429,7 +429,7 @@ export function CharmLabOrders({ patientId, encounterId, isGlobal }: CharmLabOrd
             onClick={() => setSelectOrderForResultsModal(true)}
           >
             <Plus size={15} />
-            + Lab Result
+            Lab Result
           </button>
         )}
       </div>

@@ -7790,18 +7790,29 @@ main.main-encounter {
 }
 
 .charm-btn-teal {
-  background: #0d9488;
-  color: #ffffff;
-  border: none;
-  border-radius: 4px;
-  padding: 6px 16px;
-  font-size: 13px;
-  font-weight: 600;
-  cursor: pointer;
+  background-color: #00838f !important;
+  background: #00838f !important;
+  color: #ffffff !important;
+  border: none !important;
+  border-radius: 4px !important;
+  padding: 7px 16px !important;
+  font-size: 13px !important;
+  font-weight: 600 !important;
+  cursor: pointer !important;
+  display: inline-flex !important;
+  flex-direction: row !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 6px !important;
+  white-space: nowrap !important;
+  line-height: 1 !important;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1) !important;
+  transition: all 0.15s ease !important;
 }
 
 .charm-btn-teal:hover {
-  background: #0f766e;
+  background-color: #006978 !important;
+  background: #006978 !important;
 }
 
 .charm-btn-light-close {
@@ -8061,7 +8072,8 @@ main.main-encounter {
 /* ==========================================================================
    HEAL YOUR HEART UNIFIED DESIGN SYSTEM ELEVATION OVERRIDES
    ========================================================================== */
-.charm-btn-consultation {
+.charm-btn-consultation,
+.charm-btn-teal {
   background-color: #00838f !important;
   background: #00838f !important;
   color: #ffffff !important;
@@ -8082,7 +8094,8 @@ main.main-encounter {
   transition: all 0.15s ease !important;
 }
 
-.charm-btn-consultation:hover {
+.charm-btn-consultation:hover,
+.charm-btn-teal:hover {
   background-color: #006978 !important;
   background: #006978 !important;
 }
@@ -9500,7 +9513,8 @@ textarea.charm-input {
 }
 
 /* Authentic CharmHealth Orange Button */
-.charm-btn-consultation {
+.charm-btn-consultation,
+.charm-btn-teal {
   background-color: #00838f !important;
   background: #00838f !important;
   color: #ffffff !important;
@@ -9521,7 +9535,8 @@ textarea.charm-input {
   transition: all 0.15s ease !important;
 }
 
-.charm-btn-consultation:hover {
+.charm-btn-consultation:hover,
+.charm-btn-teal:hover {
   background-color: #006978 !important;
   background: #006978 !important;
 }
