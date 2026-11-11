@@ -107,6 +107,12 @@ import {
   ChannelsPage,
   TasksPage,
 } from "./clinicalModules";
+import {
+  SettingsDashboard,
+  IndividualSettingPage,
+  FloatingToolbar,
+  useKeyboardShortcuts,
+} from "./settings";
 import "./styles.css";
 
 const launcherModules = [
@@ -124,6 +130,7 @@ const launcherModules = [
   { id: "billing", title: "Billing", sub: "Invoices & Ledger", icon: DollarSign, route: "/billing" },
   { id: "inventory", title: "Inventory", sub: "Supplies & Stock", icon: Package, route: "/inventory" },
   { id: "analytics", title: "Analytics", sub: "Clinical Reports", icon: BarChart3, route: "/analytics" },
+  { id: "settings", title: "Settings", sub: "Charm System Hub", icon: Settings, route: "/settings" },
 ];
 
 const specializedModules = [
@@ -161,7 +168,7 @@ function Login({ onLogin }: { onLogin: () => void }) {
     formState: { errors, isSubmitting },
   } = useForm<z.infer<typeof schema>>({
     resolver: zodResolver(schema),
-    defaultValues: { email: "doctor@demo.local" },
+    defaultValues: { email: "doctor@demo.local", password: "password123" },
   });
   const [error, setError] = useState<unknown>();
 
@@ -296,7 +303,10 @@ function Login({ onLogin }: { onLogin: () => void }) {
                 <button
                   key={qr.role}
                   type="button"
-                  onClick={() => setValue("email", qr.email)}
+                  onClick={() => {
+                    setValue("email", qr.email);
+                    setValue("password", "password123");
+                  }}
                   style={{
                     fontSize: 11,
                     padding: "3px 8px",
@@ -310,6 +320,9 @@ function Login({ onLogin }: { onLogin: () => void }) {
                   {qr.role}
                 </button>
               ))}
+            </div>
+            <div style={{ marginTop: 8, fontSize: 11, color: "#64748b" }}>
+              Demo password: <code style={{ background: "#f1f5f9", padding: "1px 5px", borderRadius: 3, color: "#0f172a" }}>password123</code> (or <code style={{ background: "#f1f5f9", padding: "1px 5px", borderRadius: 3, color: "#0f172a" }}>OoDC4hdJkhoRrPWYSjk0TdLI</code>)
             </div>
           </div>
 
@@ -367,10 +380,22 @@ function Workspace() {
   const [toast, setToast] = useState("");
   const [search, setSearch] = useState("");
   const [modal, setModal] = useState("");
+  const [shortcutsModalOpen, setShortcutsModalOpen] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const [waffleOpen, setWaffleOpen] = useState(false);
   const [moreMenuOpen, setMoreMenuOpen] = useState(false);
   const [activeBranch, setActiveBranch] = useState(branch);
+
+  // Global Keyboard Shortcuts (Shift + K, Alt navigation, Escape)
+  useKeyboardShortcuts({
+    onOpenShortcuts: () => setShortcutsModalOpen(true),
+    onCloseModals: () => {
+      setShortcutsModalOpen(false);
+      setUserMenuOpen(false);
+      setWaffleOpen(false);
+      setMoreMenuOpen(false);
+    },
+  });
 
   const me = useQuery({
     queryKey: ["me"],
@@ -480,28 +505,30 @@ function Workspace() {
     { id: "inventory", label: "Inventory", route: "/inventory", icon: Package },
     { id: "eecp", label: "EECP Workspace", route: "/eecp", icon: HeartPulse },
     { id: "analytics", label: "Analytics", route: "/analytics", icon: BarChart3 },
-    { id: "administration", label: "Settings & Admin", route: "/administration", icon: Settings },
+    { id: "settings", label: "Settings", route: "/settings", icon: Settings },
+    { id: "administration", label: "Practice Admin", route: "/administration", icon: Building2 },
   ];
 
   const isMoreActive = moreNavItems.some(
     (m) => page === m.id || (m.id === "administration" && page === "settings")
   );
 
+  const isFullWidthPage = page === "home" || page === "settings";
   const isHome = page === "home";
   const currentFacility = me.data.facilities.find((f: Row) => f.id === branch);
 
   return (
     <AppContext.Provider value={context}>
       <div
-        className={`app-shell ${isHome ? "is-home" : "has-sidebar"}`}
+        className={`app-shell ${isFullWidthPage ? "is-home" : "has-sidebar"}`}
         onClick={() => {
           if (userMenuOpen) setUserMenuOpen(false);
           if (waffleOpen) setWaffleOpen(false);
           if (moreMenuOpen) setMoreMenuOpen(false);
         }}
       >
-        {/* Contextual CharmHealth Left Sidebar - Hidden on Home, Visible inside opened modules */}
-        {!isHome && (
+        {/* Contextual CharmHealth Left Sidebar - Hidden on Home and Settings */}
+        {!isFullWidthPage && (
           <nav className="charm-global-sidebar" aria-label="Global Navigation">
             <button
               type="button"
@@ -594,8 +621,8 @@ function Workspace() {
           </nav>
         )}
 
-        {/* Main Workspace Area (Full width on Home, Beside Sidebar inside modules) */}
-        <div className={`workspace ${isHome ? "workspace-full" : "workspace-with-sidebar"}`}>
+        {/* Main Workspace Area (Full width on Home & Settings, Beside Sidebar inside modules) */}
+        <div className={`workspace ${isFullWidthPage ? "workspace-full" : "workspace-with-sidebar"}`}>
           {/* Authentic CharmHealth Topbar Strip (NO horizontal navigation bar) */}
           <header className="charm-global-topbar">
             <div className="charm-header-top-row">
@@ -632,7 +659,7 @@ function Workspace() {
 
               {/* Right Controls */}
               <div className="charm-header-right-controls">
-                {page !== "home" && (
+                {!isFullWidthPage && (
                   <div className="charm-header-search-compact">
                     <Search size={14} color="#64748b" />
                     <input
@@ -700,7 +727,7 @@ function Workspace() {
                 <button
                   className="charm-icon-btn-round"
                   aria-label="Settings"
-                  onClick={() => navigate("/administration")}
+                  onClick={() => navigate("/settings")}
                   title="Settings"
                 >
                   <Settings size={15} />
@@ -735,11 +762,11 @@ function Workspace() {
                         className="charm-popup-item"
                         onClick={() => {
                           setUserMenuOpen(false);
-                          navigate("/administration");
+                          navigate("/settings");
                         }}
                       >
                         <Settings size={14} />
-                        <span>My Profile & Preferences</span>
+                        <span>Settings & Preferences</span>
                       </button>
                       <button
                         className="charm-popup-item"
@@ -874,7 +901,12 @@ function Workspace() {
             {page === "operations" && <CalendarPage />}
             {page === "communication" && <CommunicationPage />}
             {page === "administration" && <AdministrationPage />}
-            {page === "settings" && <AdministrationPage />}
+            {page === "settings" &&
+              (parts[1] ? (
+                <IndividualSettingPage categoryId={parts[1]} optionId={parts[2]} />
+              ) : (
+                <SettingsDashboard />
+              ))}
             {page === "labs" && <LabsPage />}
             {page === "images" && <ImagesPage />}
             {page === "documents" && <DocumentsPage />}
@@ -920,24 +952,11 @@ function Workspace() {
           </main>
         </div>
 
-        {/* Right Floating Utility Rail matching CharmHealth */}
-        <aside className="charm-floating-rail" aria-label="Quick Utilities">
-          <button title="Refer a Friend" onClick={() => notify("Referral portal opened.")}>
-            <Gift size={15} />
-          </button>
-          <button title="Add-ons & Extensions" onClick={() => notify("Add-ons manager.")}>
-            <Puzzle size={15} />
-          </button>
-          <button title="Help & Support" onClick={() => notify("Help center.")}>
-            <HelpCircle size={15} />
-          </button>
-          <button title="Layout Split View" onClick={() => notify("Toggle layout.")}>
-            <Layers size={15} />
-          </button>
-          <button title="Keyboard Shortcuts" onClick={() => notify("Shortcuts: Shift+K")}>
-            <Command size={15} />
-          </button>
-        </aside>
+        {/* Persistent Vertical Floating Toolbar (Refer a Friend, Add-ons, Help, Keyboard Shortcuts) */}
+        <FloatingToolbar
+          shortcutsOpen={shortcutsModalOpen}
+          onToggleShortcuts={setShortcutsModalOpen}
+        />
 
         {/* Bottom Collaboration Dock matching CharmHealth */}
         <footer className={`charm-collab-dock ${isHome ? "dock-full" : "dock-with-sidebar"}`}>

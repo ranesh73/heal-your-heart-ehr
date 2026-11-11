@@ -44,3 +44,8 @@ scripts/capture_import_results.js
 frontend/scratch_*.cjs
 frontend/record_charmhealth.mjs
 frontend/verification_screenshots/
+charm_*
+*.tsbuildinfo
+scripts/extracted_frames/
+scripts/test_*.png
+frontend/current_settings.png

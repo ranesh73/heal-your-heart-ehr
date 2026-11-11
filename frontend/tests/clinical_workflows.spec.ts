@@ -6,7 +6,7 @@ const password = readFileSync(resolve("../.demo-credentials.txt"), "utf8")
   .match(/Password for all demo accounts: (.+)/)![1]
   .trim();
 
-const artifactDir = "C:/Users/ranes/.gemini/antigravity/brain/0722881a-4597-4fb1-ba07-f822c57fd91c/screenshots/charm_clinical_workflows";
+const artifactDir = resolve("test-results/charm_clinical_workflows");
 mkdirSync(artifactDir, { recursive: true });
 
 async function login(page: any, role = "doctor") {
@@ -26,14 +26,10 @@ test("CharmHealth Clinical Workflows Parity Verification", async ({ page }) => {
 
   // 2. Open dummy patient Isaac G. E. chart
   await page.goto("http://127.0.0.1:8000/#/patients");
-  await page.waitForTimeout(1200);
   const isaacRow = page.getByText("Isaac G. E.").first();
-  if (await isaacRow.isVisible()) {
-    await isaacRow.click();
-  } else {
-    await page.goto("http://127.0.0.1:8000/#/patients/bb60e02d-7762-4448-89c8-0f1da175d748");
-  }
-  await page.waitForTimeout(1200);
+  await isaacRow.waitFor({ state: "visible", timeout: 10000 });
+  await isaacRow.click();
+  await page.locator('button[data-tab="Medications"]').waitFor({ state: "visible", timeout: 10000 });
 
   // ------------------------------------------------------------------------
   // WORKFLOW 1: MEDICATIONS & PRESCRIPTIONS

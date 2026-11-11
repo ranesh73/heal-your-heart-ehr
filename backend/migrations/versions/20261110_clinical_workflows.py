@@ -98,8 +98,31 @@ def upgrade():
         if 'observed_at' not in vital_cols:
             batch_op.add_column(sa.Column('observed_at', sa.DateTime(), nullable=True))
 
+    # 5. Add columns to encounters table
+    enc_cols = [c['name'] for c in insp.get_columns('encounters')]
+    with op.batch_alter_table('encounters') as batch_op:
+        if 'chart_type' not in enc_cols:
+            batch_op.add_column(sa.Column('chart_type', sa.String(50), server_default='SOAP Template', nullable=False))
+        if 'mode' not in enc_cols:
+            batch_op.add_column(sa.Column('mode', sa.String(50), server_default='In Person', nullable=False))
+        if 'consult_notes' not in enc_cols:
+            batch_op.add_column(sa.Column('consult_notes', sa.Text(), server_default='', nullable=True))
+        if 'nurse_notes' not in enc_cols:
+            batch_op.add_column(sa.Column('nurse_notes', sa.Text(), server_default='', nullable=True))
+        if 'physician_notes' not in enc_cols:
+            batch_op.add_column(sa.Column('physician_notes', sa.Text(), server_default='', nullable=True))
+        if 'treatment_notes' not in enc_cols:
+            batch_op.add_column(sa.Column('treatment_notes', sa.Text(), server_default='', nullable=True))
+
 
 def downgrade():
+    with op.batch_alter_table('encounters') as batch_op:
+        batch_op.drop_column('treatment_notes')
+        batch_op.drop_column('physician_notes')
+        batch_op.drop_column('nurse_notes')
+        batch_op.drop_column('consult_notes')
+        batch_op.drop_column('mode')
+        batch_op.drop_column('chart_type')
     op.drop_table('vaccines')
     op.drop_table('injections')
     with op.batch_alter_table('medications') as batch_op:

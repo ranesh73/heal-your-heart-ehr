@@ -101,12 +101,107 @@ def deactivate_user(identifier:str,c=Depends(context)):
     return serialize(row)
 
 
+@router.get('/facilities')
+def list_facilities(c=Depends(context)):
+    return [serialize(x) for x in c.db.scalars(select(m.Facility).order_by(m.Facility.active.desc(), m.Facility.name))]
+
+
 @router.post('/admin/facilities')
 def facility(data:s.FacilityInput,c=Depends(context)):
     c.allow({'admin'})
-    row=m.Facility(**data.model_dump()); c.db.add(row); c.db.flush()
+    d = data.model_dump()
+    # Filter out extra schema fields that are not in m.Facility table
+    facility_fields = {'code', 'name', 'address', 'phone', 'mobile', 'active'}
+    clean_d = {k: v for k, v in d.items() if k in facility_fields}
+    row=m.Facility(**clean_d); c.db.add(row); c.db.flush()
     c.db.add(m.UserFacility(user_id=c.user.id,facility_id=row.id))
     c.audit('create_facility',row)
+    return serialize(row)
+
+
+@router.put('/admin/facilities/{identifier}')
+def update_facility(identifier:str, data:s.FacilityInput, c=Depends(context)):
+    c.allow({'admin'})
+    row = c.db.get(m.Facility, identifier)
+    if not row: raise HTTPException(404, 'Facility not found')
+    d = data.model_dump()
+    row.name = d['name']
+    row.code = d['code']
+    if 'active' in d and d['active'] is not None:
+        row.active = d['active']
+    if d.get('address') is not None:
+        row.address = d['address']
+    if 'phone' in d and d['phone'] is not None:
+        row.phone = d['phone']
+    if 'mobile' in d and d['mobile'] is not None:
+        row.mobile = d['mobile']
+    row.version += 1
+    c.audit('update_facility', row)
+    return serialize(row)
+
+
+@router.post('/admin/facilities/{identifier}/status')
+def toggle_facility_status(identifier:str, c=Depends(context)):
+    c.allow({'admin'})
+    row = c.db.get(m.Facility, identifier)
+    if not row: raise HTTPException(404, 'Facility not found')
+    row.active = not row.active
+    row.version += 1
+    c.audit('toggle_facility_status', row)
+    return serialize(row)
+
+
+@router.get('/facilities/{identifier}/members')
+def facility_members(identifier:str, c=Depends(context)):
+    all_users = list(c.db.scalars(select(m.User).order_by(m.User.name)))
+    mapped_uids = set(c.db.scalars(select(m.UserFacility.user_id).where(m.UserFacility.facility_id==identifier)))
+    return [
+        {**serialize(u), 'mapped': u.id in mapped_uids}
+        for u in all_users
+    ]
+
+
+@router.post('/admin/facilities/{identifier}/members')
+def update_facility_members(identifier:str, data:dict, c=Depends(context)):
+    c.allow({'admin'})
+    user_ids = set(data.get('user_ids', []))
+    # Remove existing associations for this facility
+    c.db.execute(delete(m.UserFacility).where(m.UserFacility.facility_id==identifier))
+    # Add new associations
+    for uid in user_ids:
+        c.db.add(m.UserFacility(user_id=uid, facility_id=identifier))
+    c.db.commit()
+    return {'ok': True, 'count': len(user_ids)}
+
+
+@router.get('/facility-resources')
+def list_facility_resources(c=Depends(context)):
+    stmt = (
+        select(m.Resource, m.Facility.name.label('facility_name'), m.Facility.code.label('facility_code'))
+        .join(m.Facility, m.Resource.facility_id == m.Facility.id)
+        .order_by(m.Resource.name, m.Facility.name)
+    )
+    results = []
+    for res, fac_name, fac_code in c.db.execute(stmt):
+        s = serialize(res)
+        s['facility_name'] = fac_name
+        s['facility_code'] = fac_code
+        results.append(s)
+    return results
+
+
+@router.post('/admin/facility-resources')
+def add_facility_resource(data:dict, c=Depends(context)):
+    c.allow({'admin'})
+    fid = data.get('facility_id') or c.facility_id
+    row = m.Resource(
+        facility_id=fid,
+        name=data['name'],
+        kind=data.get('kind', 'EECP Room'),
+        active=True
+    )
+    c.db.add(row)
+    c.audit('create_facility_resource', row)
     return serialize(row)
 
 
