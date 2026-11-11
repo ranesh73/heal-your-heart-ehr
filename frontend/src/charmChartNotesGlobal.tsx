@@ -216,30 +216,28 @@ export function CharmChartNotesGlobal() {
           </span>
         </div>
         <div className="charm-cn-actions">
-          {["doctor", "admin", "assistant", "reception"].includes(user.role) && (
-            <button
-              type="button"
-              className="charm-btn-teal"
-              style={{
-                display: "inline-flex",
-                alignItems: "center",
-                gap: 6,
-                fontWeight: 600,
-                fontSize: 13,
-                padding: "7px 16px",
-                borderRadius: 4,
-              }}
-              onClick={() => {
-                if (patients.length > 0 && !consultPatientId) {
-                  setConsultPatientId(patients[0].id);
-                }
-                setShowConsultModal(true);
-              }}
-            >
-              <Plus size={16} />
-              Consultation
-            </button>
-          )}
+          <button
+            type="button"
+            className="charm-btn-teal"
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 6,
+              fontWeight: 600,
+              fontSize: 13,
+              padding: "7px 16px",
+              borderRadius: 4,
+            }}
+            onClick={() => {
+              if (patients.length > 0 && !consultPatientId) {
+                setConsultPatientId(patients[0].id);
+              }
+              setShowConsultModal(true);
+            }}
+          >
+            <Plus size={16} />
+            Consultation
+          </button>
         </div>
       </div>
 

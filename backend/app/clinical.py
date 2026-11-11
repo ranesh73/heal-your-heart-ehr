@@ -16,18 +16,18 @@ router=APIRouter(prefix='/api')
 RECORDS={'history':m.History,'diagnoses':m.Diagnosis,'allergies':m.Allergy,'medications':m.Medication,
     'vitals':m.Vital,'orders':m.ClinicalOrder,'weekly':m.WeeklyAssessment,'tasks':m.Task,'entries':m.PatientEntry,
     'messages':m.Message,'injections':m.Injection,'vaccines':m.Vaccine}
-WRITE_ROLES={'history':{'doctor','assistant'},'diagnoses':{'doctor'},'allergies':{'doctor','assistant'},'medications':{'doctor'},
-    'vitals':{'doctor','assistant','therapist'},'orders':{'doctor','assistant'},'weekly':{'therapist','doctor'},
-    'tasks':{'doctor','assistant','therapist','reception','billing','admin'},'entries':{'doctor','assistant','therapist'},
+WRITE_ROLES={'history':{'doctor','assistant','admin','therapist','reception'},'diagnoses':{'doctor','admin','assistant'},'allergies':{'doctor','assistant','admin','therapist','reception'},'medications':{'doctor','admin','assistant'},
+    'vitals':{'doctor','assistant','therapist','admin','reception'},'orders':{'doctor','assistant','admin','therapist','reception'},'weekly':{'therapist','doctor','admin'},
+    'tasks':{'doctor','assistant','therapist','reception','billing','admin'},'entries':{'doctor','assistant','therapist','admin'},
     'messages':{'doctor','assistant','therapist','admin','reception','billing'},
-    'injections':{'doctor','assistant','therapist'},'vaccines':{'doctor','assistant'}}
+    'injections':{'doctor','assistant','therapist','admin','reception'},'vaccines':{'doctor','assistant','admin','reception'}}
 
 
 def draft_encounter(c,identifier,patient_id=None,write=False):
     row=c.record(m.Encounter,identifier)
     if patient_id and row.patient_id!=patient_id: raise HTTPException(422,'Encounter belongs to another patient')
     if row.status!='draft': raise HTTPException(409,'Signed encounter is immutable. Use an amendment.')
-    if write and c.user.id!=row.provider_id: raise HTTPException(403,'Only the assigned clinician may edit this encounter')
+    if write and c.user.role not in ('admin', 'assistant') and c.user.id!=row.provider_id: raise HTTPException(403,'Only the assigned clinician may edit this encounter')
     return row
 
 
@@ -380,7 +380,7 @@ def revision(c,row,action):
 
 @router.put('/encounters/{identifier}')
 def save_note(identifier:str,data:s.NoteInput,c=Depends(context)):
-    c.allow({'doctor'}); row=draft_encounter(c,identifier,write=True); check_version(row,data.version)
+    c.allow({'doctor','admin'}); row=draft_encounter(c,identifier,write=True); check_version(row,data.version)
     revision(c,row,'before_edit')
     for key,value in data.model_dump(exclude={'version','symptoms'}).items(): setattr(row,key,value)
     names=[x.name for x in data.symptoms]
@@ -393,7 +393,7 @@ def save_note(identifier:str,data:s.NoteInput,c=Depends(context)):
 
 @router.post('/encounters/{identifier}/sign')
 def sign_note(identifier:str,data:s.Version,c=Depends(context)):
-    c.allow({'doctor'}); row=draft_encounter(c,identifier,write=True); check_version(row,data.version)
+    c.allow({'doctor','admin'}); row=draft_encounter(c,identifier,write=True); check_version(row,data.version)
     cc = (row.chief_complaint or row.consult_notes or '').strip()
     ass = (row.assessment or row.physician_notes or row.consult_notes or '').strip()
     pl = (row.plan or row.treatment_notes or row.follow_up or row.consult_notes or '').strip()

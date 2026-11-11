@@ -376,7 +376,7 @@ export function PatientHeader({
           </button>
           {plusOpen && (
             <div className="charm-header-dropdown-menu" onMouseLeave={() => setPlusOpen(false)}>
-              {user.role === "doctor" && onCreateEncounter && (
+              {onCreateEncounter && (
                 <button
                   type="button"
                   className="charm-dropdown-item"
@@ -661,17 +661,17 @@ export function PatientChart({ id }: { id: string }) {
   const writable = (kind: string) =>
     (
       ({
-        history: ["doctor", "assistant"],
-        diagnoses: ["doctor"],
-        allergies: ["doctor", "assistant"],
-        medications: ["doctor"],
-        vitals: ["doctor", "assistant", "therapist"],
-        orders: ["doctor", "assistant"],
-        images: ["doctor", "assistant"],
+        history: ["doctor", "assistant", "admin", "therapist", "reception"],
+        diagnoses: ["doctor", "assistant", "admin"],
+        allergies: ["doctor", "assistant", "admin", "therapist", "reception"],
+        medications: ["doctor", "assistant", "admin"],
+        vitals: ["doctor", "assistant", "therapist", "admin", "reception"],
+        orders: ["doctor", "assistant", "admin", "therapist", "reception"],
+        images: ["doctor", "assistant", "admin", "therapist", "reception"],
         documents: clinicalRoles,
-        injections: ["doctor", "assistant", "therapist"],
-        vaccines: ["doctor", "assistant"],
-      })[kind] || []
+        injections: ["doctor", "assistant", "therapist", "admin", "reception"],
+        vaccines: ["doctor", "assistant", "admin", "reception"],
+      })[kind] || ["doctor", "admin", "assistant"]
     ).includes(user.role);
 
   const sections22 = [
@@ -1141,15 +1141,13 @@ export function PatientChart({ id }: { id: string }) {
                 <Panel
                   title="Consultation History"
                   actions={
-                    user.role === "doctor" && (
-                      <button
-                        type="button"
-                        className="charm-btn-consultation"
-                        onClick={() => setShowNewEncounterModal(true)}
-                      >
-                        <Plus size={14} /> Consultation
-                      </button>
-                    )
+                    <button
+                      type="button"
+                      className="charm-btn-consultation"
+                      onClick={() => setShowNewEncounterModal(true)}
+                    >
+                      <Plus size={14} /> Consultation
+                    </button>
                   }
                 >
                   <Table
@@ -1562,7 +1560,11 @@ export function PatientChart({ id }: { id: string }) {
             try {
               const r = await api("/encounters", "POST", {
                 patient_id: id,
-                provider_id: payload.provider_id || user.id,
+                provider_id:
+                  payload.provider_id ||
+                  (user.role === "doctor"
+                    ? user.id
+                    : staff.find((s) => s.role === "doctor")?.id || user.id),
                 assistant_id: staff.find((s) => s.role === "assistant")?.id || null,
                 visit_type: payload.visit_type || "Cardiology consultation",
                 chart_type: payload.chart_type || "SOAP Template",
@@ -2529,8 +2531,7 @@ export function EncounterEditor({
     );
 
   const editable =
-    user.role === "doctor" &&
-    encounter.provider_id === user.id &&
+    (user.role === "admin" || (user.role === "doctor" && encounter.provider_id === user.id)) &&
     encounter.status === "draft";
   const old = chart.encounters.filter(
     (e: Row) => e.id !== id && e.status === "signed",
@@ -2939,9 +2940,8 @@ export function EncounterEditor({
               <button
                 key={tabName}
                 type="button"
-                className={`charm-consult-subtab-link ${
-                  consultSubTab === tabName ? "active" : ""
-                }`}
+                className={`charm-consult-subtab-link ${consultSubTab === tabName ? "active" : ""
+                  }`}
                 onClick={() => setConsultSubTab(tabName)}
               >
                 {tabName}
@@ -3509,430 +3509,430 @@ export function EncounterEditor({
                 <>
                   {/* TEMPLATE SEARCH BAR (Screenshots 1-3) */}
                   <div className="charm-template-search-row">
-                <div className="charm-template-search-container">
-                  <button
-                    type="button"
-                    className="charm-template-type-btn"
-                    onClick={() => setTemplateDropdownOpen(!templateDropdownOpen)}
-                  >
-                    SOAP <ChevronDown size={12} style={{ display: "inline", marginLeft: 2 }} />
-                  </button>
-                  <input
-                    className="charm-template-search-input"
-                    placeholder="Search Template by Name"
-                    value={templateSearch}
-                    onFocus={() => setTemplateDropdownOpen(true)}
-                    onChange={(e) => {
-                      setTemplateSearch(e.target.value);
-                      setTemplateDropdownOpen(true);
-                    }}
-                  />
-                  <div
-                    className="charm-template-clip-badge"
-                    title="Seeded practice templates"
-                  >
-                    📋 {templates.data?.length || 12}
-                  </div>
-                </div>
-
-                <button
-                  type="button"
-                  className="charm-template-link-btn"
-                  onClick={() => {
-                    const tmt =
-                      templates.data?.find((t) =>
-                        t.name.includes("Treadmill"),
-                      ) || {
-                        name: "Treadmill Test ( TMT )_Practice",
-                        code: "TMT_PRACTICE",
-                      };
-                    setViewingTemplate(tmt);
-                  }}
-                >
-                  Templates
-                </button>
-
-                {/* TEMPLATE DROPDOWN (Screenshot 1) */}
-                {templateDropdownOpen && (
-                  <div className="charm-template-dropdown-popup">
-                    {(templates.data || [
-                      { id: "1", name: "Diabetes Management Template_Practice" },
-                      { id: "2", name: "Diet for Anemia_Practice" },
-                      { id: "3", name: "Diet for BP Patient_Practice" },
-                      { id: "4", name: "Diet For Cholesterol_Practice" },
-                      { id: "5", name: "Diet for Diabetes_Practice" },
-                      { id: "6", name: "Diet for Healthy Heart/Healthy Life_Practice" },
-                      { id: "7", name: "Diet for Kidney Disease_Practice" },
-                      { id: "8", name: "Diet for Thyroid Problem_Practice" },
-                      { id: "9", name: "Heart Failure Patient Diet_Practice" },
-                      { id: "10", name: "HUH EECP SOAP_Practice" },
-                      { id: "11", name: "Vaso-Meditech EECP SOAP_Practice" },
-                      { id: "12", name: "Treadmill Test ( TMT )_Practice" },
-                    ])
-                      .filter(
-                        (t) =>
-                          !templateSearch ||
-                          t.name.toLowerCase().includes(templateSearch.toLowerCase()),
-                      )
-                      .map((t) => (
-                        <div
-                          key={t.id || t.name}
-                          className={`charm-template-dropdown-row ${selectedTemplate === t.name ? "selected" : ""
-                            }`}
-                          onClick={() => applyTemplate(t.name)}
-                        >
-                          {t.name}
-                        </div>
-                      ))}
-                  </div>
-                )}
-              </div>
-
-              {/* SECTION: CHIEF COMPLAINTS (Authentic CharmHealth (S) CC) */}
-              <div id="sec-cc" className="charm-editor-section">
-                <div className="charm-section-header">
-                  <h3>Chief Complaints</h3>
-                  <button
-                    type="button"
-                    className="charm-template-link-btn"
-                    onClick={() => setActiveTplModal("symptoms")}
-                  >
-                    Templates
-                  </button>
-                </div>
-
-                <textarea
-                  rows={4}
-                  className="charm-cc-textarea"
-                  aria-label="Chief complaint"
-                  placeholder="Clinical notes or chief complaints..."
-                  {...register("chief_complaint")}
-                />
-              </div>
-
-              {/* SECTION: SYMPTOMS (Authentic CharmHealth (S) SYM) */}
-              <div id="sec-sym" className="charm-editor-section">
-                <div className="charm-section-header">
-                  <h3>Symptoms</h3>
-                  <button
-                    type="button"
-                    className="charm-template-link-btn"
-                    onClick={() => setActiveTplModal("symptoms")}
-                  >
-                    Templates
-                  </button>
-                </div>
-
-                <div style={{ marginBottom: 12 }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
-                    <h4 style={{ fontSize: 13, fontWeight: 600, color: "#334155", margin: 0 }}>
-                      Post- EECP assessment
-                    </h4>
-                    <input
-                      type="checkbox"
-                      title="Select all"
-                      checked={postEecpOptions.every((opt) => postEecpAssessment[opt])}
-                      onChange={(e) => {
-                        const all: Record<string, boolean> = {};
-                        postEecpOptions.forEach((opt) => {
-                          all[opt] = e.target.checked;
-                        });
-                        setPostEecpAssessment(all);
-                      }}
-                    />
-                  </div>
-                  <div className="charm-post-eecp-grid">
-                    {postEecpOptions.map((opt) => (
-                      <label key={opt} className="charm-post-eecp-item">
-                        <input
-                          type="checkbox"
-                          checked={postEecpAssessment[opt] || false}
-                          onChange={(e) =>
-                            setPostEecpAssessment((prev) => ({
-                              ...prev,
-                              [opt]: e.target.checked,
-                            }))
-                          }
-                        />
-                        <span>{opt}</span>
-                      </label>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Hidden registered schema fields for symptoms */}
-                <div style={{ display: "none" }}>
-                  {symptoms.map((s, i) => (
-                    <div key={s}>
-                      <select aria-label={s} {...register("symptom_" + i)}>
-                        <option>Not assessed</option>
-                        <option>Yes</option>
-                        <option>No</option>
-                      </select>
-                      <input {...register("narrative_" + i)} />
+                    <div className="charm-template-search-container">
+                      <button
+                        type="button"
+                        className="charm-template-type-btn"
+                        onClick={() => setTemplateDropdownOpen(!templateDropdownOpen)}
+                      >
+                        SOAP <ChevronDown size={12} style={{ display: "inline", marginLeft: 2 }} />
+                      </button>
+                      <input
+                        className="charm-template-search-input"
+                        placeholder="Search Template by Name"
+                        value={templateSearch}
+                        onFocus={() => setTemplateDropdownOpen(true)}
+                        onChange={(e) => {
+                          setTemplateSearch(e.target.value);
+                          setTemplateDropdownOpen(true);
+                        }}
+                      />
+                      <div
+                        className="charm-template-clip-badge"
+                        title="Seeded practice templates"
+                      >
+                        📋 {templates.data?.length || 12}
+                      </div>
                     </div>
-                  ))}
-                </div>
-              </div>
 
-              {/* SECTION: HISTORY OF PRESENT ILLNESS (Authentic CharmHealth (S) HPI) */}
-              <div id="sec-hpi" className="charm-editor-section">
-                <div className="charm-section-header">
-                  <h3>History of Present Illness</h3>
-                  <button
-                    type="button"
-                    className="charm-template-link-btn"
-                    onClick={() => setActiveTplModal("symptoms")}
-                  >
-                    Templates
-                  </button>
-                </div>
-
-                <div className="charm-hpi-toggle-row">
-                  <span>Chest Pain?</span>
-                  <div className="charm-cc-pills">
                     <button
                       type="button"
-                      className={`charm-toggle-pill ${hpiChestPain === "Yes" ? "yes-active" : ""
-                        }`}
-                      onClick={() => setHpiChestPain("Yes")}
+                      className="charm-template-link-btn"
+                      onClick={() => {
+                        const tmt =
+                          templates.data?.find((t) =>
+                            t.name.includes("Treadmill"),
+                          ) || {
+                            name: "Treadmill Test ( TMT )_Practice",
+                            code: "TMT_PRACTICE",
+                          };
+                        setViewingTemplate(tmt);
+                      }}
                     >
-                      Yes
+                      Templates
                     </button>
-                    <button
-                      type="button"
-                      className={`charm-toggle-pill ${hpiChestPain === "No" ? "no-active" : ""
-                        }`}
-                      onClick={() => setHpiChestPain("No")}
-                    >
-                      No
-                    </button>
-                  </div>
-                </div>
 
-                <table className="charm-hpi-structured-table">
-                  <tbody>
-                    <tr>
-                      <td style={{ width: "35%" }}>
-                        Chest Pain Frequency per Week:
-                        <br />
-                        <small className="muted">(No. of times per week)</small>
-                      </td>
-                      <td>
-                        <input
-                          className="charm-hpi-table-input"
-                          value={hpiFreq}
-                          onChange={(e) => setHpiFreq(e.target.value)}
-                        />
-                      </td>
-                    </tr>
-                    <tr>
-                      <td>
-                        S/L Nitroglycerin per Week:
-                        <br />
-                        <small className="muted">(No. taken per week)</small>
-                      </td>
-                      <td>
-                        <input
-                          className="charm-hpi-table-input"
-                          value={hpiNitro}
-                          onChange={(e) => setHpiNitro(e.target.value)}
-                        />
-                      </td>
-                    </tr>
-                    <tr>
-                      <td>
-                        Walking Time without Symptoms:
-                        <br />
-                        <small className="muted">(min.)</small>
-                      </td>
-                      <td>
-                        <input
-                          className="charm-hpi-table-input"
-                          placeholder="e.g. 15"
-                          value={hpiWalk}
-                          onChange={(e) => setHpiWalk(e.target.value)}
-                        />
-                      </td>
-                    </tr>
-                  </tbody>
-                </table>
-
-                <label className="field" style={{ marginTop: 10 }}>
-                  <span>History of present illness notes</span>
-                  <textarea
-                    rows={2}
-                    aria-label="History of present illness"
-                    placeholder="Additional clinical HPI details..."
-                    {...register("hpi")}
-                  />
-                </label>
-              </div>
-
-              {/* SECTION: PAST MEDICAL HISTORY (Authentic CharmHealth (S) PMH) */}
-              <div id="sec-pmh" className="charm-editor-section">
-                <div className="charm-section-header">
-                  <h3>Past Medical History</h3>
-                  <button
-                    type="button"
-                    className="charm-template-link-btn"
-                    onClick={() => setActiveTplModal("symptoms")}
-                  >
-                    Templates
-                  </button>
-                </div>
-
-                <table className="charm-hpi-structured-table">
-                  <tbody>
-                    <tr>
-                      <td style={{ width: "25%" }}>
-                        CAD Diagnosis:
-                        <br />
-                        <small className="muted">(Years &amp; months)</small>
-                      </td>
-                      <td style={{ width: "25%" }}>
-                        <input
-                          className="charm-hpi-table-input"
-                          value={pmhCad}
-                          onChange={(e) => setPmhCad(e.target.value)}
-                        />
-                      </td>
-                      <td style={{ width: "25%" }}>
-                        PTCA:
-                        <br />
-                        <small className="muted">(Years &amp; months)</small>
-                      </td>
-                      <td style={{ width: "25%" }}>
-                        <input
-                          className="charm-hpi-table-input"
-                          value={pmhPtca}
-                          onChange={(e) => setPmhPtca(e.target.value)}
-                        />
-                      </td>
-                    </tr>
-                    <tr>
-                      <td>
-                        CABG:
-                        <br />
-                        <small className="muted">(Years &amp; months)</small>
-                      </td>
-                      <td>
-                        <input
-                          className="charm-hpi-table-input"
-                          value={pmhCabg}
-                          onChange={(e) => setPmhCabg(e.target.value)}
-                        />
-                      </td>
-                      <td>
-                        Myocardial Infarction:
-                        <br />
-                        <small className="muted">(Years &amp; Months)</small>
-                      </td>
-                      <td>
-                        <input
-                          className="charm-hpi-table-input"
-                          value={pmhMi}
-                          onChange={(e) => setPmhMi(e.target.value)}
-                        />
-                      </td>
-                    </tr>
-                    <tr>
-                      <td>
-                        Diabetes Type 1:
-                        <br />
-                        <small className="muted">(Years &amp; months)</small>
-                      </td>
-                      <td>
-                        <input
-                          className="charm-hpi-table-input"
-                          value={pmhDm1}
-                          onChange={(e) => setPmhDm1(e.target.value)}
-                        />
-                      </td>
-                      <td>
-                        Diabetes Type 2:
-                        <br />
-                        <small className="muted">(Years &amp; months)</small>
-                      </td>
-                      <td>
-                        <input
-                          className="charm-hpi-table-input"
-                          value={pmhDm2}
-                          onChange={(e) => setPmhDm2(e.target.value)}
-                        />
-                      </td>
-                    </tr>
-                    <tr>
-                      <td>
-                        Hypertension:
-                        <br />
-                        <small className="muted">(Years &amp; months)</small>
-                      </td>
-                      <td>
-                        <input
-                          className="charm-hpi-table-input"
-                          value={pmhHtn}
-                          onChange={(e) => setPmhHtn(e.target.value)}
-                        />
-                      </td>
-                      <td>
-                        Hyperlipidemia:
-                        <br />
-                        <small className="muted">(Years &amp; months)</small>
-                      </td>
-                      <td>
-                        <input
-                          className="charm-hpi-table-input"
-                          value={pmhLipid}
-                          onChange={(e) => setPmhLipid(e.target.value)}
-                        />
-                      </td>
-                    </tr>
-                  </tbody>
-                </table>
-
-                <label className="field" style={{ marginTop: 10 }}>
-                  <span>Past medical history notes</span>
-                  <textarea
-                    rows={2}
-                    aria-label="Past medical history"
-                    placeholder="Additional clinical history, procedures, or family history..."
-                    {...register("medical_history")}
-                  />
-                </label>
-              </div>
-
-              {/* SECTION: REVIEW OF SYSTEMS (Authentic CharmHealth (S) ROS) */}
-              <div id="sec-ros" className="charm-editor-section">
-                <div className="charm-section-header">
-                  <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                    <h3>Review of Systems</h3>
-                    {rosTemplate === "Treadmill Test ( TMT )_Practice" && (
-                      <span className="charm-tmt-badge">
-                        CLINICAL TEMPLATE ACTIVE: Treadmill Test ( TMT )_Practice
-                      </span>
+                    {/* TEMPLATE DROPDOWN (Screenshot 1) */}
+                    {templateDropdownOpen && (
+                      <div className="charm-template-dropdown-popup">
+                        {(templates.data || [
+                          { id: "1", name: "Diabetes Management Template_Practice" },
+                          { id: "2", name: "Diet for Anemia_Practice" },
+                          { id: "3", name: "Diet for BP Patient_Practice" },
+                          { id: "4", name: "Diet For Cholesterol_Practice" },
+                          { id: "5", name: "Diet for Diabetes_Practice" },
+                          { id: "6", name: "Diet for Healthy Heart/Healthy Life_Practice" },
+                          { id: "7", name: "Diet for Kidney Disease_Practice" },
+                          { id: "8", name: "Diet for Thyroid Problem_Practice" },
+                          { id: "9", name: "Heart Failure Patient Diet_Practice" },
+                          { id: "10", name: "HUH EECP SOAP_Practice" },
+                          { id: "11", name: "Vaso-Meditech EECP SOAP_Practice" },
+                          { id: "12", name: "Treadmill Test ( TMT )_Practice" },
+                        ])
+                          .filter(
+                            (t) =>
+                              !templateSearch ||
+                              t.name.toLowerCase().includes(templateSearch.toLowerCase()),
+                          )
+                          .map((t) => (
+                            <div
+                              key={t.id || t.name}
+                              className={`charm-template-dropdown-row ${selectedTemplate === t.name ? "selected" : ""
+                                }`}
+                              onClick={() => applyTemplate(t.name)}
+                            >
+                              {t.name}
+                            </div>
+                          ))}
+                      </div>
                     )}
                   </div>
-                  <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
-                    {rosTemplate === "Treadmill Test ( TMT )_Practice" ? (
-                      <>
+
+                  {/* SECTION: CHIEF COMPLAINTS (Authentic CharmHealth (S) CC) */}
+                  <div id="sec-cc" className="charm-editor-section">
+                    <div className="charm-section-header">
+                      <h3>Chief Complaints</h3>
+                      <button
+                        type="button"
+                        className="charm-template-link-btn"
+                        onClick={() => setActiveTplModal("symptoms")}
+                      >
+                        Templates
+                      </button>
+                    </div>
+
+                    <textarea
+                      rows={4}
+                      className="charm-cc-textarea"
+                      aria-label="Chief complaint"
+                      placeholder="Clinical notes or chief complaints..."
+                      {...register("chief_complaint")}
+                    />
+                  </div>
+
+                  {/* SECTION: SYMPTOMS (Authentic CharmHealth (S) SYM) */}
+                  <div id="sec-sym" className="charm-editor-section">
+                    <div className="charm-section-header">
+                      <h3>Symptoms</h3>
+                      <button
+                        type="button"
+                        className="charm-template-link-btn"
+                        onClick={() => setActiveTplModal("symptoms")}
+                      >
+                        Templates
+                      </button>
+                    </div>
+
+                    <div style={{ marginBottom: 12 }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
+                        <h4 style={{ fontSize: 13, fontWeight: 600, color: "#334155", margin: 0 }}>
+                          Post- EECP assessment
+                        </h4>
+                        <input
+                          type="checkbox"
+                          title="Select all"
+                          checked={postEecpOptions.every((opt) => postEecpAssessment[opt])}
+                          onChange={(e) => {
+                            const all: Record<string, boolean> = {};
+                            postEecpOptions.forEach((opt) => {
+                              all[opt] = e.target.checked;
+                            });
+                            setPostEecpAssessment(all);
+                          }}
+                        />
+                      </div>
+                      <div className="charm-post-eecp-grid">
+                        {postEecpOptions.map((opt) => (
+                          <label key={opt} className="charm-post-eecp-item">
+                            <input
+                              type="checkbox"
+                              checked={postEecpAssessment[opt] || false}
+                              onChange={(e) =>
+                                setPostEecpAssessment((prev) => ({
+                                  ...prev,
+                                  [opt]: e.target.checked,
+                                }))
+                              }
+                            />
+                            <span>{opt}</span>
+                          </label>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Hidden registered schema fields for symptoms */}
+                    <div style={{ display: "none" }}>
+                      {symptoms.map((s, i) => (
+                        <div key={s}>
+                          <select aria-label={s} {...register("symptom_" + i)}>
+                            <option>Not assessed</option>
+                            <option>Yes</option>
+                            <option>No</option>
+                          </select>
+                          <input {...register("narrative_" + i)} />
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* SECTION: HISTORY OF PRESENT ILLNESS (Authentic CharmHealth (S) HPI) */}
+                  <div id="sec-hpi" className="charm-editor-section">
+                    <div className="charm-section-header">
+                      <h3>History of Present Illness</h3>
+                      <button
+                        type="button"
+                        className="charm-template-link-btn"
+                        onClick={() => setActiveTplModal("symptoms")}
+                      >
+                        Templates
+                      </button>
+                    </div>
+
+                    <div className="charm-hpi-toggle-row">
+                      <span>Chest Pain?</span>
+                      <div className="charm-cc-pills">
                         <button
                           type="button"
-                          className="charm-btn-link-action"
-                          style={{ color: "#d97706", fontWeight: 600, fontSize: 12 }}
-                          onClick={() => {
-                            const age = patientAge || 58;
-                            const apmhrVal = 220 - age;
-                            const targetVal = Math.round(apmhrVal * 0.85);
-                            const pct = ((Number(tmtMaxHr || 142) / apmhrVal) * 100).toFixed(1);
-                            setValue(
-                              "assessment",
-                              `Treadmill Stress Test (TMT) - Bruce Protocol:
+                          className={`charm-toggle-pill ${hpiChestPain === "Yes" ? "yes-active" : ""
+                            }`}
+                          onClick={() => setHpiChestPain("Yes")}
+                        >
+                          Yes
+                        </button>
+                        <button
+                          type="button"
+                          className={`charm-toggle-pill ${hpiChestPain === "No" ? "no-active" : ""
+                            }`}
+                          onClick={() => setHpiChestPain("No")}
+                        >
+                          No
+                        </button>
+                      </div>
+                    </div>
+
+                    <table className="charm-hpi-structured-table">
+                      <tbody>
+                        <tr>
+                          <td style={{ width: "35%" }}>
+                            Chest Pain Frequency per Week:
+                            <br />
+                            <small className="muted">(No. of times per week)</small>
+                          </td>
+                          <td>
+                            <input
+                              className="charm-hpi-table-input"
+                              value={hpiFreq}
+                              onChange={(e) => setHpiFreq(e.target.value)}
+                            />
+                          </td>
+                        </tr>
+                        <tr>
+                          <td>
+                            S/L Nitroglycerin per Week:
+                            <br />
+                            <small className="muted">(No. taken per week)</small>
+                          </td>
+                          <td>
+                            <input
+                              className="charm-hpi-table-input"
+                              value={hpiNitro}
+                              onChange={(e) => setHpiNitro(e.target.value)}
+                            />
+                          </td>
+                        </tr>
+                        <tr>
+                          <td>
+                            Walking Time without Symptoms:
+                            <br />
+                            <small className="muted">(min.)</small>
+                          </td>
+                          <td>
+                            <input
+                              className="charm-hpi-table-input"
+                              placeholder="e.g. 15"
+                              value={hpiWalk}
+                              onChange={(e) => setHpiWalk(e.target.value)}
+                            />
+                          </td>
+                        </tr>
+                      </tbody>
+                    </table>
+
+                    <label className="field" style={{ marginTop: 10 }}>
+                      <span>History of present illness notes</span>
+                      <textarea
+                        rows={2}
+                        aria-label="History of present illness"
+                        placeholder="Additional clinical HPI details..."
+                        {...register("hpi")}
+                      />
+                    </label>
+                  </div>
+
+                  {/* SECTION: PAST MEDICAL HISTORY (Authentic CharmHealth (S) PMH) */}
+                  <div id="sec-pmh" className="charm-editor-section">
+                    <div className="charm-section-header">
+                      <h3>Past Medical History</h3>
+                      <button
+                        type="button"
+                        className="charm-template-link-btn"
+                        onClick={() => setActiveTplModal("symptoms")}
+                      >
+                        Templates
+                      </button>
+                    </div>
+
+                    <table className="charm-hpi-structured-table">
+                      <tbody>
+                        <tr>
+                          <td style={{ width: "25%" }}>
+                            CAD Diagnosis:
+                            <br />
+                            <small className="muted">(Years &amp; months)</small>
+                          </td>
+                          <td style={{ width: "25%" }}>
+                            <input
+                              className="charm-hpi-table-input"
+                              value={pmhCad}
+                              onChange={(e) => setPmhCad(e.target.value)}
+                            />
+                          </td>
+                          <td style={{ width: "25%" }}>
+                            PTCA:
+                            <br />
+                            <small className="muted">(Years &amp; months)</small>
+                          </td>
+                          <td style={{ width: "25%" }}>
+                            <input
+                              className="charm-hpi-table-input"
+                              value={pmhPtca}
+                              onChange={(e) => setPmhPtca(e.target.value)}
+                            />
+                          </td>
+                        </tr>
+                        <tr>
+                          <td>
+                            CABG:
+                            <br />
+                            <small className="muted">(Years &amp; months)</small>
+                          </td>
+                          <td>
+                            <input
+                              className="charm-hpi-table-input"
+                              value={pmhCabg}
+                              onChange={(e) => setPmhCabg(e.target.value)}
+                            />
+                          </td>
+                          <td>
+                            Myocardial Infarction:
+                            <br />
+                            <small className="muted">(Years &amp; Months)</small>
+                          </td>
+                          <td>
+                            <input
+                              className="charm-hpi-table-input"
+                              value={pmhMi}
+                              onChange={(e) => setPmhMi(e.target.value)}
+                            />
+                          </td>
+                        </tr>
+                        <tr>
+                          <td>
+                            Diabetes Type 1:
+                            <br />
+                            <small className="muted">(Years &amp; months)</small>
+                          </td>
+                          <td>
+                            <input
+                              className="charm-hpi-table-input"
+                              value={pmhDm1}
+                              onChange={(e) => setPmhDm1(e.target.value)}
+                            />
+                          </td>
+                          <td>
+                            Diabetes Type 2:
+                            <br />
+                            <small className="muted">(Years &amp; months)</small>
+                          </td>
+                          <td>
+                            <input
+                              className="charm-hpi-table-input"
+                              value={pmhDm2}
+                              onChange={(e) => setPmhDm2(e.target.value)}
+                            />
+                          </td>
+                        </tr>
+                        <tr>
+                          <td>
+                            Hypertension:
+                            <br />
+                            <small className="muted">(Years &amp; months)</small>
+                          </td>
+                          <td>
+                            <input
+                              className="charm-hpi-table-input"
+                              value={pmhHtn}
+                              onChange={(e) => setPmhHtn(e.target.value)}
+                            />
+                          </td>
+                          <td>
+                            Hyperlipidemia:
+                            <br />
+                            <small className="muted">(Years &amp; months)</small>
+                          </td>
+                          <td>
+                            <input
+                              className="charm-hpi-table-input"
+                              value={pmhLipid}
+                              onChange={(e) => setPmhLipid(e.target.value)}
+                            />
+                          </td>
+                        </tr>
+                      </tbody>
+                    </table>
+
+                    <label className="field" style={{ marginTop: 10 }}>
+                      <span>Past medical history notes</span>
+                      <textarea
+                        rows={2}
+                        aria-label="Past medical history"
+                        placeholder="Additional clinical history, procedures, or family history..."
+                        {...register("medical_history")}
+                      />
+                    </label>
+                  </div>
+
+                  {/* SECTION: REVIEW OF SYSTEMS (Authentic CharmHealth (S) ROS) */}
+                  <div id="sec-ros" className="charm-editor-section">
+                    <div className="charm-section-header">
+                      <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                        <h3>Review of Systems</h3>
+                        {rosTemplate === "Treadmill Test ( TMT )_Practice" && (
+                          <span className="charm-tmt-badge">
+                            CLINICAL TEMPLATE ACTIVE: Treadmill Test ( TMT )_Practice
+                          </span>
+                        )}
+                      </div>
+                      <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+                        {rosTemplate === "Treadmill Test ( TMT )_Practice" ? (
+                          <>
+                            <button
+                              type="button"
+                              className="charm-btn-link-action"
+                              style={{ color: "#d97706", fontWeight: 600, fontSize: 12 }}
+                              onClick={() => {
+                                const age = patientAge || 58;
+                                const apmhrVal = 220 - age;
+                                const targetVal = Math.round(apmhrVal * 0.85);
+                                const pct = ((Number(tmtMaxHr || 142) / apmhrVal) * 100).toFixed(1);
+                                setValue(
+                                  "assessment",
+                                  `Treadmill Stress Test (TMT) - Bruce Protocol:
 • Indication: ${Object.entries(tmtIndication)
-                                .filter(([_, v]) => v)
-                                .map(([k]) => k)
-                                .join(", ") || "Exertional chest pain evaluation"
-                              }
+                                    .filter(([_, v]) => v)
+                                    .map(([k]) => k)
+                                    .join(", ") || "Exertional chest pain evaluation"
+                                  }
 • Age-Predicted Max HR (APMHR): ${apmhrVal} bpm Formula = ( 220 – age )
 • Target Heart Rate (85%): ${targetVal} bpm
 • Max Heart Rate Achieved: ${tmtMaxHr} bpm (${pct}% of APMHR)
@@ -3941,853 +3941,853 @@ export function EncounterEditor({
 • Exercise Capacity: ${tmtMets} METs (Stage III Bruce Protocol)
 • Rate-Limiting Meds: ${tmtMeds}
 • Symptoms: ${Object.entries(tmtSymptoms)
-                                .filter(([_, v]) => v)
-                                .map(([k]) => k)
-                                .join(", ") || "None"
-                              }
+                                    .filter(([_, v]) => v)
+                                    .map(([k]) => k)
+                                    .join(", ") || "None"
+                                  }
 • ECG Changes: ${tmtEcgChanges}
 • Impression: ${tmtImpression}`,
-                            );
-                            setValue(
-                              "plan",
-                              `1. Treadmill Test: ${tmtImpression} with ${pct}% APMHR achieved.
+                                );
+                                setValue(
+                                  "plan",
+                                  `1. Treadmill Test: ${tmtImpression} with ${pct}% APMHR achieved.
 2. Continue current cardioprotective regimen:
    - Beta blocker (${tmtMeds})
    - Statin & Antiplatelet therapy
 3. Recommended moderate aerobic exercise: 30-45 mins 5x weekly.
 4. Outpatient cardiology review in 3 months.`,
-                            );
-                            notify("Synchronized TMT parameters into Assessment & Care Plan.");
-                          }}
-                        >
-                          ↺ Sync to Assessment & Plan
-                        </button>
+                                );
+                                notify("Synchronized TMT parameters into Assessment & Care Plan.");
+                              }}
+                            >
+                              ↺ Sync to Assessment & Plan
+                            </button>
+                            <button
+                              type="button"
+                              className="charm-btn-link-action"
+                              style={{ color: "#e11d48", fontSize: 12 }}
+                              onClick={() => {
+                                setRosTemplate("");
+                                setSelectedTemplate("");
+                                notify("Reverted to standard Review of Systems.");
+                              }}
+                            >
+                              ✕ Revert to Standard ROS
+                            </button>
+                          </>
+                        ) : (
+                          <label className="charm-checkbox-inline">
+                            <span>Initial Assessment</span>
+                            <input type="checkbox" defaultChecked />
+                          </label>
+                        )}
                         <button
                           type="button"
-                          className="charm-btn-link-action"
-                          style={{ color: "#e11d48", fontSize: 12 }}
+                          className="charm-template-link-btn"
                           onClick={() => {
-                            setRosTemplate("");
-                            setSelectedTemplate("");
-                            notify("Reverted to standard Review of Systems.");
-                          }}
-                        >
-                          ✕ Revert to Standard ROS
-                        </button>
-                      </>
-                    ) : (
-                      <label className="charm-checkbox-inline">
-                        <span>Initial Assessment</span>
-                        <input type="checkbox" defaultChecked />
-                      </label>
-                    )}
-                    <button
-                      type="button"
-                      className="charm-template-link-btn"
-                      onClick={() => {
-                        const t = templates.data?.find(
-                          (x) =>
-                            x.name.includes("Treadmill") ||
-                            x.name.includes("TMT"),
-                        ) || {
-                          name: "Treadmill Test ( TMT )_Practice",
-                          code: "TMT_PRACTICE",
-                          type: "Review of Systems",
-                        };
-                        setViewingTemplate(t);
-                      }}
-                    >
-                      Templates
-                    </button>
-                  </div>
-                </div>
-
-                {rosTemplate === "Treadmill Test ( TMT )_Practice" && (
-                  <div className="charm-tmt-editor-card" style={{ marginTop: 8, marginBottom: 12 }}>
-                    <div className="charm-tmt-header">
-                      <div className="charm-tmt-title-left">
-                        <h3 style={{ margin: 0, fontSize: 15, fontWeight: 700, color: "#0f766e" }}>
-                          Treadmill Test ( TMT )_Practice
-                        </h3>
-                        <span className="charm-tmt-type-chip">Template Type: Review of Systems</span>
-                      </div>
-                      <div className="charm-tmt-header-actions">
-                        <button
-                          type="button"
-                          className="charm-btn-link-action"
-                          onClick={() => {
-                            const tmt = {
+                            const t = templates.data?.find(
+                              (x) =>
+                                x.name.includes("Treadmill") ||
+                                x.name.includes("TMT"),
+                            ) || {
                               name: "Treadmill Test ( TMT )_Practice",
                               code: "TMT_PRACTICE",
                               type: "Review of Systems",
                             };
-                            setViewingTemplate(tmt);
+                            setViewingTemplate(t);
                           }}
                         >
-                          View Full Spec
+                          Templates
                         </button>
                       </div>
                     </div>
 
-                    <div className="charm-tmt-sections-list">
-                      {/* 1. Indication for Test */}
-                      <div className="charm-tmt-node">
-                        <div className="charm-tmt-node-head">
-                          <label className="charm-checkbox-inline">
-                            <input type="checkbox" defaultChecked />
-                            <strong>Indication for Test</strong>
-                          </label>
-                        </div>
-                        <div className="charm-tmt-node-content">
-                          <div className="charm-tmt-checkbox-grid">
-                            {[
-                              "Exertional Chest Pain",
-                              "Evaluation of Known / Suspected CAD",
-                              "Post-Revascularization Assessment",
-                              "Exercise-Induced Arrhythmia Assessment",
-                              "Post-EECP Functional Assessment",
-                            ].map((ind) => (
-                              <label key={ind} className="charm-pe-item">
-                                <input
-                                  type="checkbox"
-                                  checked={tmtIndication[ind] || false}
-                                  onChange={(e) =>
-                                    setTmtIndication((p) => ({ ...p, [ind]: e.target.checked }))
-                                  }
-                                />
-                                <span>{ind}</span>
-                              </label>
-                            ))}
+                    {rosTemplate === "Treadmill Test ( TMT )_Practice" && (
+                      <div className="charm-tmt-editor-card" style={{ marginTop: 8, marginBottom: 12 }}>
+                        <div className="charm-tmt-header">
+                          <div className="charm-tmt-title-left">
+                            <h3 style={{ margin: 0, fontSize: 15, fontWeight: 700, color: "#0f766e" }}>
+                              Treadmill Test ( TMT )_Practice
+                            </h3>
+                            <span className="charm-tmt-type-chip">Template Type: Review of Systems</span>
                           </div>
-                        </div>
-                      </div>
-
-                      {/* 2. Protocol Used */}
-                      <div className="charm-tmt-node">
-                        <div className="charm-tmt-node-head">
-                          <label className="charm-checkbox-inline">
-                            <input type="checkbox" defaultChecked />
-                            <strong>Protocol Used</strong>
-                          </label>
-                        </div>
-                        <div className="charm-tmt-node-content">
-                          <div className="charm-tmt-radio-group">
-                            {[
-                              "Standard Bruce Protocol",
-                              "Modified Bruce Protocol",
-                              "Naughton Protocol",
-                            ].map((p) => (
-                              <label key={p} className="charm-pe-item">
-                                <input
-                                  type="radio"
-                                  name="tmt_protocol_choice"
-                                  checked={tmtProtocol === p}
-                                  onChange={() => setTmtProtocol(p)}
-                                />
-                                <span>{p}</span>
-                              </label>
-                            ))}
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* 3. Test Parameters with CharmHealth Formulas */}
-                      <div className="charm-tmt-node active">
-                        <div className="charm-tmt-node-head">
-                          <label className="charm-checkbox-inline">
-                            <input type="checkbox" defaultChecked />
-                            <strong>Test Parameters</strong>
-                          </label>
-                        </div>
-                        <div className="charm-tmt-node-content">
-                          <div className="charm-tmt-calc-grid">
-                            {/* APMHR */}
-                            <div className="charm-tmt-calc-row">
-                              <input type="checkbox" defaultChecked />
-                              <div className="charm-tmt-calc-label">
-                                Age-Predicted Maximum Heart Rate (APMHR):
-                                <span className="charm-tmt-val-chip">{220 - patientAge} bpm</span>
-                                <span className="charm-tmt-formula-badge">Formula = ( 220 – age )</span>
-                              </div>
-                            </div>
-
-                            {/* Target Heart Rate */}
-                            <div className="charm-tmt-calc-row">
-                              <input type="checkbox" defaultChecked />
-                              <div className="charm-tmt-calc-label">
-                                Target Heart Rate ( 85% predicted - Vigorous exercise ):
-                                <span className="charm-tmt-val-chip">
-                                  {Math.round((220 - patientAge) * 0.85)} bpm
-                                </span>
-                                <span className="charm-tmt-formula-badge">
-                                  Formula = ( 220 – age ) x 0.85
-                                </span>
-                              </div>
-                            </div>
-
-                            {/* Maximum Heart Rate Achieved */}
-                            <div className="charm-tmt-calc-row">
-                              <input type="checkbox" defaultChecked />
-                              <div className="charm-tmt-calc-label">
-                                Maximum Heart Rate Achieved:
-                                <input
-                                  type="number"
-                                  className="charm-tmt-inline-input"
-                                  value={tmtMaxHr}
-                                  onChange={(e) => {
-                                    setTmtMaxHr(e.target.value);
-                                    const apmhr = 220 - patientAge;
-                                    const val = Number(e.target.value);
-                                    if (val > 0) {
-                                      setTmtPctApmhr(((val / apmhr) * 100).toFixed(1));
-                                    }
-                                  }}
-                                />
-                                <span className="muted">bpm</span>
-                              </div>
-                            </div>
-
-                            {/* Maximum Blood Pressure Achieved */}
-                            <div className="charm-tmt-calc-row">
-                              <input type="checkbox" defaultChecked />
-                              <div className="charm-tmt-calc-label">
-                                Maximum Blood Pressure Achieved:
-                                <input
-                                  type="number"
-                                  className="charm-tmt-inline-input small"
-                                  value={tmtBpSys}
-                                  onChange={(e) => setTmtBpSys(e.target.value)}
-                                />
-                                <span>/</span>
-                                <input
-                                  type="number"
-                                  className="charm-tmt-inline-input small"
-                                  value={tmtBpDia}
-                                  onChange={(e) => setTmtBpDia(e.target.value)}
-                                />
-                                <span className="muted">mmHg</span>
-                              </div>
-                            </div>
-
-                            {/* Total Exercise Time */}
-                            <div className="charm-tmt-calc-row">
-                              <input type="checkbox" defaultChecked />
-                              <div className="charm-tmt-calc-label">
-                                Total Exercise Time:
-                                <input
-                                  type="number"
-                                  className="charm-tmt-inline-input small"
-                                  value={tmtDurationMin}
-                                  onChange={(e) => setTmtDurationMin(e.target.value)}
-                                />
-                                <span>min</span>
-                                <input
-                                  type="number"
-                                  className="charm-tmt-inline-input small"
-                                  value={tmtDurationSec}
-                                  onChange={(e) => setTmtDurationSec(e.target.value)}
-                                />
-                                <span>sec</span>
-                                <span className="muted">(Bruce Protocol)</span>
-                              </div>
-                            </div>
-
-                            {/* % of Age-Predicted Maximum Heart Rate */}
-                            <div className="charm-tmt-calc-row highlight">
-                              <input type="checkbox" defaultChecked />
-                              <div className="charm-tmt-calc-label">
-                                [ <strong>{tmtPctApmhr}%</strong> ] of Age-Predicted Maximum Heart Rate.
-                                <span className="charm-tmt-formula-badge">
-                                  Formula = Maximum Heart rate Achieved / APMHR x 100 = ( {tmtPctApmhr} ) %
-                                </span>
-                                {Number(tmtPctApmhr) >= 85 ? (
-                                  <span className="charm-tmt-status-good">✓ Target Reached (&gt;=85%)</span>
-                                ) : (
-                                  <span className="charm-tmt-status-submax">Submaximal (&lt;85%)</span>
-                                )}
-                              </div>
-                            </div>
-
-                            {/* Rate-Limiting Medications */}
-                            <div className="charm-tmt-calc-row">
-                              <input type="checkbox" defaultChecked />
-                              <div className="charm-tmt-calc-label">
-                                Rate-Limiting Medications:
-                                <input
-                                  className="charm-tmt-text-input"
-                                  value={tmtMeds}
-                                  placeholder="e.g. Bisoprolol 1.25mg bd, Metoprolol, None"
-                                  onChange={(e) => setTmtMeds(e.target.value)}
-                                />
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* 4. Exercise Tolerance / METs */}
-                      <div className="charm-tmt-node">
-                        <div className="charm-tmt-node-head">
-                          <label className="charm-checkbox-inline">
-                            <input type="checkbox" defaultChecked />
-                            <strong>Exercise Tolerance / METs</strong>
-                          </label>
-                        </div>
-                        <div className="charm-tmt-node-content">
-                          <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
-                            <span style={{ fontSize: 13, color: "#334155" }}>Workload Achieved:</span>
-                            <input
-                              type="number"
-                              step="0.1"
-                              className="charm-tmt-inline-input"
-                              value={tmtMets}
-                              onChange={(e) => setTmtMets(e.target.value)}
-                            />
-                            <span className="muted">METs</span>
-                            <span
-                              className="charm-tmt-val-chip"
-                              style={{ background: "#ecfdf5", color: "#065f46" }}
+                          <div className="charm-tmt-header-actions">
+                            <button
+                              type="button"
+                              className="charm-btn-link-action"
+                              onClick={() => {
+                                const tmt = {
+                                  name: "Treadmill Test ( TMT )_Practice",
+                                  code: "TMT_PRACTICE",
+                                  type: "Review of Systems",
+                                };
+                                setViewingTemplate(tmt);
+                              }}
                             >
-                              {Number(tmtMets) >= 7
-                                ? "Good Exercise Tolerance (>= 7 METs)"
-                                : "Moderate / Reduced Tolerance"}
-                            </span>
+                              View Full Spec
+                            </button>
                           </div>
                         </div>
-                      </div>
 
-                      {/* 5. Symptoms During Test */}
-                      <div className="charm-tmt-node">
-                        <div className="charm-tmt-node-head">
-                          <label className="charm-checkbox-inline">
-                            <input type="checkbox" defaultChecked />
-                            <strong>Symptoms During Test</strong>
-                          </label>
-                        </div>
-                        <div className="charm-tmt-node-content">
-                          <div className="charm-tmt-checkbox-grid">
-                            {[
-                              "No chest pain / asymptomatic",
-                              "Mild exertional chest tightness",
-                              "Shortness of breath / dyspnea",
-                              "Lower extremity muscle fatigue",
-                              "Dizziness / presyncope",
-                            ].map((sym) => (
-                              <label key={sym} className="charm-pe-item">
-                                <input
-                                  type="checkbox"
-                                  checked={tmtSymptoms[sym] || false}
-                                  onChange={(e) =>
-                                    setTmtSymptoms((p) => ({ ...p, [sym]: e.target.checked }))
-                                  }
-                                />
-                                <span>{sym}</span>
+                        <div className="charm-tmt-sections-list">
+                          {/* 1. Indication for Test */}
+                          <div className="charm-tmt-node">
+                            <div className="charm-tmt-node-head">
+                              <label className="charm-checkbox-inline">
+                                <input type="checkbox" defaultChecked />
+                                <strong>Indication for Test</strong>
                               </label>
-                            ))}
+                            </div>
+                            <div className="charm-tmt-node-content">
+                              <div className="charm-tmt-checkbox-grid">
+                                {[
+                                  "Exertional Chest Pain",
+                                  "Evaluation of Known / Suspected CAD",
+                                  "Post-Revascularization Assessment",
+                                  "Exercise-Induced Arrhythmia Assessment",
+                                  "Post-EECP Functional Assessment",
+                                ].map((ind) => (
+                                  <label key={ind} className="charm-pe-item">
+                                    <input
+                                      type="checkbox"
+                                      checked={tmtIndication[ind] || false}
+                                      onChange={(e) =>
+                                        setTmtIndication((p) => ({ ...p, [ind]: e.target.checked }))
+                                      }
+                                    />
+                                    <span>{ind}</span>
+                                  </label>
+                                ))}
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* 2. Protocol Used */}
+                          <div className="charm-tmt-node">
+                            <div className="charm-tmt-node-head">
+                              <label className="charm-checkbox-inline">
+                                <input type="checkbox" defaultChecked />
+                                <strong>Protocol Used</strong>
+                              </label>
+                            </div>
+                            <div className="charm-tmt-node-content">
+                              <div className="charm-tmt-radio-group">
+                                {[
+                                  "Standard Bruce Protocol",
+                                  "Modified Bruce Protocol",
+                                  "Naughton Protocol",
+                                ].map((p) => (
+                                  <label key={p} className="charm-pe-item">
+                                    <input
+                                      type="radio"
+                                      name="tmt_protocol_choice"
+                                      checked={tmtProtocol === p}
+                                      onChange={() => setTmtProtocol(p)}
+                                    />
+                                    <span>{p}</span>
+                                  </label>
+                                ))}
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* 3. Test Parameters with CharmHealth Formulas */}
+                          <div className="charm-tmt-node active">
+                            <div className="charm-tmt-node-head">
+                              <label className="charm-checkbox-inline">
+                                <input type="checkbox" defaultChecked />
+                                <strong>Test Parameters</strong>
+                              </label>
+                            </div>
+                            <div className="charm-tmt-node-content">
+                              <div className="charm-tmt-calc-grid">
+                                {/* APMHR */}
+                                <div className="charm-tmt-calc-row">
+                                  <input type="checkbox" defaultChecked />
+                                  <div className="charm-tmt-calc-label">
+                                    Age-Predicted Maximum Heart Rate (APMHR):
+                                    <span className="charm-tmt-val-chip">{220 - patientAge} bpm</span>
+                                    <span className="charm-tmt-formula-badge">Formula = ( 220 – age )</span>
+                                  </div>
+                                </div>
+
+                                {/* Target Heart Rate */}
+                                <div className="charm-tmt-calc-row">
+                                  <input type="checkbox" defaultChecked />
+                                  <div className="charm-tmt-calc-label">
+                                    Target Heart Rate ( 85% predicted - Vigorous exercise ):
+                                    <span className="charm-tmt-val-chip">
+                                      {Math.round((220 - patientAge) * 0.85)} bpm
+                                    </span>
+                                    <span className="charm-tmt-formula-badge">
+                                      Formula = ( 220 – age ) x 0.85
+                                    </span>
+                                  </div>
+                                </div>
+
+                                {/* Maximum Heart Rate Achieved */}
+                                <div className="charm-tmt-calc-row">
+                                  <input type="checkbox" defaultChecked />
+                                  <div className="charm-tmt-calc-label">
+                                    Maximum Heart Rate Achieved:
+                                    <input
+                                      type="number"
+                                      className="charm-tmt-inline-input"
+                                      value={tmtMaxHr}
+                                      onChange={(e) => {
+                                        setTmtMaxHr(e.target.value);
+                                        const apmhr = 220 - patientAge;
+                                        const val = Number(e.target.value);
+                                        if (val > 0) {
+                                          setTmtPctApmhr(((val / apmhr) * 100).toFixed(1));
+                                        }
+                                      }}
+                                    />
+                                    <span className="muted">bpm</span>
+                                  </div>
+                                </div>
+
+                                {/* Maximum Blood Pressure Achieved */}
+                                <div className="charm-tmt-calc-row">
+                                  <input type="checkbox" defaultChecked />
+                                  <div className="charm-tmt-calc-label">
+                                    Maximum Blood Pressure Achieved:
+                                    <input
+                                      type="number"
+                                      className="charm-tmt-inline-input small"
+                                      value={tmtBpSys}
+                                      onChange={(e) => setTmtBpSys(e.target.value)}
+                                    />
+                                    <span>/</span>
+                                    <input
+                                      type="number"
+                                      className="charm-tmt-inline-input small"
+                                      value={tmtBpDia}
+                                      onChange={(e) => setTmtBpDia(e.target.value)}
+                                    />
+                                    <span className="muted">mmHg</span>
+                                  </div>
+                                </div>
+
+                                {/* Total Exercise Time */}
+                                <div className="charm-tmt-calc-row">
+                                  <input type="checkbox" defaultChecked />
+                                  <div className="charm-tmt-calc-label">
+                                    Total Exercise Time:
+                                    <input
+                                      type="number"
+                                      className="charm-tmt-inline-input small"
+                                      value={tmtDurationMin}
+                                      onChange={(e) => setTmtDurationMin(e.target.value)}
+                                    />
+                                    <span>min</span>
+                                    <input
+                                      type="number"
+                                      className="charm-tmt-inline-input small"
+                                      value={tmtDurationSec}
+                                      onChange={(e) => setTmtDurationSec(e.target.value)}
+                                    />
+                                    <span>sec</span>
+                                    <span className="muted">(Bruce Protocol)</span>
+                                  </div>
+                                </div>
+
+                                {/* % of Age-Predicted Maximum Heart Rate */}
+                                <div className="charm-tmt-calc-row highlight">
+                                  <input type="checkbox" defaultChecked />
+                                  <div className="charm-tmt-calc-label">
+                                    [ <strong>{tmtPctApmhr}%</strong> ] of Age-Predicted Maximum Heart Rate.
+                                    <span className="charm-tmt-formula-badge">
+                                      Formula = Maximum Heart rate Achieved / APMHR x 100 = ( {tmtPctApmhr} ) %
+                                    </span>
+                                    {Number(tmtPctApmhr) >= 85 ? (
+                                      <span className="charm-tmt-status-good">✓ Target Reached (&gt;=85%)</span>
+                                    ) : (
+                                      <span className="charm-tmt-status-submax">Submaximal (&lt;85%)</span>
+                                    )}
+                                  </div>
+                                </div>
+
+                                {/* Rate-Limiting Medications */}
+                                <div className="charm-tmt-calc-row">
+                                  <input type="checkbox" defaultChecked />
+                                  <div className="charm-tmt-calc-label">
+                                    Rate-Limiting Medications:
+                                    <input
+                                      className="charm-tmt-text-input"
+                                      value={tmtMeds}
+                                      placeholder="e.g. Bisoprolol 1.25mg bd, Metoprolol, None"
+                                      onChange={(e) => setTmtMeds(e.target.value)}
+                                    />
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* 4. Exercise Tolerance / METs */}
+                          <div className="charm-tmt-node">
+                            <div className="charm-tmt-node-head">
+                              <label className="charm-checkbox-inline">
+                                <input type="checkbox" defaultChecked />
+                                <strong>Exercise Tolerance / METs</strong>
+                              </label>
+                            </div>
+                            <div className="charm-tmt-node-content">
+                              <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+                                <span style={{ fontSize: 13, color: "#334155" }}>Workload Achieved:</span>
+                                <input
+                                  type="number"
+                                  step="0.1"
+                                  className="charm-tmt-inline-input"
+                                  value={tmtMets}
+                                  onChange={(e) => setTmtMets(e.target.value)}
+                                />
+                                <span className="muted">METs</span>
+                                <span
+                                  className="charm-tmt-val-chip"
+                                  style={{ background: "#ecfdf5", color: "#065f46" }}
+                                >
+                                  {Number(tmtMets) >= 7
+                                    ? "Good Exercise Tolerance (>= 7 METs)"
+                                    : "Moderate / Reduced Tolerance"}
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* 5. Symptoms During Test */}
+                          <div className="charm-tmt-node">
+                            <div className="charm-tmt-node-head">
+                              <label className="charm-checkbox-inline">
+                                <input type="checkbox" defaultChecked />
+                                <strong>Symptoms During Test</strong>
+                              </label>
+                            </div>
+                            <div className="charm-tmt-node-content">
+                              <div className="charm-tmt-checkbox-grid">
+                                {[
+                                  "No chest pain / asymptomatic",
+                                  "Mild exertional chest tightness",
+                                  "Shortness of breath / dyspnea",
+                                  "Lower extremity muscle fatigue",
+                                  "Dizziness / presyncope",
+                                ].map((sym) => (
+                                  <label key={sym} className="charm-pe-item">
+                                    <input
+                                      type="checkbox"
+                                      checked={tmtSymptoms[sym] || false}
+                                      onChange={(e) =>
+                                        setTmtSymptoms((p) => ({ ...p, [sym]: e.target.checked }))
+                                      }
+                                    />
+                                    <span>{sym}</span>
+                                  </label>
+                                ))}
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* 6. ECG Changes & Test Conclusion */}
+                          <div className="charm-tmt-node">
+                            <div className="charm-tmt-node-head">
+                              <label className="charm-checkbox-inline">
+                                <input type="checkbox" defaultChecked />
+                                <strong>ECG Findings & Impression</strong>
+                              </label>
+                            </div>
+                            <div className="charm-tmt-node-content">
+                              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                                  <span style={{ fontSize: 13, width: 140 }}>ECG Changes:</span>
+                                  <select
+                                    className="charm-template-search-input"
+                                    style={{ flex: 1 }}
+                                    value={tmtEcgChanges}
+                                    onChange={(e) => setTmtEcgChanges(e.target.value)}
+                                  >
+                                    <option>No ischemic ST-segment depression or elevation</option>
+                                    <option>Horizontal ST depression &gt;= 1.0 mm</option>
+                                    <option>Downsloping ST depression &gt;= 1.0 mm</option>
+                                    <option>Upsloping ST depression</option>
+                                    <option>Frequent premature ventricular contractions (PVCs)</option>
+                                  </select>
+                                </div>
+                                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                                  <span style={{ fontSize: 13, width: 140 }}>Final Impression:</span>
+                                  <input
+                                    className="charm-template-search-input"
+                                    style={{ flex: 1 }}
+                                    value={tmtImpression}
+                                    onChange={(e) => setTmtImpression(e.target.value)}
+                                  />
+                                </div>
+                              </div>
+                            </div>
                           </div>
                         </div>
                       </div>
+                    )}
 
-                      {/* 6. ECG Changes & Test Conclusion */}
-                      <div className="charm-tmt-node">
-                        <div className="charm-tmt-node-head">
-                          <label className="charm-checkbox-inline">
-                            <input type="checkbox" defaultChecked />
-                            <strong>ECG Findings & Impression</strong>
-                          </label>
-                        </div>
-                        <div className="charm-tmt-node-content">
-                          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                              <span style={{ fontSize: 13, width: 140 }}>ECG Changes:</span>
-                              <select
-                                className="charm-template-search-input"
-                                style={{ flex: 1 }}
-                                value={tmtEcgChanges}
-                                onChange={(e) => setTmtEcgChanges(e.target.value)}
-                              >
-                                <option>No ischemic ST-segment depression or elevation</option>
-                                <option>Horizontal ST depression &gt;= 1.0 mm</option>
-                                <option>Downsloping ST depression &gt;= 1.0 mm</option>
-                                <option>Upsloping ST depression</option>
-                                <option>Frequent premature ventricular contractions (PVCs)</option>
-                              </select>
-                            </div>
-                            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                              <span style={{ fontSize: 13, width: 140 }}>Final Impression:</span>
-                              <input
-                                className="charm-template-search-input"
-                                style={{ flex: 1 }}
-                                value={tmtImpression}
-                                onChange={(e) => setTmtImpression(e.target.value)}
-                              />
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                <div className="charm-ros-container">
-                  {rosCategories.map((cat) => (
-                    <div className="charm-ros-cat-card" key={cat.category}>
-                      <div className="charm-ros-cat-head">
-                        <strong>{cat.category}:</strong>
-                        <label className="charm-checkbox-inline">
-                          <input
-                            type="checkbox"
-                            checked={rosHeaders[cat.category] ?? true}
-                            onChange={(e) =>
-                              setRosHeaders((p) => ({
-                                ...p,
-                                [cat.category]: e.target.checked,
-                              }))
-                            }
-                          />
-                          <span style={{ fontSize: 12 }}>
-                            Include this header in Chart Note
-                          </span>
-                        </label>
-                      </div>
-
-                      <div className="charm-ros-cat-body">
-                        <div className="charm-ros-items-col">
-                          {cat.items.map((item) => (
-                            <label key={item} className="charm-ros-item-label">
+                    <div className="charm-ros-container">
+                      {rosCategories.map((cat) => (
+                        <div className="charm-ros-cat-card" key={cat.category}>
+                          <div className="charm-ros-cat-head">
+                            <strong>{cat.category}:</strong>
+                            <label className="charm-checkbox-inline">
                               <input
                                 type="checkbox"
-                                checked={rosChecked[item] || false}
+                                checked={rosHeaders[cat.category] ?? true}
                                 onChange={(e) =>
-                                  setRosChecked((p) => ({
+                                  setRosHeaders((p) => ({
                                     ...p,
-                                    [item]: e.target.checked,
+                                    [cat.category]: e.target.checked,
                                   }))
                                 }
                               />
-                              <span>{item}</span>
+                              <span style={{ fontSize: 12 }}>
+                                Include this header in Chart Note
+                              </span>
                             </label>
-                          ))}
-                        </div>
+                          </div>
 
-                        <div className="charm-ros-notes-col">
-                          <textarea
-                            className="charm-ros-note-box"
-                            placeholder="Observations / notes..."
-                            value={rosNotes[cat.category]?.col1 || ""}
-                            onChange={(e) =>
-                              setRosNotes((p) => ({
-                                ...p,
-                                [cat.category]: {
-                                  ...p[cat.category],
-                                  col1: e.target.value,
-                                },
-                              }))
-                            }
-                          />
-                          <textarea
-                            className="charm-ros-note-box"
-                            placeholder="Additional findings..."
-                            value={rosNotes[cat.category]?.col2 || ""}
-                            onChange={(e) =>
-                              setRosNotes((p) => ({
-                                ...p,
-                                [cat.category]: {
-                                  ...p[cat.category],
-                                  col2: e.target.value,
-                                },
-                              }))
-                            }
-                          />
+                          <div className="charm-ros-cat-body">
+                            <div className="charm-ros-items-col">
+                              {cat.items.map((item) => (
+                                <label key={item} className="charm-ros-item-label">
+                                  <input
+                                    type="checkbox"
+                                    checked={rosChecked[item] || false}
+                                    onChange={(e) =>
+                                      setRosChecked((p) => ({
+                                        ...p,
+                                        [item]: e.target.checked,
+                                      }))
+                                    }
+                                  />
+                                  <span>{item}</span>
+                                </label>
+                              ))}
+                            </div>
+
+                            <div className="charm-ros-notes-col">
+                              <textarea
+                                className="charm-ros-note-box"
+                                placeholder="Observations / notes..."
+                                value={rosNotes[cat.category]?.col1 || ""}
+                                onChange={(e) =>
+                                  setRosNotes((p) => ({
+                                    ...p,
+                                    [cat.category]: {
+                                      ...p[cat.category],
+                                      col1: e.target.value,
+                                    },
+                                  }))
+                                }
+                              />
+                              <textarea
+                                className="charm-ros-note-box"
+                                placeholder="Additional findings..."
+                                value={rosNotes[cat.category]?.col2 || ""}
+                                onChange={(e) =>
+                                  setRosNotes((p) => ({
+                                    ...p,
+                                    [cat.category]: {
+                                      ...p[cat.category],
+                                      col2: e.target.value,
+                                    },
+                                  }))
+                                }
+                              />
+                            </div>
+                          </div>
                         </div>
+                      ))}
+                    </div>
+
+                    <label className="field" style={{ marginTop: 10 }}>
+                      <span>Review of systems</span>
+                      <textarea
+                        rows={2}
+                        aria-label="Review of systems"
+                        placeholder="General ROS narrative..."
+                        {...register("ros")}
+                      />
+                    </label>
+                  </div>
+
+                  {/* SECTION: VITALS / OBJECTIVE (Authentic CharmHealth (O) V/S) */}
+                  <div id="sec-vitals" className="charm-editor-section">
+                    <div className="charm-section-header">
+                      <h3>Vital Signs</h3>
+                      <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+                        {latestVital?.bp_sys && latestVital?.bp_dia ? (
+                          <span className="charm-stat-val" style={{ color: "#0f766e" }}>
+                            {latestVital.bp_sys} / {latestVital.bp_dia} mmHg
+                          </span>
+                        ) : null}
+                        <a className="charm-link-sm">Plot</a>
+                        <span className="muted">|</span>
+                        <a className="charm-link-sm">Past Data</a>
+                        {["doctor", "assistant", "therapist"].includes(user.role) &&
+                          encounter.status === "draft" && (
+                            <button
+                              type="button"
+                              className="charm-btn-vitals-record"
+                              onClick={() => setModal("vitals")}
+                            >
+                              Record observations
+                            </button>
+                          )}
                       </div>
                     </div>
-                  ))}
-                </div>
 
-                <label className="field" style={{ marginTop: 10 }}>
-                  <span>Review of systems</span>
-                  <textarea
-                    rows={2}
-                    aria-label="Review of systems"
-                    placeholder="General ROS narrative..."
-                    {...register("ros")}
-                  />
-                </label>
-              </div>
-
-            {/* SECTION: VITALS / OBJECTIVE (Authentic CharmHealth (O) V/S) */}
-            <div id="sec-vitals" className="charm-editor-section">
-              <div className="charm-section-header">
-                <h3>Vital Signs</h3>
-                <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
-                  {latestVital?.bp_sys && latestVital?.bp_dia ? (
-                    <span className="charm-stat-val" style={{ color: "#0f766e" }}>
-                      {latestVital.bp_sys} / {latestVital.bp_dia} mmHg
-                    </span>
-                  ) : null}
-                  <a className="charm-link-sm">Plot</a>
-                  <span className="muted">|</span>
-                  <a className="charm-link-sm">Past Data</a>
-                  {["doctor", "assistant", "therapist"].includes(user.role) &&
-                    encounter.status === "draft" && (
-                      <button
-                        type="button"
-                        className="charm-btn-vitals-record"
-                        onClick={() => setModal("vitals")}
-                      >
-                        Record observations
-                      </button>
-                    )}
-                </div>
-              </div>
-
-              <div className="charm-vitals-inputs-grid">
-                <div className="charm-vital-cell">
-                  <span>Wt</span>
-                  <input
-                    placeholder="67.6"
-                    defaultValue={latestVital?.weight_kg || ""}
-                  />
-                  <em>kg</em>
-                </div>
-                <div className="charm-vital-cell">
-                  <span>Ht</span>
-                  <input
-                    placeholder="165"
-                    defaultValue={latestVital?.height_cm || ""}
-                  />
-                  <em>cms</em>
-                </div>
-                <div className="charm-vital-cell">
-                  <span>BMI</span>
-                  <input
-                    placeholder="30.86"
-                    readOnly
-                    value={latestVital?.bmi || "30.86"}
-                  />
-                </div>
-                <div className="charm-vital-cell">
-                  <span>Temp</span>
-                  <input
-                    placeholder="98.4"
-                    defaultValue={latestVital?.temp_c ? String((latestVital.temp_c * 9 / 5) + 32) : ""}
-                  />
-                  <em>°F</em>
-                </div>
-                <div className="charm-vital-cell">
-                  <span>BP</span>
-                  <input
-                    placeholder="120"
-                    style={{ width: 45 }}
-                    defaultValue={latestVital?.bp_sys || ""}
-                  />
-                  <span>/</span>
-                  <input
-                    placeholder="80"
-                    style={{ width: 45 }}
-                    defaultValue={latestVital?.bp_dia || ""}
-                  />
-                  <em>mmHg</em>
-                </div>
-                <div className="charm-vital-cell">
-                  <span>Pulse</span>
-                  <input
-                    placeholder="72"
-                    defaultValue={latestVital?.pulse_bpm || ""}
-                  />
-                  <em>bpm</em>
-                </div>
-                <div className="charm-vital-cell">
-                  <span>Resp Rate</span>
-                  <input placeholder="18" />
-                  <em>bpm</em>
-                </div>
-                <div className="charm-vital-cell">
-                  <span>Resp Pattern</span>
-                  <select defaultValue="Normal">
-                    <option>--Select--</option>
-                    <option>Normal</option>
-                    <option>Dyspneic</option>
-                  </select>
-                </div>
-                <div className="charm-vital-cell">
-                  <span>crPWV</span>
-                  <input placeholder="7.8" defaultValue="7.8" style={{ width: 45 }} />
-                  <em>m/s</em>
-                </div>
-                <div className="charm-vital-cell">
-                  <span>Vascular Age</span>
-                  <input placeholder="54" defaultValue="54" style={{ width: 45 }} />
-                  <em>yrs</em>
-                </div>
-                <div className="charm-vital-cell">
-                  <span>Central BP</span>
-                  <input placeholder="118" defaultValue="118" style={{ width: 40 }} />
-                  <span>/</span>
-                  <input placeholder="76" defaultValue="76" style={{ width: 40 }} />
-                  <em>mmHg</em>
-                </div>
-                <div className="charm-vital-cell">
-                  <span>HbA1c</span>
-                  <input placeholder="6.8" defaultValue="6.8" style={{ width: 45 }} />
-                  <em>%</em>
-                </div>
-              </div>
-            </div>
-
-              {/* SECTION: PHYSICAL EXAMINATION (Authentic CharmHealth (O) PE) */}
-              <div id="sec-pe" className="charm-editor-section">
-                <div className="charm-section-header">
-                  <h3>Physical Examination</h3>
-                  <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
-                    <label className="charm-checkbox-inline">
-                      <span>Clinical Assessment</span>
-                      <input type="checkbox" defaultChecked />
-                    </label>
-                    <button
-                      type="button"
-                      className="charm-template-link-btn"
-                      onClick={() => {
-                        const t = templates.data?.find((x) => x.name.includes("EECP")) || {
-                          name: "HUH EECP SOAP_Practice",
-                          code: "EECP_SOAP",
-                        };
-                        setViewingTemplate(t);
-                      }}
-                    >
-                      Templates
-                    </button>
-                  </div>
-                </div>
-
-                <div className="charm-pe-4col-grid">
-                  {/* Col 1: Lungs */}
-                  <div className="charm-pe-col">
-                    <span className="charm-pe-col-title">Lungs:</span>
-                    <label className="charm-pe-item">
-                      <input
-                        type="checkbox"
-                        checked={peLungsAuscultation}
-                        onChange={(e) => setPeLungsAuscultation(e.target.checked)}
-                      />
-                      <span>▶ Auscultation</span>
-                    </label>
-                    <label className="charm-pe-item">
-                      <input
-                        type="checkbox"
-                        checked={peLungsOther}
-                        onChange={(e) => setPeLungsOther(e.target.checked)}
-                      />
-                      <span>Other</span>
-                    </label>
-                  </div>
-
-                  {/* Col 2: Heart */}
-                  <div className="charm-pe-col">
-                    <span className="charm-pe-col-title">Heart:</span>
-                    <label className="charm-pe-item">
-                      <input
-                        type="checkbox"
-                        checked={peHeartAuscultation}
-                        onChange={(e) => setPeHeartAuscultation(e.target.checked)}
-                      />
-                      <span>▶ Auscultation</span>
-                    </label>
-                    <label className="charm-pe-item">
-                      <input
-                        type="checkbox"
-                        checked={peHeartOther}
-                        onChange={(e) => setPeHeartOther(e.target.checked)}
-                      />
-                      <span>Other</span>
-                    </label>
-                  </div>
-
-                  {/* Col 3: Current Cardiac Rhythm */}
-                  <div className="charm-pe-col">
-                    <span className="charm-pe-col-title">Current Cardiac Rhythm?:</span>
-                    {[
-                      "Pacemaker",
-                      "LBBB",
-                      "RBBB",
-                      "Atrial Fibrillation",
-                      "Ventricular Fibrillation",
-                      "Atrial Flutter",
-                    ].map((rhythm) => (
-                      <label key={rhythm} className="charm-pe-item">
+                    <div className="charm-vitals-inputs-grid">
+                      <div className="charm-vital-cell">
+                        <span>Wt</span>
                         <input
-                          type="checkbox"
-                          checked={peRhythm[rhythm] || false}
-                          onChange={(e) =>
-                            setPeRhythm((p) => ({
-                              ...p,
-                              [rhythm]: e.target.checked,
-                            }))
-                          }
+                          placeholder="67.6"
+                          defaultValue={latestVital?.weight_kg || ""}
                         />
-                        <span>{rhythm}</span>
-                      </label>
-                    ))}
-                  </div>
-
-                  {/* Col 4: Heart Block */}
-                  <div className="charm-pe-col">
-                    <span className="charm-pe-col-title">Heart Block :</span>
-                    {[
-                      "First - Degree",
-                      "Second - Degree",
-                      "Third - Degree",
-                      "Other",
-                    ].map((hb) => (
-                      <label key={hb} className="charm-pe-item">
+                        <em>kg</em>
+                      </div>
+                      <div className="charm-vital-cell">
+                        <span>Ht</span>
                         <input
-                          type="radio"
-                          name="heart_block_choice"
-                          checked={peHeartBlock === hb}
-                          onChange={() => setPeHeartBlock(hb)}
+                          placeholder="165"
+                          defaultValue={latestVital?.height_cm || ""}
                         />
-                        <span>{hb}</span>
+                        <em>cms</em>
+                      </div>
+                      <div className="charm-vital-cell">
+                        <span>BMI</span>
+                        <input
+                          placeholder="30.86"
+                          readOnly
+                          value={latestVital?.bmi || "30.86"}
+                        />
+                      </div>
+                      <div className="charm-vital-cell">
+                        <span>Temp</span>
+                        <input
+                          placeholder="98.4"
+                          defaultValue={latestVital?.temp_c ? String((latestVital.temp_c * 9 / 5) + 32) : ""}
+                        />
+                        <em>°F</em>
+                      </div>
+                      <div className="charm-vital-cell">
+                        <span>BP</span>
+                        <input
+                          placeholder="120"
+                          style={{ width: 45 }}
+                          defaultValue={latestVital?.bp_sys || ""}
+                        />
+                        <span>/</span>
+                        <input
+                          placeholder="80"
+                          style={{ width: 45 }}
+                          defaultValue={latestVital?.bp_dia || ""}
+                        />
+                        <em>mmHg</em>
+                      </div>
+                      <div className="charm-vital-cell">
+                        <span>Pulse</span>
+                        <input
+                          placeholder="72"
+                          defaultValue={latestVital?.pulse_bpm || ""}
+                        />
+                        <em>bpm</em>
+                      </div>
+                      <div className="charm-vital-cell">
+                        <span>Resp Rate</span>
+                        <input placeholder="18" />
+                        <em>bpm</em>
+                      </div>
+                      <div className="charm-vital-cell">
+                        <span>Resp Pattern</span>
+                        <select defaultValue="Normal">
+                          <option>--Select--</option>
+                          <option>Normal</option>
+                          <option>Dyspneic</option>
+                        </select>
+                      </div>
+                      <div className="charm-vital-cell">
+                        <span>crPWV</span>
+                        <input placeholder="7.8" defaultValue="7.8" style={{ width: 45 }} />
+                        <em>m/s</em>
+                      </div>
+                      <div className="charm-vital-cell">
+                        <span>Vascular Age</span>
+                        <input placeholder="54" defaultValue="54" style={{ width: 45 }} />
+                        <em>yrs</em>
+                      </div>
+                      <div className="charm-vital-cell">
+                        <span>Central BP</span>
+                        <input placeholder="118" defaultValue="118" style={{ width: 40 }} />
+                        <span>/</span>
+                        <input placeholder="76" defaultValue="76" style={{ width: 40 }} />
+                        <em>mmHg</em>
+                      </div>
+                      <div className="charm-vital-cell">
+                        <span>HbA1c</span>
+                        <input placeholder="6.8" defaultValue="6.8" style={{ width: 45 }} />
+                        <em>%</em>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* SECTION: PHYSICAL EXAMINATION (Authentic CharmHealth (O) PE) */}
+                  <div id="sec-pe" className="charm-editor-section">
+                    <div className="charm-section-header">
+                      <h3>Physical Examination</h3>
+                      <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+                        <label className="charm-checkbox-inline">
+                          <span>Clinical Assessment</span>
+                          <input type="checkbox" defaultChecked />
+                        </label>
+                        <button
+                          type="button"
+                          className="charm-template-link-btn"
+                          onClick={() => {
+                            const t = templates.data?.find((x) => x.name.includes("EECP")) || {
+                              name: "HUH EECP SOAP_Practice",
+                              code: "EECP_SOAP",
+                            };
+                            setViewingTemplate(t);
+                          }}
+                        >
+                          Templates
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="charm-pe-4col-grid">
+                      {/* Col 1: Lungs */}
+                      <div className="charm-pe-col">
+                        <span className="charm-pe-col-title">Lungs:</span>
+                        <label className="charm-pe-item">
+                          <input
+                            type="checkbox"
+                            checked={peLungsAuscultation}
+                            onChange={(e) => setPeLungsAuscultation(e.target.checked)}
+                          />
+                          <span>▶ Auscultation</span>
+                        </label>
+                        <label className="charm-pe-item">
+                          <input
+                            type="checkbox"
+                            checked={peLungsOther}
+                            onChange={(e) => setPeLungsOther(e.target.checked)}
+                          />
+                          <span>Other</span>
+                        </label>
+                      </div>
+
+                      {/* Col 2: Heart */}
+                      <div className="charm-pe-col">
+                        <span className="charm-pe-col-title">Heart:</span>
+                        <label className="charm-pe-item">
+                          <input
+                            type="checkbox"
+                            checked={peHeartAuscultation}
+                            onChange={(e) => setPeHeartAuscultation(e.target.checked)}
+                          />
+                          <span>▶ Auscultation</span>
+                        </label>
+                        <label className="charm-pe-item">
+                          <input
+                            type="checkbox"
+                            checked={peHeartOther}
+                            onChange={(e) => setPeHeartOther(e.target.checked)}
+                          />
+                          <span>Other</span>
+                        </label>
+                      </div>
+
+                      {/* Col 3: Current Cardiac Rhythm */}
+                      <div className="charm-pe-col">
+                        <span className="charm-pe-col-title">Current Cardiac Rhythm?:</span>
+                        {[
+                          "Pacemaker",
+                          "LBBB",
+                          "RBBB",
+                          "Atrial Fibrillation",
+                          "Ventricular Fibrillation",
+                          "Atrial Flutter",
+                        ].map((rhythm) => (
+                          <label key={rhythm} className="charm-pe-item">
+                            <input
+                              type="checkbox"
+                              checked={peRhythm[rhythm] || false}
+                              onChange={(e) =>
+                                setPeRhythm((p) => ({
+                                  ...p,
+                                  [rhythm]: e.target.checked,
+                                }))
+                              }
+                            />
+                            <span>{rhythm}</span>
+                          </label>
+                        ))}
+                      </div>
+
+                      {/* Col 4: Heart Block */}
+                      <div className="charm-pe-col">
+                        <span className="charm-pe-col-title">Heart Block :</span>
+                        {[
+                          "First - Degree",
+                          "Second - Degree",
+                          "Third - Degree",
+                          "Other",
+                        ].map((hb) => (
+                          <label key={hb} className="charm-pe-item">
+                            <input
+                              type="radio"
+                              name="heart_block_choice"
+                              checked={peHeartBlock === hb}
+                              onChange={() => setPeHeartBlock(hb)}
+                            />
+                            <span>{hb}</span>
+                          </label>
+                        ))}
+                      </div>
+                    </div>
+
+                    <label className="field" style={{ marginTop: 10 }}>
+                      <span>Physical examination</span>
+                      <textarea
+                        rows={2}
+                        aria-label="Physical examination"
+                        placeholder="Additional clinical examination details..."
+                        {...register("examination")}
+                      />
+                    </label>
+                  </div>
+
+                  {/* Hidden registered schema fields for legacy CAD inputs */}
+                  <div style={{ display: "none" }}>
+                    <input type="number" {...register("cad_year")} />
+                    <select {...register("ccs_class")}>
+                      <option value="">Not assessed</option>
+                      {["I", "II", "III", "IV"].map((x) => (
+                        <option key={x}>{x}</option>
+                      ))}
+                    </select>
+                    <input {...register("cabg")} />
+                    <input {...register("cag")} />
+                  </div>
+
+                  {/* SECTION: ASSESSMENT (Authentic CharmHealth (A)) */}
+                  <div id="sec-assessment" className="charm-editor-section">
+                    <div className="charm-section-header">
+                      <h3>Assessment</h3>
+                      <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                        <button
+                          type="button"
+                          className="charm-template-link-btn"
+                          onClick={() => setActiveTplModal("assessment")}
+                        >
+                          CAG / Assessment Templates
+                        </button>
+                        <button
+                          type="button"
+                          className="charm-template-link-btn"
+                          onClick={() => setActiveTplModal("diagnosis")}
+                        >
+                          Diagnosis Templates
+                        </button>
+                        <button
+                          type="button"
+                          className="charm-btn-link-action"
+                          onClick={() => setModal("diagnoses")}
+                        >
+                          + Add diagnosis
+                        </button>
+                      </div>
+                    </div>
+                    <div style={{ marginBottom: 6, fontSize: 13, fontWeight: 600, color: "#334155" }}>
+                      Assessment Notes
+                    </div>
+                    <textarea
+                      rows={5}
+                      className="charm-cc-textarea"
+                      aria-label="Assessment"
+                      placeholder="Clinical diagnostic synthesis, CAD status, EECP response..."
+                      {...register("assessment")}
+                    />
+                  </div>
+
+                  {/* SECTION: PLAN (Authentic CharmHealth (P)) */}
+                  <div id="sec-plan" className="charm-editor-section">
+                    <div className="charm-section-header">
+                      <h3>Plan</h3>
+                      <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                        <button
+                          type="button"
+                          className="charm-btn-link-action"
+                          onClick={() => setActiveTplModal("add_rx")}
+                        >
+                          + Add Rx
+                        </button>
+                        <button
+                          type="button"
+                          className="charm-template-link-btn"
+                          onClick={() => setActiveTplModal("prescription")}
+                        >
+                          Rx Templates
+                        </button>
+                        <button
+                          type="button"
+                          className="charm-template-link-btn"
+                          onClick={() => setActiveTplModal("supplement")}
+                        >
+                          Supplements
+                        </button>
+                        <button
+                          type="button"
+                          className="charm-btn-link-action"
+                          onClick={() => setModal("orders")}
+                        >
+                          + Add order
+                        </button>
+                      </div>
+                    </div>
+
+                    <div style={{ marginBottom: 4, fontSize: 13, fontWeight: 600, color: "#334155" }}>
+                      Diet Recommendations
+                    </div>
+                    <div style={{ fontSize: 12, color: "#475569", marginBottom: 8, fontStyle: "italic" }}>
+                      Avoid high potassium foods:-
+                    </div>
+
+                    <textarea
+                      rows={4}
+                      className="charm-cc-textarea"
+                      aria-label="Care plan"
+                      placeholder="Prescriptions, EECP therapy parameters, lifestyle counseling..."
+                      {...register("plan")}
+                    />
+
+                    <div id="sec-fu" style={{ marginTop: 12 }}>
+                      <label className="field">
+                        <span>Follow-up instructions</span>
+                        <textarea rows={2} {...register("follow_up")} />
                       </label>
-                    ))}
+                    </div>
+
+                    <label className="field" style={{ marginTop: 12 }}>
+                      <span>Post-EECP outcome</span>
+                      <select {...register("outcome")}>
+                        <option value="">Not assessed</option>
+                        {outcomes.map((x) => (
+                          <option key={x}>{x}</option>
+                        ))}
+                      </select>
+                    </label>
                   </div>
-                </div>
-
-                <label className="field" style={{ marginTop: 10 }}>
-                  <span>Physical examination</span>
-                  <textarea
-                    rows={2}
-                    aria-label="Physical examination"
-                    placeholder="Additional clinical examination details..."
-                    {...register("examination")}
-                  />
-                </label>
-              </div>
-
-              {/* Hidden registered schema fields for legacy CAD inputs */}
-              <div style={{ display: "none" }}>
-                <input type="number" {...register("cad_year")} />
-                <select {...register("ccs_class")}>
-                  <option value="">Not assessed</option>
-                  {["I", "II", "III", "IV"].map((x) => (
-                    <option key={x}>{x}</option>
-                  ))}
-                </select>
-                <input {...register("cabg")} />
-                <input {...register("cag")} />
-              </div>
-
-              {/* SECTION: ASSESSMENT (Authentic CharmHealth (A)) */}
-              <div id="sec-assessment" className="charm-editor-section">
-                <div className="charm-section-header">
-                  <h3>Assessment</h3>
-                  <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-                    <button
-                      type="button"
-                      className="charm-template-link-btn"
-                      onClick={() => setActiveTplModal("assessment")}
-                    >
-                      CAG / Assessment Templates
-                    </button>
-                    <button
-                      type="button"
-                      className="charm-template-link-btn"
-                      onClick={() => setActiveTplModal("diagnosis")}
-                    >
-                      Diagnosis Templates
-                    </button>
-                    <button
-                      type="button"
-                      className="charm-btn-link-action"
-                      onClick={() => setModal("diagnoses")}
-                    >
-                      + Add diagnosis
-                    </button>
-                  </div>
-                </div>
-                <div style={{ marginBottom: 6, fontSize: 13, fontWeight: 600, color: "#334155" }}>
-                  Assessment Notes
-                </div>
-                <textarea
-                  rows={5}
-                  className="charm-cc-textarea"
-                  aria-label="Assessment"
-                  placeholder="Clinical diagnostic synthesis, CAD status, EECP response..."
-                  {...register("assessment")}
-                />
-              </div>
-
-              {/* SECTION: PLAN (Authentic CharmHealth (P)) */}
-              <div id="sec-plan" className="charm-editor-section">
-                <div className="charm-section-header">
-                  <h3>Plan</h3>
-                  <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-                    <button
-                      type="button"
-                      className="charm-btn-link-action"
-                      onClick={() => setActiveTplModal("add_rx")}
-                    >
-                      + Add Rx
-                    </button>
-                    <button
-                      type="button"
-                      className="charm-template-link-btn"
-                      onClick={() => setActiveTplModal("prescription")}
-                    >
-                      Rx Templates
-                    </button>
-                    <button
-                      type="button"
-                      className="charm-template-link-btn"
-                      onClick={() => setActiveTplModal("supplement")}
-                    >
-                      Supplements
-                    </button>
-                    <button
-                      type="button"
-                      className="charm-btn-link-action"
-                      onClick={() => setModal("orders")}
-                    >
-                      + Add order
-                    </button>
-                  </div>
-                </div>
-
-                <div style={{ marginBottom: 4, fontSize: 13, fontWeight: 600, color: "#334155" }}>
-                  Diet Recommendations
-                </div>
-                <div style={{ fontSize: 12, color: "#475569", marginBottom: 8, fontStyle: "italic" }}>
-                  Avoid high potassium foods:-
-                </div>
-
-                <textarea
-                  rows={4}
-                  className="charm-cc-textarea"
-                  aria-label="Care plan"
-                  placeholder="Prescriptions, EECP therapy parameters, lifestyle counseling..."
-                  {...register("plan")}
-                />
-
-                <div id="sec-fu" style={{ marginTop: 12 }}>
-                  <label className="field">
-                    <span>Follow-up instructions</span>
-                    <textarea rows={2} {...register("follow_up")} />
-                  </label>
-                </div>
-
-                <label className="field" style={{ marginTop: 12 }}>
-                  <span>Post-EECP outcome</span>
-                  <select {...register("outcome")}>
-                    <option value="">Not assessed</option>
-                    {outcomes.map((x) => (
-                      <option key={x}>{x}</option>
-                    ))}
-                  </select>
-                </label>
-              </div>
-            </>
-          )}
-        </fieldset>
+                </>
+              )}
+            </fieldset>
 
             {encounter.carry_forwards.map((r: Row) => (
               <div className="historical-attribution" key={r.id}>

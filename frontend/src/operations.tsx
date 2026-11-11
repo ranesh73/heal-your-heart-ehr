@@ -76,7 +76,7 @@ export function AppointmentTable({ rows }: { rows: Row[] }) {
                   {Math.round(
                     (new Date(r.end_at).getTime() -
                       new Date(r.start_at).getTime()) /
-                      60000,
+                    60000,
                   )}{" "}
                   min · {r.mode}
                 </small>
@@ -427,15 +427,15 @@ function Schedule() {
   const formattedDate =
     view === "Month"
       ? new Intl.DateTimeFormat("en-US", {
-          month: "long",
-          year: "numeric",
-        }).format(new Date(viewYear, viewMonth - 1, 1, 12, 0, 0))
+        month: "long",
+        year: "numeric",
+      }).format(new Date(viewYear, viewMonth - 1, 1, 12, 0, 0))
       : new Intl.DateTimeFormat("en-US", {
-          weekday: "long",
-          month: "short",
-          day: "numeric",
-          year: "numeric",
-        }).format(new Date(date + "T12:00:00Z"));
+        weekday: "long",
+        month: "short",
+        day: "numeric",
+        year: "numeric",
+      }).format(new Date(date + "T12:00:00Z"));
 
   // Authentic CharmHealth Month Grid calculation (Sun - Sat 7-col)
   const monthCells = useMemo<
@@ -542,657 +542,657 @@ function Schedule() {
       {/* 2. Main Calendar Layout: Left Drawer + Right Schedule */}
       {calSubtab === "Calendar" && (
         <div className="charm-cal-split">
-        {/* Left: Collapsible Provider Availability Drawer */}
-        <aside className={`charm-cal-drawer ${drawerOpen ? "open" : "collapsed"}`}>
-          <div className="charm-drawer-head">
-            <span style={{ display: "flex", alignItems: "center", gap: 6, fontWeight: 600, fontSize: 13 }}>
-              Provider Availability
-            </span>
-            <button
-              type="button"
-              className="charm-drawer-toggle"
-              onClick={() => setDrawerOpen(!drawerOpen)}
-              title="Toggle Drawer"
-            >
-              {drawerOpen ? "◀" : "▶"}
-            </button>
-          </div>
+          {/* Left: Collapsible Provider Availability Drawer */}
+          <aside className={`charm-cal-drawer ${drawerOpen ? "open" : "collapsed"}`}>
+            <div className="charm-drawer-head">
+              <span style={{ display: "flex", alignItems: "center", gap: 6, fontWeight: 600, fontSize: 13 }}>
+                Provider Availability
+              </span>
+              <button
+                type="button"
+                className="charm-drawer-toggle"
+                onClick={() => setDrawerOpen(!drawerOpen)}
+                title="Toggle Drawer"
+              >
+                {drawerOpen ? "◀" : "▶"}
+              </button>
+            </div>
 
-          {drawerOpen && (
-            <div className="charm-drawer-body">
-              <div className="charm-drawer-field">
-                <label>Facility *</label>
-                <select defaultValue="curr">
-                  <option value="curr">Heal Your Heart Neelankarai - HUH001</option>
-                  <option value="roy">Heal Your Heart Royapettah - HUH002</option>
-                  <option value="man">Heal Your Heart Manapakkam - HUH003</option>
-                </select>
-              </div>
-
-              <div className="charm-drawer-field">
-                <label>Provider *</label>
-                <select
-                  aria-label="Filter provider"
-                  value={provider}
-                  onChange={(e) => setProvider(e.target.value)}
-                >
-                  <option value="">All providers</option>
-                  {staff
-                    .filter((s) => ["doctor", "therapist"].includes(s.role))
-                    .map((s) => (
-                      <option key={s.id} value={s.id}>
-                        {s.name} ({s.role})
-                      </option>
-                    ))}
-                </select>
-              </div>
-
-              <div className="charm-drawer-field">
-                <label>Visit Type</label>
-                <select>
-                  <option value="">--Select--</option>
-                  <option value="eecp">EECP Treatment</option>
-                  <option value="consult">Cardiology Consultation</option>
-                  <option value="echo">2D Echo & Doppler</option>
-                </select>
-              </div>
-
-              <div className="charm-drawer-field">
-                <label>Duration *</label>
-                <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                  <input type="number" defaultValue={10} style={{ width: 60 }} />
-                  <span style={{ fontSize: 11, color: "#64748b" }}>minutes</span>
+            {drawerOpen && (
+              <div className="charm-drawer-body">
+                <div className="charm-drawer-field">
+                  <label>Facility *</label>
+                  <select defaultValue="curr">
+                    <option value="curr">Heal Your Heart Neelankarai - HUH001</option>
+                    <option value="roy">Heal Your Heart Royapettah - HUH002</option>
+                    <option value="man">Heal Your Heart Manapakkam - HUH003</option>
+                  </select>
                 </div>
-              </div>
 
-              <div className="charm-drawer-alert">
-                Provider Timings not configured for this member.{" "}
-                <button
-                  type="button"
-                  className="text-link"
-                  onClick={() => setAvailability(true)}
-                  style={{ fontSize: 11 }}
-                >
-                  Configure
-                </button>
-              </div>
-            </div>
-          )}
-        </aside>
-
-        {/* Right: Main Appointments Workspace */}
-        <section className="charm-cal-content">
-          {/* Controls Header */}
-          <div className="charm-cal-controls">
-            {/* View switcher buttons */}
-            <div className="charm-view-pills">
-              {["List View", "Day", "Week", "Month"].map((v) => (
-                <button
-                  key={v}
-                  className={`charm-view-btn ${view === v ? "active" : ""}`}
-                  onClick={() => setView(v)}
-                >
-                  {v}
-                </button>
-              ))}
-            </div>
-
-            {/* Date Display and Nav */}
-            <div className="charm-date-navigator">
-              <span className="charm-date-title">{formattedDate}</span>
-              <input
-                type="date"
-                aria-label="Schedule date"
-                value={date}
-                onChange={(e) => setDate(e.target.value)}
-                style={{ width: 28, height: 28, opacity: 0, position: "absolute", cursor: "pointer" }}
-              />
-              <button
-                type="button"
-                className="charm-nav-arrow"
-                aria-label="Previous period"
-                onClick={() => shift(-1)}
-              >
-                &lt;
-              </button>
-              <button
-                type="button"
-                className="charm-today-btn"
-                onClick={() => setDate(today())}
-              >
-                Today
-              </button>
-              <button
-                type="button"
-                className="charm-nav-arrow"
-                aria-label="Next period"
-                onClick={() => shift(1)}
-              >
-                &gt;
-              </button>
-            </div>
-
-            {/* Action buttons */}
-            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              {["reception", "doctor", "therapist", "admin"].includes(user.role) && (
-                <button
-                  type="button"
-                  className="charm-btn-confirm"
-                  style={{ padding: "6px 14px", fontSize: 12, borderRadius: 4 }}
-                  onClick={() => setAdd(true)}
-                >
-                  + Book Appointment
-                </button>
-              )}
-            </div>
-          </div>
-
-          {/* Yellow Timezone Banner */}
-          <div className="charm-cal-yellow-banner">
-            <div>
-              <span>Appointments are shown in <strong>Asia/Kolkata</strong> time zone</span>
-            </div>
-            <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-              <span style={{ fontSize: 11, color: "#64748b" }}>Sort by <strong>Time ▼</strong></span>
-            </div>
-          </div>
-
-          {/* Stat summary pills */}
-          <div className="charm-stat-pills">
-            <div className="charm-stat-chip orange">
-              <strong>{filtered.length}</strong> ALL
-            </div>
-            <div className="charm-stat-chip purple">
-              <strong>{filtered.filter((a) => a.status === "checked-in" || a.status === "confirmed").length || 6}</strong> EECP TREATMENT STARTED
-            </div>
-          </div>
-
-          <ErrorBox error={appts.error || error} />
-
-          {appts.isLoading ? (
-            <Loading />
-          ) : view === "Week" ? (
-            /* 3. Authentic CharmHealth Week Grid (Image 4) */
-            <div className="charm-week-grid-wrap">
-              <div className="charm-week-header-row">
-                <div className="charm-week-time-col">Time</div>
-                {Array.from({ length: 7 }, (_, i) => {
-                  const d = new Date(selectedDate.getTime() + i * 86400000);
-                  const isCurrent = d.toISOString().slice(0, 10) === date;
-                  return (
-                    <div
-                      key={i}
-                      className={`charm-week-day-col ${isCurrent ? "active-day" : ""}`}
-                    >
-                      <strong>
-                        {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"][d.getDay()]}{" "}
-                        {d.getMonth() + 1}/{d.getDate()}
-                      </strong>
-                    </div>
-                  );
-                })}
-              </div>
-
-              <div className="charm-week-body">
-                {["8am", "8:30am", "9am", "9:30am", "10am", "10:30am", "11am", "11:30am", "12pm", "12:30pm", "1pm", "1:30pm", "2pm", "2:30pm", "3pm", "3:30pm", "4pm", "4:30pm", "5pm", "5:30pm"].map((hour, hIdx) => {
-                  const hourNum = 8 + Math.floor(hIdx / 2);
-                  const isHalf = hIdx % 2 === 1;
-                  return (
-                    <div className="charm-week-row" key={hour}>
-                      <div className="charm-week-time-label">{hour}</div>
-                      {Array.from({ length: 7 }, (_, dayIdx) => {
-                        const d = new Date(selectedDate.getTime() + dayIdx * 86400000);
-                        const key = localInput(d.toISOString()).slice(0, 10);
-                        const slotAppts = filtered.filter((a) => {
-                          const localStart = localInput(a.start_at);
-                          if (!localStart.startsWith(key)) return false;
-                          const timePart = localStart.slice(11, 16);
-                          const [h, m] = timePart.split(":").map(Number);
-                          return h === hourNum && (isHalf ? m >= 30 : m < 30);
-                        });
-                        const isSlotEmpty = slotAppts.length === 0;
-                        const slotDateStr = `${key}T${String(hourNum).padStart(2, "0")}:${isHalf ? "30" : "00"}`;
-                        return (
-                          <div
-                            key={dayIdx}
-                            className={`charm-week-slot ${isSlotEmpty ? "charm-week-slot-empty" : "has-appts"}`}
-                            onClick={() => {
-                              if (isSlotEmpty && ["reception", "doctor", "therapist", "admin"].includes(user.role)) {
-                                setBookingSlot({
-                                  startAt: slotDateStr,
-                                  providerId: provider || undefined,
-                                  duration: 30,
-                                });
-                              }
-                            }}
-                            title={isSlotEmpty ? `Click to book appointment on ${key} at ${hour}` : undefined}
-                          >
-                            {isSlotEmpty && (
-                              <div className="charm-empty-slot-action">
-                                <span className="charm-slot-plus">+</span>
-                              </div>
-                            )}
-                            {slotAppts.map((currentSlotAppt) => {
-                              const isEECP = currentSlotAppt.visit_type?.toLowerCase().includes("eecp");
-                              return (
-                                <div
-                                  key={currentSlotAppt.id}
-                                  className={`charm-week-appt-card ${isEECP ? "eecp-appt" : "consult-appt"} status-${currentSlotAppt.status}`}
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    setSelectedAppt(currentSlotAppt);
-                                  }}
-                                  title="Click to view appointment details & actions"
-                                >
-                                  <div className="appt-header-line">
-                                    <span className="appt-time">
-                                      {localInput(currentSlotAppt.start_at).slice(11, 16)} - {localInput(currentSlotAppt.end_at).slice(11, 16)}
-                                    </span>
-                                    <span className={`status-badge-mini ${currentSlotAppt.status}`}>
-                                      {currentSlotAppt.status}
-                                    </span>
-                                  </div>
-                                  <div className="appt-patient">
-                                    {patientName(currentSlotAppt.patient_id, patients)}
-                                  </div>
-                                  <div className="appt-provider">
-                                    {staff.find((s) => s.id === currentSlotAppt.provider_id)?.name}
-                                  </div>
-                                  <div className="appt-room">
-                                    {resources.find((r) => r.id === currentSlotAppt.resource_id)?.name || (isEECP ? "EECP Bed" : "Consult Room")}
-                                  </div>
-                                </div>
-                              );
-                            })}
-                          </div>
-                        );
-                      })}
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          ) : view === "Day" ? (
-            <div className="charm-day-schedule-view">
-              <div className="charm-day-timeline-head">
-                <div>
-                  <h4 style={{ margin: 0, fontSize: 14, fontWeight: 700, color: "#0f172a" }}>
-                    Daily Schedule · {formattedDate}
-                  </h4>
-                  <small style={{ color: "#64748b" }}>
-                    {filtered.length} appointment{filtered.length === 1 ? "" : "s"} scheduled today
-                  </small>
-                </div>
-                {["reception", "doctor", "therapist", "admin"].includes(user.role) && (
-                  <Button
-                    variant="primary"
-                    onClick={() => setBookingSlot({ startAt: date + "T09:00", providerId: provider || undefined, duration: 30 })}
+                <div className="charm-drawer-field">
+                  <label>Provider *</label>
+                  <select
+                    aria-label="Filter provider"
+                    value={provider}
+                    onChange={(e) => setProvider(e.target.value)}
                   >
-                    <Plus size={14} /> Book Appointment
-                  </Button>
+                    <option value="">All providers</option>
+                    {staff
+                      .filter((s) => ["doctor", "therapist"].includes(s.role))
+                      .map((s) => (
+                        <option key={s.id} value={s.id}>
+                          {s.name} ({s.role})
+                        </option>
+                      ))}
+                  </select>
+                </div>
+
+                <div className="charm-drawer-field">
+                  <label>Visit Type</label>
+                  <select>
+                    <option value="">--Select--</option>
+                    <option value="eecp">EECP Treatment</option>
+                    <option value="consult">Cardiology Consultation</option>
+                    <option value="echo">2D Echo & Doppler</option>
+                  </select>
+                </div>
+
+                <div className="charm-drawer-field">
+                  <label>Duration *</label>
+                  <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                    <input type="number" defaultValue={10} style={{ width: 60 }} />
+                    <span style={{ fontSize: 11, color: "#64748b" }}>minutes</span>
+                  </div>
+                </div>
+
+                <div className="charm-drawer-alert">
+                  Provider Timings not configured for this member.{" "}
+                  <button
+                    type="button"
+                    className="text-link"
+                    onClick={() => setAvailability(true)}
+                    style={{ fontSize: 11 }}
+                  >
+                    Configure
+                  </button>
+                </div>
+              </div>
+            )}
+          </aside>
+
+          {/* Right: Main Appointments Workspace */}
+          <section className="charm-cal-content">
+            {/* Controls Header */}
+            <div className="charm-cal-controls">
+              {/* View switcher buttons */}
+              <div className="charm-view-pills">
+                {["List View", "Day", "Week", "Month"].map((v) => (
+                  <button
+                    key={v}
+                    className={`charm-view-btn ${view === v ? "active" : ""}`}
+                    onClick={() => setView(v)}
+                  >
+                    {v}
+                  </button>
+                ))}
+              </div>
+
+              {/* Date Display and Nav */}
+              <div className="charm-date-navigator">
+                <span className="charm-date-title">{formattedDate}</span>
+                <input
+                  type="date"
+                  aria-label="Schedule date"
+                  value={date}
+                  onChange={(e) => setDate(e.target.value)}
+                  style={{ width: 28, height: 28, opacity: 0, position: "absolute", cursor: "pointer" }}
+                />
+                <button
+                  type="button"
+                  className="charm-nav-arrow"
+                  aria-label="Previous period"
+                  onClick={() => shift(-1)}
+                >
+                  &lt;
+                </button>
+                <button
+                  type="button"
+                  className="charm-today-btn"
+                  onClick={() => setDate(today())}
+                >
+                  Today
+                </button>
+                <button
+                  type="button"
+                  className="charm-nav-arrow"
+                  aria-label="Next period"
+                  onClick={() => shift(1)}
+                >
+                  &gt;
+                </button>
+              </div>
+
+              {/* Action buttons */}
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                {["reception", "doctor", "therapist", "admin"].includes(user.role) && (
+                  <button
+                    type="button"
+                    className="charm-btn-confirm"
+                    style={{ padding: "6px 14px", fontSize: 12, borderRadius: 4 }}
+                    onClick={() => setAdd(true)}
+                  >
+                    + Book Appointment
+                  </button>
                 )}
               </div>
+            </div>
 
-              <div className="charm-day-timeline-grid">
-                {["8am", "8:30am", "9am", "9:30am", "10am", "10:30am", "11am", "11:30am", "12pm", "12:30pm", "1pm", "1:30pm", "2pm", "2:30pm", "3pm", "3:30pm", "4pm", "4:30pm", "5pm", "5:30pm"].map((hour, hIdx) => {
-                  const hourNum = 8 + Math.floor(hIdx / 2);
-                  const isHalf = hIdx % 2 === 1;
-                  const timeKey = `${date}T${String(hourNum).padStart(2, "0")}:${isHalf ? "30" : "00"}`;
-                  const slotAppts = filtered.filter((a) => {
-                    const localStart = localInput(a.start_at);
-                    if (!localStart.startsWith(date)) return false;
-                    const timePart = localStart.slice(11, 16);
-                    const [h, m] = timePart.split(":").map(Number);
-                    return h === hourNum && (isHalf ? m >= 30 : m < 30);
-                  });
-                  const isSlotEmpty = slotAppts.length === 0;
+            {/* Yellow Timezone Banner */}
+            <div className="charm-cal-yellow-banner">
+              <div>
+                <span>Appointments are shown in <strong>Asia/Kolkata</strong> time zone</span>
+              </div>
+              <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                <span style={{ fontSize: 11, color: "#64748b" }}>Sort by <strong>Time ▼</strong></span>
+              </div>
+            </div>
 
-                  return (
-                    <div className="charm-day-time-row" key={hour}>
-                      <div className="charm-day-time-gutter">{hour}</div>
+            {/* Stat summary pills */}
+            <div className="charm-stat-pills">
+              <div className="charm-stat-chip orange">
+                <strong>{filtered.length}</strong> ALL
+              </div>
+              <div className="charm-stat-chip purple">
+                <strong>{filtered.filter((a) => a.status === "checked-in" || a.status === "confirmed").length || 6}</strong> EECP TREATMENT STARTED
+              </div>
+            </div>
+
+            <ErrorBox error={appts.error || error} />
+
+            {appts.isLoading ? (
+              <Loading />
+            ) : view === "Week" ? (
+              /* 3. Authentic CharmHealth Week Grid (Image 4) */
+              <div className="charm-week-grid-wrap">
+                <div className="charm-week-header-row">
+                  <div className="charm-week-time-col">Time</div>
+                  {Array.from({ length: 7 }, (_, i) => {
+                    const d = new Date(selectedDate.getTime() + i * 86400000);
+                    const isCurrent = d.toISOString().slice(0, 10) === date;
+                    return (
                       <div
-                        className={`charm-day-slot-area ${isSlotEmpty ? "empty-slot" : "filled-slot"}`}
+                        key={i}
+                        className={`charm-week-day-col ${isCurrent ? "active-day" : ""}`}
+                      >
+                        <strong>
+                          {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"][d.getDay()]}{" "}
+                          {d.getMonth() + 1}/{d.getDate()}
+                        </strong>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                <div className="charm-week-body">
+                  {["8am", "8:30am", "9am", "9:30am", "10am", "10:30am", "11am", "11:30am", "12pm", "12:30pm", "1pm", "1:30pm", "2pm", "2:30pm", "3pm", "3:30pm", "4pm", "4:30pm", "5pm", "5:30pm"].map((hour, hIdx) => {
+                    const hourNum = 8 + Math.floor(hIdx / 2);
+                    const isHalf = hIdx % 2 === 1;
+                    return (
+                      <div className="charm-week-row" key={hour}>
+                        <div className="charm-week-time-label">{hour}</div>
+                        {Array.from({ length: 7 }, (_, dayIdx) => {
+                          const d = new Date(selectedDate.getTime() + dayIdx * 86400000);
+                          const key = localInput(d.toISOString()).slice(0, 10);
+                          const slotAppts = filtered.filter((a) => {
+                            const localStart = localInput(a.start_at);
+                            if (!localStart.startsWith(key)) return false;
+                            const timePart = localStart.slice(11, 16);
+                            const [h, m] = timePart.split(":").map(Number);
+                            return h === hourNum && (isHalf ? m >= 30 : m < 30);
+                          });
+                          const isSlotEmpty = slotAppts.length === 0;
+                          const slotDateStr = `${key}T${String(hourNum).padStart(2, "0")}:${isHalf ? "30" : "00"}`;
+                          return (
+                            <div
+                              key={dayIdx}
+                              className={`charm-week-slot ${isSlotEmpty ? "charm-week-slot-empty" : "has-appts"}`}
+                              onClick={() => {
+                                if (isSlotEmpty && ["reception", "doctor", "therapist", "admin"].includes(user.role)) {
+                                  setBookingSlot({
+                                    startAt: slotDateStr,
+                                    providerId: provider || undefined,
+                                    duration: 30,
+                                  });
+                                }
+                              }}
+                              title={isSlotEmpty ? `Click to book appointment on ${key} at ${hour}` : undefined}
+                            >
+                              {isSlotEmpty && (
+                                <div className="charm-empty-slot-action">
+                                  <span className="charm-slot-plus">+</span>
+                                </div>
+                              )}
+                              {slotAppts.map((currentSlotAppt) => {
+                                const isEECP = currentSlotAppt.visit_type?.toLowerCase().includes("eecp");
+                                return (
+                                  <div
+                                    key={currentSlotAppt.id}
+                                    className={`charm-week-appt-card ${isEECP ? "eecp-appt" : "consult-appt"} status-${currentSlotAppt.status}`}
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setSelectedAppt(currentSlotAppt);
+                                    }}
+                                    title="Click to view appointment details & actions"
+                                  >
+                                    <div className="appt-header-line">
+                                      <span className="appt-time">
+                                        {localInput(currentSlotAppt.start_at).slice(11, 16)} - {localInput(currentSlotAppt.end_at).slice(11, 16)}
+                                      </span>
+                                      <span className={`status-badge-mini ${currentSlotAppt.status}`}>
+                                        {currentSlotAppt.status}
+                                      </span>
+                                    </div>
+                                    <div className="appt-patient">
+                                      {patientName(currentSlotAppt.patient_id, patients)}
+                                    </div>
+                                    <div className="appt-provider">
+                                      {staff.find((s) => s.id === currentSlotAppt.provider_id)?.name}
+                                    </div>
+                                    <div className="appt-room">
+                                      {resources.find((r) => r.id === currentSlotAppt.resource_id)?.name || (isEECP ? "EECP Bed" : "Consult Room")}
+                                    </div>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            ) : view === "Day" ? (
+              <div className="charm-day-schedule-view">
+                <div className="charm-day-timeline-head">
+                  <div>
+                    <h4 style={{ margin: 0, fontSize: 14, fontWeight: 700, color: "#0f172a" }}>
+                      Daily Schedule · {formattedDate}
+                    </h4>
+                    <small style={{ color: "#64748b" }}>
+                      {filtered.length} appointment{filtered.length === 1 ? "" : "s"} scheduled today
+                    </small>
+                  </div>
+                  {["reception", "doctor", "therapist", "admin"].includes(user.role) && (
+                    <Button
+                      variant="primary"
+                      onClick={() => setBookingSlot({ startAt: date + "T09:00", providerId: provider || undefined, duration: 30 })}
+                    >
+                      <Plus size={14} /> Book Appointment
+                    </Button>
+                  )}
+                </div>
+
+                <div className="charm-day-timeline-grid">
+                  {["8am", "8:30am", "9am", "9:30am", "10am", "10:30am", "11am", "11:30am", "12pm", "12:30pm", "1pm", "1:30pm", "2pm", "2:30pm", "3pm", "3:30pm", "4pm", "4:30pm", "5pm", "5:30pm"].map((hour, hIdx) => {
+                    const hourNum = 8 + Math.floor(hIdx / 2);
+                    const isHalf = hIdx % 2 === 1;
+                    const timeKey = `${date}T${String(hourNum).padStart(2, "0")}:${isHalf ? "30" : "00"}`;
+                    const slotAppts = filtered.filter((a) => {
+                      const localStart = localInput(a.start_at);
+                      if (!localStart.startsWith(date)) return false;
+                      const timePart = localStart.slice(11, 16);
+                      const [h, m] = timePart.split(":").map(Number);
+                      return h === hourNum && (isHalf ? m >= 30 : m < 30);
+                    });
+                    const isSlotEmpty = slotAppts.length === 0;
+
+                    return (
+                      <div className="charm-day-time-row" key={hour}>
+                        <div className="charm-day-time-gutter">{hour}</div>
+                        <div
+                          className={`charm-day-slot-area ${isSlotEmpty ? "empty-slot" : "filled-slot"}`}
+                          onClick={() => {
+                            if (isSlotEmpty && ["reception", "doctor", "therapist", "admin"].includes(user.role)) {
+                              setBookingSlot({
+                                startAt: timeKey,
+                                providerId: provider || undefined,
+                                duration: 30,
+                              });
+                            }
+                          }}
+                          title={isSlotEmpty ? `Click to book appointment at ${hour}` : undefined}
+                        >
+                          {isSlotEmpty ? (
+                            <div className="charm-day-empty-placeholder">
+                              <span className="slot-plus-text">+ Click to book at {hour}</span>
+                            </div>
+                          ) : (
+                            <div className="charm-day-appt-cards">
+                              {slotAppts.map((currentSlotAppt) => {
+                                const isEECP = currentSlotAppt.visit_type?.toLowerCase().includes("eecp");
+                                const pat = patients.find((p) => p.id === currentSlotAppt.patient_id);
+                                return (
+                                  <div
+                                    key={currentSlotAppt.id}
+                                    className={`charm-day-appt-card ${isEECP ? "eecp-theme" : "consult-theme"} status-${currentSlotAppt.status}`}
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setSelectedAppt(currentSlotAppt);
+                                    }}
+                                    title="Click to view appointment details & actions"
+                                  >
+                                    <div className="charm-day-card-header">
+                                      <span className="day-card-patient">
+                                        {pat?.name || patientName(currentSlotAppt.patient_id, patients)} [{pat?.mrn || "HUHNKR" + currentSlotAppt.id.slice(0, 4)}]
+                                      </span>
+                                      <Badge value={currentSlotAppt.status} />
+                                    </div>
+                                    <div className="charm-day-card-meta">
+                                      <span>🕒 {localInput(currentSlotAppt.start_at).slice(11, 16)} - {localInput(currentSlotAppt.end_at).slice(11, 16)}</span>
+                                      <span>🩺 {staff.find((s) => s.id === currentSlotAppt.provider_id)?.name}</span>
+                                      <span>🏥 {resources.find((r) => r.id === currentSlotAppt.resource_id)?.name || (isEECP ? "EECP Bed" : "Consult Room")}</span>
+                                      <span>🏷️ {currentSlotAppt.visit_type}</span>
+                                    </div>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            ) : view === "Month" ? (
+              /* Authentic CharmHealth Month Grid (1:1 with CharmTracker) */
+              <div className="charm-cal-month-wrap">
+                {/* Day of Week Headers */}
+                <div className="charm-cal-month-header-row">
+                  {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((dayName) => (
+                    <div key={dayName} className="charm-cal-month-th">
+                      {dayName}
+                    </div>
+                  ))}
+                </div>
+
+                {/* 7-column Calendar Month Grid */}
+                <div className="charm-cal-month-cells-grid">
+                  {monthCells.map((cell) => {
+                    const dayAppts = (appts.data || [])
+                      .filter((a) => {
+                        if (provider && a.provider_id !== provider) return false;
+                        const localDate = localInput(a.start_at).slice(0, 10);
+                        return localDate === cell.dateStr;
+                      })
+                      .sort((a, b) => a.start_at.localeCompare(b.start_at));
+
+                    return (
+                      <div
+                        key={cell.dateStr}
+                        className={`charm-cal-month-cell-box ${!cell.isCurrentMonth ? "inactive" : ""} ${cell.isToday ? "is-today" : ""}`}
                         onClick={() => {
-                          if (isSlotEmpty && ["reception", "doctor", "therapist", "admin"].includes(user.role)) {
+                          if (["reception", "doctor", "therapist", "admin"].includes(user.role)) {
                             setBookingSlot({
-                              startAt: timeKey,
+                              startAt: `${cell.dateStr}T09:00`,
                               providerId: provider || undefined,
                               duration: 30,
                             });
                           }
                         }}
-                        title={isSlotEmpty ? `Click to book appointment at ${hour}` : undefined}
+                        title={cell.isToday ? "Today" : `Click to book appointment on ${cell.dateStr}`}
                       >
-                        {isSlotEmpty ? (
-                          <div className="charm-day-empty-placeholder">
-                            <span className="slot-plus-text">+ Click to book at {hour}</span>
-                          </div>
-                        ) : (
-                          <div className="charm-day-appt-cards">
-                            {slotAppts.map((currentSlotAppt) => {
-                              const isEECP = currentSlotAppt.visit_type?.toLowerCase().includes("eecp");
-                              const pat = patients.find((p) => p.id === currentSlotAppt.patient_id);
-                              return (
-                                <div
-                                  key={currentSlotAppt.id}
-                                  className={`charm-day-appt-card ${isEECP ? "eecp-theme" : "consult-theme"} status-${currentSlotAppt.status}`}
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    setSelectedAppt(currentSlotAppt);
-                                  }}
-                                  title="Click to view appointment details & actions"
-                                >
-                                  <div className="charm-day-card-header">
-                                    <span className="day-card-patient">
-                                      {pat?.name || patientName(currentSlotAppt.patient_id, patients)} [{pat?.mrn || "HUHNKR" + currentSlotAppt.id.slice(0, 4)}]
-                                    </span>
-                                    <Badge value={currentSlotAppt.status} />
-                                  </div>
-                                  <div className="charm-day-card-meta">
-                                    <span>🕒 {localInput(currentSlotAppt.start_at).slice(11, 16)} - {localInput(currentSlotAppt.end_at).slice(11, 16)}</span>
-                                    <span>🩺 {staff.find((s) => s.id === currentSlotAppt.provider_id)?.name}</span>
-                                    <span>🏥 {resources.find((r) => r.id === currentSlotAppt.resource_id)?.name || (isEECP ? "EECP Bed" : "Consult Room")}</span>
-                                    <span>🏷️ {currentSlotAppt.visit_type}</span>
-                                  </div>
-                                </div>
-                              );
-                            })}
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          ) : view === "Month" ? (
-            /* Authentic CharmHealth Month Grid (1:1 with CharmTracker) */
-            <div className="charm-cal-month-wrap">
-              {/* Day of Week Headers */}
-              <div className="charm-cal-month-header-row">
-                {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((dayName) => (
-                  <div key={dayName} className="charm-cal-month-th">
-                    {dayName}
-                  </div>
-                ))}
-              </div>
+                        <div className="charm-cal-month-cell-top">
+                          <span className={`charm-cal-month-day-num ${cell.isToday ? "today-badge" : ""}`}>
+                            {cell.dayNum}
+                          </span>
+                          {["reception", "doctor", "therapist", "admin"].includes(user.role) && (
+                            <span className="charm-cal-cell-plus-hover" title="Book Appointment">
+                              +
+                            </span>
+                          )}
+                        </div>
 
-              {/* 7-column Calendar Month Grid */}
-              <div className="charm-cal-month-cells-grid">
-                {monthCells.map((cell) => {
-                  const dayAppts = (appts.data || [])
-                    .filter((a) => {
-                      if (provider && a.provider_id !== provider) return false;
-                      const localDate = localInput(a.start_at).slice(0, 10);
-                      return localDate === cell.dateStr;
-                    })
-                    .sort((a, b) => a.start_at.localeCompare(b.start_at));
+                        <div className="charm-cal-month-chips-container">
+                          {dayAppts.map((appt) => {
+                            const isEECP = appt.visit_type?.toLowerCase().includes("eecp");
+                            const pat = patients.find((p) => p.id === appt.patient_id);
+                            const timeStr = localInput(appt.start_at).slice(11, 16);
+                            const patientDisplayName = pat?.name || patientName(appt.patient_id, patients);
+
+                            return (
+                              <div
+                                key={appt.id}
+                                className={`charm-cal-month-chip-item status-${appt.status} ${isEECP ? "is-eecp" : "is-consult"}`}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setSelectedAppt(appt);
+                                }}
+                                title={`${timeStr} · ${patientDisplayName} · ${appt.visit_type} · [${appt.status}]`}
+                              >
+                                <span className="charm-month-chip-time">{timeStr}</span>
+                                <span className="charm-month-chip-name">{patientDisplayName}</span>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            ) : (
+              /* 4. Authentic CharmHealth List View (Image 3) */
+              <div className="charm-appt-card-list">
+                {filtered.map((a) => {
+                  const pat = patients.find((p) => p.id === a.patient_id);
+                  const prv = staff.find((s) => s.id === a.provider_id);
+                  const res = resources.find((r) => r.id === a.resource_id);
+                  const startStr = localInput(a.start_at).slice(11, 16);
+                  const endStr = localInput(a.end_at).slice(11, 16);
 
                   return (
-                    <div
-                      key={cell.dateStr}
-                      className={`charm-cal-month-cell-box ${!cell.isCurrentMonth ? "inactive" : ""} ${cell.isToday ? "is-today" : ""}`}
-                      onClick={() => {
-                        if (["reception", "doctor", "therapist", "admin"].includes(user.role)) {
-                          setBookingSlot({
-                            startAt: `${cell.dateStr}T09:00`,
-                            providerId: provider || undefined,
-                            duration: 30,
-                          });
-                        }
-                      }}
-                      title={cell.isToday ? "Today" : `Click to book appointment on ${cell.dateStr}`}
-                    >
-                      <div className="charm-cal-month-cell-top">
-                        <span className={`charm-cal-month-day-num ${cell.isToday ? "today-badge" : ""}`}>
-                          {cell.dayNum}
-                        </span>
-                        {["reception", "doctor", "therapist", "admin"].includes(user.role) && (
-                          <span className="charm-cal-cell-plus-hover" title="Book Appointment">
-                            +
+                    <div key={a.id} className="charm-list-card">
+                      {/* Left Column of Card (Frame 072) */}
+                      <div className="charm-list-card-left">
+                        <div className="charm-patient-header-line">
+                          <input type="checkbox" />
+                          <button
+                            type="button"
+                            className="charm-patient-link"
+                            onClick={() => navigate("/patients/" + a.patient_id)}
+                          >
+                            <strong>{pat?.name || patientName(a.patient_id, patients)} [ {pat?.mrn || "HUHNKR" + a.id.slice(0, 4)} ]</strong>
+                          </button>
+                          <span
+                            className="charm-red-bubble"
+                            title="Patient Chat / Notes"
+                            onClick={() => navigate("/communication")}
+                            style={{ cursor: "pointer" }}
+                          >
+                            ✉
                           </span>
-                        )}
+                        </div>
+
+                        <div className="charm-patient-info-row">
+                          <div className="charm-avatar-circle-gray">
+                            👤
+                          </div>
+                          <div className="charm-patient-details-text">
+                            <div>Reason: <span style={{ color: "#334155" }}>{a.reason || "-"}</span></div>
+                            <div style={{ marginTop: 4 }}>
+                              <span>DOB: {pat?.dob || "Aug 14, 1950"}</span>
+                              <span style={{ marginLeft: 12 }}>📱 {pat?.phone || "9940322368"}</span>
+                            </div>
+                            <div style={{ marginTop: 8 }}>
+                              <select
+                                value={a.status === "completed" ? "completed" : a.status === "checked-in" ? "checked-in" : "eecp-started"}
+                                onChange={async (e) => {
+                                  try {
+                                    const newStat = e.target.value === "eecp-started" ? "checked-in" : e.target.value;
+                                    await api("/appointments/" + a.id + "/status", "POST", {
+                                      version: a.version,
+                                      status: newStat,
+                                    });
+                                    await refresh();
+                                    notify("Status updated.");
+                                  } catch (err) {
+                                    notify("Status updated.");
+                                  }
+                                }}
+                                className="charm-status-pill purple"
+                                style={{ border: "none", cursor: "pointer", background: "#7c3aed", color: "#fff", padding: "3px 8px", borderRadius: 4, fontWeight: 600, fontSize: 11 }}
+                              >
+                                <option value="eecp-started">EECP Treatment Started ▾</option>
+                                <option value="checked-in">Checked In ▾</option>
+                                <option value="completed">Completed ▾</option>
+                                <option value="cancelled">Cancelled ▾</option>
+                              </select>
+                            </div>
+                          </div>
+                        </div>
                       </div>
 
-                      <div className="charm-cal-month-chips-container">
-                        {dayAppts.map((appt) => {
-                          const isEECP = appt.visit_type?.toLowerCase().includes("eecp");
-                          const pat = patients.find((p) => p.id === appt.patient_id);
-                          const timeStr = localInput(appt.start_at).slice(11, 16);
-                          const patientDisplayName = pat?.name || patientName(appt.patient_id, patients);
+                      {/* Right Column of Card (Frame 072) */}
+                      <div className="charm-list-card-right">
+                        <div className="charm-right-top-meta">
+                          <input type="checkbox" style={{ marginRight: 4 }} />
+                          <span style={{ fontWeight: 600, color: "#0f172a" }}>
+                            {formatDoctorName(prv?.name || "Vijayalakshmi K")}
+                          </span>
+                          <span>|</span>
+                          <span style={{ color: "#475569" }}>Heal Your Heart Royapettah</span>
+                          <span>|</span>
+                          <span style={{ fontWeight: 600, color: "#0f4c81" }}>
+                            {startStr} - {endStr}
+                          </span>
+                        </div>
 
-                          return (
-                            <div
-                              key={appt.id}
-                              className={`charm-cal-month-chip-item status-${appt.status} ${isEECP ? "is-eecp" : "is-consult"}`}
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setSelectedAppt(appt);
-                              }}
-                              title={`${timeStr} · ${patientDisplayName} · ${appt.visit_type} · [${appt.status}]`}
+                        <div className="charm-right-details-grid">
+                          <div>
+                            <span className="charm-dim-label">Visit Type: </span>
+                            <strong style={{ display: "block", color: "#0f172a", marginTop: 2 }}>{formatSessionDay(a)}</strong>
+                          </div>
+                          <div>
+                            <span className="charm-dim-label">Patient Balance Due: </span>
+                            <button
+                              type="button"
+                              className="text-link"
+                              onClick={() => navigate("/billing")}
+                              style={{ fontSize: 11, color: "#0284c7" }}
                             >
-                              <span className="charm-month-chip-time">{timeStr}</span>
-                              <span className="charm-month-chip-name">{patientDisplayName}</span>
-                            </div>
-                          );
-                        })}
+                              Show
+                            </button>
+                          </div>
+                          <div>
+                            <span className="charm-dim-label">Last Visit: </span>
+                            <span style={{ color: "#0284c7", cursor: "pointer" }}>{day(a.start_at)}</span>
+                          </div>
+                          <div>
+                            <span className="charm-dim-label">Token #: </span>
+                            <span style={{ color: "#2563eb", cursor: "pointer", fontSize: 11 }}>Generate | Pay</span>
+                          </div>
+                          <div>
+                            <span className="charm-dim-label">Resource: </span>
+                            <select
+                              defaultValue={a.resource_id || "res_eecp2"}
+                              onChange={async (e) => {
+                                try {
+                                  await api("/appointments/" + a.id, "PUT", { resource_id: e.target.value });
+                                  await refresh();
+                                  notify("Resource updated.");
+                                } catch (err) {
+                                  notify("Resource updated.");
+                                }
+                              }}
+                              style={{ border: "none", background: "transparent", fontWeight: 600, fontSize: 11.5, color: "#0f172a", cursor: "pointer" }}
+                            >
+                              <option value="res_eecp1">EECP Room 01 ▾</option>
+                              <option value="res_eecp2">EECP Room 02 ▾</option>
+                              <option value="res_eecp3">EECP Room 03 ▾</option>
+                              <option value="res_cons1">Consultation Room 1 ▾</option>
+                            </select>
+                          </div>
+                          <div>
+                            <span className="charm-dim-label">Consultation: </span>
+                            <button
+                              type="button"
+                              className="text-link"
+                              onClick={() => handleStartConsultation(a.patient_id, a.visit_type)}
+                              style={{ fontWeight: 700, color: "#0284c7" }}
+                            >
+                              Start
+                            </button>
+                          </div>
+                        </div>
+
+                        {/* Bottom action and quick links */}
+                        <div className="charm-right-actions-bar">
+                          <div className="charm-quick-nav-links">
+                            <button
+                              type="button"
+                              className="text-link"
+                              onClick={() => navigate("/patients/" + a.patient_id)}
+                            >
+                              Face Sheet
+                            </button>
+                            <span>|</span>
+                            <span className="text-link" style={{ cursor: "pointer" }} onClick={() => navigate("/patients/" + a.patient_id)}>
+                              Questionnaire
+                            </span>
+                            <span>|</span>
+                            <span className="text-link" style={{ cursor: "pointer" }} onClick={() => navigate("/patients/" + a.patient_id)}>
+                              Past Visits
+                            </span>
+                          </div>
+
+                          <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+                            {a.status === "confirmed" && (
+                              <button
+                                type="button"
+                                className="charm-btn-confirm"
+                                style={{ padding: "4px 10px", fontSize: 11, background: "#10b981", borderRadius: 4 }}
+                                onClick={async () => {
+                                  try {
+                                    await api("/appointments/" + a.id + "/status", "POST", {
+                                      version: a.version,
+                                      status: "checked-in",
+                                    });
+                                    await refresh();
+                                    notify("Patient checked in.");
+                                  } catch (e) {
+                                    setError(e);
+                                  }
+                                }}
+                              >
+                                Check in
+                              </button>
+                            )}
+                            <button
+                              type="button"
+                              className="charm-btn-cancel"
+                              style={{ padding: "4px 8px", fontSize: 11 }}
+                              onClick={() => setReschedule(a)}
+                            >
+                              Reschedule
+                            </button>
+                          </div>
+                        </div>
                       </div>
                     </div>
                   );
                 })}
-              </div>
-            </div>
-          ) : (
-            /* 4. Authentic CharmHealth List View (Image 3) */
-            <div className="charm-appt-card-list">
-              {filtered.map((a) => {
-                const pat = patients.find((p) => p.id === a.patient_id);
-                const prv = staff.find((s) => s.id === a.provider_id);
-                const res = resources.find((r) => r.id === a.resource_id);
-                const startStr = localInput(a.start_at).slice(11, 16);
-                const endStr = localInput(a.end_at).slice(11, 16);
 
-                return (
-                  <div key={a.id} className="charm-list-card">
-                    {/* Left Column of Card (Frame 072) */}
-                    <div className="charm-list-card-left">
-                      <div className="charm-patient-header-line">
-                        <input type="checkbox" />
-                        <button
-                          type="button"
-                          className="charm-patient-link"
-                          onClick={() => navigate("/patients/" + a.patient_id)}
-                        >
-                          <strong>{pat?.name || patientName(a.patient_id, patients)} [ {pat?.mrn || "HUHNKR" + a.id.slice(0, 4)} ]</strong>
-                        </button>
-                        <span
-                          className="charm-red-bubble"
-                          title="Patient Chat / Notes"
-                          onClick={() => navigate("/communication")}
-                          style={{ cursor: "pointer" }}
-                        >
-                          ✉
-                        </span>
-                      </div>
-
-                      <div className="charm-patient-info-row">
-                        <div className="charm-avatar-circle-gray">
-                          👤
-                        </div>
-                        <div className="charm-patient-details-text">
-                          <div>Reason: <span style={{ color: "#334155" }}>{a.reason || "-"}</span></div>
-                          <div style={{ marginTop: 4 }}>
-                            <span>DOB: {pat?.dob || "Aug 14, 1950"}</span>
-                            <span style={{ marginLeft: 12 }}>📱 {pat?.phone || "9940322368"}</span>
-                          </div>
-                          <div style={{ marginTop: 8 }}>
-                            <select
-                              value={a.status === "completed" ? "completed" : a.status === "checked-in" ? "checked-in" : "eecp-started"}
-                              onChange={async (e) => {
-                                try {
-                                  const newStat = e.target.value === "eecp-started" ? "checked-in" : e.target.value;
-                                  await api("/appointments/" + a.id + "/status", "POST", {
-                                    version: a.version,
-                                    status: newStat,
-                                  });
-                                  await refresh();
-                                  notify("Status updated.");
-                                } catch (err) {
-                                  notify("Status updated.");
-                                }
-                              }}
-                              className="charm-status-pill purple"
-                              style={{ border: "none", cursor: "pointer", background: "#7c3aed", color: "#fff", padding: "3px 8px", borderRadius: 4, fontWeight: 600, fontSize: 11 }}
-                            >
-                              <option value="eecp-started">EECP Treatment Started ▾</option>
-                              <option value="checked-in">Checked In ▾</option>
-                              <option value="completed">Completed ▾</option>
-                              <option value="cancelled">Cancelled ▾</option>
-                            </select>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Right Column of Card (Frame 072) */}
-                    <div className="charm-list-card-right">
-                      <div className="charm-right-top-meta">
-                        <input type="checkbox" style={{ marginRight: 4 }} />
-                        <span style={{ fontWeight: 600, color: "#0f172a" }}>
-                          {formatDoctorName(prv?.name || "Vijayalakshmi K")}
-                        </span>
-                        <span>|</span>
-                        <span style={{ color: "#475569" }}>Heal Your Heart Royapettah</span>
-                        <span>|</span>
-                        <span style={{ fontWeight: 600, color: "#0f4c81" }}>
-                          {startStr} - {endStr}
-                        </span>
-                      </div>
-
-                      <div className="charm-right-details-grid">
-                        <div>
-                          <span className="charm-dim-label">Visit Type: </span>
-                          <strong style={{ display: "block", color: "#0f172a", marginTop: 2 }}>{formatSessionDay(a)}</strong>
-                        </div>
-                        <div>
-                          <span className="charm-dim-label">Patient Balance Due: </span>
-                          <button
-                            type="button"
-                            className="text-link"
-                            onClick={() => navigate("/billing")}
-                            style={{ fontSize: 11, color: "#0284c7" }}
-                          >
-                            Show
-                          </button>
-                        </div>
-                        <div>
-                          <span className="charm-dim-label">Last Visit: </span>
-                          <span style={{ color: "#0284c7", cursor: "pointer" }}>{day(a.start_at)}</span>
-                        </div>
-                        <div>
-                          <span className="charm-dim-label">Token #: </span>
-                          <span style={{ color: "#2563eb", cursor: "pointer", fontSize: 11 }}>Generate | Pay</span>
-                        </div>
-                        <div>
-                          <span className="charm-dim-label">Resource: </span>
-                          <select
-                            defaultValue={a.resource_id || "res_eecp2"}
-                            onChange={async (e) => {
-                              try {
-                                await api("/appointments/" + a.id, "PUT", { resource_id: e.target.value });
-                                await refresh();
-                                notify("Resource updated.");
-                              } catch (err) {
-                                notify("Resource updated.");
-                              }
-                            }}
-                            style={{ border: "none", background: "transparent", fontWeight: 600, fontSize: 11.5, color: "#0f172a", cursor: "pointer" }}
-                          >
-                            <option value="res_eecp1">EECP Room 01 ▾</option>
-                            <option value="res_eecp2">EECP Room 02 ▾</option>
-                            <option value="res_eecp3">EECP Room 03 ▾</option>
-                            <option value="res_cons1">Consultation Room 1 ▾</option>
-                          </select>
-                        </div>
-                        <div>
-                          <span className="charm-dim-label">Consultation: </span>
-                          <button
-                            type="button"
-                            className="text-link"
-                            onClick={() => handleStartConsultation(a.patient_id, a.visit_type)}
-                            style={{ fontWeight: 700, color: "#0284c7" }}
-                          >
-                            Start
-                          </button>
-                        </div>
-                      </div>
-
-                      {/* Bottom action and quick links */}
-                      <div className="charm-right-actions-bar">
-                        <div className="charm-quick-nav-links">
-                          <button
-                            type="button"
-                            className="text-link"
-                            onClick={() => navigate("/patients/" + a.patient_id)}
-                          >
-                            Face Sheet
-                          </button>
-                          <span>|</span>
-                          <span className="text-link" style={{ cursor: "pointer" }} onClick={() => navigate("/patients/" + a.patient_id)}>
-                            Questionnaire
-                          </span>
-                          <span>|</span>
-                          <span className="text-link" style={{ cursor: "pointer" }} onClick={() => navigate("/patients/" + a.patient_id)}>
-                            Past Visits
-                          </span>
-                        </div>
-
-                        <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
-                          {a.status === "confirmed" && (
-                            <button
-                              type="button"
-                              className="charm-btn-confirm"
-                              style={{ padding: "4px 10px", fontSize: 11, background: "#10b981", borderRadius: 4 }}
-                              onClick={async () => {
-                                try {
-                                  await api("/appointments/" + a.id + "/status", "POST", {
-                                    version: a.version,
-                                    status: "checked-in",
-                                  });
-                                  await refresh();
-                                  notify("Patient checked in.");
-                                } catch (e) {
-                                  setError(e);
-                                }
-                              }}
-                            >
-                              Check in
-                            </button>
-                          )}
-                          <button
-                            type="button"
-                            className="charm-btn-cancel"
-                            style={{ padding: "4px 8px", fontSize: 11 }}
-                            onClick={() => setReschedule(a)}
-                          >
-                            Reschedule
-                          </button>
-                        </div>
-                      </div>
-                    </div>
+                {filtered.length === 0 && (
+                  <div style={{ padding: 32, textAlign: "center", color: "#64748b", background: "#fff", border: "1px solid #e2e8f0", borderRadius: 6 }}>
+                    No appointments scheduled for this date.
                   </div>
-                );
-              })}
-
-              {filtered.length === 0 && (
-                <div style={{ padding: 32, textAlign: "center", color: "#64748b", background: "#fff", border: "1px solid #e2e8f0", borderRadius: 6 }}>
-                  No appointments scheduled for this date.
-                </div>
-              )}
-            </div>
-          )}
-        </section>
-      </div>
+                )}
+              </div>
+            )}
+          </section>
+        </div>
       )}
 
       {/* 3. Authentic CharmHealth Waiting List Tab (Frame 078) */}
@@ -2844,11 +2844,11 @@ export function CommunicationPage() {
               : tab === "Questionnaires"
                 ? "Record questionnaire"
                 : "Add " +
-                  (tab === "Recalls"
-                    ? "recall"
-                    : tab === "Waiting list"
-                      ? "waiting-list entry"
-                      : "task")}
+                (tab === "Recalls"
+                  ? "recall"
+                  : tab === "Waiting list"
+                    ? "waiting-list entry"
+                    : "task")}
           </AddButton>
         }
       />
@@ -2948,16 +2948,16 @@ export function CommunicationPage() {
           initial={
             modal === "tasks"
               ? {
-                  kind:
-                    tab === "Recalls"
-                      ? "recall"
-                      : tab === "Waiting list"
-                        ? "waiting list"
-                        : "task",
-                  assignee_id: user.id,
-                  priority: "normal",
-                  due_date: today(),
-                }
+                kind:
+                  tab === "Recalls"
+                    ? "recall"
+                    : tab === "Waiting list"
+                      ? "waiting list"
+                      : "task",
+                assignee_id: user.id,
+                priority: "normal",
+                due_date: today(),
+              }
               : modal === "entries"
                 ? { kind: "questionnaire" }
                 : {}

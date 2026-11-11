@@ -910,13 +910,13 @@ function Workspace() {
               "inventory",
               "analytics",
             ].includes(page) && (
-              <Empty
-                title="Workspace not found"
-                action={
-                  <Button onClick={() => navigate("/home")}>Go home</Button>
-                }
-              />
-            )}
+                <Empty
+                  title="Workspace not found"
+                  action={
+                    <Button onClick={() => navigate("/home")}>Go home</Button>
+                  }
+                />
+              )}
           </main>
         </div>
 
