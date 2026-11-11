@@ -122,29 +122,37 @@ export function AppointmentForm({
   plan,
   onClose,
   appointment,
+  initialStart,
+  initialProviderId,
+  initialResourceId,
+  initialDuration,
 }: {
   patientId?: string;
   plan?: Row;
   onClose: () => void;
   appointment?: Row;
+  initialStart?: string;
+  initialProviderId?: string;
+  initialResourceId?: string;
+  initialDuration?: number;
 }) {
   const { staff, patients, resources, facilities, refresh, notify } = useApp();
   const qc = useQueryClient();
 
   const [selPatient, setSelPatient] = useState(patientId || appointment?.patient_id || "");
   const [providerId, setProviderId] = useState(
-    appointment?.provider_id || plan?.therapist_id || (staff.find((s) => ["doctor", "therapist"].includes(s.role))?.id || "")
+    appointment?.provider_id || initialProviderId || plan?.therapist_id || (staff.find((s) => ["doctor", "therapist"].includes(s.role))?.id || "")
   );
-  const [resourceId, setResourceId] = useState(appointment?.resource_id || "");
+  const [resourceId, setResourceId] = useState(appointment?.resource_id || initialResourceId || "");
   const [startAt, setStartAt] = useState(
     appointment
       ? new Date(new Date(appointment.start_at).getTime() + 330 * 60000).toISOString().slice(0, 16)
-      : today() + "T09:00"
+      : initialStart || (today() + "T09:00")
   );
   const [duration, setDuration] = useState<number>(
     appointment
       ? (new Date(appointment.end_at).getTime() - new Date(appointment.start_at).getTime()) / 60000
-      : plan ? 60 : 30
+      : initialDuration || (plan ? 60 : 30)
   );
   const [visitType, setVisitType] = useState(
     appointment?.visit_type || (plan ? "EECP session" : "Cardiology Consultation")
@@ -597,6 +605,7 @@ export function RecordForm({
       : []),
     ...(metadata.record_fields?.[kind] || []),
   ];
+  const isWide = ["weekly"].includes(kind);
   return (
     <Modal
       title={
@@ -613,7 +622,7 @@ export function RecordForm({
           : undefined
       }
       onClose={onClose}
-      wide
+      wide={isWide}
     >
       <DynamicForm
         fields={fields}

@@ -137,9 +137,10 @@ def remove_availability(identifier:str,c=Depends(context)):
 
 
 @router.get('/catalogs')
-def catalogs(kind:str|None=None,c=Depends(context)):
+def catalogs(kind:str|None=None,q:str|None=None,c=Depends(context)):
     query=select(m.Catalog).where(m.Catalog.facility_id==c.facility_id,m.Catalog.active==True)
     if kind: query=query.where(m.Catalog.kind==kind)
+    if q: query=query.where(m.Catalog.name.ilike(f'%{q}%'))
     return [serialize(x) for x in c.db.scalars(query.order_by(m.Catalog.name))]
 
 

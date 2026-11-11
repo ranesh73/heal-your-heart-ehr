@@ -164,10 +164,13 @@ export function Modal({
           <div className="modal-head">
             <div>
               <Dialog.Title>{title}</Dialog.Title>
-              <Dialog.Description>
-                {description ||
-                  "Changes are saved to the selected patient and branch."}
-              </Dialog.Description>
+              {description ? (
+                <Dialog.Description>{description}</Dialog.Description>
+              ) : (
+                <Dialog.Description className="sr-only">
+                  Dialog for {title}
+                </Dialog.Description>
+              )}
             </div>
             <Dialog.Close asChild>
               <Button variant="ghost" aria-label="Close dialog">
@@ -339,7 +342,7 @@ export function Table({
               <th key={i}>{c.title}</th>
             ))}
             {onRow && (
-              <th>
+              <th style={{ width: 44 }}>
                 <span className="sr-only">Open</span>
               </th>
             )}
@@ -347,16 +350,23 @@ export function Table({
         </thead>
         <tbody>
           {rows.map((r, i) => (
-            <tr key={r.id || i}>
+            <tr
+              key={r.id || i}
+              style={onRow ? { cursor: "pointer" } : undefined}
+              onClick={onRow ? () => onRow(r) : undefined}
+            >
               {columns.map((c, j) => (
                 <td key={j}>{c.render(r)}</td>
               ))}
               {onRow && (
-                <td>
+                <td style={{ textAlign: "right" }}>
                   <Button
                     variant="ghost"
                     aria-label={"Open " + (r.name || r.title || "record")}
-                    onClick={() => onRow(r)}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onRow(r);
+                    }}
                   >
                     <ChevronRight size={17} />
                   </Button>

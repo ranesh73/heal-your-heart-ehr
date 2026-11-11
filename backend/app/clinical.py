@@ -1,3 +1,4 @@
+from datetime import datetime, date
 import hashlib
 import json
 import re
@@ -13,11 +14,13 @@ from .serialization import serialize, encounter_out
 
 router=APIRouter(prefix='/api')
 RECORDS={'history':m.History,'diagnoses':m.Diagnosis,'allergies':m.Allergy,'medications':m.Medication,
-    'vitals':m.Vital,'orders':m.ClinicalOrder,'weekly':m.WeeklyAssessment,'tasks':m.Task,'entries':m.PatientEntry,'messages':m.Message}
+    'vitals':m.Vital,'orders':m.ClinicalOrder,'weekly':m.WeeklyAssessment,'tasks':m.Task,'entries':m.PatientEntry,
+    'messages':m.Message,'injections':m.Injection,'vaccines':m.Vaccine}
 WRITE_ROLES={'history':{'doctor','assistant'},'diagnoses':{'doctor'},'allergies':{'doctor','assistant'},'medications':{'doctor'},
-    'vitals':{'doctor','assistant','therapist'},'orders':{'doctor'},'weekly':{'therapist','doctor'},
+    'vitals':{'doctor','assistant','therapist'},'orders':{'doctor','assistant'},'weekly':{'therapist','doctor'},
     'tasks':{'doctor','assistant','therapist','reception','billing','admin'},'entries':{'doctor','assistant','therapist'},
-    'messages':{'doctor','assistant','therapist','admin','reception','billing'}}
+    'messages':{'doctor','assistant','therapist','admin','reception','billing'},
+    'injections':{'doctor','assistant','therapist'},'vaccines':{'doctor','assistant'}}
 
 
 def draft_encounter(c,identifier,patient_id=None,write=False):
@@ -36,24 +39,226 @@ def records(kind:str,c=Depends(context)):
     query=select(model).where(model.facility_id==c.facility_id)
     if kind=='messages': query=query.where((model.author_id==c.user.id)|(model.recipient_id==c.user.id))
     if kind=='tasks' and c.user.role not in ('admin','doctor','reception'): query=query.where(model.assignee_id==c.user.id)
-    return [serialize(x) for x in c.db.scalars(query.order_by(model.created_at.desc()).limit(1000))]
+    rows = c.db.scalars(query.order_by(model.created_at.desc()).limit(1000)).all()
+    if kind == 'orders':
+        out = []
+        for r in rows:
+            d = serialize(r)
+            d['values'] = [serialize(v) for v in c.db.scalars(select(m.LabValue).where(m.LabValue.order_id==r.id))]
+            d['documents'] = [serialize(doc) for doc in c.db.scalars(select(m.Document).where(m.Document.order_id==r.id))]
+            p = c.db.get(m.Patient, r.patient_id)
+            if p:
+                d['patient_name'] = f"{p.first_name} {p.last_name}".strip()
+                d['patient_mrn'] = p.mrn
+                d['patient_sex'] = p.sex
+                d['patient_dob'] = str(p.dob) if p.dob else ''
+            staff = c.db.get(m.User, r.author_id)
+            if staff:
+                d['ordered_by'] = f"Dr. {staff.name}" if not staff.name.startswith('Dr.') else staff.name
+            out.append(d)
+        return out
+    if kind == 'medications':
+        out = []
+        for r in rows:
+            d = serialize(r)
+            d['drug_name'] = r.trade_name or r.generic_name or 'Medication'
+            d['dosage'] = r.dose or ''
+            d['dispense'] = f"{r.quantity or 30} {r.dispense_unit or 'Tablets'}"
+            d['period'] = f"{r.duration_days or 30} Days"
+            if r.author_id:
+                staff = c.db.get(m.User, r.author_id)
+                if staff:
+                    d['provider_name'] = staff.name
+            out.append(d)
+        return out
+    if kind == 'injections':
+        out = []
+        for r in rows:
+            d = serialize(r)
+            if r.administered_by:
+                staff = c.db.get(m.User, r.administered_by)
+                if staff: d['administered_by_name'] = staff.name
+            out.append(d)
+        return out
+    if kind == 'vaccines':
+        out = []
+        for r in rows:
+            d = serialize(r)
+            if r.administered_by:
+                staff = c.db.get(m.User, r.administered_by)
+                if staff: d['administered_by_name'] = staff.name
+            if r.ordered_by:
+                staff = c.db.get(m.User, r.ordered_by)
+                if staff: d['ordered_by_name'] = staff.name
+            out.append(d)
+        return out
+    return [serialize(x) for x in rows]
+
+
+def next_lab_ref(db):
+    seq = db.get(m.Sequence, 'LAB-REF')
+    if not seq:
+        seq = m.Sequence(key='LAB-REF', value=20730)
+        db.add(seq)
+    seq.value += 1
+    db.flush()
+    return f'{seq.value:08d}'
+
+
+def next_image_ref(db):
+    seq = db.get(m.Sequence, 'IMAGE-REF')
+    if not seq:
+        seq = m.Sequence(key='IMAGE-REF', value=9540)
+        db.add(seq)
+    seq.value += 1
+    db.flush()
+    return f'{seq.value:08d}'
 
 
 @router.post('/records/{kind}')
 def create_record(kind:str,data:dict,c=Depends(context)):
     if kind not in RECORDS: raise HTTPException(404,'Unknown record type')
-    c.allow(WRITE_ROLES[kind]); parsed=s.RECORD_SCHEMAS[kind].model_validate(data); values=parsed.model_dump()
+    c.allow(WRITE_ROLES[kind])
+    if kind == 'medications':
+        out = []
+        for r in rows:
+            d = serialize(r)
+            d['drug_name'] = r.trade_name or r.generic_name or 'Medication'
+            d['dosage'] = r.dose or ''
+            d['dispense'] = f"{r.quantity or 30} {r.dispense_unit or 'Tablets'}"
+            d['period'] = f"{r.duration_days or 30} Days"
+            if r.author_id:
+                staff = c.db.get(m.User, r.author_id)
+                if staff:
+                    d['provider_name'] = staff.name
+            out.append(d)
+        return out
+    if kind == 'injections':
+        data = dict(data)
+        if 'dosage' in data and not data.get('dose'):
+            data['dose'] = data['dosage']
+        if 'dose' in data and not data.get('dosage'):
+            data['dosage'] = data['dose']
+        if isinstance(data.get('period'), str):
+            num = re.search(r'\d+', str(data['period']))
+            data['period'] = int(num.group()) if num else 1
+        site_map = {'Deltoid - Left': 'Left Deltoid', 'Deltoid - Right': 'Right Deltoid', 'Gluteal - Left': 'Left Gluteal', 'Gluteal - Right': 'Right Gluteal', 'Abdomen - Upper Left': 'Abdomen Upper Left', 'Abdomen - Upper Right': 'Abdomen Upper Right', 'Abdomen - Lower Left': 'Abdomen Lower Left', 'Abdomen - Lower Right': 'Abdomen Lower Right', 'Vastus Lateralis - Left': 'Left Vastus Lateralis', 'Vastus Lateralis - Right': 'Right Vastus Lateralis'}
+        if data.get('site') in site_map:
+            data['site'] = site_map[data['site']]
+    elif kind == 'vaccines':
+        data = dict(data)
+        if 'name' in data and not data.get('vaccine_name'):
+            data['vaccine_name'] = data['name']
+        if 'vaccine_name' in data and not data.get('name'):
+            data['name'] = data['vaccine_name']
+        if 'dosage' in data and not data.get('dose'):
+            data['dose'] = data['dosage']
+        if 'dose' in data and not data.get('dosage'):
+            data['dosage'] = data['dose']
+        if 'dose_in_series' in data and not data.get('series_number'):
+            num = re.search(r'\d+', str(data['dose_in_series']))
+            data['series_number'] = int(num.group()) if num else 1
+        site_map = {'Deltoid - Left': 'Left Deltoid', 'Deltoid - Right': 'Right Deltoid', 'Anterolateral Thigh - Left': 'Left Thigh', 'Anterolateral Thigh - Right': 'Right Thigh', 'Nasal Mucosa': 'Oral'}
+        if data.get('site') in site_map:
+            data['site'] = site_map[data['site']]
+    elif kind == 'medications':
+        data = dict(data)
+        if 'drug_name' in data and not data.get('trade_name'):
+            data['trade_name'] = data['drug_name']
+        if 'dosage' in data and not data.get('dose'):
+            data['dose'] = data['dosage']
+        if 'daw' in data and 'substitution_allowed' not in data:
+            data['substitution_allowed'] = not data['daw']
+        if 'period' in data and not data.get('duration_days'):
+            num = re.search(r'\d+', str(data['period']))
+            data['duration_days'] = int(num.group()) if num else 30
+        if 'period_count' in data and not data.get('duration_days'):
+            try:
+                data['duration_days'] = int(data['period_count'])
+            except Exception:
+                data['duration_days'] = 30
+        if not data.get('duration_days'):
+            data['duration_days'] = 30
+        if 'dispense' in data and not data.get('quantity'):
+            num = re.search(r'\d+', str(data['dispense']))
+            data['quantity'] = int(num.group()) if num else 30
+        if 'dispense_count' in data and not data.get('quantity'):
+            try:
+                data['quantity'] = int(data['dispense_count'])
+            except Exception:
+                data['quantity'] = 30
+        if not data.get('quantity'):
+            data['quantity'] = 30
+        if not data.get('route'):
+            data['route'] = 'Oral'
+        if not data.get('dose'):
+            data['dose'] = '1 tab'
+        if not data.get('trade_name'):
+            data['trade_name'] = 'Prescribed Medication'
+    elif kind == 'vitals':
+        data = dict(data)
+        if 'temp_f' in data and not data.get('temperature_f'):
+            data['temperature_f'] = data['temp_f']
+        if 'resp_rate' in data and not data.get('respiration_rate'):
+            data['respiration_rate'] = data['resp_rate']
+        if 'central_bp_sys' in data and not data.get('central_sys'):
+            data['central_sys'] = data['central_bp_sys']
+        if 'central_bp_dia' in data and not data.get('central_dia'):
+            data['central_dia'] = data['central_bp_dia']
+        if 'bmi' in data and not data.get('bmi_percentile'):
+            data['bmi_percentile'] = data['bmi']
+    valid_fields = set(s.RECORD_SCHEMAS[kind].model_fields.keys())
+    cleaned_data = {k: v for k, v in data.items() if k in valid_fields}
+    parsed = s.RECORD_SCHEMAS[kind].model_validate(cleaned_data)
+    values = parsed.model_dump()
     c.patient(values['patient_id'])
     eid=values.get('encounter_id')
     if eid:
         encounter=draft_encounter(c,eid,values['patient_id'],kind in ('diagnoses','medications','orders'))
         if c.user.role=='assistant' and encounter.assistant_id!=c.user.id: raise HTTPException(403,'Encounter is not assigned to you')
+    if kind=='orders':
+        if values.get('kind')=='Lab':
+            if not values.get('lab_ref'):
+                values['lab_ref'] = next_lab_ref(c.db)
+            if not values.get('status') or values.get('status')=='ordered':
+                values['status'] = 'Pending'
+            if not values.get('ordered_date'):
+                values['ordered_date'] = datetime.now().strftime('%b %d, %Y')
+        elif values.get('kind') in ('Image', 'Imaging'):
+            values['kind'] = 'Image'
+            if not values.get('lab_ref'):
+                values['lab_ref'] = next_image_ref(c.db)
+            if not values.get('status') or values.get('status')=='ordered':
+                values['status'] = 'Pending'
+            if not values.get('ordered_date'):
+                values['ordered_date'] = datetime.now().strftime('%b %d, %Y')
     if kind=='vitals':
         if c.user.role=='assistant' and not eid: raise HTTPException(422,'Assistants must select their assigned encounter')
         if not any(values.get(f['name']) is not None and values.get(f['name'])!='' for f in s.VITAL_FIELDS): raise HTTPException(422,'Record at least one measurement')
     if kind=='medications':
+        if values.get('morning') is not None or values.get('afternoon') is not None or values.get('evening') is not None or values.get('night') is not None:
+            fmt = lambda x: str(int(x)) if isinstance(x, (int, float)) and x == int(x) else str(x)
+            values['maen'] = f"{fmt(values.get('morning') or 0)}-{fmt(values.get('afternoon') or 0)}-{fmt(values.get('evening') or 0)}-{fmt(values.get('night') or 0)}"
         if values['duration_days']<1 or values['quantity']<1: raise HTTPException(422,'Duration and quantity must be positive')
         if not re.fullmatch(r'\d+(?:\.\d+)?-\d+(?:\.\d+)?-\d+(?:\.\d+)?-\d+(?:\.\d+)?',values['maen']): raise HTTPException(422,'Use four numeric M-A-E-N doses separated by hyphens')
+        if not values.get('status'):
+            values['status'] = 'active'
+    if kind=='injections':
+        if not values.get('administered_by'):
+            values['administered_by'] = c.user.id
+        if not values.get('administered_at'):
+            values['administered_at'] = datetime.now()
+        if not values.get('status'):
+            values['status'] = 'administered'
+    if kind=='vaccines':
+        if not values.get('administered_by'):
+            values['administered_by'] = c.user.id
+        if not values.get('ordered_by'):
+            values['ordered_by'] = c.user.id
+        if not values.get('administered_at'):
+            values['administered_at'] = datetime.now()
+        if not values.get('status'):
+            values['status'] = 'administered'
     if kind=='tasks': c.staff(values['assignee_id'])
     if kind=='messages': c.staff(values['recipient_id'])
     if kind=='weekly':
@@ -61,17 +266,56 @@ def create_record(kind:str,data:dict,c=Depends(context)):
         if plan.patient_id!=values['patient_id']: raise HTTPException(422,'Plan and patient do not match')
         if c.user.role=='therapist' and plan.therapist_id!=c.user.id: raise HTTPException(403,'Plan is assigned to another therapist')
         if not 1<=values['week_number']<=((plan.session_count+6)//7): raise HTTPException(422,'Week is outside the treatment plan')
-    row=RECORDS[kind](**values,facility_id=c.facility_id,author_id=c.user.id)
+    model_cls = RECORDS[kind]
+    filtered_values = {k: v for k, v in values.items() if hasattr(model_cls, k)}
+    if kind == 'injections' and 'dose' not in filtered_values and 'dosage' in values:
+        filtered_values['dose'] = values['dosage']
+    if kind == 'vaccines':
+        if 'vaccine_name' not in filtered_values and 'name' in values:
+            filtered_values['vaccine_name'] = values['name']
+        if 'dose' not in filtered_values and 'dosage' in values:
+            filtered_values['dose'] = values['dosage']
+    if kind == 'vitals':
+        if 'temperature_f' not in filtered_values and values.get('temp_f') is not None:
+            filtered_values['temperature_f'] = values['temp_f']
+        if 'respiration_rate' not in filtered_values and values.get('resp_rate') is not None:
+            filtered_values['respiration_rate'] = values['resp_rate']
+        if 'central_sys' not in filtered_values and values.get('central_bp_sys') is not None:
+            filtered_values['central_sys'] = values['central_bp_sys']
+        if 'central_dia' not in filtered_values and values.get('central_bp_dia') is not None:
+            filtered_values['central_dia'] = values['central_bp_dia']
+        if 'bmi_percentile' not in filtered_values and values.get('bmi') is not None:
+            filtered_values['bmi_percentile'] = values['bmi']
+    for k, v in list(filtered_values.items()):
+        if v == '':
+            filtered_values[k] = None
+        elif isinstance(v, str):
+            col = getattr(model_cls, k, None)
+            if col is not None and hasattr(col, 'type'):
+                col_name = type(col.type).__name__
+                if col_name == 'DateTime':
+                    try:
+                        filtered_values[k] = datetime.fromisoformat(v)
+                    except Exception:
+                        filtered_values[k] = None
+                elif col_name == 'Date':
+                    try:
+                        filtered_values[k] = date.fromisoformat(v[:10])
+                    except Exception:
+                        filtered_values[k] = None
+    row = model_cls(**filtered_values, facility_id=c.facility_id, author_id=c.user.id)
     c.db.add(row); c.audit('create_'+kind,row)
     return serialize(row)
 
 
 @router.post('/records/{kind}/{identifier}/status')
 def record_status(kind:str,identifier:str,data:s.StatusChange,c=Depends(context)):
-    if kind not in ('diagnoses','allergies','medications','tasks','entries'): raise HTTPException(404,'Status change unavailable')
+    if kind not in ('diagnoses','allergies','medications','tasks','entries','orders','injections','vaccines'): raise HTTPException(404,'Status change unavailable')
     c.allow(WRITE_ROLES[kind]); row=c.record(RECORDS[kind],identifier); check_version(row,data.version)
     if kind=='tasks' and row.assignee_id!=c.user.id and c.user.role not in ('admin','doctor','reception'): raise HTTPException(403,'Task belongs to another staff member')
-    allowed={'diagnoses':{'active','resolved'},'allergies':{'active','inactive'},'medications':{'draft','discontinued'},'tasks':{'pending','completed'},'entries':{'active','resolved'}}
+    allowed={'diagnoses':{'active','resolved'},'allergies':{'active','inactive'},'medications':{'draft','active','discontinued','completed'},'tasks':{'pending','completed'},'entries':{'active','resolved'},
+             'orders':{'Pending','Partial','Completed','ordered','resulted','reviewed','Expired','cancelled'},
+             'injections':{'administered','ordered','cancelled'},'vaccines':{'administered','ordered','refused','historical'}}
     if data.status not in allowed[kind]: raise HTTPException(422,'Invalid status')
     if kind in ('medications','diagnoses') and row.encounter_id: draft_encounter(c,row.encounter_id,write=True)
     row.status=data.status; row.version+=1; c.audit('status_'+kind,row)
@@ -121,7 +365,10 @@ def save_note(identifier:str,data:s.NoteInput,c=Depends(context)):
 @router.post('/encounters/{identifier}/sign')
 def sign_note(identifier:str,data:s.Version,c=Depends(context)):
     c.allow({'doctor'}); row=draft_encounter(c,identifier,write=True); check_version(row,data.version)
-    if not all([row.chief_complaint.strip(),row.assessment.strip(),row.plan.strip()]): raise HTTPException(422,'Chief complaint, assessment, and plan are required to sign')
+    cc = (row.chief_complaint or row.consult_notes or '').strip()
+    ass = (row.assessment or row.physician_notes or row.consult_notes or '').strip()
+    pl = (row.plan or row.treatment_notes or row.follow_up or row.consult_notes or '').strip()
+    if not all([cc, ass, pl]): raise HTTPException(422,'Clinical notes/complaint, assessment, and plan are required to sign')
     row.status='signed'; row.signed_by=c.user.id; row.signed_at=m.now(); row.version+=1
     with c.db.no_autoflush:
         content=encounter_out(c.db,row)
@@ -169,21 +416,72 @@ def note_history(identifier:str,c=Depends(context)):
 def result(identifier:str,data:s.ResultInput,c=Depends(context)):
     c.allow({'doctor','assistant'}); row=c.record(m.ClinicalOrder,identifier); check_version(row,data.version)
     if row.status=='reviewed': raise HTTPException(409,'Reviewed result is immutable; add a new order or amendment')
-    row.result=data.result; row.status='resulted'; row.version+=1
+    row.result=data.result; row.status=data.status or 'Completed'; row.version+=1
     c.db.execute(delete(m.LabValue).where(m.LabValue.order_id==row.id))
+    allowed_fields = {'test_name','parameter','value','unit','reference_range','interpretation','comments'}
     for value in data.values:
-        if not {'parameter','value'}<=value.keys() or set(value)-{'parameter','value','unit','reference_range'} or any(len(v)>100 for v in value.values()): raise HTTPException(422,'Invalid structured result')
-        c.db.add(m.LabValue(order_id=row.id,**value))
+        clean = {k: str(v) for k, v in value.items() if k in allowed_fields and v is not None}
+        if not {'parameter','value'}<=clean.keys() or any(len(str(v))>2000 for v in clean.values()): raise HTTPException(422,'Invalid structured result')
+        c.db.add(m.LabValue(order_id=row.id,**clean))
     c.audit('record_result',row)
     return serialize(row)
 
 
 @router.post('/orders/{identifier}/review')
-def review(identifier:str,data:s.Version,c=Depends(context)):
-    c.allow({'doctor'}); row=c.record(m.ClinicalOrder,identifier); check_version(row,data.version)
-    if row.status!='resulted': raise HTTPException(409,'Only a resulted order can be reviewed')
-    row.status='reviewed'; row.reviewed_by=c.user.id; row.reviewed_at=m.now(); row.version+=1; c.audit('review_result',row)
+def review(identifier:str,data:dict,c=Depends(context)):
+    c.allow({'doctor'}); row=c.record(m.ClinicalOrder,identifier)
+    if 'version' in data and data['version'] is not None:
+        check_version(row,data['version'])
+    if row.status not in ('resulted','Completed','Partial','Pending','reviewed'): raise HTTPException(409,'Only a resulted order can be reviewed')
+    row.status='reviewed'; row.reviewed_by=c.user.id; row.reviewed_at=m.now(); row.version+=1
+    if 'notes_lab_patient' in data and data['notes_lab_patient'] is not None:
+        row.notes_lab_patient = data['notes_lab_patient']
+    if 'notes_intra_office' in data and data['notes_intra_office'] is not None:
+        row.notes_intra_office = data['notes_intra_office']
+    c.audit('review_result',row)
     return serialize(row)
+
+
+@router.put('/records/{kind}/{identifier}')
+def update_record(kind:str,identifier:str,data:dict,c=Depends(context)):
+    if kind not in RECORDS: raise HTTPException(404,'Unknown record type')
+    c.allow(WRITE_ROLES[kind]); row=c.record(RECORDS[kind],identifier)
+    if 'version' in data and data['version'] is not None:
+        check_version(row,data['version'])
+    if kind=='orders':
+        allowed = {'name','instructions','status','ordered_date','notes_lab_patient','notes_intra_office','order_metadata','result','lab_ref'}
+        for k in allowed:
+            if k in data and data[k] is not None:
+                setattr(row,k,data[k])
+    elif kind=='diagnoses':
+        allowed = {'code','description','onset','status'}
+        for k in allowed:
+            if k in data and data[k] is not None:
+                setattr(row,k,data[k])
+    else:
+        for k, v in data.items():
+            if k not in ('id','version','facility_id','author_id','created_at','updated_at') and hasattr(row,k):
+                setattr(row,k,v)
+    row.version+=1; c.audit('update_'+kind,row)
+    return serialize(row)
+
+
+@router.delete('/records/{kind}/{identifier}')
+def delete_record(kind:str,identifier:str,c=Depends(context)):
+    if kind not in RECORDS: raise HTTPException(404,'Unknown record type')
+    c.allow(WRITE_ROLES[kind]); row=c.record(RECORDS[kind],identifier)
+    if kind=='orders':
+        c.db.execute(delete(m.LabValue).where(m.LabValue.order_id==row.id))
+        c.db.execute(delete(m.Document).where(m.Document.order_id==row.id))
+    c.db.delete(row); c.audit('delete_'+kind,row)
+    return {'status':'deleted','id':identifier}
+
+
+@router.delete('/documents/{identifier}')
+def delete_document(identifier:str,c=Depends(context)):
+    c.allow(CLINICAL); row=c.record(m.Document,identifier)
+    c.db.delete(row); c.audit('delete_document',row)
+    return {'status':'deleted','id':identifier}
 
 
 @router.post('/documents')

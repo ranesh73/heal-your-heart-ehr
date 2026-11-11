@@ -1,6 +1,6 @@
 """Shared validation and form definitions. Bounds are data sanity checks, not treatment advice."""
 from datetime import date, datetime
-from typing import Literal
+from typing import Literal, Any
 from pydantic import BaseModel, ConfigDict, Field, create_model, field_validator
 
 
@@ -92,6 +92,8 @@ class EncounterInput(Input):
     assistant_id: str | None = None
     appointment_id: str | None = None
     visit_type: str = Field(default='Consultation', max_length=80)
+    chart_type: str = Field(default='SOAP Template', max_length=50)
+    mode: str = Field(default='In Person', max_length=50)
 
 
 class SymptomInput(Input):
@@ -110,6 +112,12 @@ class NoteInput(Version):
     assessment: str = Field(default='', max_length=12000)
     plan: str = Field(default='', max_length=12000)
     follow_up: str = Field(default='', max_length=12000)
+    consult_notes: str = Field(default='', max_length=20000)
+    nurse_notes: str = Field(default='', max_length=20000)
+    physician_notes: str = Field(default='', max_length=20000)
+    treatment_notes: str = Field(default='', max_length=20000)
+    chart_type: str = Field(default='SOAP Template', max_length=50)
+    mode: str = Field(default='In Person', max_length=50)
     outcome: str = Field(default='', max_length=100)
     cad_year: int | None = Field(default=None, ge=1900, le=2200)
     cabg: str = Field(default='', max_length=3000)
@@ -179,14 +187,19 @@ def select(name, label, values, required=True):
     return field(name, label, 'select', required, values)
 
 
-VITAL_FIELDS = [number('weight_kg','Weight · kg'), number('height_cm','Height · cm'), number('waist_in','Waist · inches'),
-    number('bmi_percentile','BMI percentile · %', maximum=100), number('bp_sys','Systolic BP · mmHg'),
+VITAL_FIELDS = [field('observed_at','Observation Date/Time','datetime-local'), number('weight_kg','Weight · kg'), number('height_cm','Height · cm'), number('waist_in','Waist · inches'),
+    number('bmi','BMI',False,100), number('bmi_percentile','BMI percentile · %', maximum=100), number('bp_sys','Systolic BP · mmHg'),
     number('bp_dia','Diastolic BP · mmHg'), number('pulse_bpm','Pulse · bpm'), field('pulse_pattern','Pulse pattern'),
     field('pulse_volume','Pulse volume'), number('spo2_pct','SpO₂ · %', maximum=100),
-    number('temperature_f','Temperature · °F'), number('respiration_rate','Respirations · /min'),
+    number('temperature_f','Temperature · °F'), number('temp_f','Temperature · °F',False,200),
+    number('respiration_rate','Respirations · /min'), number('resp_rate','Respirations · /min',False,200),
     field('respiration_pattern','Respiration pattern'), number('central_sys','Central systolic · mmHg'),
-    number('central_dia','Central diastolic · mmHg'), number('cr_pwv','crPWV · m/s'),
-    number('cf_pwv','cfPWV · m/s'), number('vascular_age','Vascular age · years'), number('hba1c_pct','HbA1c · %', maximum=100)]
+    number('central_dia','Central diastolic · mmHg'), number('central_bp_sys','Central systolic',False,300),
+    number('central_bp_dia','Central diastolic',False,200), number('cr_pwv','crPWV · m/s'),
+    number('cf_pwv','cfPWV · m/s'), number('vascular_age','Vascular age · years'),
+    number('augmentation_index','Augmentation Index',False,100), number('hba1c_pct','HbA1c · %', maximum=100),
+    number('pain_scale','Pain scale',False,10), number('blood_sugar','Blood sugar',False,1000),
+    field('blood_sugar_context','Context',required=False), field('notes','Notes','textarea',required=False)]
 DAILY_FIELDS = [number('pre_o2_l','Pre · Oxygen · L/min',True), number('pre_weight_kg','Pre · Weight · kg',True),
     number('pre_bp_sys','Pre · Systolic BP · mmHg',True), number('pre_bp_dia','Pre · Diastolic BP · mmHg',True),
     number('pre_hr','Pre · Pulse · bpm',True), number('pre_spo2','Pre · SpO₂ · %',True,100)]
@@ -205,9 +218,11 @@ RECORD_FIELDS = {
  'history':[select('category','History category',['Medical','Family','Social','Surgery','Implanted device']),field('content','History','textarea',True),field('event_date','Event date','date')],
  'diagnoses':[field('code','ICD code'),field('description','Diagnosis',required=True),field('onset','Onset','date'),select('status','Status',['active','resolved'])],
  'allergies':[select('category','Type',['Drug','Food','Environmental','Latex','Other']),field('allergen','Allergen or explicit no-known declaration',required=True),select('severity','Severity',['Unknown','Mild','Moderate','Severe','No known allergy']),field('reaction','Reaction','textarea'),select('status','Status',['active','inactive'])],
- 'medications':[field('trade_name','Trade name',required=True),field('generic_name','Generic name'),field('dose','Dose and unit',required=True),field('route','Route',required=True),field('frequency','Frequency'),field('maen','Morning–Afternoon–Evening–Night',required=True),field('timing','Timing / food'),number('duration_days','Duration · days',True,3650),number('quantity','Dispense quantity',True,100000),field('substitution_allowed','Substitution allowed','checkbox'),field('instructions','Instructions','textarea')],
+ 'medications':[field('trade_name','Trade name',required=True),field('generic_name','Generic name'),field('dose','Dose and unit',required=True),field('route','Route',required=True),field('frequency','Frequency'),field('maen','Morning–Afternoon–Evening–Night',required=False),field('timing','Timing / food'),number('duration_days','Duration · days',True,3650),number('quantity','Dispense quantity',True,100000),field('substitution_allowed','Substitution allowed','checkbox'),field('instructions','Instructions','textarea'),field('start_date','Start date','date'),field('end_date','End date','date'),number('refills','Refills',False,24),field('dose_unit','Dose unit'),field('dispense_unit','Dispense unit'),field('timing_when','When'),number('morning','Morning dose',False,100),number('afternoon','Afternoon dose',False,100),number('evening','Evening dose',False,100),number('night','Night dose',False,100),field('is_supplement','Is supplement','checkbox'),select('status','Status',['active','draft','discontinued','completed'],required=False)],
+ 'injections':[field('name','Injection Name',required=True),field('dose','Dosage',required=False),field('dosage','Dosage',required=False),field('frequency','Frequency'),number('period','Period',False,365),field('period_unit','Period unit'),field('route','Parenteral Route',required=False),field('site','Injection Site',required=False),field('lot_number','Lot Number'),field('expiration_date','Expiration date','date'),field('administered_at','Administered Date/Time','datetime-local'),field('administered_by','Administered By','staff'),field('nurse_notes','Note to Nurse','textarea'),field('comments','Comments','textarea'),select('status','Status',['administered','ordered','cancelled'],required=False)],
+ 'vaccines':[field('vaccine_name','Vaccine',required=False),field('name','Vaccine',required=False),field('cvx_code','CVX code'),field('lot_number','Lot Number'),field('expiration_date','Expiration date','date'),number('series_number','# in Series',False,10),field('dose_in_series','Dose in Series',required=False),field('dose','Dose',required=False),field('dosage','Dosage',required=False),field('manufacturer','Manufacturer',required=False),field('vis_given_date','VIS Given Date',required=False),field('route','Route',required=False),field('site','Site',required=False),field('administered_at','Administered Date/Time','datetime-local'),field('ordered_by','Ordered by','staff'),field('administered_by','Administered by','staff'),field('notes','Notes','textarea'),select('status','Status',['administered','ordered','refused','historical'],required=False)],
  'vitals':VITAL_FIELDS,
- 'orders':[select('kind','Order type',['Lab','Imaging','Injection','Vaccine','Referral']),field('name','Order / referral',required=True),field('instructions','Instructions','textarea')],
+ 'orders':[select('kind','Order type',['Lab','Imaging','Image','Injection','Vaccine','Referral']),field('name','Order / referral',required=True),field('instructions','Instructions','textarea'),field('lab_ref','Lab Ref',required=False),field('ordered_date','Ordered Date',required=False),field('status','Status',required=False),field('notes_lab_patient','Note to Lab','textarea',required=False),field('notes_intra_office','Intra Office Notes','textarea',required=False),field('order_metadata','Order Metadata','textarea',required=False)],
  'weekly':WEEKLY_FIELDS,
  'tasks':[select('kind','Type',['task','recall','waiting list']),field('title','Task',required=True),field('body','Details','textarea'),field('assignee_id','Assigned staff','staff',True),field('due_date','Due date','date'),select('priority','Priority',['normal','high','urgent'])],
  'entries':[select('kind','Record type',['alert','quick note','questionnaire','consent note','vaccination record','injection record','referral','screening']),field('title','Title / form version',required=True),field('content','Record / responses','textarea',True)],
@@ -234,7 +249,7 @@ def schema_from_fields(name, fields, patient=True, version=False):
             defs[key] = (typ, ... if required else f['options'][0])
         else:
             defs[key] = (str,Field(default=... if required else '',min_length=1 if required else 0,max_length=12000 if f['type']=='textarea' else 200))
-    if patient and name in ('diagnoses','medications','vitals','orders'):
+    if patient and name in ('diagnoses','medications','vitals','orders','injections','vaccines'):
         defs['encounter_id'] = (str | None,None)
     return create_model(name+'Input',__base__=Input,**defs)
 
@@ -244,8 +259,9 @@ DailyInput = schema_from_fields('Daily', [{**f,'required':f['name']=='pressure_u
 
 
 class ResultInput(Version):
-    result: str = Field(min_length=1,max_length=12000)
-    values: list[dict[str,str]] = Field(default_factory=list,max_length=100)
+    result: str = Field(default='',max_length=12000)
+    status: str | None = Field(default=None,max_length=30)
+    values: list[dict[str,Any]] = Field(default_factory=list,max_length=300)
 
 
 class ReviewInput(Version):
@@ -279,7 +295,7 @@ class AvailabilityInput(Input):
 
 
 class CatalogInput(Input):
-    kind: Literal['service','medication','template','questionnaire','visit type','report']
+    kind: Literal['service','medication','template','questionnaire','visit type','report','lab_test']
     code: str = Field(min_length=1,max_length=60)
     name: str = Field(min_length=1,max_length=200)
     content: str = Field(default='',max_length=20000)

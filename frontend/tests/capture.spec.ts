@@ -15,7 +15,7 @@ async function login(page: any, role = "doctor") {
   await page.getByLabel("Password", { exact: true }).fill(password);
   await page.getByRole("button", { name: "Sign in to workspace" }).click();
   await expect(
-    page.getByRole("heading", { name: "Your day, at a glance" }),
+    page.locator(".charm-home-launcher-container"),
   ).toBeVisible();
 }
 

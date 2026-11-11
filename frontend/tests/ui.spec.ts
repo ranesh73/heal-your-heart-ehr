@@ -26,12 +26,12 @@ async function login(page: Page, role = "doctor") {
   await page.getByLabel("Password", { exact: true }).fill(password);
   await page.getByRole("button", { name: "Sign in to workspace" }).click();
   await expect(
-    page.getByRole("heading", { name: "Your day, at a glance" }),
+    page.locator(".charm-home-launcher-container"),
   ).toBeVisible();
   const branch = page.getByLabel("Active branch");
   await branch.selectOption({ label: "Neelankarai" });
   await expect(
-    page.getByRole("heading", { name: "Your day, at a glance" }),
+    page.locator(".charm-home-launcher-container"),
   ).toBeVisible();
 }
 
@@ -72,25 +72,28 @@ test("login, branch switch, navigation and responsive layout", async ({
   const errors: string[] = [];
   page.on("pageerror", (e) => errors.push(e.message));
   await login(page);
-  await expect(
-    page.getByText("Aarav Demo", { exact: true }).first(),
-  ).toBeVisible();
+  await expect(page.locator(".charm-home-launcher-container")).toBeVisible();
+  // On Home, open first module via quick launch tile (sidebar mounts inside module)
+  await page.locator(".charm-grid-module-card", { hasText: "Patients" }).click();
+  await expect(page.locator(".charm-global-sidebar")).toBeVisible();
   for (const name of [
+    "Calendar",
+    "Chart Notes",
+    "Labs",
+    "Images",
+    "Documents",
+    "Injections",
+    "Referrals",
     "Patients",
-    "Clinical",
-    "EECP",
-    "Operations",
-    "Communication",
-    "Home",
   ]) {
     await page
       .locator("nav")
-      .getByRole("button", { name, exact: true })
+      .getByRole("button", { name: new RegExp(`^${name}`) })
       .click();
     await expect(page.locator("main")).not.toContainText("Workspace not found");
   }
   await page.getByLabel("Active branch").selectOption({ label: "Royapettah" });
-  await expect(page.getByText("No appointments today")).toBeVisible();
+  await expect(page.locator(".charm-home-launcher-container")).toBeVisible();
   await page.getByLabel("Active branch").selectOption({ label: "Neelankarai" });
   await page.screenshot({
     path: resolve("../../../ehr-dashboard.png"),
@@ -98,7 +101,7 @@ test("login, branch switch, navigation and responsive layout", async ({
   });
   await page.setViewportSize({ width: 390, height: 844 });
   await expect(
-    page.getByRole("heading", { name: "Your day, at a glance" }),
+    page.locator(".charm-home-launcher-container"),
   ).toBeVisible();
   expect(
     await page.evaluate(
@@ -112,6 +115,7 @@ test("reception registers, searches, books and checks in a patient", async ({
   page,
 }) => {
   await login(page, "reception");
+  await page.locator(".charm-grid-module-card", { hasText: "Patients" }).click();
   await page
     .getByRole("button", { name: "Register patient", exact: true })
     .click();
@@ -124,6 +128,7 @@ test("reception registers, searches, books and checks in a patient", async ({
   await expect(
     page.getByRole("heading", { name: "Reception" + suffix + " UITest" }),
   ).toBeVisible();
+  await page.locator(".charm-circle-action-btn.plus-btn").click();
   await page
     .getByRole("button", { name: "Book appointment", exact: true })
     .first()
@@ -134,7 +139,7 @@ test("reception registers, searches, books and checks in a patient", async ({
   await dialog.getByLabel("Start · Asia/Kolkata").fill("2033-04-04T09:00");
   await dialog.getByRole("button", { name: "Confirm booking" }).click();
   await expect(dialog).toHaveCount(0);
-  await page.getByRole("tab", { name: "Appointments", exact: true }).click();
+  await page.locator('[data-tab="Appointments"]').click();
   await page.getByRole("button", { name: "Check in", exact: true }).click();
   await expect(
     page.locator("tbody").getByText("checked in", { exact: true }),
@@ -143,9 +148,7 @@ test("reception registers, searches, books and checks in a patient", async ({
   await expect(
     page.locator(".search-results").getByText("Reception" + suffix + " UITest"),
   ).toBeVisible();
-  await expect(page.getByRole("tab", { name: "Medical Records" })).toHaveCount(
-    0,
-  );
+  await expect(page.locator('[data-tab="Medical Records"]')).toHaveCount(0);
 });
 
 test("doctor saves, assistant records vitals, doctor signs and amends", async ({
@@ -155,6 +158,7 @@ test("doctor saves, assistant records vitals, doctor signs and amends", async ({
   await page.context().clearCookies();
   await login(page);
   await page.goto("/#/patients/" + p.id);
+  await page.locator(".charm-circle-action-btn.plus-btn").click();
   await page.getByRole("button", { name: "Start consultation" }).click();
   await expect(
     page.getByText("ACTIVE CONSULTATION", { exact: true }),
@@ -331,10 +335,7 @@ test("administration catalog, inventory, audit, and role navigation", async ({
   page,
 }) => {
   await login(page, "admin");
-  await page
-    .locator("nav")
-    .getByRole("button", { name: "Administration" })
-    .click();
+  await page.goto("/#/administration");
   await page.getByRole("tab", { name: "Catalogs & templates" }).click();
   await page.getByRole("button", { name: "Add catalog record" }).click();
   await page.getByLabel("Code", { exact: true }).fill("UI-" + suffix);
@@ -350,7 +351,7 @@ test("administration catalog, inventory, audit, and role navigation", async ({
   await expect(
     page.getByText("create catalog", { exact: true }).first(),
   ).toBeVisible();
-  await page.locator("nav").getByRole("button", { name: "Operations" }).click();
+  await page.goto("/#/inventory");
   await page.getByRole("tab", { name: "Inventory" }).click();
   await page.getByRole("button", { name: "Add supply" }).click();
   await page.getByLabel("Supply name").fill("Synthetic UI supply " + suffix);
@@ -367,5 +368,32 @@ test("administration catalog, inventory, audit, and role navigation", async ({
   await expect(
     page.getByRole("row").filter({ hasText: "Synthetic UI supply " + suffix }),
   ).toContainText("5 each");
+});
+
+test("calendar week view supports click-to-book on empty slots and quick details popover", async ({
+  page,
+}) => {
+  await login(page, "reception");
+  await page.locator(".charm-grid-module-card", { hasText: "Calendar" }).click();
+  await expect(page.getByRole("button", { name: "Week", exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "Week", exact: true }).click();
+
+  // 1. Verify empty slot click opens New Appointment modal
+  const emptySlot = page.locator(".charm-week-slot.charm-week-slot-empty").first();
+  await expect(emptySlot).toBeVisible();
+  await emptySlot.click();
+  await expect(page.getByRole("heading", { name: "New Appointment" })).toBeVisible();
+  await page.getByRole("button", { name: "Cancel" }).click();
+  await expect(page.getByRole("heading", { name: "New Appointment" })).toHaveCount(0);
+
+  // 2. Verify appointment card click opens quick details popover
+  const apptCard = page.locator(".charm-week-appt-card").first();
+  if (await apptCard.count()) {
+    await apptCard.click();
+    await expect(page.getByRole("heading", { name: "Appointment Details" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "View Patient Chart ➔" })).toBeVisible();
+    await page.getByRole("button", { name: "Close" }).click();
+    await expect(page.getByRole("heading", { name: "Appointment Details" })).toHaveCount(0);
+  }
 });
 

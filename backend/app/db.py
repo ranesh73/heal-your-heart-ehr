@@ -4,7 +4,7 @@ from sqlalchemy import create_engine, event, text
 from sqlalchemy.orm import sessionmaker
 from fastapi import Request
 
-DATA_DIR = Path(os.getenv('EHR_DATA_DIR', './data')).resolve()
+DATA_DIR = Path(os.getenv('EHR_DATA_DIR', Path(__file__).resolve().parents[1] / 'data')).resolve()
 DATA_DIR.mkdir(parents=True, exist_ok=True)
 DATABASE_URL = os.getenv('DATABASE_URL', f'sqlite:///{DATA_DIR / "ehr.db"}')
 engine = create_engine(DATABASE_URL, pool_pre_ping=True,

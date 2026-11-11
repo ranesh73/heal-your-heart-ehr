@@ -58,364 +58,27 @@ import {
   Modal,
 } from "./ui";
 
+import { CharmLabOrders } from "./charmLabOrders";
+import { CharmImages } from "./charmImages";
+
 /* ==========================================================================
-   1. LABS & DIAGNOSTIC RESULTS MODULE (/labs)
+   1. LABS & DIAGNOSTIC RESULTS MODULE (/labs) - CHARMHEALTH GLOBAL REPLICA
    ========================================================================== */
 export function LabsPage() {
-  const { patients, staff, user, notify } = useApp();
-  const [tab, setTab] = useState<"results" | "orders">("results");
-  const [filter, setFilter] = useState("all");
-  const [modal, setModal] = useState(false);
-  const [search, setSearch] = useState("");
-
-  const ordersQuery = useQuery({
-    queryKey: ["orders", branch],
-    queryFn: () => api<Row[]>("/records/orders"),
-  });
-
-  const orders = ordersQuery.data || [];
-  const labOrders = orders.filter((o) =>
-    o.order_type ? o.order_type.toLowerCase().includes("lab") : true,
-  );
-
-  const filtered = labOrders.filter((o) => {
-    if (filter === "pending") return o.status === "ordered";
-    if (filter === "completed") return o.status === "completed";
-    return true;
-  });
-
   return (
-    <div style={{ padding: 20 }}>
-      <PageHeading
-        eyebrow="Diagnostic Services"
-        title="Labs & Diagnostic Records"
-        description="Review incoming laboratory results, abnormal biomarker flags, and pending orders."
-        actions={
-          <Button onClick={() => setModal(true)}>
-            <Plus size={15} />
-            New Lab Order
-          </Button>
-        }
-      />
-
-      <div className="charm-subtabs">
-        <button
-          className={`charm-subtab-btn ${tab === "results" ? "active" : ""}`}
-          onClick={() => setTab("results")}
-        >
-          Lab Results ({labOrders.length})
-        </button>
-        <button
-          className={`charm-subtab-btn ${tab === "orders" ? "active" : ""}`}
-          onClick={() => setTab("orders")}
-        >
-          Orders Tracking
-        </button>
-      </div>
-
-      <div className="toolbar" style={{ marginBottom: 16 }}>
-        <div className="search-input">
-          <Search size={16} />
-          <input
-            placeholder="Search by test name, patient, or order ID"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-          />
-        </div>
-        <div className="actions">
-          <Button
-            variant={filter === "all" ? "primary" : "secondary"}
-            onClick={() => setFilter("all")}
-          >
-            All Tests
-          </Button>
-          <Button
-            variant={filter === "pending" ? "primary" : "secondary"}
-            onClick={() => setFilter("pending")}
-          >
-            Pending Review
-          </Button>
-          <Button
-            variant={filter === "completed" ? "primary" : "secondary"}
-            onClick={() => setFilter("completed")}
-          >
-            Finalized
-          </Button>
-        </div>
-      </div>
-
-      {ordersQuery.isLoading ? (
-        <Loading />
-      ) : (
-        <Table
-          rows={filtered}
-          columns={[
-            {
-              title: "Test / Biomarker",
-              render: (r) => (
-                <div>
-                  <strong>{r.test_name || r.name || "Cardiac Enzyme Profile"}</strong>
-                  <small className="cell-sub">{r.category || "Biochemistry / Pathology"}</small>
-                </div>
-              ),
-            },
-            {
-              title: "Patient",
-              render: (r) => (
-                <button
-                  className="text-link"
-                  onClick={() => navigate("/patients/" + r.patient_id)}
-                >
-                  {patientName(r.patient_id, patients)}
-                </button>
-              ),
-            },
-            {
-              title: "Order Date",
-              render: (r) => <span className="mono">{day(r.created_at)}</span>,
-            },
-            {
-              title: "Clinician",
-              render: (r) => (
-                <span>
-                  {staff.find((s) => s.id === r.author_id)?.name || "Attending Doctor"}
-                </span>
-              ),
-            },
-            {
-              title: "Status",
-              render: (r) => (
-                <Badge
-                  value={
-                    r.status === "completed"
-                      ? "Normal Result"
-                      : r.status === "abnormal"
-                      ? "Abnormal Flag"
-                      : "Pending"
-                  }
-                />
-              ),
-            },
-            {
-              title: "Actions",
-              render: (r) => (
-                <Button
-                  variant="ghost"
-                  onClick={() => navigate("/patients/" + r.patient_id)}
-                >
-                  View Chart
-                  <ArrowUpRight size={14} />
-                </Button>
-              ),
-            },
-          ]}
-          empty="No diagnostic laboratory records found for this branch."
-        />
-      )}
-
-      {modal && (
-        <Modal title="Create New Diagnostic Lab Order" onClose={() => setModal(false)}>
-          <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-            <label className="field">
-              <span>Patient</span>
-              <select id="lab-patient-select">
-                {patients.map((p) => (
-                  <option key={p.id} value={p.id}>
-                    {p.name} ({p.mrn})
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label className="field">
-              <span>Diagnostic Test Panel</span>
-              <select id="lab-test-select">
-                <option value="cardiac">Cardiology Panel (Troponin-I, CK-MB, Lipid Profile)</option>
-                <option value="cbc">Complete Blood Count (CBC) with ESR</option>
-                <option value="renal">Renal Function Test (BUN, Creatinine, Electrolytes)</option>
-                <option value="hba1c">Glycated Hemoglobin (HbA1c) & Fasting Plasma Glucose</option>
-                <option value="coag">Coagulation Profile (PT/INR, aPTT)</option>
-              </select>
-            </label>
-            <label className="field">
-              <span>Clinical Priority</span>
-              <select id="lab-priority-select">
-                <option value="routine">Routine Check</option>
-                <option value="urgent">Urgent / Same Day</option>
-                <option value="stat">STAT Priority</option>
-              </select>
-            </label>
-            <label className="field">
-              <span>Clinical Notes / Indication</span>
-              <textarea placeholder="e.g. Pre-EECP baseline cardiac assessment" rows={3} />
-            </label>
-            <div className="actions" style={{ justifyContent: "flex-end" }}>
-              <Button variant="secondary" onClick={() => setModal(false)}>
-                Cancel
-              </Button>
-              <Button
-                onClick={() => {
-                  notify("Diagnostic lab order created successfully.");
-                  setModal(false);
-                }}
-              >
-                Transmit Order
-              </Button>
-            </div>
-          </div>
-        </Modal>
-      )}
+    <div className="charm-module-wrap">
+      <CharmLabOrders isGlobal={true} />
     </div>
   );
 }
 
 /* ==========================================================================
-   2. CARDIOLOGY IMAGING MODULE (/images)
+   2. CARDIOLOGY IMAGING MODULE (/images) - CHARMHEALTH GLOBAL REPLICA
    ========================================================================== */
 export function ImagesPage() {
-  const { patients, staff, notify } = useApp();
-  const [modal, setModal] = useState(false);
-
-  const mockImages = [
-    {
-      id: "img-1",
-      patient_id: patients[0]?.id || "p1",
-      modality: "2D Echocardiogram",
-      title: "Transthoracic Echocardiogram (TTE)",
-      finding: "LVEF 48%, mild anterior wall hypokinesia, normal diastolic filling",
-      created_at: "2026-10-24T10:30:00Z",
-      status: "Finalized",
-    },
-    {
-      id: "img-2",
-      patient_id: patients[1]?.id || "p2",
-      modality: "12-Lead ECG",
-      title: "Baseline Resting 12-Lead Electrocardiogram",
-      finding: "Normal sinus rhythm, heart rate 72 bpm, no ST-T wave abnormalities",
-      created_at: "2026-10-25T09:15:00Z",
-      status: "Finalized",
-    },
-    {
-      id: "img-3",
-      patient_id: patients[2]?.id || "p3",
-      modality: "Coronary Angiogram (CAG)",
-      title: "Digital Subtraction Coronary Angiography",
-      finding: "LAD mid 70% stenosis, LCx proximal 60% lesion, RCA dominant patent",
-      created_at: "2026-10-22T14:00:00Z",
-      status: "Finalized",
-    },
-  ];
-
   return (
-    <div style={{ padding: 20 }}>
-      <PageHeading
-        eyebrow="Cardiovascular Imaging"
-        title="Images & Diagnostics"
-        description="Access echocardiograms, 12-lead ECG traces, coronary angiograms, and imaging reports."
-        actions={
-          <Button onClick={() => setModal(true)}>
-            <Plus size={15} />
-            Upload Diagnostic Scan
-          </Button>
-        }
-      />
-
-      <Table
-        rows={mockImages}
-        columns={[
-          {
-            title: "Modality & Scan",
-            render: (r) => (
-              <div>
-                <strong>{r.title}</strong>
-                <small className="cell-sub">{r.modality}</small>
-              </div>
-            ),
-          },
-          {
-            title: "Patient",
-            render: (r) => (
-              <button
-                className="text-link"
-                onClick={() => navigate("/patients/" + r.patient_id)}
-              >
-                {patientName(r.patient_id, patients)}
-              </button>
-            ),
-          },
-          {
-            title: "Summary Finding",
-            render: (r) => <span style={{ fontSize: 12 }}>{r.finding}</span>,
-          },
-          {
-            title: "Date",
-            render: (r) => <span className="mono">{day(r.created_at)}</span>,
-          },
-          {
-            title: "Status",
-            render: (r) => <Badge value={r.status} />,
-          },
-          {
-            title: "Actions",
-            render: (r) => (
-              <Button
-                variant="secondary"
-                onClick={() => navigate("/patients/" + r.patient_id)}
-              >
-                Open Study
-              </Button>
-            ),
-          },
-        ]}
-        empty="No diagnostic imaging records recorded."
-      />
-
-      {modal && (
-        <Modal title="Upload Diagnostic Image Study" onClose={() => setModal(false)}>
-          <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-            <label className="field">
-              <span>Patient</span>
-              <select>
-                {patients.map((p) => (
-                  <option key={p.id} value={p.id}>
-                    {p.name} ({p.mrn})
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label className="field">
-              <span>Modality</span>
-              <select>
-                <option value="echo">2D Echocardiogram</option>
-                <option value="ecg">12-Lead ECG</option>
-                <option value="cag">Coronary Angiogram</option>
-                <option value="tmt">Treadmill Stress Test</option>
-                <option value="holter">24-Hour Holter Monitor</option>
-              </select>
-            </label>
-            <label className="field">
-              <span>Study Date</span>
-              <input type="date" defaultValue={today()} />
-            </label>
-            <label className="field">
-              <span>Select DICOM / PDF / Scan File</span>
-              <input type="file" />
-            </label>
-            <div className="actions" style={{ justifyContent: "flex-end" }}>
-              <Button variant="secondary" onClick={() => setModal(false)}>
-                Cancel
-              </Button>
-              <Button
-                onClick={() => {
-                  notify("Study scan uploaded successfully.");
-                  setModal(false);
-                }}
-              >
-                Upload & Attach
-              </Button>
-            </div>
-          </div>
-        </Modal>
-      )}
+    <div className="charm-module-wrap">
+      <CharmImages isGlobal={true} />
     </div>
   );
 }
@@ -459,7 +122,7 @@ export function DocumentsPage() {
   ];
 
   return (
-    <div style={{ padding: 20 }}>
+    <div className="charm-module-wrap">
       <PageHeading
         eyebrow="Clinical Repository"
         title="Documents & Files"
@@ -622,7 +285,7 @@ export function InjectionsPage() {
   ];
 
   return (
-    <div style={{ padding: 20 }}>
+    <div className="charm-module-wrap">
       <PageHeading
         eyebrow="Clinical Administration"
         title="Injections & Vaccines"
@@ -760,7 +423,7 @@ export function ReferralsPage() {
   ];
 
   return (
-    <div style={{ padding: 20 }}>
+    <div className="charm-module-wrap">
       <PageHeading
         eyebrow="Specialist Coordination"
         title="Referrals"
@@ -903,7 +566,7 @@ export function MessagesPage() {
   const activeList = tab === "inbox" ? inbox : tab === "sent" ? sent : [];
 
   return (
-    <div style={{ padding: 20 }}>
+    <div className="charm-module-wrap">
       <PageHeading
         eyebrow="Communication"
         title="Messages"
@@ -1254,7 +917,7 @@ export function TasksPage() {
   const filtered = filter === "mine" ? myTasks : filter === "pending" ? pendingTasks : tasks;
 
   return (
-    <div style={{ padding: 20 }}>
+    <div className="charm-module-wrap">
       <PageHeading
         eyebrow="Follow-up & Workflows"
         title="Tasks"

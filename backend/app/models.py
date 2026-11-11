@@ -120,6 +120,8 @@ class Encounter(PatientRecord, Base):
     assistant_id = Column(ForeignKey('users.id'))
     appointment_id = Column(ForeignKey('appointments.id'), unique=True)
     visit_type = Column(String(80), default='Consultation', nullable=False)
+    chart_type = Column(String(50), default='SOAP Template', nullable=False)
+    mode = Column(String(50), default='In Person', nullable=False)
     status = Column(String(20), default='draft', nullable=False)
     chief_complaint = Column(Text, default='')
     hpi = Column(Text, default='')
@@ -130,6 +132,10 @@ class Encounter(PatientRecord, Base):
     assessment = Column(Text, default='')
     plan = Column(Text, default='')
     follow_up = Column(Text, default='')
+    consult_notes = Column(Text, default='')
+    nurse_notes = Column(Text, default='')
+    physician_notes = Column(Text, default='')
+    treatment_notes = Column(Text, default='')
     outcome = Column(String(100), default='')
     cad_year = Column(Integer)
     cabg = Column(Text, default='')
@@ -214,7 +220,18 @@ class Medication(PatientRecord, Base):
     quantity = Column(Integer, nullable=False)
     substitution_allowed = Column(Boolean, default=True, nullable=False)
     instructions = Column(Text, default='')
-    status = Column(String(30), default='draft', nullable=False)
+    status = Column(String(30), default='active', nullable=False)
+    start_date = Column(Date)
+    end_date = Column(Date)
+    refills = Column(Integer, default=0)
+    dose_unit = Column(String(40), default='')
+    dispense_unit = Column(String(40), default='')
+    timing_when = Column(String(40), default='')
+    morning = Column(Float, default=0.0)
+    afternoon = Column(Float, default=0.0)
+    evening = Column(Float, default=0.0)
+    night = Column(Float, default=0.0)
+    is_supplement = Column(Boolean, default=False, nullable=False)
     __table_args__ = (CheckConstraint('quantity > 0 AND duration_days > 0'),)
 
 
@@ -240,6 +257,44 @@ class Vital(PatientRecord, Base):
     cf_pwv = Column(Float)
     vascular_age = Column(Float)
     hba1c_pct = Column(Float)
+    observed_at = Column(DateTime)
+
+
+class Injection(PatientRecord, Base):
+    __tablename__ = 'injections'
+    encounter_id = Column(ForeignKey('encounters.id'))
+    name = Column(String(200), nullable=False)
+    dose = Column(String(80), default='')
+    frequency = Column(String(80), default='')
+    period = Column(Integer)
+    period_unit = Column(String(40), default='Day(s)')
+    route = Column(String(60), default='')
+    site = Column(String(80), default='')
+    lot_number = Column(String(60), default='')
+    expiration_date = Column(Date)
+    administered_at = Column(DateTime, default=now)
+    administered_by = Column(ForeignKey('users.id'))
+    nurse_notes = Column(Text, default='')
+    comments = Column(Text, default='')
+    status = Column(String(30), default='administered', nullable=False)
+
+
+class Vaccine(PatientRecord, Base):
+    __tablename__ = 'vaccines'
+    encounter_id = Column(ForeignKey('encounters.id'))
+    vaccine_name = Column(String(200), nullable=False)
+    cvx_code = Column(String(30), default='')
+    lot_number = Column(String(60), default='')
+    expiration_date = Column(Date)
+    series_number = Column(Integer)
+    dose = Column(String(60), default='')
+    route = Column(String(60), default='')
+    site = Column(String(80), default='')
+    administered_at = Column(DateTime, default=now)
+    ordered_by = Column(ForeignKey('users.id'))
+    administered_by = Column(ForeignKey('users.id'))
+    notes = Column(Text, default='')
+    status = Column(String(30), default='administered', nullable=False)
 
 
 class ClinicalOrder(PatientRecord, Base):
@@ -252,15 +307,23 @@ class ClinicalOrder(PatientRecord, Base):
     result = Column(Text, default='')
     reviewed_by = Column(ForeignKey('users.id'))
     reviewed_at = Column(DateTime)
+    lab_ref = Column(String(20), default='')
+    ordered_date = Column(String(30), default='')
+    notes_lab_patient = Column(Text, default='')
+    notes_intra_office = Column(Text, default='')
+    order_metadata = Column(Text, default='')
 
 
 class LabValue(Entity, Base):
     __tablename__ = 'lab_values'
     order_id = Column(ForeignKey('clinical_orders.id'), nullable=False, index=True)
+    test_name = Column(String(200), default='')
     parameter = Column(String(100), nullable=False)
     value = Column(String(100), nullable=False)
     unit = Column(String(40), default='')
     reference_range = Column(String(100), default='')
+    interpretation = Column(String(20), default='')
+    comments = Column(Text, default='')
 
 
 class Document(PatientRecord, Base):

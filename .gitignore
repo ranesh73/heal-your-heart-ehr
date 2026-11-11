@@ -10,3 +10,37 @@ __pycache__/
 data/
 test-results/
 playwright-report/
+
+# Large media & recordings
+*.mp4
+*.m4v
+*.mov
+*.avi
+reference-assets/
+charmhealth_capture/
+scratch/
+outputs/
+documentation/
+download/
+download
+*.pdf
+
+# Temporary scripts & test artifacts
+scratch_*.png
+scratch_*.cjs
+scratch_*.js
+debug_*.js
+debug_*.py
+inspect_db.py
+open-debug-chrome.bat
+test_*.js
+test_*.cjs
+test_*.py
+verify_*.cjs
+seed_images.py
+scripts/record_charmhealth.mjs
+scripts/inspect_chart_dom.js
+scripts/capture_import_results.js
+frontend/scratch_*.cjs
+frontend/record_charmhealth.mjs
+frontend/verification_screenshots/

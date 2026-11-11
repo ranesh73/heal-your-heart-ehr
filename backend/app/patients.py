@@ -66,8 +66,16 @@ def chart(identifier:str,c=Depends(context)):
     result['appointments']=[serialize(x) for x in rows(m.Appointment)]
     result['tasks']=[serialize(x) for x in rows(m.Task) if x.assignee_id==c.user.id or c.user.role in {'doctor','admin','reception'}]
     if c.user.role in CLINICAL:
-        for key,model in [('history',m.History),('diagnoses',m.Diagnosis),('allergies',m.Allergy),('medications',m.Medication),('vitals',m.Vital),('orders',m.ClinicalOrder),('documents',m.Document),('sessions',m.DailySession),('weekly',m.WeeklyAssessment),('entries',m.PatientEntry)]:
+        for key,model in [('history',m.History),('diagnoses',m.Diagnosis),('allergies',m.Allergy),
+                           ('medications',m.Medication),('injections',m.Injection),('vaccines',m.Vaccine),
+                           ('vitals',m.Vital),('orders',m.ClinicalOrder),('documents',m.Document),
+                           ('sessions',m.DailySession),('weekly',m.WeeklyAssessment),('entries',m.PatientEntry)]:
             result[key]=[serialize(x) for x in rows(model)]
+        for inj in result.get('injections', []):
+            if not inj.get('dosage') and inj.get('dose'): inj['dosage'] = inj['dose']
+        for vac in result.get('vaccines', []):
+            if not vac.get('name') and vac.get('vaccine_name'): vac['name'] = vac['vaccine_name']
+            if not vac.get('dosage') and vac.get('dose'): vac['dosage'] = vac['dose']
         result['encounters']=[encounter_out(c.db,x) for x in rows(m.Encounter)]
         result['plans']=[plan_out(c.db,x) for x in rows(m.Plan)]
         for order in result['orders']:
