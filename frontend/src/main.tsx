@@ -86,6 +86,7 @@ import {
   EncounterEditor,
   ClinicalPage,
 } from "./patients";
+import { CharmChartNotesGlobal } from "./charmChartNotesGlobal";
 import { EECPPage } from "./eecp";
 import {
   OperationsPage,
@@ -461,7 +462,7 @@ function Workspace() {
     {
       id: "clinical",
       label: "Chart Notes",
-      route: "/clinical",
+      route: "/chart-notes",
       icon: ClipboardList,
       activeMatch: ["clinical", "chart-notes", "encounter"],
     },
@@ -864,7 +865,7 @@ function Workspace() {
             )}
             {page === "patients" &&
               (parts[1] ? <PatientChart id={parts[1]} /> : <PatientsPage />)}
-            {(page === "clinical" || page === "chart-notes") && <ClinicalPage />}
+            {(page === "clinical" || page === "chart-notes") && <CharmChartNotesGlobal />}
             {page === "calendar" && <CalendarPage />}
             {page === "encounter" && (
               <EncounterEditor id={parts[1]} patientId={parts[2]} />

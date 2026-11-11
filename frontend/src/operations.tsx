@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useForm, useFieldArray } from "react-hook-form";
 import {
@@ -386,32 +386,126 @@ function Schedule() {
     queryKey: ["availability", branch],
     queryFn: () => api<Row[]>("/availability"),
   });
+  const [viewYear, viewMonth] = date.split("-").map(Number);
   const selectedDate = new Date(date + "T00:00:00+05:30");
-  const end = new Date(selectedDate);
-  end.setUTCDate(
-    end.getUTCDate() + (view === "Week" ? 7 : view === "Month" ? 31 : 1),
-  );
+
+  let rangeStart = selectedDate;
+  let rangeEnd = new Date(selectedDate.getTime() + 86400000);
+  if (view === "Month") {
+    rangeStart = new Date(viewYear, viewMonth - 1, 1, 0, 0, 0);
+    rangeEnd = new Date(viewYear, viewMonth, 1, 0, 0, 0);
+  } else if (view === "Week") {
+    rangeStart = selectedDate;
+    rangeEnd = new Date(selectedDate.getTime() + 7 * 86400000);
+  }
+
   const filtered = (appts.data || []).filter(
     (a) =>
       (!provider || a.provider_id === provider) &&
-      new Date(a.start_at) >= selectedDate &&
-      new Date(a.start_at) < end,
+      new Date(a.start_at) >= rangeStart &&
+      new Date(a.start_at) < rangeEnd,
   );
+
   const shift = (amount: number) => {
-    const d = new Date(date + "T12:00:00Z");
-    d.setUTCDate(
-      d.getUTCDate() +
-        amount * (view === "Week" ? 7 : view === "Month" ? 30 : 1),
-    );
-    setDate(d.toISOString().slice(0, 10));
+    if (view === "Month") {
+      const parts = date.split("-").map(Number);
+      const target = new Date(parts[0], parts[1] - 1 + amount, 1);
+      const y = target.getFullYear();
+      const m = String(target.getMonth() + 1).padStart(2, "0");
+      setDate(`${y}-${m}-01`);
+    } else if (view === "Week") {
+      const d = new Date(date + "T12:00:00Z");
+      d.setUTCDate(d.getUTCDate() + amount * 7);
+      setDate(d.toISOString().slice(0, 10));
+    } else {
+      const d = new Date(date + "T12:00:00Z");
+      d.setUTCDate(d.getUTCDate() + amount);
+      setDate(d.toISOString().slice(0, 10));
+    }
   };
 
-  const formattedDate = new Intl.DateTimeFormat("en-US", {
-    weekday: "long",
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-  }).format(new Date(date + "T12:00:00Z"));
+  const formattedDate =
+    view === "Month"
+      ? new Intl.DateTimeFormat("en-US", {
+          month: "long",
+          year: "numeric",
+        }).format(new Date(viewYear, viewMonth - 1, 1, 12, 0, 0))
+      : new Intl.DateTimeFormat("en-US", {
+          weekday: "long",
+          month: "short",
+          day: "numeric",
+          year: "numeric",
+        }).format(new Date(date + "T12:00:00Z"));
+
+  // Authentic CharmHealth Month Grid calculation (Sun - Sat 7-col)
+  const monthCells = useMemo<
+    {
+      dateStr: string;
+      dayNum: number;
+      isCurrentMonth: boolean;
+      isToday: boolean;
+    }[]
+  >(() => {
+    if (view !== "Month") return [];
+    const firstDayOfWeek = new Date(viewYear, viewMonth - 1, 1).getDay(); // 0 is Sunday
+    const daysInCurrentMonth = new Date(viewYear, viewMonth, 0).getDate();
+    const daysInPrevMonth = new Date(viewYear, viewMonth - 1, 0).getDate();
+
+    const cells: {
+      dateStr: string;
+      dayNum: number;
+      isCurrentMonth: boolean;
+      isToday: boolean;
+    }[] = [];
+
+    // Leading days from previous month
+    for (let i = firstDayOfWeek - 1; i >= 0; i--) {
+      const d = daysInPrevMonth - i;
+      const prevDate = new Date(viewYear, viewMonth - 2, d);
+      const y = prevDate.getFullYear();
+      const m = String(prevDate.getMonth() + 1).padStart(2, "0");
+      const dStr = String(d).padStart(2, "0");
+      const dateStr = `${y}-${m}-${dStr}`;
+      cells.push({
+        dateStr,
+        dayNum: d,
+        isCurrentMonth: false,
+        isToday: dateStr === today(),
+      });
+    }
+
+    // Days in current month
+    for (let d = 1; d <= daysInCurrentMonth; d++) {
+      const dStr = String(d).padStart(2, "0");
+      const mStr = String(viewMonth).padStart(2, "0");
+      const dateStr = `${viewYear}-${mStr}-${dStr}`;
+      cells.push({
+        dateStr,
+        dayNum: d,
+        isCurrentMonth: true,
+        isToday: dateStr === today(),
+      });
+    }
+
+    // Trailing days from next month
+    const totalNeeded = cells.length <= 35 ? 35 : 42;
+    const nextDays = totalNeeded - cells.length;
+    for (let d = 1; d <= nextDays; d++) {
+      const nextDate = new Date(viewYear, viewMonth, d);
+      const y = nextDate.getFullYear();
+      const m = String(nextDate.getMonth() + 1).padStart(2, "0");
+      const dStr = String(d).padStart(2, "0");
+      const dateStr = `${y}-${m}-${dStr}`;
+      cells.push({
+        dateStr,
+        dayNum: d,
+        isCurrentMonth: false,
+        isToday: dateStr === today(),
+      });
+    }
+
+    return cells;
+  }, [view, viewYear, viewMonth]);
 
   return (
     <div className="charm-calendar-page">
@@ -805,6 +899,83 @@ function Schedule() {
                             })}
                           </div>
                         )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          ) : view === "Month" ? (
+            /* Authentic CharmHealth Month Grid (1:1 with CharmTracker) */
+            <div className="charm-cal-month-wrap">
+              {/* Day of Week Headers */}
+              <div className="charm-cal-month-header-row">
+                {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((dayName) => (
+                  <div key={dayName} className="charm-cal-month-th">
+                    {dayName}
+                  </div>
+                ))}
+              </div>
+
+              {/* 7-column Calendar Month Grid */}
+              <div className="charm-cal-month-cells-grid">
+                {monthCells.map((cell) => {
+                  const dayAppts = (appts.data || [])
+                    .filter((a) => {
+                      if (provider && a.provider_id !== provider) return false;
+                      const localDate = localInput(a.start_at).slice(0, 10);
+                      return localDate === cell.dateStr;
+                    })
+                    .sort((a, b) => a.start_at.localeCompare(b.start_at));
+
+                  return (
+                    <div
+                      key={cell.dateStr}
+                      className={`charm-cal-month-cell-box ${!cell.isCurrentMonth ? "inactive" : ""} ${cell.isToday ? "is-today" : ""}`}
+                      onClick={() => {
+                        if (["reception", "doctor", "therapist", "admin"].includes(user.role)) {
+                          setBookingSlot({
+                            startAt: `${cell.dateStr}T09:00`,
+                            providerId: provider || undefined,
+                            duration: 30,
+                          });
+                        }
+                      }}
+                      title={cell.isToday ? "Today" : `Click to book appointment on ${cell.dateStr}`}
+                    >
+                      <div className="charm-cal-month-cell-top">
+                        <span className={`charm-cal-month-day-num ${cell.isToday ? "today-badge" : ""}`}>
+                          {cell.dayNum}
+                        </span>
+                        {["reception", "doctor", "therapist", "admin"].includes(user.role) && (
+                          <span className="charm-cal-cell-plus-hover" title="Book Appointment">
+                            +
+                          </span>
+                        )}
+                      </div>
+
+                      <div className="charm-cal-month-chips-container">
+                        {dayAppts.map((appt) => {
+                          const isEECP = appt.visit_type?.toLowerCase().includes("eecp");
+                          const pat = patients.find((p) => p.id === appt.patient_id);
+                          const timeStr = localInput(appt.start_at).slice(11, 16);
+                          const patientDisplayName = pat?.name || patientName(appt.patient_id, patients);
+
+                          return (
+                            <div
+                              key={appt.id}
+                              className={`charm-cal-month-chip-item status-${appt.status} ${isEECP ? "is-eecp" : "is-consult"}`}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setSelectedAppt(appt);
+                              }}
+                              title={`${timeStr} · ${patientDisplayName} · ${appt.visit_type} · [${appt.status}]`}
+                            >
+                              <span className="charm-month-chip-time">{timeStr}</span>
+                              <span className="charm-month-chip-name">{patientDisplayName}</span>
+                            </div>
+                          );
+                        })}
                       </div>
                     </div>
                   );

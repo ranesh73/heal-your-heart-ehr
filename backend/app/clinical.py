@@ -6,7 +6,7 @@ from pathlib import Path
 from uuid import uuid4
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form
 from fastapi.responses import FileResponse
-from sqlalchemy import select, delete
+from sqlalchemy import select, delete, update
 from . import models as m, schemas as s
 from .db import DATA_DIR
 from .security import context, CLINICAL, check_version
@@ -344,8 +344,9 @@ def encounters(c=Depends(context)):
 
 @router.post('/encounters')
 def create_encounter(data:s.EncounterInput,c=Depends(context)):
-    c.allow({'doctor'}); c.patient(data.patient_id); c.staff(data.provider_id,{'doctor'})
-    if data.provider_id!=c.user.id: raise HTTPException(403,'Create encounters under your own clinician account')
+    c.allow({'doctor','admin','assistant','reception'}); c.patient(data.patient_id); c.staff(data.provider_id,{'doctor'})
+    if c.user.role == 'doctor' and data.provider_id != c.user.id:
+        raise HTTPException(403,'Create encounters under your own clinician account')
     if data.assistant_id: c.staff(data.assistant_id,{'assistant'})
     if data.appointment_id:
         appointment=c.record(m.Appointment,data.appointment_id)
@@ -354,6 +355,20 @@ def create_encounter(data:s.EncounterInput,c=Depends(context)):
     row=m.Encounter(**data.model_dump(),facility_id=c.facility_id,author_id=c.user.id)
     c.db.add(row); c.audit('create_encounter',row)
     return encounter_out(c.db,row)
+
+
+@router.delete('/encounters/{identifier}')
+def delete_encounter(identifier:str,c=Depends(context)):
+    c.allow({'doctor','admin'})
+    row=c.record(m.Encounter,identifier)
+    if row.status=='signed': raise HTTPException(400,'Signed encounters cannot be deleted')
+    c.db.execute(delete(m.Symptom).where(m.Symptom.encounter_id==row.id))
+    c.db.execute(delete(m.NoteRevision).where(m.NoteRevision.encounter_id==row.id))
+    c.db.execute(delete(m.CarryForward).where(m.CarryForward.encounter_id==row.id))
+    c.db.execute(delete(m.Amendment).where(m.Amendment.encounter_id==row.id))
+    c.db.delete(row)
+    c.audit('delete_encounter',row)
+    return {'status':'deleted'}
 
 
 def revision(c,row,action):
