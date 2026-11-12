@@ -1,0 +1,308 @@
+{
+  "kiosk_accounts": [
+    {
+      "id": "kiosk-1",
+      "user_name": "neelankarai_1",
+      "access_through": "Web Browser, Tablet (iPad, GTab etc)",
+      "facilities": [
+        "Heal Your Heart Neelankarai - HUH001",
+        "Heal Your Heart Royapettah - HUH002",
+        "4R Health & Wellness"
+      ],
+      "video_consult": "Not Required",
+      "modules": [
+        "Patient Demographics",
+        "Insurance",
+        "Questionnaires",
+        "Consent Forms"
+      ],
+      "checked_in_status": ""
+    },
+    {
+      "id": "kiosk-2",
+      "user_name": "kioskhuh001",
+      "access_through": "Kiosk Terminal (self check-in)",
+      "facilities": [
+        "Heal Your Heart Neelankarai - HUH001"
+      ],
+      "video_consult": "Not Required",
+      "modules": [
+        "Patient Demographics",
+        "Consent Forms"
+      ],
+      "checked_in_status": ""
+    }
+  ],
+  "departments": [
+    {
+      "id": "dept-1",
+      "name": "Diagnostic",
+      "facility": "Heal Your Heart Neelankarai",
+      "members": [
+        "Susan Sekar",
+        "Dr. Elakkiya M",
+        "Dr. Ramasamy S"
+      ]
+    },
+    {
+      "id": "dept-2",
+      "name": "EECP Therapy",
+      "facility": "Heal Your Heart Neelankarai",
+      "members": [
+        "Hariharan S",
+        "Kausiq SR",
+        "Divya A",
+        "Nathiya V"
+      ]
+    },
+    {
+      "id": "dept-3",
+      "name": "Cardiology Consultation",
+      "facility": "Heal Your Heart Neelankarai",
+      "members": [
+        "Dr. Ramasamy S",
+        "Dr. Ebinesh Joel"
+      ]
+    }
+  ],
+  "roles": [
+    {
+      "id": "r-1",
+      "name": "Accounts Assistant",
+      "description": "Assists the Accounts Head and manages billing related operations.",
+      "encounters": [],
+      "labs": [
+        "Add"
+      ],
+      "gpt": [],
+      "copilot": []
+    },
+    {
+      "id": "r-2",
+      "name": "Charm Assistant",
+      "description": "Assist the organisation with maintaining CharmEHR",
+      "encounters": [],
+      "labs": [
+        "Add",
+        "Edit"
+      ],
+      "gpt": [
+        "Ask GPT"
+      ],
+      "copilot": [
+        "Text-Only Interaction"
+      ]
+    },
+    {
+      "id": "r-3",
+      "name": "Charted Accountant",
+      "description": "Manages Accounts",
+      "encounters": [],
+      "labs": [],
+      "gpt": [],
+      "copilot": []
+    },
+    {
+      "id": "r-4",
+      "name": "Clinic Admin Asst",
+      "description": "Assist the Clinic Administrator in managing the clinic.",
+      "encounters": [
+        "Start Encounter and Enter Vitals"
+      ],
+      "labs": [
+        "Add"
+      ],
+      "gpt": [],
+      "copilot": []
+    },
+    {
+      "id": "r-5",
+      "name": "Clinic Administrator",
+      "description": "Manage the day-to-day operations of the clinic",
+      "encounters": [
+        "Start Encounter and Enter Vitals"
+      ],
+      "labs": [
+        "Add",
+        "Edit",
+        "Delete"
+      ],
+      "gpt": [
+        "Ask GPT"
+      ],
+      "copilot": [
+        "Text-Only Interaction"
+      ]
+    },
+    {
+      "id": "r-6",
+      "name": "Follow Up Assistant",
+      "description": "To Follow Up patient",
+      "encounters": [],
+      "labs": [],
+      "gpt": [],
+      "copilot": []
+    },
+    {
+      "id": "r-7",
+      "name": "Lab Technician",
+      "description": "Examines samples collected and updates results under lab records",
+      "encounters": [],
+      "labs": [
+        "Add",
+        "Edit",
+        "Delete"
+      ],
+      "gpt": [],
+      "copilot": []
+    },
+    {
+      "id": "r-8",
+      "name": "PA",
+      "description": "Assists patient calls and treatment room allotments.",
+      "encounters": [
+        "Start Encounter and Enter Vitals"
+      ],
+      "labs": [
+        "Add"
+      ],
+      "gpt": [],
+      "copilot": []
+    },
+    {
+      "id": "r-9",
+      "name": "Physician",
+      "description": "A registered medical practitioner",
+      "encounters": [
+        "Start Encounter and Enter Vitals",
+        "Enter SOAP Notes, Prescribe Medications and Order Labs/Images",
+        "Add Quick Rx"
+      ],
+      "labs": [
+        "Add",
+        "Edit",
+        "Delete"
+      ],
+      "gpt": [
+        "Ask GPT",
+        "Chart Note Assistance",
+        "Referral Mail Assistance",
+        "Lab Results Opinion"
+      ],
+      "copilot": [
+        "Text-Only Interaction",
+        "Voice Chat",
+        "Ambient Voice",
+        "Consultation/ Encounter",
+        "Nurse Triage",
+        "Patient Summarization"
+      ]
+    },
+    {
+      "id": "r-10",
+      "name": "Physician Assistant",
+      "description": "Certified medical assistant and works with a physician",
+      "encounters": [
+        "Start Encounter and Enter Vitals",
+        "Enter SOAP Notes, Prescribe Medications and Order Labs/Images"
+      ],
+      "labs": [
+        "Add",
+        "Edit"
+      ],
+      "gpt": [
+        "Ask GPT",
+        "Chart Note Assistance"
+      ],
+      "copilot": [
+        "Text-Only Interaction"
+      ]
+    },
+    {
+      "id": "r-11",
+      "name": "PracticeAdmin",
+      "description": "Member who is the administrator of the practice with permission to add other members",
+      "encounters": [
+        "Start Encounter and Enter Vitals",
+        "Enter SOAP Notes, Prescribe Medications and Order Labs/Images",
+        "Add Quick Rx",
+        "View Private Encounters of other members"
+      ],
+      "labs": [
+        "Add",
+        "Edit",
+        "Delete"
+      ],
+      "gpt": [
+        "Ask GPT",
+        "Chart Note Assistance"
+      ],
+      "copilot": [
+        "Text-Only Interaction",
+        "Voice Chat",
+        "Ambient Voice"
+      ]
+    },
+    {
+      "id": "r-12",
+      "name": "Receptionist",
+      "description": "Appointment booking, patient registration and billing",
+      "encounters": [],
+      "labs": [],
+      "gpt": [],
+      "copilot": []
+    },
+    {
+      "id": "r-13",
+      "name": "Therapist",
+      "description": "Nurse trained in EECP therapy",
+      "encounters": [
+        "Start Encounter and Enter Vitals"
+      ],
+      "labs": [
+        "Add"
+      ],
+      "gpt": [
+        "Ask GPT"
+      ],
+      "copilot": [
+        "Text-Only Interaction"
+      ]
+    }
+  ],
+  "notifications": {
+    "lab_results": [
+      {
+        "parameter": "Troponin-I",
+        "criteria": ">",
+        "value": "0.04 ng/mL",
+        "message": "Critical Alert: Elevated Troponin-I detected. Immediate clinical review required.",
+        "notified_members": [
+          {
+            "name": "Dr. Ramasamy S",
+            "phone": "9003070065",
+            "sms": true,
+            "email": true,
+            "inside_product": true
+          }
+        ]
+      },
+      {
+        "parameter": "Serum Potassium",
+        "criteria": ">",
+        "value": "5.5 mEq/L",
+        "message": "Hyperkalemia Alert: Serum potassium above threshold.",
+        "notified_members": [
+          {
+            "name": "Dr. Ebinesh Joel",
+            "phone": "9789455491",
+            "sms": true,
+            "email": true,
+            "inside_product": true
+          }
+        ]
+      }
+    ]
+  },
+  "custom_settings": {}
+}

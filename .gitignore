@@ -8,6 +8,8 @@ __pycache__/
 *.db
 *.db-*
 data/
+!backend/seed_data/
+!backend/seed_data/**
 test-results/
 playwright-report/
 

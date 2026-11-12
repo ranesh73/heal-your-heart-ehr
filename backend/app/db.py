@@ -6,7 +6,20 @@ from fastapi import Request
 
 DATA_DIR = Path(os.getenv('EHR_DATA_DIR', Path(__file__).resolve().parents[1] / 'data')).resolve()
 DATA_DIR.mkdir(parents=True, exist_ok=True)
-DATABASE_URL = os.getenv('DATABASE_URL', f'sqlite:///{DATA_DIR / "ehr.db"}')
+
+# Auto-provision master demonstration database if local database is missing
+DB_FILE = DATA_DIR / "ehr.db"
+SNAPSHOT = Path(__file__).resolve().parents[1] / "seed_data" / "ehr_master.db"
+SETTINGS_SRC = Path(__file__).resolve().parents[1] / "seed_data" / "settings_store.json"
+SETTINGS_DEST = DATA_DIR / "settings_store.json"
+if not DB_FILE.exists() and SNAPSHOT.exists():
+    import shutil
+    shutil.copy2(SNAPSHOT, DB_FILE)
+if not SETTINGS_DEST.exists() and SETTINGS_SRC.exists():
+    import shutil
+    shutil.copy2(SETTINGS_SRC, SETTINGS_DEST)
+
+DATABASE_URL = os.getenv('DATABASE_URL', f'sqlite:///{DB_FILE}')
 engine = create_engine(DATABASE_URL, pool_pre_ping=True,
     connect_args={'check_same_thread': False, 'timeout': 30} if DATABASE_URL.startswith('sqlite') else {})
 SessionLocal = sessionmaker(bind=engine, expire_on_commit=False)
