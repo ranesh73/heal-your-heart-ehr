@@ -86,6 +86,10 @@ class StatusChange(Version):
     reason: str = Field(default='', max_length=2000)
 
 
+class AppointmentLabelChange(Version):
+    label: str = Field(min_length=1, max_length=80)
+
+
 class EncounterInput(Input):
     patient_id: str
     provider_id: str

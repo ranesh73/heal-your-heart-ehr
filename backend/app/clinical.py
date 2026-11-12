@@ -418,7 +418,7 @@ def sign_note(identifier:str,data:s.Version,c=Depends(context)):
     revision(c,row,'signed')
     if row.appointment_id:
         appointment=c.record(m.Appointment,row.appointment_id)
-        if not appointment.plan_id: appointment.status='completed'; appointment.version+=1
+        if not appointment.plan_id: appointment.status='completed'; appointment.status_label=None; appointment.version+=1
     c.audit('sign_encounter',row)
     return encounter_out(c.db,row)
 
