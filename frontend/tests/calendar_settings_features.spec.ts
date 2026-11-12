@@ -146,3 +146,4 @@ test.describe("Calendar Settings Features and Horizontal Alignment Verification"
     await page.screenshot({ path: "screenshot_appointment_modal_dynamic.png" });
   });
 });
+

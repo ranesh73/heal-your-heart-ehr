@@ -622,5 +622,212 @@
       "end": "11:45 pm",
       "not_working": false
     }
+  },
+  "facility_timings": {
+    "0c0a4ad0-1c82-4a6a-b438-4df2f1a15e53": {
+      "facility_id": "0c0a4ad0-1c82-4a6a-b438-4df2f1a15e53",
+      "timezone": "( GMT 5:30 ) India Standard Time ( Asia/Kolkata )",
+      "hours": {
+        "Sunday": {
+          "is_working_day": false,
+          "start_time": "12:00 am",
+          "end_time": "11:45 pm"
+        },
+        "Monday": {
+          "is_working_day": true,
+          "start_time": "12:00 am",
+          "end_time": "11:45 pm"
+        },
+        "Tuesday": {
+          "is_working_day": true,
+          "start_time": "12:00 am",
+          "end_time": "11:45 pm"
+        },
+        "Wednesday": {
+          "is_working_day": true,
+          "start_time": "12:00 am",
+          "end_time": "11:45 pm"
+        },
+        "Thursday": {
+          "is_working_day": true,
+          "start_time": "12:00 am",
+          "end_time": "11:45 pm"
+        },
+        "Friday": {
+          "is_working_day": true,
+          "start_time": "12:00 am",
+          "end_time": "11:45 pm"
+        },
+        "Saturday": {
+          "is_working_day": true,
+          "start_time": "12:00 am",
+          "end_time": "11:45 pm"
+        }
+      }
+    },
+    "c1289ee6-838d-47a4-a557-17a927567429": {
+      "facility_id": "c1289ee6-838d-47a4-a557-17a927567429",
+      "timezone": "( GMT 5:30 ) India Standard Time ( Asia/Kolkata )",
+      "hours": {
+        "Sunday": {
+          "is_working_day": false,
+          "start_time": "12:00 am",
+          "end_time": "11:45 pm"
+        },
+        "Monday": {
+          "is_working_day": true,
+          "start_time": "12:00 am",
+          "end_time": "11:45 pm"
+        },
+        "Tuesday": {
+          "is_working_day": true,
+          "start_time": "12:00 am",
+          "end_time": "11:45 pm"
+        },
+        "Wednesday": {
+          "is_working_day": true,
+          "start_time": "12:00 am",
+          "end_time": "11:45 pm"
+        },
+        "Thursday": {
+          "is_working_day": true,
+          "start_time": "12:00 am",
+          "end_time": "11:45 pm"
+        },
+        "Friday": {
+          "is_working_day": true,
+          "start_time": "12:00 am",
+          "end_time": "11:45 pm"
+        },
+        "Saturday": {
+          "is_working_day": true,
+          "start_time": "12:00 am",
+          "end_time": "11:45 pm"
+        }
+      }
+    },
+    "1bb852d5-524a-4d4b-a6c3-c0c17431eb3b": {
+      "facility_id": "1bb852d5-524a-4d4b-a6c3-c0c17431eb3b",
+      "timezone": "( GMT 5:30 ) India Standard Time ( Asia/Kolkata )",
+      "hours": {
+        "Sunday": {
+          "is_working_day": false,
+          "start_time": "12:00 am",
+          "end_time": "11:45 pm"
+        },
+        "Monday": {
+          "is_working_day": true,
+          "start_time": "12:00 am",
+          "end_time": "11:45 pm"
+        },
+        "Tuesday": {
+          "is_working_day": true,
+          "start_time": "12:00 am",
+          "end_time": "11:45 pm"
+        },
+        "Wednesday": {
+          "is_working_day": true,
+          "start_time": "12:00 am",
+          "end_time": "11:45 pm"
+        },
+        "Thursday": {
+          "is_working_day": true,
+          "start_time": "12:00 am",
+          "end_time": "11:45 pm"
+        },
+        "Friday": {
+          "is_working_day": true,
+          "start_time": "12:00 am",
+          "end_time": "11:45 pm"
+        },
+        "Saturday": {
+          "is_working_day": true,
+          "start_time": "12:00 am",
+          "end_time": "11:45 pm"
+        }
+      }
+    },
+    "e728479e-1e14-44d8-bbed-25bade4bfc66": {
+      "facility_id": "e728479e-1e14-44d8-bbed-25bade4bfc66",
+      "timezone": "( GMT 5:30 ) India Standard Time ( Asia/Kolkata )",
+      "hours": {
+        "Sunday": {
+          "is_working_day": false,
+          "start_time": "12:00 am",
+          "end_time": "11:45 pm"
+        },
+        "Monday": {
+          "is_working_day": true,
+          "start_time": "12:00 am",
+          "end_time": "11:45 pm"
+        },
+        "Tuesday": {
+          "is_working_day": true,
+          "start_time": "12:00 am",
+          "end_time": "11:45 pm"
+        },
+        "Wednesday": {
+          "is_working_day": true,
+          "start_time": "12:00 am",
+          "end_time": "11:45 pm"
+        },
+        "Thursday": {
+          "is_working_day": true,
+          "start_time": "12:00 am",
+          "end_time": "11:45 pm"
+        },
+        "Friday": {
+          "is_working_day": true,
+          "start_time": "12:00 am",
+          "end_time": "11:45 pm"
+        },
+        "Saturday": {
+          "is_working_day": true,
+          "start_time": "12:00 am",
+          "end_time": "11:45 pm"
+        }
+      }
+    },
+    "bca37a27-42bb-41bd-871f-97d24a773592": {
+      "facility_id": "bca37a27-42bb-41bd-871f-97d24a773592",
+      "timezone": "( GMT 5:30 ) India Standard Time ( Asia/Kolkata )",
+      "hours": {
+        "Sunday": {
+          "is_working_day": false,
+          "start_time": "12:00 am",
+          "end_time": "11:45 pm"
+        },
+        "Monday": {
+          "is_working_day": true,
+          "start_time": "12:00 am",
+          "end_time": "11:45 pm"
+        },
+        "Tuesday": {
+          "is_working_day": true,
+          "start_time": "12:00 am",
+          "end_time": "11:45 pm"
+        },
+        "Wednesday": {
+          "is_working_day": true,
+          "start_time": "12:00 am",
+          "end_time": "11:45 pm"
+        },
+        "Thursday": {
+          "is_working_day": true,
+          "start_time": "12:00 am",
+          "end_time": "11:45 pm"
+        },
+        "Friday": {
+          "is_working_day": true,
+          "start_time": "12:00 am",
+          "end_time": "11:45 pm"
+        },
+        "Saturday": {
+          "is_working_day": true,
+          "start_time": "12:00 am",
+          "end_time": "11:45 pm"
+        }
+      }
+    }
   }
 }

@@ -423,3 +423,4 @@ export function AppointmentStatusPage() {
     </div>
   );
 }
+

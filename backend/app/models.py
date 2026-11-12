@@ -30,6 +30,19 @@ class Facility(Entity, Base):
     active = Column(Boolean, default=True, nullable=False)
 
 
+class FacilityWorkingHours(Entity, Base):
+    __tablename__ = 'facility_working_hours'
+    facility_id = Column(ForeignKey('facilities.id'), nullable=False, index=True)
+    timezone = Column(String(100), default='( GMT 5:30 ) India Standard Time ( Asia/Kolkata )', nullable=False)
+    day_of_week = Column(String(20), nullable=False)  # Sunday, Monday, ..., Saturday
+    is_working_day = Column(Boolean, default=True, nullable=False)
+    start_time = Column(String(20), default='12:00 am', nullable=False)
+    end_time = Column(String(20), default='11:45 pm', nullable=False)
+    __table_args__ = (
+        UniqueConstraint('facility_id', 'day_of_week', name='uq_facility_day_working_hours'),
+    )
+
+
 class User(Entity, Base):
     __tablename__ = 'users'
     email = Column(String(160), unique=True, nullable=False)

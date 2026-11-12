@@ -484,3 +484,4 @@ export function VisitTypesPage() {
     </div>
   );
 }
+

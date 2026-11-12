@@ -1,8 +1,12 @@
 import json
 import sqlite3
 from pathlib import Path
+from uuid import uuid4
 from fastapi import APIRouter, Depends, HTTPException
+from sqlalchemy import select
 from .security import context
+from . import models as m
+from .serialization import serialize
 
 router = APIRouter(prefix='/api')
 SETTINGS_FILE = Path(__file__).resolve().parent.parent / 'data' / 'settings_store.json'
@@ -441,4 +445,217 @@ def save_setting_option(category: str, option: str, data: dict, c=Depends(contex
     save_store(store)
     return data
 
+
+# --- Calendar: Facility Timings & Time Zone ---
+DAYS_OF_WEEK = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"]
+DEFAULT_FACILITY_TIMEZONE = "( GMT 5:30 ) India Standard Time ( Asia/Kolkata )"
+
+
+def parse_time_minutes(t_str: str) -> int:
+    t_str = t_str.strip().lower()
+    parts = t_str.split()
+    if len(parts) != 2:
+        raise ValueError(f"Invalid time format: {t_str}")
+    time_part, meridian = parts
+    h_str, m_str = time_part.split(':')
+    hours = int(h_str)
+    minutes = int(m_str)
+    if meridian == 'pm' and hours != 12:
+        hours += 12
+    elif meridian == 'am' and hours == 12:
+        hours = 0
+    return hours * 60 + minutes
+
+
+@router.get('/facilities/{facility_id}/timings')
+def get_facility_timings(facility_id: str, c=Depends(context)):
+    fac = c.db.get(m.Facility, facility_id)
+    if not fac:
+        raise HTTPException(404, 'Facility not found')
+
+    rows = list(c.db.scalars(
+        select(m.FacilityWorkingHours)
+        .where(m.FacilityWorkingHours.facility_id == facility_id)
+    ))
+    existing_by_day = {r.day_of_week: r for r in rows}
+
+    store = load_store()
+    facility_store = store.get("facility_timings", {}).get(facility_id, {})
+
+    tz = (
+        rows[0].timezone if rows and rows[0].timezone
+        else facility_store.get("timezone", DEFAULT_FACILITY_TIMEZONE)
+    )
+
+    days_data = []
+    for day in DAYS_OF_WEEK:
+        if day in existing_by_day:
+            row = existing_by_day[day]
+            days_data.append({
+                "day_of_week": day,
+                "is_working_day": bool(row.is_working_day),
+                "start_time": row.start_time,
+                "end_time": row.end_time,
+                "timezone": row.timezone
+            })
+        elif day in facility_store.get("hours", {}):
+            h = facility_store["hours"][day]
+            days_data.append({
+                "day_of_week": day,
+                "is_working_day": bool(h.get("is_working_day", not h.get("holiday", False))),
+                "start_time": h.get("start_time", "12:00 am"),
+                "end_time": h.get("end_time", "11:45 pm"),
+                "timezone": tz
+            })
+        else:
+            days_data.append({
+                "day_of_week": day,
+                "is_working_day": day != "Sunday",
+                "start_time": "12:00 am",
+                "end_time": "11:45 pm",
+                "timezone": tz
+            })
+
+    return {
+        "facility_id": fac.id,
+        "facility_code": fac.code,
+        "facility_name": fac.name,
+        "timezone": tz,
+        "timings": days_data
+    }
+
+
+@router.get('/calendar/facility-timings')
+def get_facility_timings_alias(facility_id: str = None, c=Depends(context)):
+    target_fid = facility_id or c.facility_id
+    if not target_fid:
+        fac = c.db.scalars(select(m.Facility).limit(1)).first()
+        target_fid = fac.id if fac else ""
+    return get_facility_timings(target_fid, c)
+
+
+@router.put('/facilities/{facility_id}/timings')
+def save_facility_timings(facility_id: str, data: dict, c=Depends(context)):
+    c.allow({'admin', 'doctor', 'reception', 'therapist'})
+    fac = c.db.get(m.Facility, facility_id)
+    if not fac:
+        raise HTTPException(404, 'Facility not found')
+
+    timings = data.get("timings", [])
+    tz = data.get("timezone")
+
+    for item in timings:
+        day = item.get("day_of_week")
+        if day not in DAYS_OF_WEEK:
+            raise HTTPException(422, f"Invalid day of week: {day}")
+        is_working = item.get("is_working_day", True)
+        if is_working:
+            start_t = item.get("start_time", "12:00 am")
+            end_t = item.get("end_time", "11:45 pm")
+            try:
+                start_m = parse_time_minutes(start_t)
+                end_m = parse_time_minutes(end_t)
+            except Exception as e:
+                raise HTTPException(422, f"Invalid time format on {day}: {e}")
+            if end_m <= start_m:
+                raise HTTPException(422, f"End time must be later than start time on {day}")
+
+    existing_rows = {
+        r.day_of_week: r
+        for r in c.db.scalars(
+            select(m.FacilityWorkingHours).where(m.FacilityWorkingHours.facility_id == facility_id)
+        )
+    }
+
+    current_tz = tz or (
+        next(iter(existing_rows.values())).timezone
+        if existing_rows else DEFAULT_FACILITY_TIMEZONE
+    )
+
+    for item in timings:
+        day = item["day_of_week"]
+        is_working = bool(item.get("is_working_day", True))
+        start_t = item.get("start_time", "12:00 am")
+        end_t = item.get("end_time", "11:45 pm")
+        item_tz = tz or item.get("timezone", current_tz)
+
+        if day in existing_rows:
+            row = existing_rows[day]
+            row.is_working_day = is_working
+            row.start_time = start_t
+            row.end_time = end_t
+            if tz:
+                row.timezone = tz
+            row.version += 1
+        else:
+            new_row = m.FacilityWorkingHours(
+                id=str(uuid4()),
+                facility_id=facility_id,
+                timezone=item_tz,
+                day_of_week=day,
+                is_working_day=is_working,
+                start_time=start_t,
+                end_time=end_t
+            )
+            c.db.add(new_row)
+
+    c.db.flush()
+
+    store = load_store()
+    fac_timings = store.setdefault("facility_timings", {})
+    fac_timings[facility_id] = {
+        "facility_id": facility_id,
+        "timezone": current_tz,
+        "hours": {
+            item["day_of_week"]: {
+                "is_working_day": bool(item.get("is_working_day", True)),
+                "start_time": item.get("start_time", "12:00 am"),
+                "end_time": item.get("end_time", "11:45 pm"),
+            }
+            for item in timings
+        }
+    }
+    save_store(store)
+    c.audit('update_facility_timings', fac)
+    return {"ok": True, "facility_id": facility_id, "timezone": current_tz, "timings": timings}
+
+
+@router.put('/facilities/{facility_id}/timezone')
+def save_facility_timezone(facility_id: str, data: dict, c=Depends(context)):
+    c.allow({'admin', 'doctor', 'reception', 'therapist'})
+    fac = c.db.get(m.Facility, facility_id)
+    if not fac:
+        raise HTTPException(404, 'Facility not found')
+    tz = data.get("timezone", "").strip()
+    if not tz:
+        raise HTTPException(422, "Timezone is required")
+
+    rows = list(c.db.scalars(
+        select(m.FacilityWorkingHours).where(m.FacilityWorkingHours.facility_id == facility_id)
+    ))
+    if rows:
+        for r in rows:
+            r.timezone = tz
+            r.version += 1
+    else:
+        for day in DAYS_OF_WEEK:
+            c.db.add(m.FacilityWorkingHours(
+                id=str(uuid4()),
+                facility_id=facility_id,
+                timezone=tz,
+                day_of_week=day,
+                is_working_day=day != "Sunday",
+                start_time="12:00 am",
+                end_time="11:45 pm"
+            ))
+    c.db.flush()
+
+    store = load_store()
+    fac_timings = store.setdefault("facility_timings", {})
+    if facility_id not in fac_timings:
+        fac_timings[facility_id] = {"facility_id": facility_id, "hours": {}}
+    fac_timings[facility_id]["timezone"] = tz
+    save_store(store)
+    c.audit('update_facility_timezone', fac)
+    return {"ok": True, "facility_id": facility_id, "timezone": tz}
 
