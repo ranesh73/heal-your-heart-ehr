@@ -52,7 +52,7 @@ def status(identifier:str,data:s.StatusChange,c=Depends(context)):
     row.status=data.status; row.reason=data.reason; row.version+=1; c.audit('eecp_'+data.status,row)
     if data.status in ('discontinued','cancelled'):
         for a in c.db.scalars(select(m.Appointment).where(m.Appointment.plan_id==row.id,m.Appointment.status.in_(['confirmed','checked-in']))):
-            a.status='cancelled'; a.reason=data.reason; a.version+=1
+            a.status='cancelled'; a.status_label=None; a.reason=data.reason; a.version+=1
     return plan_out(c.db,row)
 
 
@@ -78,7 +78,7 @@ def start(identifier:str,data:s.Version,c=Depends(context)):
         raise HTTPException(409,'A session is already running for this patient, therapist, or bed')
     row=m.DailySession(patient_id=appointment.patient_id,facility_id=c.facility_id,author_id=c.user.id,plan_id=plan.id,
         appointment_id=appointment.id,therapist_id=c.user.id,resource_id=appointment.resource_id,session_number=appointment.session_number)
-    c.db.add(row); appointment.status='started'; appointment.version+=1; plan.status='active'; plan.version+=1; c.audit('start_eecp_session',row)
+    c.db.add(row); appointment.status='started'; appointment.status_label=None; appointment.version+=1; plan.status='active'; plan.version+=1; c.audit('start_eecp_session',row)
     return serialize(row)
 
 
@@ -102,7 +102,7 @@ def complete_session(identifier:str,data:s.Version,c=Depends(context)):
     row=editable_session(c,identifier,data.version)
     if any(getattr(row,f['name']) is None for f in s.DAILY_FIELDS if f['required']): raise HTTPException(422,'Complete pre-session, 15-minute, and 45-minute measurements first')
     row.status='completed'; row.completed_at=m.now(); row.version+=1
-    appointment=c.record(m.Appointment,row.appointment_id); appointment.status='completed'; appointment.version+=1
+    appointment=c.record(m.Appointment,row.appointment_id); appointment.status='completed'; appointment.status_label=None; appointment.version+=1
     plan=c.record(m.Plan,row.plan_id); c.db.flush()
     count=c.db.scalar(select(func.count()).select_from(m.DailySession).where(m.DailySession.plan_id==plan.id,m.DailySession.status=='completed'))
     if count==plan.session_count: plan.status='completed'
@@ -115,7 +115,7 @@ def interrupt(identifier:str,data:s.AmendmentInput,c=Depends(context)):
     c.allow({'therapist'}); row=c.record(m.DailySession,identifier)
     row=editable_session(c,identifier,row.version)
     row.status='interrupted'; row.observations+='\n'+data.reason+'\n'+data.content; row.version+=1
-    a=c.record(m.Appointment,row.appointment_id); a.status='interrupted'; a.version+=1
+    a=c.record(m.Appointment,row.appointment_id); a.status='interrupted'; a.status_label=None; a.version+=1
     c.audit('interrupt_eecp_session',row)
     return serialize(row)
 

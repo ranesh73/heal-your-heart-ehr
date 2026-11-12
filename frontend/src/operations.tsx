@@ -1,4 +1,5 @@
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
+import { createPortal } from "react-dom";
 import { useQuery } from "@tanstack/react-query";
 import { useForm, useFieldArray } from "react-hook-form";
 import {
@@ -6,6 +7,7 @@ import {
   ArrowRight,
   CalendarDays,
   Check,
+  ChevronDown,
   Download,
   Eye,
   Plus,
@@ -48,6 +50,29 @@ import {
 } from "./ui";
 import { AppointmentForm, RecordForm } from "./forms";
 import { PrintPreview, RecordDetail, RecordList } from "./patients";
+
+const APPOINTMENT_LABEL_OPTIONS = [
+  "Consulted",
+  "Absent",
+  "Admission",
+  "Confirmed",
+  "Consultation / Demo",
+  "Diabetic/HT Management",
+  "Discharge",
+  "EECP Treatment 1st Day",
+  "EECP Treatment 20 Sessions 1st Day",
+  "EECP Treatment Completed",
+  "No show",
+  "Patient Discontinued",
+  "Rescheduled",
+] as const;
+
+const APPOINTMENT_WORKFLOW_OPTIONS = [
+  { value: "eecp-started", label: "EECP Treatment Started" },
+  { value: "checked-in", label: "Checked In" },
+  { value: "completed", label: "Completed" },
+  { value: "cancelled", label: "Cancelled" },
+] as const;
 
 export function AppointmentTable({ rows }: { rows: Row[] }) {
   const { user, patients, staff, resources, refresh, notify } = useApp();
@@ -198,6 +223,212 @@ export function AppointmentTable({ rows }: { rows: Row[] }) {
           />
         </Modal>
       )}
+    </>
+  );
+}
+
+function AppointmentStatusDropdown({
+  appointment,
+  statuses,
+}: {
+  appointment: Row;
+  statuses: { id: string; name: string; color: string }[];
+}) {
+  const { refresh, notify } = useApp();
+  const [open, setOpen] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [position, setPosition] = useState<{
+    top: number;
+    left: number;
+    width: number;
+    maxHeight: number;
+  }>();
+  const buttonRef = useRef<HTMLButtonElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  const statusLabels = [
+    ...APPOINTMENT_LABEL_OPTIONS,
+    ...statuses.map((status) => status.name),
+  ].filter((label, index, labels) => {
+    const normalized = label.toLowerCase().replace(/[^a-z0-9]/g, "");
+    return (
+      normalized &&
+      !APPOINTMENT_WORKFLOW_OPTIONS.some(
+        (option) =>
+          option.label.toLowerCase().replace(/[^a-z0-9]/g, "") === normalized,
+      ) &&
+      labels.findIndex(
+        (candidate) =>
+          candidate.toLowerCase().replace(/[^a-z0-9]/g, "") === normalized,
+      ) === index
+    );
+  });
+  const options = [
+    ...APPOINTMENT_WORKFLOW_OPTIONS,
+    ...statusLabels.map((label) => ({ value: label, label })),
+  ];
+  const workflowValue =
+    appointment.status === "completed"
+      ? "completed"
+      : appointment.status === "checked-in"
+        ? "checked-in"
+        : appointment.status === "cancelled"
+          ? "cancelled"
+          : "eecp-started";
+  const selectedValue = appointment.status_label || workflowValue;
+  const selectedOption =
+    options.find((option) => option.value === selectedValue) || options[0];
+
+  useEffect(() => {
+    if (!open) return;
+
+    const updatePosition = () => {
+      const rect = buttonRef.current?.getBoundingClientRect();
+      if (!rect) return;
+      const width = Math.min(
+        Math.max(rect.width, 265),
+        window.innerWidth - 16,
+      );
+      const top = rect.bottom + 4;
+      setPosition({
+        top,
+        left: Math.max(8, Math.min(rect.left, window.innerWidth - width - 8)),
+        width,
+        maxHeight: Math.max(80, Math.min(320, window.innerHeight - top - 8)),
+      });
+    };
+    const closeOnOutsideClick = (event: PointerEvent) => {
+      const target = event.target as Node;
+      if (
+        !buttonRef.current?.contains(target) &&
+        !menuRef.current?.contains(target)
+      ) {
+        setOpen(false);
+      }
+    };
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setOpen(false);
+    };
+
+    updatePosition();
+    document.addEventListener("pointerdown", closeOnOutsideClick);
+    document.addEventListener("keydown", closeOnEscape);
+    window.addEventListener("resize", updatePosition);
+    window.addEventListener("scroll", updatePosition, true);
+    return () => {
+      document.removeEventListener("pointerdown", closeOnOutsideClick);
+      document.removeEventListener("keydown", closeOnEscape);
+      window.removeEventListener("resize", updatePosition);
+      window.removeEventListener("scroll", updatePosition, true);
+    };
+  }, [open]);
+
+  const chooseOption = async (value: string) => {
+    setSaving(true);
+    try {
+      if (statusLabels.some((option) => option === value)) {
+        await api("/appointments/" + appointment.id + "/label", "POST", {
+          version: appointment.version,
+          label: value,
+        });
+      } else {
+        const status = value === "eecp-started" ? "checked-in" : value;
+        await api("/appointments/" + appointment.id + "/status", "POST", {
+          version: appointment.version,
+          status,
+        });
+      }
+      await refresh();
+      notify("Status updated.");
+      setOpen(false);
+    } catch (err) {
+      notify(err instanceof Error ? err.message : "Unable to update status.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <>
+      <button
+        ref={buttonRef}
+        type="button"
+        aria-haspopup="menu"
+        aria-expanded={open}
+        className="charm-status-pill purple"
+        onClick={() => {
+          if (open) {
+            setOpen(false);
+          } else {
+            buttonRef.current?.scrollIntoView({ block: "center" });
+            setOpen(true);
+          }
+        }}
+        style={{
+          border: "none",
+          cursor: "pointer",
+          background: "#7c3aed",
+          color: "#fff",
+          padding: "3px 8px",
+          borderRadius: 4,
+          fontWeight: 600,
+          fontSize: 11,
+          display: "inline-flex",
+          alignItems: "center",
+          gap: 4,
+        }}
+      >
+        {selectedOption.label}
+        <ChevronDown size={12} aria-hidden="true" />
+      </button>
+      {open &&
+        position &&
+        createPortal(
+          <div
+            ref={menuRef}
+            role="menu"
+            aria-label="Appointment status options"
+            style={{
+              position: "fixed",
+              top: position.top,
+              left: position.left,
+              width: position.width,
+              maxHeight: position.maxHeight,
+              overflowY: "auto",
+              zIndex: 1100,
+              background: "#7c3aed",
+              border: "1px solid #6d28d9",
+              boxShadow: "0 4px 12px rgba(15, 23, 42, 0.2)",
+            }}
+          >
+            {options.map((option) => (
+              <button
+                key={option.value}
+                type="button"
+                role="menuitemradio"
+                aria-checked={option.value === selectedValue}
+                disabled={saving}
+                onClick={() => chooseOption(option.value)}
+                style={{
+                  display: "block",
+                  width: "100%",
+                  border: "none",
+                  padding: "7px 12px",
+                  background:
+                    option.value === selectedValue ? "#2563eb" : "transparent",
+                  color: "#fff",
+                  fontSize: 13,
+                  textAlign: "left",
+                  whiteSpace: "nowrap",
+                  cursor: saving ? "wait" : "pointer",
+                }}
+              >
+                {option.label}
+              </button>
+            ))}
+          </div>,
+          document.body,
+        )}
     </>
   );
 }
@@ -354,21 +585,6 @@ function Schedule() {
       window.removeEventListener("hyh_visit_types_updated", onVisitTypeUpdate);
     };
   }, []);
-
-  const getStatusColor = (st: string) => {
-    const norm = (st || "").toLowerCase().replace(/[^a-z0-9]/g, "");
-    const match = availableStatuses.find(
-      (s) => s.name.toLowerCase().replace(/[^a-z0-9]/g, "") === norm
-    );
-    if (match?.color) return match.color;
-    if (norm.includes("confirm")) return "#10b981";
-    if (norm.includes("check")) return "#3b82f6";
-    if (norm.includes("complet")) return "#059669";
-    if (norm.includes("cancel")) return "#ef4444";
-    if (norm.includes("show") || norm.includes("miss") || norm.includes("absent")) return "#f59e0b";
-    if (norm.includes("start") || norm.includes("eecp")) return "#84cc16";
-    return "#7c3aed";
-  };
 
   const reportVisitTypesList = availableVisitTypes.map((vt) => vt.name);
   const [selectedReportVisitTypes, setSelectedReportVisitTypes] = useState<Record<string, boolean>>({
@@ -1111,51 +1327,10 @@ function Schedule() {
                               <span style={{ marginLeft: 12 }}>📱 {pat?.phone || "9940322368"}</span>
                             </div>
                             <div style={{ marginTop: 8 }}>
-                              <select
-                                value={a.status}
-                                onChange={async (e) => {
-                                  try {
-                                    await api("/appointments/" + a.id + "/status", "POST", {
-                                      version: a.version,
-                                      status: e.target.value,
-                                    });
-                                    await refresh();
-                                    notify("Status updated.");
-                                  } catch (err) {
-                                    notify("Status updated.");
-                                  }
-                                }}
-                                className="charm-status-pill"
-                                style={{
-                                  border: "none",
-                                  cursor: "pointer",
-                                  background: getStatusColor(a.status),
-                                  color: "#fff",
-                                  padding: "3px 8px",
-                                  borderRadius: 4,
-                                  fontWeight: 600,
-                                  fontSize: 11,
-                                }}
-                              >
-                                {availableStatuses.map((st) => {
-                                  const val = st.name.toLowerCase().replace(/\s+/g, "-");
-                                  return (
-                                    <option key={st.id || st.name} value={val} style={{ background: "#ffffff", color: "#0f172a" }}>
-                                      {st.name} ▾
-                                    </option>
-                                  );
-                                })}
-                                {a.status &&
-                                  !availableStatuses.some(
-                                    (st) =>
-                                      st.name.toLowerCase().replace(/\s+/g, "-") ===
-                                      a.status.toLowerCase().replace(/\s+/g, "-")
-                                  ) && (
-                                    <option value={a.status} style={{ background: "#ffffff", color: "#0f172a" }}>
-                                      {a.status} ▾
-                                    </option>
-                                  )}
-                              </select>
+                              <AppointmentStatusDropdown
+                                appointment={a}
+                                statuses={availableStatuses}
+                              />
                             </div>
                           </div>
                         </div>

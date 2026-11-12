@@ -438,6 +438,7 @@ class Appointment(PatientRecord, Base):
     visit_type = Column(String(80), nullable=False)
     mode = Column(String(30), default='In person', nullable=False)
     status = Column(String(30), default='confirmed', nullable=False)
+    status_label = Column(String(80))
     reason = Column(Text, default='')
     checked_in_at = Column(DateTime)
     __table_args__ = (CheckConstraint('end_at > start_at'), UniqueConstraint('plan_id', 'session_number'))

@@ -84,10 +84,18 @@ def status(identifier:str,data:s.StatusChange,c=Depends(context)):
     if data.status not in transitions.get(row.status,set()): raise HTTPException(409,'Invalid appointment status transition')
     if row.plan_id and data.status=='completed': raise HTTPException(409,'Complete EECP through the daily treatment chart')
     if data.status in ('cancelled','missed') and not data.reason: raise HTTPException(422,'A reason is required')
-    row.status=data.status; row.version+=1
+    row.status=data.status; row.status_label=None; row.version+=1
     if data.status=='checked-in': row.checked_in_at=m.now()
     if data.reason: row.reason=data.reason
     c.audit('appointment_'+data.status,row)
+    return serialize(row)
+
+
+@router.post('/{identifier}/label')
+def appointment_label(identifier:str,data:s.AppointmentLabelChange,c=Depends(context)):
+    c.allow(SCHEDULING|{'assistant'}); row=c.record(m.Appointment,identifier); check_version(row,data.version)
+    row.status_label=data.label; row.version+=1
+    c.audit('appointment_label',row,data.label)
     return serialize(row)
 
 
@@ -100,6 +108,6 @@ def reschedule(identifier:str,data:s.Reschedule,c=Depends(context)):
     check_slot(c,row.patient_id,data.provider_id,data.resource_id,start,end,row.id,plan)
     old=row.start_at.isoformat()+'Z'
     row.start_at=start; row.end_at=end; row.provider_id=data.provider_id; row.resource_id=data.resource_id
-    row.status='confirmed'; row.reason=data.reason; row.version+=1; row.checked_in_at=None
+    row.status='confirmed'; row.status_label=None; row.reason=data.reason; row.version+=1; row.checked_in_at=None
     c.audit('reschedule_appointment',row,'Previous start: '+old)
     return serialize(row)

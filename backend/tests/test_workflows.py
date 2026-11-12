@@ -91,6 +91,26 @@ def test_reception_registration_search_booking_checkin():
     assert 'encounters' not in chart and 'vitals' not in chart
 
 
+def test_appointment_label_is_saved_without_changing_lifecycle_status():
+    c=client('reception');p=patient(c)
+    a=ok(c.post('/api/appointments',json=booking(c,p,day=10,hour=19)))[0]
+    labeled=ok(c.post(f"/api/appointments/{a['id']}/label",json={
+        'version':a['version'],'label':'Patient Discontinued',
+    }))
+    assert labeled['status_label']=='Patient Discontinued'
+    assert labeled['status']=='confirmed'
+    labeled=ok(c.post(f"/api/appointments/{a['id']}/label",json={
+        'version':labeled['version'],'label':'Custom Calendar Status',
+    }))
+    checked_in=ok(c.post(f"/api/appointments/{a['id']}/status",json={
+        'version':labeled['version'],'status':'checked-in',
+    }))
+    assert checked_in['status']=='checked-in' and checked_in['status_label'] is None
+    ok(c.post(f"/api/appointments/{a['id']}/label",json={
+        'version':checked_in['version'],'label':'x'*81,
+    }),422)
+
+
 def test_duplicates_and_patient_updates_require_current_version():
     c=client('reception');p=patient(c)
     body={'first_name':p['first_name'],'last_name':p['last_name'],'dob':p['dob'],'sex':p['sex'],'facility_ids':p['facility_ids']}
