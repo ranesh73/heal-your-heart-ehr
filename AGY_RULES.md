@@ -43,3 +43,23 @@
   ```
   It **MUST** pass with 0 errors (`tsc -b && vite build`).
 
+### 5. Server Lifecycle & Post-Merge Protocol (Prevent Stale Endpoints)
+- **Always Run Uvicorn with `--reload`**:
+  ```bash
+  uvicorn backend.app.main:app --host 127.0.0.1 --port 8000 --reload
+  ```
+  Never run the dev backend without `--reload`. Without it, new routes merged from git or written to disk will not be loaded into memory and will return 404s.
+- **Mandatory Post-Merge / Post-Pull Steps**:
+  Whenever pulling or merging changes from git:
+  1. **Run DB Migrations**:
+     ```bash
+     .venv\Scripts\alembic.exe -c backend/alembic.ini upgrade head
+     ```
+  2. **Run New Seeds**:
+     Run any newly added seed scripts (e.g. `python scripts/seed_injection_catalogs.py`).
+  3. **Verify Server Process**:
+     Ensure backend restarted or reloaded automatically, and test health via `GET /api/health`.
+  4. **Build Frontend**:
+     Run `cd frontend && npm run build` to confirm 0 compilation errors.
+
+
