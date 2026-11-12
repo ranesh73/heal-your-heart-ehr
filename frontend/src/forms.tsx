@@ -457,7 +457,7 @@ function QuickNewPatientView({
           </label>
         </div>
 
-        <div style={{ display: "flex", gap: 10, marginTop: 12, paddingLeft: 140 }}>
+        <div style={{ display: "flex", gap: 10, marginTop: 12, paddingLeft: 140, paddingBottom: 24 }}>
           <button
             type="submit"
             disabled={submitting}
@@ -538,91 +538,6 @@ export function AppointmentForm({
     appointment?.provider_id || initialProviderId || plan?.therapist_id || (staff.find((s) => ["doctor", "therapist"].includes(s.role))?.id || "")
   );
   const [resourceId, setResourceId] = useState(appointment?.resource_id || initialResourceId || "");
-
-  // Date and Time (Authentic CharmHealth separate controls)
-  const initDateTime = useMemo(() => {
-    if (appointment) return new Date(appointment.start_at);
-    if (initialStart) return new Date(initialStart);
-    return new Date();
-  }, [appointment, initialStart]);
-
-  const [selDate, setSelDate] = useState(() => {
-    const y = initDateTime.getFullYear();
-    const m = String(initDateTime.getMonth() + 1).padStart(2, "0");
-    const d = String(initDateTime.getDate()).padStart(2, "0");
-    return `${y}-${m}-${d}`;
-  });
-  const [showDatePicker, setShowDatePicker] = useState(false);
-  const datePickerRef = useRef<HTMLDivElement>(null);
-
-  const [startHour, setStartHour] = useState(() => {
-    const h = initDateTime.getHours();
-    const h12 = h % 12 || 12;
-    return String(h12).padStart(2, "0");
-  });
-  const [startMin, setStartMin] = useState(() => {
-    const m = initDateTime.getMinutes();
-    const rounded = Math.floor(m / 5) * 5;
-    return String(rounded).padStart(2, "0");
-  });
-  const [startAmpm, setStartAmpm] = useState<"AM" | "PM">(() => (initDateTime.getHours() >= 12 ? "PM" : "AM"));
-
-  const [duration, setDuration] = useState<number>(
-    appointment
-      ? (new Date(appointment.end_at).getTime() - new Date(appointment.start_at).getTime()) / 60000
-      : initialDuration || (plan ? 60 : 30)
-  );
-  const [visitType, setVisitType] = useState(
-    appointment?.visit_type || (plan ? "EECP session" : "Cardiology Consultation")
-  );
-  const [mode, setMode] = useState(appointment?.mode || "In person");
-  const [apptStatus, setApptStatus] = useState(appointment?.status || "confirmed");
-  const [periodType, setPeriodType] = useState<"single" | "period">(plan ? "period" : "single");
-  const [repeatCount, setRepeatCount] = useState<number>(
-    plan ? Math.max(1, plan.session_count - plan.scheduled) : 1
-  );
-  const [intervalDays, setIntervalDays] = useState<number>(1);
-  const [skipSundays, setSkipSundays] = useState(true);
-  const [reason, setReason] = useState(appointment?.reason || "");
-  const [message, setMessage] = useState("");
-  const [submitting, setSubmitting] = useState(false);
-  const [err, setErr] = useState<string>("");
-
-  // Close dropdowns on outside click
-  useEffect(() => {
-    const handleOutside = (e: MouseEvent) => {
-      if (patientDropdownRef.current && !patientDropdownRef.current.contains(e.target as Node)) {
-        setShowPatientDropdown(false);
-      }
-      if (datePickerRef.current && !datePickerRef.current.contains(e.target as Node)) {
-        setShowDatePicker(false);
-      }
-    };
-    document.addEventListener("mousedown", handleOutside);
-    return () => document.removeEventListener("mousedown", handleOutside);
-  }, []);
-
-  // Filter patients by name, MRN, phone
-  const filteredPatients = useMemo(() => {
-    const q = patientQuery.trim().toLowerCase();
-    if (!q) return patients.slice(0, 15);
-    return patients.filter((p) => {
-      const matchName = (p.name || "").toLowerCase().includes(q);
-      const matchMrn = (p.mrn || "").toLowerCase().includes(q);
-      const matchPhone = (p.phone || "").toLowerCase().includes(q);
-      return matchName || matchMrn || matchPhone;
-    }).slice(0, 20);
-  }, [patients, patientQuery]);
-
-  // Display date format: e.g. "Nov 12, 2026"
-  const formattedDisplayDate = useMemo(() => {
-    if (!selDate) return "";
-    const [y, m, d] = selDate.split("-").map(Number);
-    if (!y || !m || !d) return selDate;
-    const dt = new Date(y, m - 1, d);
-    const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-    return `${months[dt.getMonth()]} ${String(dt.getDate()).padStart(2, "0")}, ${dt.getFullYear()}`;
-  }, [selDate]);
 
   // Dynamic Appointment Statuses synchronized from Settings & localStorage
   const [availableStatuses, setAvailableStatuses] = useState<{ id: string; name: string; color: string }[]>(() => {
@@ -706,6 +621,92 @@ export function AppointmentForm({
       window.removeEventListener("hyh_visit_types_updated", onVisitTypeUpdate);
     };
   }, []);
+
+  // Date and Time (Authentic CharmHealth separate controls)
+  const initDateTime = useMemo(() => {
+    if (appointment?.start_at) return new Date(new Date(appointment.start_at).getTime() + 330 * 60000);
+    if (initialStart) return new Date(initialStart);
+    return new Date();
+  }, [appointment, initialStart]);
+
+  const [selDate, setSelDate] = useState(() => {
+    const y = initDateTime.getFullYear();
+    const m = String(initDateTime.getMonth() + 1).padStart(2, "0");
+    const d = String(initDateTime.getDate()).padStart(2, "0");
+    return `${y}-${m}-${d}`;
+  });
+  const [showDatePicker, setShowDatePicker] = useState(false);
+  const datePickerRef = useRef<HTMLDivElement>(null);
+
+  const [startHour, setStartHour] = useState(() => {
+    const h = initDateTime.getHours();
+    const h12 = h % 12 || 12;
+    return String(h12).padStart(2, "0");
+  });
+  const [startMin, setStartMin] = useState(() => {
+    const m = initDateTime.getMinutes();
+    const rounded = Math.floor(m / 5) * 5;
+    return String(rounded).padStart(2, "0");
+  });
+  const [startAmpm, setStartAmpm] = useState<"AM" | "PM">(() => (initDateTime.getHours() >= 12 ? "PM" : "AM"));
+
+  const [duration, setDuration] = useState<number>(
+    appointment
+      ? (new Date(appointment.end_at).getTime() - new Date(appointment.start_at).getTime()) / 60000
+      : initialDuration || (plan ? 60 : 30)
+  );
+  const [visitType, setVisitType] = useState(
+    appointment?.visit_type || (plan ? "EECP session" : "Cardiology Consultation")
+  );
+  const [mode, setMode] = useState(appointment?.mode || "In person");
+  const [apptStatus, setApptStatus] = useState(appointment?.status || "confirmed");
+  const [periodType, setPeriodType] = useState<"single" | "period">(plan ? "period" : "single");
+  const [repeatCount, setRepeatCount] = useState<number>(
+    plan ? Math.max(1, plan.session_count - plan.scheduled) : 1
+  );
+  const [intervalDays, setIntervalDays] = useState<number>(1);
+  const [skipSundays, setSkipSundays] = useState(true);
+  const [reason, setReason] = useState(appointment?.reason || "");
+  const [message, setMessage] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const [err, setErr] = useState<string>("");
+
+  // Close dropdowns on outside click
+  useEffect(() => {
+    const handleOutside = (e: MouseEvent) => {
+      if (patientDropdownRef.current && !patientDropdownRef.current.contains(e.target as Node)) {
+        setShowPatientDropdown(false);
+      }
+      if (datePickerRef.current && !datePickerRef.current.contains(e.target as Node)) {
+        setShowDatePicker(false);
+      }
+    };
+    document.addEventListener("mousedown", handleOutside);
+    return () => document.removeEventListener("mousedown", handleOutside);
+  }, []);
+
+  // Filter patients by name, MRN, phone
+  const filteredPatients = useMemo(() => {
+    const q = patientQuery.trim().toLowerCase();
+    if (!q) return patients.slice(0, 15);
+    return patients.filter((p) => {
+      const matchName = (p.name || "").toLowerCase().includes(q);
+      const matchMrn = (p.mrn || "").toLowerCase().includes(q);
+      const matchPhone = (p.phone || "").toLowerCase().includes(q);
+      return matchName || matchMrn || matchPhone;
+    }).slice(0, 20);
+  }, [patients, patientQuery]);
+
+  // Display date format: e.g. "Nov 12, 2026"
+  const formattedDisplayDate = useMemo(() => {
+    if (!selDate) return "";
+    const [y, m, d] = selDate.split("-").map(Number);
+    if (!y || !m || !d) return selDate;
+    const dt = new Date(y, m - 1, d);
+    const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+    return `${months[dt.getMonth()]} ${String(dt.getDate()).padStart(2, "0")}, ${dt.getFullYear()}`;
+  }, [selDate]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErr("");
@@ -934,6 +935,7 @@ export function AppointmentForm({
                     </option>
                   );
                 })}
+                {/* Fallback if current appointment has a status not yet in list */}
                 {apptStatus &&
                   !availableStatuses.some(
                     (st) =>
@@ -968,6 +970,7 @@ export function AppointmentForm({
                     {vt.name} {vt.duration ? `(${vt.duration} min)` : ""}
                   </option>
                 ))}
+                {/* Fallback if current appointment has a visit type not in list */}
                 {visitType &&
                   !availableVisitTypes.some((vt) => vt.name === visitType) && (
                     <option value={visitType}>{visitType}</option>
@@ -995,6 +998,7 @@ export function AppointmentForm({
               </select>
             </div>
 
+            {/* APPOINTMENT MODE (Horizontal Radio Group - CharmHealth Frame 055 & 070) */}
             <div className="charm-form-row">
               <label className="charm-field-label">Appointment Mode</label>
               <div className="charm-radio-group">
@@ -1028,6 +1032,7 @@ export function AppointmentForm({
               </div>
             </div>
 
+            {/* APPOINTMENT FOR (Horizontal Radio Group - CharmHealth Frame 055 & 070) */}
             <div className="charm-form-row">
               <label className="charm-field-label">Appointment For</label>
               <div className="charm-radio-group">
@@ -1352,6 +1357,7 @@ export function AppointmentForm({
     </Modal>
   );
 }
+
 
 export function RecordForm({
   kind,
