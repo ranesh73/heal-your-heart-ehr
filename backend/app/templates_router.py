@@ -474,3 +474,4 @@ def get_consultation_responses(consultation_id: int):
     c_data["responses"] = [dict(r) for r in cursor.fetchall()]
     conn.close()
     return c_data
+

@@ -353,3 +353,4 @@ export function PatientNotificationsSubpage({ type }: PatientNotificationsSubpag
     </div>
   );
 }
+

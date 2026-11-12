@@ -390,3 +390,4 @@ export function PatientCategoriesSubpage({ type }: PatientCategoriesSubpageProps
     </div>
   );
 }
+
