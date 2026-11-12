@@ -48,7 +48,7 @@ import {
   Table,
   Tabs,
 } from "./ui";
-import { AppointmentForm, RecordForm } from "./forms";
+import { AppointmentForm, RecordForm, QuickNewPatientView } from "./forms";
 import { PrintPreview, RecordDetail, RecordList } from "./patients";
 
 const APPOINTMENT_LABEL_OPTIONS = [
@@ -433,6 +433,562 @@ function AppointmentStatusDropdown({
   );
 }
 
+function NewWaitingListModal({
+  onClose,
+  onConfirm,
+  initialDate,
+}: {
+  onClose: () => void;
+  onConfirm: (entry: any) => void;
+  initialDate?: string;
+}) {
+  const { staff, patients, facilities } = useApp();
+  const [showQuickNewPatient, setShowQuickNewPatient] = useState(false);
+  const [facility, setFacility] = useState(
+    facilities?.[0]?.name ? `${facilities[0].name} - ${facilities[0].code || "HUH001"}` : "Heal Your Heart Neelankarai - HUH001"
+  );
+  const [selPatient, setSelPatient] = useState("");
+  const [patientQuery, setPatientQuery] = useState("");
+  const [showPatientDropdown, setShowPatientDropdown] = useState(false);
+  const patientRef = useRef<HTMLDivElement>(null);
+
+  const [providerId, setProviderId] = useState(
+    staff.find((s) => ["doctor", "therapist"].includes(s.role))?.id || ""
+  );
+  const [visitType, setVisitType] = useState("--Select--");
+  const [resource, setResource] = useState("--Select--");
+  const [apptMode, setApptMode] = useState<"In Person" | "Phone Call">("In Person");
+  const [datePreference, setDatePreference] = useState<"Specific Date(s)" | "Period">("Specific Date(s)");
+
+  const formatDisplayDate = (dStr: string) => {
+    if (!dStr) return "";
+    try {
+      const parts = dStr.split("-").map(Number);
+      if (parts.length === 3) {
+        const dt = new Date(parts[0], parts[1] - 1, parts[2]);
+        const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+        return `${months[dt.getMonth()]} ${String(dt.getDate()).padStart(2, "0")}, ${dt.getFullYear()}`;
+      }
+    } catch {}
+    return dStr;
+  };
+
+  const initDateStr = initialDate || today();
+  const [opt1, setOpt1] = useState(() => formatDisplayDate(initDateStr));
+  const [opt1Raw, setOpt1Raw] = useState(initDateStr);
+  const [opt2, setOpt2] = useState("");
+  const [opt2Raw, setOpt2Raw] = useState("");
+  const [opt3, setOpt3] = useState("");
+  const [opt3Raw, setOpt3Raw] = useState("");
+
+  const [fromDate, setFromDate] = useState(() => formatDisplayDate(initDateStr));
+  const [fromDateRaw, setFromDateRaw] = useState(initDateStr);
+  const [toDate, setToDate] = useState("");
+  const [toDateRaw, setToDateRaw] = useState("");
+
+  const datePickerRef1 = useRef<HTMLInputElement>(null);
+  const datePickerRef2 = useRef<HTMLInputElement>(null);
+  const datePickerRef3 = useRef<HTMLInputElement>(null);
+  const fromDatePickerRef = useRef<HTMLInputElement>(null);
+  const toDatePickerRef = useRef<HTMLInputElement>(null);
+
+  const [timePreference, setTimePreference] = useState("Any Time");
+  const [reason, setReason] = useState("");
+  const [err, setErr] = useState("");
+
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (patientRef.current && !patientRef.current.contains(e.target as Node)) {
+        setShowPatientDropdown(false);
+      }
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, []);
+
+  const filteredPatients = useMemo(() => {
+    const q = patientQuery.trim().toLowerCase();
+    if (!q) return patients.slice(0, 15);
+    return patients.filter((p) => {
+      const matchName = (p.name || "").toLowerCase().includes(q);
+      const matchMrn = (p.mrn || "").toLowerCase().includes(q);
+      const matchPhone = (p.phone || "").toLowerCase().includes(q);
+      return matchName || matchMrn || matchPhone;
+    }).slice(0, 20);
+  }, [patients, patientQuery]);
+
+  const handleConfirm = (e: React.FormEvent) => {
+    e.preventDefault();
+    setErr("");
+    if (!selPatient) {
+      setErr("Please select a patient.");
+      return;
+    }
+    if (!providerId) {
+      setErr("Please select a provider.");
+      return;
+    }
+
+    const pat = patients.find((p) => p.id === selPatient);
+    const prov = staff.find((s) => s.id === providerId);
+
+    const mainDate = datePreference === "Specific Date(s)" ? (opt1Raw || initDateStr) : (fromDateRaw || initDateStr);
+
+    const newEntry = {
+      id: "wl_" + Date.now(),
+      facility,
+      patient_id: selPatient,
+      patient_name: pat?.name || patientQuery,
+      mrn: pat?.mrn || "HUHNKR" + selPatient.slice(0, 4),
+      phone: pat?.phone || "",
+      provider_id: providerId,
+      provider_name: prov?.name || "Dr. Ramasamy S",
+      visit_type: visitType !== "--Select--" ? visitType : "Cardiology Consultation",
+      resource: resource !== "--Select--" ? resource : "",
+      mode: apptMode,
+      date_preference: datePreference,
+      dates: datePreference === "Specific Date(s)"
+        ? [opt1Raw, opt2Raw, opt3Raw].filter(Boolean)
+        : [fromDateRaw, toDateRaw].filter(Boolean),
+      preferred_date: mainDate,
+      time_preference: timePreference,
+      reason,
+      created_at: new Date().toISOString(),
+    };
+
+    onConfirm(newEntry);
+  };
+
+  return (
+    <div className="charm-modal-backdrop" onClick={onClose} style={{ zIndex: 9999 }}>
+      <div
+        className="charm-modal-window"
+        style={{ width: 560, maxWidth: "95vw", padding: 0, borderRadius: 6, overflow: "hidden", background: "#fff", boxShadow: "0 10px 25px -5px rgba(0,0,0,0.2)" }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "14px 20px", borderBottom: "1px solid #e2e8f0" }}>
+          <h3 style={{ margin: 0, fontSize: 16, fontWeight: 500, color: "#334155" }}>New Waiting List</h3>
+          <button
+            type="button"
+            onClick={onClose}
+            style={{ background: "transparent", border: "none", fontSize: 18, color: "#64748b", cursor: "pointer", lineHeight: 1 }}
+          >
+            ✕
+          </button>
+        </div>
+
+        {showQuickNewPatient ? (
+          <div style={{ padding: 20 }}>
+            <QuickNewPatientView
+              onCancel={() => setShowQuickNewPatient(false)}
+              onCreated={(created) => {
+                setSelPatient(created.id);
+                setPatientQuery(`${created.name} (${created.mrn})`);
+                setShowQuickNewPatient(false);
+              }}
+            />
+          </div>
+        ) : (
+          <form onSubmit={handleConfirm} style={{ padding: "20px 24px" }}>
+            {err && (
+              <div style={{ background: "#fef2f2", color: "#dc2626", border: "1px solid #fecaca", padding: "6px 12px", borderRadius: 4, fontSize: 12.5, marginBottom: 12 }}>
+                {err}
+              </div>
+            )}
+
+            <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+              {/* Facility */}
+              <div style={{ display: "grid", gridTemplateColumns: "140px 1fr", alignItems: "center", gap: 12 }}>
+                <label style={{ textAlign: "right", fontSize: 13, color: "#334155", fontWeight: 500 }}>Facility</label>
+                <select
+                  value={facility}
+                  onChange={(e) => setFacility(e.target.value)}
+                  style={{ width: "100%", padding: "6px 10px", border: "1px solid #cbd5e1", borderRadius: 4, fontSize: 13, background: "#fff" }}
+                >
+                  <option value="Heal Your Heart Neelankarai - HUH001">Heal Your Heart Neelankarai - HUH001</option>
+                  <option value="Heal Your Heart Royapettah - HUH002">Heal Your Heart Royapettah - HUH002</option>
+                  <option value="Heal Your Heart Manapakkam - HUH003">Heal Your Heart Manapakkam - HUH003</option>
+                </select>
+              </div>
+
+              {/* Patient * */}
+              <div style={{ display: "grid", gridTemplateColumns: "140px 1fr", alignItems: "center", gap: 12 }}>
+                <label style={{ textAlign: "right", fontSize: 13, color: "#334155", fontWeight: 500 }}>
+                  Patient <span style={{ color: "#ef4444" }}>*</span>
+                </label>
+                <div style={{ position: "relative", display: "flex", gap: 6, width: "100%" }} ref={patientRef}>
+                  <div style={{ position: "relative", flex: 1 }}>
+                    <input
+                      type="text"
+                      placeholder="Search by Name / Record ID / Mobile Phone"
+                      value={patientQuery}
+                      onChange={(e) => {
+                        setPatientQuery(e.target.value);
+                        setSelPatient("");
+                        setShowPatientDropdown(true);
+                      }}
+                      onFocus={() => setShowPatientDropdown(true)}
+                      style={{ width: "100%", padding: "6px 26px 6px 10px", border: "1px solid #38bdf8", outline: "none", borderRadius: 4, fontSize: 13 }}
+                    />
+                    {patientQuery && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setPatientQuery("");
+                          setSelPatient("");
+                          setShowPatientDropdown(true);
+                        }}
+                        style={{ position: "absolute", right: 8, top: "50%", transform: "translateY(-50%)", background: "transparent", border: "none", color: "#94a3b8", cursor: "pointer", fontSize: 13 }}
+                      >
+                        ✕
+                      </button>
+                    )}
+                  </div>
+                  <button
+                    type="button"
+                    style={{ background: "#f59e0b", color: "#fff", border: "none", borderRadius: 4, width: 28, height: 28, fontSize: 16, fontWeight: "bold", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}
+                    onClick={() => setShowQuickNewPatient(true)}
+                    title="Add Patient"
+                  >
+                    +
+                  </button>
+
+                  {showPatientDropdown && (
+                    <div style={{ position: "absolute", top: "100%", left: 0, right: 34, background: "#fff", border: "1px solid #cbd5e1", borderRadius: 4, boxShadow: "0 4px 12px rgba(0,0,0,0.15)", maxHeight: 180, overflowY: "auto", zIndex: 100, marginTop: 4 }}>
+                      {filteredPatients.length === 0 ? (
+                        <div style={{ padding: "8px 12px", color: "#64748b", fontSize: 12 }}>No matching patients found.</div>
+                      ) : (
+                        filteredPatients.map((p) => (
+                          <div
+                            key={p.id}
+                            style={{ padding: "6px 10px", cursor: "pointer", borderBottom: "1px solid #f1f5f9", fontSize: 12 }}
+                            onClick={() => {
+                              setSelPatient(p.id);
+                              setPatientQuery(`${p.name} (${p.mrn})`);
+                              setShowPatientDropdown(false);
+                            }}
+                          >
+                            <div style={{ fontWeight: 600, color: "#0f172a" }}>{p.name}</div>
+                            <div style={{ color: "#64748b", fontSize: 11 }}>ID: {p.mrn} {p.phone ? `• Ph: ${p.phone}` : ""}</div>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Provider * */}
+              <div style={{ display: "grid", gridTemplateColumns: "140px 1fr", alignItems: "center", gap: 12 }}>
+                <label style={{ textAlign: "right", fontSize: 13, color: "#334155", fontWeight: 500 }}>
+                  Provider <span style={{ color: "#ef4444" }}>*</span>
+                </label>
+                <select
+                  value={providerId}
+                  onChange={(e) => setProviderId(e.target.value)}
+                  style={{ width: "100%", padding: "6px 10px", border: "1px solid #cbd5e1", borderRadius: 4, fontSize: 13, background: "#fff" }}
+                >
+                  <option value="">--Select--</option>
+                  {staff.filter((s) => ["doctor", "therapist"].includes(s.role)).map((s) => (
+                    <option key={s.id} value={s.id}>{s.name}</option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Visit Type */}
+              <div style={{ display: "grid", gridTemplateColumns: "140px 1fr", alignItems: "center", gap: 12 }}>
+                <label style={{ textAlign: "right", fontSize: 13, color: "#334155", fontWeight: 500 }}>Visit Type</label>
+                <select
+                  value={visitType}
+                  onChange={(e) => setVisitType(e.target.value)}
+                  style={{ width: "100%", padding: "6px 10px", border: "1px solid #cbd5e1", borderRadius: 4, fontSize: 13, background: "#fff" }}
+                >
+                  <option value="--Select--">--Select--</option>
+                  <option value="Cardiology Consultation">Cardiology Consultation</option>
+                  <option value="EECP session">EECP session</option>
+                  <option value="EECP Treatment">EECP Treatment</option>
+                  <option value="Follow-up Visit">Follow-up Visit</option>
+                  <option value="New Patient Visit">New Patient Visit</option>
+                  <option value="Telehealth Video Consult">Telehealth Video Consult</option>
+                  <option value="Walk-in visits">Walk-in visits</option>
+                  <option value="EECP 15th Day Review">EECP 15th Day Review</option>
+                </select>
+              </div>
+
+              {/* Resource */}
+              <div style={{ display: "grid", gridTemplateColumns: "140px 1fr", alignItems: "center", gap: 12 }}>
+                <label style={{ textAlign: "right", fontSize: 13, color: "#334155", fontWeight: 500 }}>Resource</label>
+                <select
+                  value={resource}
+                  onChange={(e) => setResource(e.target.value)}
+                  style={{ width: "100%", padding: "6px 10px", border: "1px solid #cbd5e1", borderRadius: 4, fontSize: 13, background: "#fff" }}
+                >
+                  <option value="--Select--">--Select--</option>
+                  <option value="EECP Bed 1">EECP Bed 1</option>
+                  <option value="EECP Bed 2">EECP Bed 2</option>
+                  <option value="EECP Bed 3">EECP Bed 3</option>
+                  <option value="EECP Bed 4">EECP Bed 4</option>
+                  <option value="Consultation Room 1">Consultation Room 1</option>
+                  <option value="Consultation Room 2">Consultation Room 2</option>
+                </select>
+              </div>
+
+              {/* Appointment Mode */}
+              <div style={{ display: "grid", gridTemplateColumns: "140px 1fr", alignItems: "center", gap: 12 }}>
+                <label style={{ textAlign: "right", fontSize: 13, color: "#334155", fontWeight: 500 }}>Appointment Mode</label>
+                <div style={{ display: "flex", gap: 16, alignItems: "center" }}>
+                  <label style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 13, cursor: "pointer" }}>
+                    <input
+                      type="radio"
+                      name="wl_appt_mode"
+                      checked={apptMode === "In Person"}
+                      onChange={() => setApptMode("In Person")}
+                      style={{ accentColor: "#009688" }}
+                    />
+                    <span>In Person</span>
+                  </label>
+                  <label style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 13, cursor: "pointer" }}>
+                    <input
+                      type="radio"
+                      name="wl_appt_mode"
+                      checked={apptMode === "Phone Call"}
+                      onChange={() => setApptMode("Phone Call")}
+                      style={{ accentColor: "#009688" }}
+                    />
+                    <span>Phone Call</span>
+                  </label>
+                </div>
+              </div>
+
+              {/* Date Preference */}
+              <div style={{ display: "grid", gridTemplateColumns: "140px 1fr", alignItems: "center", gap: 12 }}>
+                <label style={{ textAlign: "right", fontSize: 13, color: "#334155", fontWeight: 500 }}>Date Preference</label>
+                <div style={{ display: "flex", gap: 16, alignItems: "center" }}>
+                  <label style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 13, cursor: "pointer" }}>
+                    <input
+                      type="radio"
+                      name="wl_date_pref"
+                      checked={datePreference === "Specific Date(s)"}
+                      onChange={() => setDatePreference("Specific Date(s)")}
+                      style={{ accentColor: "#009688" }}
+                    />
+                    <span>Specific Date(s)</span>
+                  </label>
+                  <label style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 13, cursor: "pointer" }}>
+                    <input
+                      type="radio"
+                      name="wl_date_pref"
+                      checked={datePreference === "Period"}
+                      onChange={() => setDatePreference("Period")}
+                      style={{ accentColor: "#009688" }}
+                    />
+                    <span>Period</span>
+                  </label>
+                </div>
+              </div>
+
+              {/* Date Inputs based on Date Preference */}
+              {datePreference === "Specific Date(s)" ? (
+                <>
+                  <div style={{ display: "grid", gridTemplateColumns: "140px 1fr", alignItems: "center", gap: 12 }}>
+                    <label style={{ textAlign: "right", fontSize: 13, color: "#334155" }}>Option 1</label>
+                    <div style={{ display: "flex", width: 180, position: "relative" }}>
+                      <input
+                        type="text"
+                        value={opt1}
+                        onChange={(e) => setOpt1(e.target.value)}
+                        style={{ width: "100%", padding: "5px 8px", border: "1px solid #cbd5e1", borderRadius: "4px 0 0 4px", fontSize: 13 }}
+                      />
+                      <input
+                        type="date"
+                        ref={datePickerRef1}
+                        value={opt1Raw}
+                        onChange={(e) => {
+                          setOpt1Raw(e.target.value);
+                          setOpt1(formatDisplayDate(e.target.value));
+                        }}
+                        style={{ position: "absolute", opacity: 0, width: 0, height: 0, pointerEvents: "none" }}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => datePickerRef1.current?.showPicker?.()}
+                        style={{ background: "#f8fafc", border: "1px solid #cbd5e1", borderLeft: "none", borderRadius: "0 4px 4px 0", padding: "5px 8px", cursor: "pointer", color: "#64748b" }}
+                      >
+                        📅
+                      </button>
+                    </div>
+                  </div>
+                  <div style={{ display: "grid", gridTemplateColumns: "140px 1fr", alignItems: "center", gap: 12 }}>
+                    <label style={{ textAlign: "right", fontSize: 13, color: "#334155" }}>Option 2</label>
+                    <div style={{ display: "flex", width: 180, position: "relative" }}>
+                      <input
+                        type="text"
+                        value={opt2}
+                        onChange={(e) => setOpt2(e.target.value)}
+                        style={{ width: "100%", padding: "5px 8px", border: "1px solid #cbd5e1", borderRadius: "4px 0 0 4px", fontSize: 13 }}
+                      />
+                      <input
+                        type="date"
+                        ref={datePickerRef2}
+                        value={opt2Raw}
+                        onChange={(e) => {
+                          setOpt2Raw(e.target.value);
+                          setOpt2(formatDisplayDate(e.target.value));
+                        }}
+                        style={{ position: "absolute", opacity: 0, width: 0, height: 0, pointerEvents: "none" }}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => datePickerRef2.current?.showPicker?.()}
+                        style={{ background: "#f8fafc", border: "1px solid #cbd5e1", borderLeft: "none", borderRadius: "0 4px 4px 0", padding: "5px 8px", cursor: "pointer", color: "#64748b" }}
+                      >
+                        📅
+                      </button>
+                    </div>
+                  </div>
+                  <div style={{ display: "grid", gridTemplateColumns: "140px 1fr", alignItems: "center", gap: 12 }}>
+                    <label style={{ textAlign: "right", fontSize: 13, color: "#334155" }}>Option 3</label>
+                    <div style={{ display: "flex", width: 180, position: "relative" }}>
+                      <input
+                        type="text"
+                        value={opt3}
+                        onChange={(e) => setOpt3(e.target.value)}
+                        style={{ width: "100%", padding: "5px 8px", border: "1px solid #cbd5e1", borderRadius: "4px 0 0 4px", fontSize: 13 }}
+                      />
+                      <input
+                        type="date"
+                        ref={datePickerRef3}
+                        value={opt3Raw}
+                        onChange={(e) => {
+                          setOpt3Raw(e.target.value);
+                          setOpt3(formatDisplayDate(e.target.value));
+                        }}
+                        style={{ position: "absolute", opacity: 0, width: 0, height: 0, pointerEvents: "none" }}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => datePickerRef3.current?.showPicker?.()}
+                        style={{ background: "#f8fafc", border: "1px solid #cbd5e1", borderLeft: "none", borderRadius: "0 4px 4px 0", padding: "5px 8px", cursor: "pointer", color: "#64748b" }}
+                      >
+                        📅
+                      </button>
+                    </div>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div style={{ display: "grid", gridTemplateColumns: "140px 1fr", alignItems: "center", gap: 12 }}>
+                    <label style={{ textAlign: "right", fontSize: 13, color: "#334155" }}>From Date</label>
+                    <div style={{ display: "flex", width: 180, position: "relative" }}>
+                      <input
+                        type="text"
+                        value={fromDate}
+                        onChange={(e) => setFromDate(e.target.value)}
+                        style={{ width: "100%", padding: "5px 8px", border: "1px solid #cbd5e1", borderRadius: "4px 0 0 4px", fontSize: 13 }}
+                      />
+                      <input
+                        type="date"
+                        ref={fromDatePickerRef}
+                        value={fromDateRaw}
+                        onChange={(e) => {
+                          setFromDateRaw(e.target.value);
+                          setFromDate(formatDisplayDate(e.target.value));
+                        }}
+                        style={{ position: "absolute", opacity: 0, width: 0, height: 0, pointerEvents: "none" }}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => fromDatePickerRef.current?.showPicker?.()}
+                        style={{ background: "#f8fafc", border: "1px solid #cbd5e1", borderLeft: "none", borderRadius: "0 4px 4px 0", padding: "5px 8px", cursor: "pointer", color: "#64748b" }}
+                      >
+                        📅
+                      </button>
+                    </div>
+                  </div>
+                  <div style={{ display: "grid", gridTemplateColumns: "140px 1fr", alignItems: "center", gap: 12 }}>
+                    <label style={{ textAlign: "right", fontSize: 13, color: "#334155" }}>To Date</label>
+                    <div style={{ display: "flex", width: 180, position: "relative" }}>
+                      <input
+                        type="text"
+                        value={toDate}
+                        onChange={(e) => setToDate(e.target.value)}
+                        style={{ width: "100%", padding: "5px 8px", border: "1px solid #cbd5e1", borderRadius: "4px 0 0 4px", fontSize: 13 }}
+                      />
+                      <input
+                        type="date"
+                        ref={toDatePickerRef}
+                        value={toDateRaw}
+                        onChange={(e) => {
+                          setToDateRaw(e.target.value);
+                          setToDate(formatDisplayDate(e.target.value));
+                        }}
+                        style={{ position: "absolute", opacity: 0, width: 0, height: 0, pointerEvents: "none" }}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => toDatePickerRef.current?.showPicker?.()}
+                        style={{ background: "#f8fafc", border: "1px solid #cbd5e1", borderLeft: "none", borderRadius: "0 4px 4px 0", padding: "5px 8px", cursor: "pointer", color: "#64748b" }}
+                      >
+                        📅
+                      </button>
+                    </div>
+                  </div>
+                </>
+              )}
+
+              {/* Time Preference */}
+              <div style={{ display: "grid", gridTemplateColumns: "140px 1fr", alignItems: "center", gap: 12 }}>
+                <label style={{ textAlign: "right", fontSize: 13, color: "#334155", fontWeight: 500 }}>Time Preference</label>
+                <select
+                  value={timePreference}
+                  onChange={(e) => setTimePreference(e.target.value)}
+                  style={{ width: "100%", padding: "6px 10px", border: "1px solid #cbd5e1", borderRadius: 4, fontSize: 13, background: "#fff" }}
+                >
+                  <option value="Any Time">Any Time</option>
+                  <option value="Morning">Morning</option>
+                  <option value="Afternoon">Afternoon</option>
+                  <option value="Evening">Evening</option>
+                </select>
+              </div>
+
+              {/* Reason */}
+              <div style={{ display: "grid", gridTemplateColumns: "140px 1fr", alignItems: "flex-start", gap: 12 }}>
+                <label style={{ textAlign: "right", fontSize: 13, color: "#334155", fontWeight: 500, paddingTop: 4 }}>Reason</label>
+                <textarea
+                  value={reason}
+                  onChange={(e) => setReason(e.target.value)}
+                  rows={2}
+                  style={{ width: "100%", padding: "6px 10px", border: "1px solid #cbd5e1", borderRadius: 4, fontSize: 13, resize: "vertical" }}
+                />
+              </div>
+
+              {/* Actions Footer */}
+              <div style={{ display: "grid", gridTemplateColumns: "140px 1fr", alignItems: "center", gap: 12, marginTop: 8 }}>
+                <div></div>
+                <div style={{ display: "flex", gap: 8 }}>
+                  <button
+                    type="submit"
+                    style={{ background: "#f59e0b", color: "#fff", border: "none", borderRadius: 4, padding: "6px 18px", fontSize: 13, fontWeight: 500, cursor: "pointer" }}
+                  >
+                    Confirm
+                  </button>
+                  <button
+                    type="button"
+                    onClick={onClose}
+                    style={{ background: "#f1f5f9", color: "#475569", border: "1px solid #cbd5e1", borderRadius: 4, padding: "6px 16px", fontSize: 13, cursor: "pointer" }}
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            </div>
+          </form>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function Schedule() {
   const { user, staff, patients, resources, refresh, notify } = useApp();
   const [view, setView] = useState("List View");
@@ -442,43 +998,48 @@ function Schedule() {
   const [availability, setAvailability] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(true);
   const [calSubtab, setCalSubtab] = useState("Calendar");
+  const [waitingListView, setWaitingListView] = useState<"Day" | "Week" | "Month">("Day");
+  const [waitingPrefillDate, setWaitingPrefillDate] = useState<string>("");
   const [reschedule, setReschedule] = useState<Row>();
   const [statusModal, setStatusModal] = useState<Row>();
   const [bookingSlot, setBookingSlot] = useState<{
     startAt: string;
     providerId?: string;
     resourceId?: string;
+    patientId?: string;
     duration?: number;
   } | null>(null);
   const [selectedAppt, setSelectedAppt] = useState<Row | null>(null);
   const [error, setError] = useState<unknown>();
 
   const [waitingListModal, setWaitingListModal] = useState(false);
-  const [waitingEntries, setWaitingEntries] = useState<any[]>([
-    {
-      id: "w1",
-      patient_id: "bb60e02d-7762-4448-89c8-0f1da175d748",
-      patient_name: "Issac G",
-      mrn: "HUHNKR7187",
-      provider_name: "Dr. Ramasamy S",
-      preferred_date: today(),
-      preferred_time: "Morning (8:00 AM - 12:00 PM)",
-      visit_type: "EECP Treatment",
-      urgency: "High",
-      phone: "9940322368",
-    },
-    {
-      id: "w2",
-      patient_name: "Ramachandran AS",
-      mrn: "HUHNKR7061",
-      provider_name: "Vijayalakshmi K",
-      preferred_date: today(),
-      preferred_time: "Afternoon (12:00 PM - 4:00 PM)",
-      visit_type: "EECP Treatment Started",
-      urgency: "Urgent",
-      phone: "9940322368",
-    },
-  ]);
+  const [waitingEntries, setWaitingEntries] = useState<any[]>(() => {
+    try {
+      const saved = localStorage.getItem("hyh_waiting_list_entries");
+      if (saved) return JSON.parse(saved);
+    } catch {}
+    return [];
+  });
+
+  const addWaitingEntry = (entry: any) => {
+    setWaitingEntries((prev) => {
+      const next = [entry, ...prev];
+      try {
+        localStorage.setItem("hyh_waiting_list_entries", JSON.stringify(next));
+      } catch {}
+      return next;
+    });
+  };
+
+  const removeWaitingEntry = (id: string) => {
+    setWaitingEntries((prev) => {
+      const next = prev.filter((e) => e.id !== id);
+      try {
+        localStorage.setItem("hyh_waiting_list_entries", JSON.stringify(next));
+      } catch {}
+      return next;
+    });
+  };
 
   // Reports Filter Matrix
   const [reportType, setReportType] = useState<"Appointment" | "Waiting List" | "Appointment Request">("Appointment");
@@ -707,14 +1268,15 @@ function Schedule() {
       new Date(a.start_at) < rangeEnd,
   );
 
+  const activeCalView = calSubtab === "Waiting List" ? waitingListView : view;
   const shift = (amount: number) => {
-    if (view === "Month") {
+    if (activeCalView === "Month") {
       const parts = date.split("-").map(Number);
       const target = new Date(parts[0], parts[1] - 1 + amount, 1);
       const y = target.getFullYear();
       const m = String(target.getMonth() + 1).padStart(2, "0");
       setDate(`${y}-${m}-01`);
-    } else if (view === "Week") {
+    } else if (activeCalView === "Week") {
       const d = new Date(date + "T12:00:00Z");
       d.setUTCDate(d.getUTCDate() + amount * 7);
       setDate(d.toISOString().slice(0, 10));
@@ -737,6 +1299,40 @@ function Schedule() {
         day: "numeric",
         year: "numeric",
       }).format(new Date(date + "T12:00:00Z"));
+
+  const waitingDateObj = new Date(date + "T12:00:00Z");
+  const waitingDayTitle = new Intl.DateTimeFormat("en-US", {
+    weekday: "long",
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  }).format(waitingDateObj);
+
+  const startOfWeek = new Date(waitingDateObj);
+  startOfWeek.setUTCDate(waitingDateObj.getUTCDate() - waitingDateObj.getUTCDay());
+  const endOfWeek = new Date(startOfWeek);
+  endOfWeek.setUTCDate(startOfWeek.getUTCDate() + 6);
+  const waitingWeekTitle = `${new Intl.DateTimeFormat("en-US", { month: "short", day: "2-digit" }).format(startOfWeek)} - ${new Intl.DateTimeFormat("en-US", { month: "short", day: "2-digit", year: "numeric" }).format(endOfWeek)}`;
+  const waitingMonthTitle = new Intl.DateTimeFormat("en-US", {
+    month: "long",
+    year: "numeric",
+  }).format(waitingDateObj);
+
+  const weekDays = Array.from({ length: 7 }, (_, i) => {
+    const d = new Date(startOfWeek);
+    d.setUTCDate(startOfWeek.getUTCDate() + i);
+    return d;
+  });
+
+  const dayEntries = waitingEntries.filter(
+    (e) => e.preferred_date === date || (Array.isArray(e.dates) && e.dates.includes(date))
+  );
+  const weekStartStr = startOfWeek.toISOString().slice(0, 10);
+  const weekEndStr = endOfWeek.toISOString().slice(0, 10);
+  const weekEntries = waitingEntries.filter((e) => {
+    const d = e.preferred_date || (Array.isArray(e.dates) ? e.dates[0] : "");
+    return d >= weekStartStr && d <= weekEndStr;
+  });
 
   // Authentic CharmHealth Month Grid calculation (Sun - Sat 7-col)
   const monthCells = useMemo<
@@ -1105,6 +1701,34 @@ function Schedule() {
                                   </div>
                                 );
                               })}
+                              {!isSlotEmpty && ["reception", "doctor", "therapist", "admin"].includes(user.role) && (
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setBookingSlot({
+                                      startAt: slotDateStr,
+                                      providerId: provider || undefined,
+                                      duration: 30,
+                                    });
+                                  }}
+                                  style={{
+                                    border: "1px dashed #93c5fd",
+                                    borderRadius: 3,
+                                    background: "#eff6ff",
+                                    color: "#1d4ed8",
+                                    fontSize: 9.5,
+                                    padding: "2px 4px",
+                                    cursor: "pointer",
+                                    marginTop: 3,
+                                    width: "100%",
+                                    textAlign: "center",
+                                  }}
+                                  title={`Add another appointment on ${key} at ${hour}`}
+                                >
+                                  + Book another
+                                </button>
+                              )}
                             </div>
                           );
                         })}
@@ -1154,7 +1778,7 @@ function Schedule() {
                         <div
                           className={`charm-day-slot-area ${isSlotEmpty ? "empty-slot" : "filled-slot"}`}
                           onClick={() => {
-                            if (isSlotEmpty && ["reception", "doctor", "therapist", "admin"].includes(user.role)) {
+                            if (["reception", "doctor", "therapist", "admin"].includes(user.role)) {
                               setBookingSlot({
                                 startAt: timeKey,
                                 providerId: provider || undefined,
@@ -1162,7 +1786,7 @@ function Schedule() {
                               });
                             }
                           }}
-                          title={isSlotEmpty ? `Click to book appointment at ${hour}` : undefined}
+                          title={`Click to book appointment at ${hour}`}
                         >
                           {isSlotEmpty ? (
                             <div className="charm-day-empty-placeholder">
@@ -1198,6 +1822,35 @@ function Schedule() {
                                   </div>
                                 );
                               })}
+                              {["reception", "doctor", "therapist", "admin"].includes(user.role) && (
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setBookingSlot({
+                                      startAt: timeKey,
+                                      providerId: provider || undefined,
+                                      duration: 30,
+                                    });
+                                  }}
+                                  style={{
+                                    border: "1px dashed #cbd5e1",
+                                    borderRadius: 4,
+                                    background: "#f8fafc",
+                                    color: "#64748b",
+                                    fontSize: 11,
+                                    padding: "6px 10px",
+                                    cursor: "pointer",
+                                    display: "inline-flex",
+                                    alignItems: "center",
+                                    gap: 4,
+                                    alignSelf: "center",
+                                  }}
+                                  title={`Add another appointment at ${hour}`}
+                                >
+                                  + Book another
+                                </button>
+                              )}
                             </div>
                           )}
                         </div>
@@ -1477,88 +2130,367 @@ function Schedule() {
         </div>
       )}
 
-      {/* 3. Authentic CharmHealth Waiting List Tab (Frame 078) */}
+      {/* 3. Authentic CharmHealth Waiting List Tab (Frame 078 & User Uploaded Screenshots) */}
       {calSubtab === "Waiting List" && (
         <div className="charm-waiting-list-view">
-          <div className="charm-waiting-top-bar">
-            <div className="charm-view-pills">
-              {["Day", "Week", "Month"].map((v) => (
+          <div className="charm-waiting-top-bar" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", paddingBottom: 6 }}>
+            {/* View Switching Tabs: Day, Week, Month */}
+            <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
+              {(["Day", "Week", "Month"] as const).map((v) => (
                 <button
                   key={v}
-                  className={`charm-view-btn ${v === "Month" ? "active" : ""}`}
+                  type="button"
+                  onClick={() => setWaitingListView(v)}
+                  style={{
+                    background: "transparent",
+                    border: "none",
+                    borderBottom: waitingListView === v ? "2px solid #009688" : "2px solid transparent",
+                    color: waitingListView === v ? "#009688" : "#475569",
+                    fontWeight: waitingListView === v ? 600 : 500,
+                    fontSize: 13,
+                    padding: "4px 4px 6px",
+                    cursor: "pointer",
+                  }}
                 >
                   {v}
                 </button>
               ))}
             </div>
 
-            <div className="charm-date-navigator">
-              <span className="charm-date-title">{new Intl.DateTimeFormat("en-US", { month: "long", year: "numeric" }).format(new Date(date + "T12:00:00Z"))}</span>
-              <button type="button" className="charm-today-btn" onClick={() => setDate(today())}>
+            {/* Date Navigator */}
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <span style={{ fontSize: 13.5, fontWeight: 700, color: "#0f172a" }}>
+                {waitingListView === "Day"
+                  ? waitingDayTitle
+                  : waitingListView === "Week"
+                  ? waitingWeekTitle
+                  : waitingMonthTitle}
+              </span>
+              <button
+                type="button"
+                onClick={() => setDate(today())}
+                style={{
+                  background: "#f1f5f9",
+                  color: "#475569",
+                  border: "1px solid #cbd5e1",
+                  borderRadius: 3,
+                  padding: "3px 10px",
+                  fontSize: 12,
+                  fontWeight: 500,
+                  cursor: "pointer",
+                }}
+              >
                 Today
               </button>
-              <button type="button" className="charm-nav-arrow" onClick={() => shift(-1)} style={{ background: "#0d9488", color: "#fff", border: "none" }}>
+              <button
+                type="button"
+                onClick={() => shift(-1)}
+                style={{
+                  background: "#009688",
+                  color: "#fff",
+                  border: "none",
+                  borderRadius: 3,
+                  width: 24,
+                  height: 24,
+                  display: "inline-flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  fontSize: 12,
+                  fontWeight: "bold",
+                  cursor: "pointer",
+                }}
+              >
                 &lt;
               </button>
-              <button type="button" className="charm-nav-arrow" onClick={() => shift(1)} style={{ background: "#0d9488", color: "#fff", border: "none" }}>
+              <button
+                type="button"
+                onClick={() => shift(1)}
+                style={{
+                  background: "#009688",
+                  color: "#fff",
+                  border: "none",
+                  borderRadius: 3,
+                  width: 24,
+                  height: 24,
+                  display: "inline-flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  fontSize: 12,
+                  fontWeight: "bold",
+                  cursor: "pointer",
+                }}
+              >
                 &gt;
               </button>
             </div>
 
+            {/* + Waiting List Orange Button */}
             <div>
               <button
                 type="button"
-                className="charm-btn-orange"
-                onClick={() => setWaitingListModal(true)}
+                style={{
+                  background: "#f59e0b",
+                  color: "#ffffff",
+                  border: "none",
+                  borderRadius: 3,
+                  padding: "6px 14px",
+                  fontSize: 12.5,
+                  fontWeight: 600,
+                  cursor: "pointer",
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 4,
+                }}
+                onClick={() => {
+                  setWaitingPrefillDate(date);
+                  setWaitingListModal(true);
+                }}
               >
                 + Waiting List
               </button>
             </div>
           </div>
 
-          <div style={{ fontSize: 14, fontWeight: 700, color: "#0f172a", margin: "6px 0 10px" }}>
+          <div style={{ fontSize: 13.5, fontWeight: 700, color: "#1e293b", margin: "4px 0 6px" }}>
             Waiting List
           </div>
 
-          <div className="charm-cal-month-grid">
-            {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((dayName) => (
-              <div key={dayName} className="charm-cal-month-header">
-                {dayName}
-              </div>
-            ))}
-
-            {Array.from({ length: 35 }, (_, idx) => {
-              const dayNum = (idx % 30) + 1;
-              const isInactive = idx < 2 || idx > 31;
-              const hasWaiting = idx === 10 || idx === 12;
-
-              return (
-                <div
-                  key={idx}
-                  className={`charm-cal-month-cell ${isInactive ? "inactive-month" : ""}`}
-                  onClick={() => setWaitingListModal(true)}
-                  style={{ cursor: "pointer" }}
-                  title="Click to add patient to waiting list"
-                >
-                  <span className="charm-cal-day-num">{dayNum}</span>
-                  {hasWaiting && (
-                    <div>
-                      {idx === 10 && (
-                        <div className="charm-waiting-item-chip">
-                          Issac G [HUHNKR7187] (EECP)
-                        </div>
-                      )}
-                      {idx === 12 && (
-                        <div className="charm-waiting-item-chip" style={{ background: "#fef3c7", borderColor: "#fde68a", color: "#b45309" }}>
-                          Ramachandran AS [HUHNKR7061]
-                        </div>
-                      )}
-                    </div>
-                  )}
+          {/* DAY VIEW */}
+          {waitingListView === "Day" && (
+            <div
+              style={{
+                background: "#ffffff",
+                border: "1px solid #e2e8f0",
+                borderRadius: 4,
+                minHeight: 440,
+                width: "100%",
+                padding: dayEntries.length === 0 ? 0 : 16,
+                display: dayEntries.length === 0 ? "flex" : "block",
+                alignItems: "center",
+                justifyContent: "center",
+              }}
+            >
+              {dayEntries.length === 0 ? (
+                <div style={{ color: "#334155", fontSize: 13, textAlign: "center" }}>
+                  Waiting List not available
                 </div>
-              );
-            })}
-          </div>
+              ) : (
+                <table className="charm-reports-table" style={{ width: "100%" }}>
+                  <thead>
+                    <tr>
+                      <th>Patient Name</th>
+                      <th>MRN</th>
+                      <th>Phone</th>
+                      <th>Facility</th>
+                      <th>Provider</th>
+                      <th>Visit Type</th>
+                      <th>Time Preference</th>
+                      <th>Mode</th>
+                      <th>Reason</th>
+                      <th style={{ textAlign: "right" }}>Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {dayEntries.map((entry) => (
+                      <tr key={entry.id}>
+                        <td style={{ fontWeight: 600, color: "#0f172a" }}>{entry.patient_name}</td>
+                        <td style={{ color: "#009688", fontWeight: 500 }}>{entry.mrn || "—"}</td>
+                        <td>{entry.phone || "—"}</td>
+                        <td>{entry.facility || "Heal Your Heart Neelankarai - HUH001"}</td>
+                        <td>{entry.provider_name || "—"}</td>
+                        <td><span className="badge-eecp">{entry.visit_type || "Consultation"}</span></td>
+                        <td>{entry.time_preference || "Any Time"}</td>
+                        <td>{entry.mode || "In Person"}</td>
+                        <td style={{ maxWidth: 160, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                          {entry.reason || "—"}
+                        </td>
+                        <td style={{ textAlign: "right" }}>
+                          <div style={{ display: "inline-flex", gap: 6, alignItems: "center" }}>
+                            <button
+                              type="button"
+                              className="charm-btn-default"
+                              style={{ fontSize: 11, padding: "3px 8px", background: "#f0fdf4", color: "#166534", borderColor: "#bbf7d0" }}
+                              onClick={() => {
+                                setBookingSlot({
+                                  startAt: date + "T10:00",
+                                  providerId: entry.provider_id,
+                                  patientId: entry.patient_id,
+                                  duration: 30,
+                                });
+                              }}
+                              title="Convert to appointment"
+                            >
+                              Book Appt
+                            </button>
+                            <button
+                              type="button"
+                              style={{ background: "transparent", border: "none", color: "#94a3b8", cursor: "pointer", fontSize: 14 }}
+                              onClick={() => removeWaitingEntry(entry.id)}
+                              title="Remove from waiting list"
+                            >
+                              ✕
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+            </div>
+          )}
+
+          {/* WEEK VIEW */}
+          {waitingListView === "Week" && (
+            <div
+              style={{
+                background: "#ffffff",
+                border: "1px solid #e2e8f0",
+                borderRadius: 4,
+                minHeight: 440,
+                width: "100%",
+                padding: 16,
+              }}
+            >
+              {weekEntries.length === 0 ? (
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "center", minHeight: 380, color: "#334155", fontSize: 13 }}>
+                  Waiting List not available
+                </div>
+              ) : (
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 10 }}>
+                  {weekDays.map((wd) => {
+                    const dateStr = wd.toISOString().slice(0, 10);
+                    const entriesForDay = weekEntries.filter(
+                      (e) => e.preferred_date === dateStr || (Array.isArray(e.dates) && e.dates.includes(dateStr))
+                    );
+                    const isToday = dateStr === today();
+                    return (
+                      <div
+                        key={dateStr}
+                        style={{
+                          background: isToday ? "#f0fdfa" : "#f8fafc",
+                          border: isToday ? "1px solid #99f6e4" : "1px solid #e2e8f0",
+                          borderRadius: 4,
+                          padding: 8,
+                          minHeight: 220,
+                        }}
+                      >
+                        <div
+                          style={{
+                            fontWeight: 600,
+                            fontSize: 12,
+                            color: isToday ? "#0f766e" : "#334155",
+                            borderBottom: "1px solid #cbd5e1",
+                            paddingBottom: 4,
+                            marginBottom: 8,
+                            display: "flex",
+                            justifyContent: "space-between",
+                          }}
+                        >
+                          <span>{new Intl.DateTimeFormat("en-US", { weekday: "short" }).format(wd)}</span>
+                          <span>{wd.getMonth() + 1}/{wd.getDate()}</span>
+                        </div>
+                        {entriesForDay.length === 0 ? (
+                          <div style={{ fontSize: 11, color: "#94a3b8", textAlign: "center", marginTop: 24 }}>
+                            No entries
+                          </div>
+                        ) : (
+                          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                            {entriesForDay.map((e) => (
+                              <div
+                                key={e.id}
+                                style={{
+                                  background: "#ffffff",
+                                  border: "1px solid #cbd5e1",
+                                  borderRadius: 3,
+                                  padding: 6,
+                                  fontSize: 11,
+                                }}
+                              >
+                                <div style={{ fontWeight: 600, color: "#0f172a" }}>{e.patient_name}</div>
+                                <div style={{ color: "#009688", fontSize: 10 }}>{e.mrn || "HUHNKR"}</div>
+                                <div style={{ color: "#64748b", marginTop: 2 }}>{e.visit_type || "Consultation"}</div>
+                                <div style={{ color: "#64748b" }}>🕒 {e.time_preference || "Any Time"}</div>
+                                <button
+                                  type="button"
+                                  style={{
+                                    marginTop: 4,
+                                    fontSize: 10,
+                                    padding: "2px 6px",
+                                    background: "#f0fdf4",
+                                    color: "#166534",
+                                    border: "1px solid #bbf7d0",
+                                    borderRadius: 2,
+                                    cursor: "pointer",
+                                    width: "100%",
+                                  }}
+                                  onClick={() => {
+                                    setBookingSlot({
+                                      startAt: dateStr + "T10:00",
+                                      providerId: e.provider_id,
+                                      patientId: e.patient_id,
+                                      duration: 30,
+                                    });
+                                  }}
+                                >
+                                  Book Appt
+                                </button>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* MONTH VIEW */}
+          {waitingListView === "Month" && (
+            <div className="charm-cal-month-grid">
+              {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((dayName) => (
+                <div key={dayName} className="charm-cal-month-header">
+                  {dayName}
+                </div>
+              ))}
+
+              {monthCells.map((cell, idx) => {
+                const cellEntries = waitingEntries.filter(
+                  (e) => e.preferred_date === cell.dateStr || (Array.isArray(e.dates) && e.dates.includes(cell.dateStr))
+                );
+
+                return (
+                  <div
+                    key={idx}
+                    className={`charm-cal-month-cell ${!cell.isCurrentMonth ? "inactive-month" : ""}`}
+                    onClick={() => {
+                      setWaitingPrefillDate(cell.dateStr);
+                      setWaitingListModal(true);
+                    }}
+                    style={{ cursor: "pointer" }}
+                    title={`Click to add patient to waiting list on ${cell.dateStr}`}
+                  >
+                    <span className="charm-cal-day-num">{cell.dayNum}</span>
+                    {cellEntries.length > 0 && (
+                      <div style={{ display: "flex", flexDirection: "column", gap: 3, marginTop: 2 }}>
+                        {cellEntries.map((e) => (
+                          <div
+                            key={e.id}
+                            className="charm-waiting-item-chip"
+                            title={`${e.patient_name} [${e.mrn}] - ${e.visit_type}`}
+                          >
+                            {e.patient_name} [{e.mrn || "HUHNKR"}]
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </div>
       )}
 
@@ -1946,114 +2878,26 @@ function Schedule() {
         </div>
       )}
 
-      {/* Waiting List Modal */}
+      {/* Authentic CharmHealth New Waiting List Modal (Frame 078 / User Uploaded Screenshot) */}
       {waitingListModal && (
-        <Modal title="Add Patient to Waiting List" onClose={() => setWaitingListModal(false)}>
-          <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-            <div>
-              <label style={{ fontSize: 12, fontWeight: 600, color: "#334155", display: "block", marginBottom: 4 }}>
-                Patient *
-              </label>
-              <select style={{ width: "100%", padding: "6px 8px", border: "1px solid #cbd5e1", borderRadius: 4 }}>
-                {patients.map((p) => (
-                  <option key={p.id} value={p.id}>
-                    {p.name} [{p.mrn || "HUHNKR" + p.id.slice(0, 4)}]
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-              <div>
-                <label style={{ fontSize: 12, fontWeight: 600, color: "#334155", display: "block", marginBottom: 4 }}>
-                  Preferred Provider
-                </label>
-                <select style={{ width: "100%", padding: "6px 8px", border: "1px solid #cbd5e1", borderRadius: 4 }}>
-                  <option value="">Any Available Doctor</option>
-                  {staff.filter((s) => ["doctor", "therapist"].includes(s.role)).map((s) => (
-                    <option key={s.id} value={s.id}>{formatDoctorName(s.name)}</option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label style={{ fontSize: 12, fontWeight: 600, color: "#334155", display: "block", marginBottom: 4 }}>
-                  Visit Type
-                </label>
-                <select style={{ width: "100%", padding: "6px 8px", border: "1px solid #cbd5e1", borderRadius: 4 }}>
-                  <option>EECP Treatment</option>
-                  <option>Cardiology Consultation</option>
-                  <option>2D Echo & Doppler</option>
-                </select>
-              </div>
-            </div>
-
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-              <div>
-                <label style={{ fontSize: 12, fontWeight: 600, color: "#334155", display: "block", marginBottom: 4 }}>
-                  Preferred Date
-                </label>
-                <input type="date" defaultValue={today()} style={{ width: "100%", padding: "6px 8px", border: "1px solid #cbd5e1", borderRadius: 4 }} />
-              </div>
-              <div>
-                <label style={{ fontSize: 12, fontWeight: 600, color: "#334155", display: "block", marginBottom: 4 }}>
-                  Preferred Time Slot
-                </label>
-                <select style={{ width: "100%", padding: "6px 8px", border: "1px solid #cbd5e1", borderRadius: 4 }}>
-                  <option>Morning (8:00 AM - 12:00 PM)</option>
-                  <option>Afternoon (12:00 PM - 4:00 PM)</option>
-                  <option>Evening (4:00 PM - 8:00 PM)</option>
-                </select>
-              </div>
-            </div>
-
-            <div>
-              <label style={{ fontSize: 12, fontWeight: 600, color: "#334155", display: "block", marginBottom: 4 }}>
-                Clinical Priority
-              </label>
-              <div style={{ display: "flex", gap: 14 }}>
-                <label style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 12 }}>
-                  <input type="radio" name="wl_pri" defaultChecked />
-                  <span>Routine</span>
-                </label>
-                <label style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 12 }}>
-                  <input type="radio" name="wl_pri" />
-                  <span style={{ color: "#ea580c", fontWeight: 600 }}>Urgent</span>
-                </label>
-              </div>
-            </div>
-
-            <div>
-              <label style={{ fontSize: 12, fontWeight: 600, color: "#334155", display: "block", marginBottom: 4 }}>
-                Remarks
-              </label>
-              <textarea rows={2} placeholder="Reason for waiting list placement..." style={{ width: "100%", padding: "6px 8px", border: "1px solid #cbd5e1", borderRadius: 4 }} />
-            </div>
-
-            <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginTop: 10 }}>
-              <button
-                type="button"
-                className="charm-btn-orange"
-                onClick={() => {
-                  setWaitingListModal(false);
-                  notify("Patient added to Waiting List queue.");
-                }}
-              >
-                Add to Waiting List
-              </button>
-              <button
-                type="button"
-                className="charm-btn-default"
-                onClick={() => setWaitingListModal(false)}
-              >
-                Cancel
-              </button>
-            </div>
-          </div>
-        </Modal>
+        <NewWaitingListModal
+          initialDate={waitingPrefillDate || date}
+          onClose={() => {
+            setWaitingListModal(false);
+            setWaitingPrefillDate("");
+          }}
+          onConfirm={(entry) => {
+            addWaitingEntry(entry);
+            setWaitingListModal(false);
+            setWaitingPrefillDate("");
+            notify("Patient added to Waiting List.");
+          }}
+        />
       )}
 
       {(add || bookingSlot) && (
         <AppointmentForm
+          patientId={bookingSlot?.patientId}
           initialStart={bookingSlot?.startAt}
           initialProviderId={bookingSlot?.providerId}
           initialResourceId={bookingSlot?.resourceId}

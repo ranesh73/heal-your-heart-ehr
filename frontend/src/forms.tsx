@@ -117,7 +117,7 @@ export function PatientForm({
   );
 }
 
-function QuickNewPatientView({
+export function QuickNewPatientView({
   onCancel,
   onCreated,
 }: {
@@ -666,6 +666,7 @@ export function AppointmentForm({
   );
   const [intervalDays, setIntervalDays] = useState<number>(1);
   const [skipSundays, setSkipSundays] = useState(true);
+  const [allowOverlap, setAllowOverlap] = useState(true);
   const [reason, setReason] = useState(appointment?.reason || "");
   const [message, setMessage] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -739,6 +740,7 @@ export function AppointmentForm({
         start_at: toISO(localTimeString),
         duration_minutes: Number(duration),
         reason: reason || undefined,
+        allow_overlap: allowOverlap,
       };
 
       if (appointment) {
@@ -1235,6 +1237,22 @@ export function AppointmentForm({
                 />
                 <span style={{ fontSize: 12, color: "#64748b" }}>minutes</span>
               </div>
+            </div>
+
+            {/* Concurrent Booking Option */}
+            <div className="charm-form-row">
+              <label className="charm-field-label">Slot Booking</label>
+              <label style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 13, cursor: "pointer" }}>
+                <input
+                  type="checkbox"
+                  checked={allowOverlap}
+                  onChange={(e) => setAllowOverlap(e.target.checked)}
+                  style={{ accentColor: "#f59e0b", width: 15, height: 15, cursor: "pointer" }}
+                />
+                <span style={{ color: "#334155", fontWeight: 500 }}>
+                  Allow multiple appointments in same time slot (Concurrent booking)
+                </span>
+              </label>
             </div>
 
             {periodType === "period" && (

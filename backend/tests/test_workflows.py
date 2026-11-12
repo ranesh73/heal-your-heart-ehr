@@ -176,6 +176,12 @@ def test_scheduling_conflicts_recurrence_rollback_and_reschedule():
     assert len(ok(c.get('/api/appointments')))==before
     moved=ok(c.post('/api/appointments/'+a['id']+'/reschedule',json={'version':a['version'],'start_at':date_slot(8,12),'duration_minutes':30,'provider_id':a['provider_id'],'resource_id':None,'reason':'Synthetic schedule correction'}))
     assert moved['id']==a['id'] and moved['start_at']!=a['start_at']
+    # When allow_overlap=True, concurrent appointments for the same provider at the same slot are allowed
+    p2=patient(c)
+    book2=booking(c,p2,day=8,hour=12)
+    book2['allow_overlap']=True
+    a2=ok(c.post('/api/appointments',json=book2))[0]
+    assert a2['start_at']==moved['start_at'] and a2['patient_id']!=moved['patient_id']
     ok(c.post('/api/appointments',json=booking(c,p,day=8,hour=22)),409)
 
 
