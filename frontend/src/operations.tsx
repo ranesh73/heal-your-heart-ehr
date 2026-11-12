@@ -520,7 +520,22 @@ function NewWaitingListModal({
   const handleConfirm = (e: React.FormEvent) => {
     e.preventDefault();
     setErr("");
-    if (!selPatient) {
+    let targetPatientId = selPatient;
+    if (!targetPatientId && patientQuery.trim()) {
+      const q = patientQuery.trim().toLowerCase();
+      const match = patients.find(
+        (p) =>
+          (p.name || "").toLowerCase() === q ||
+          (p.mrn || "").toLowerCase() === q ||
+          `${p.name} (${p.mrn})`.toLowerCase() === q ||
+          (p.name || "").toLowerCase().includes(q)
+      );
+      if (match) {
+        targetPatientId = match.id;
+        setSelPatient(match.id);
+      }
+    }
+    if (!targetPatientId) {
       setErr("Please select a patient.");
       return;
     }
@@ -529,7 +544,7 @@ function NewWaitingListModal({
       return;
     }
 
-    const pat = patients.find((p) => p.id === selPatient);
+    const pat = patients.find((p) => p.id === targetPatientId);
     const prov = staff.find((s) => s.id === providerId);
 
     const mainDate = datePreference === "Specific Date(s)" ? (opt1Raw || initDateStr) : (fromDateRaw || initDateStr);
@@ -537,7 +552,7 @@ function NewWaitingListModal({
     const newEntry = {
       id: "wl_" + Date.now(),
       facility,
-      patient_id: selPatient,
+      patient_id: targetPatientId,
       patient_name: pat?.name || patientQuery,
       mrn: pat?.mrn || "HUHNKR" + selPatient.slice(0, 4),
       phone: pat?.phone || "",
@@ -560,76 +575,129 @@ function NewWaitingListModal({
   };
 
   return (
-    <div className="charm-modal-backdrop" onClick={onClose} style={{ zIndex: 9999 }}>
+    <div
+      className="charm-modal-backdrop"
+      onClick={onClose}
+      style={{
+        position: "fixed",
+        inset: 0,
+        backgroundColor: "rgba(15, 23, 42, 0.45)",
+        backdropFilter: "blur(2px)",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        zIndex: 9999,
+        padding: "16px",
+      }}
+    >
       <div
         className="charm-modal-window"
-        style={{ width: 560, maxWidth: "95vw", padding: 0, borderRadius: 6, overflow: "hidden", background: "#fff", boxShadow: "0 10px 25px -5px rgba(0,0,0,0.2)" }}
+        style={{
+          width: 580,
+          maxWidth: "96vw",
+          maxHeight: "92vh",
+          display: "flex",
+          flexDirection: "column",
+          borderRadius: 6,
+          overflow: "hidden",
+          background: "#ffffff",
+          boxShadow: "0 20px 25px -5px rgba(0, 0, 0, 0.3), 0 8px 10px -6px rgba(0, 0, 0, 0.2)",
+        }}
         onClick={(e) => e.stopPropagation()}
       >
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "14px 20px", borderBottom: "1px solid #e2e8f0" }}>
-          <h3 style={{ margin: 0, fontSize: 16, fontWeight: 500, color: "#334155" }}>New Waiting List</h3>
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            padding: "12px 20px",
+            background: "#f8fafc",
+            borderBottom: "1px solid #e2e8f0",
+          }}
+        >
+          <h3 style={{ margin: 0, fontSize: 17, fontWeight: 500, color: "#334155" }}>
+            New Waiting List
+          </h3>
           <button
             type="button"
             onClick={onClose}
-            style={{ background: "transparent", border: "none", fontSize: 18, color: "#64748b", cursor: "pointer", lineHeight: 1 }}
+            aria-label="Close"
+            style={{
+              background: "transparent",
+              border: "none",
+              fontSize: 18,
+              color: "#64748b",
+              cursor: "pointer",
+              lineHeight: 1,
+              padding: "2px 6px",
+            }}
           >
             ✕
           </button>
         </div>
 
-        {showQuickNewPatient ? (
-          <div style={{ padding: 20 }}>
-            <QuickNewPatientView
-              onCancel={() => setShowQuickNewPatient(false)}
-              onCreated={(created) => {
-                setSelPatient(created.id);
-                setPatientQuery(`${created.name} (${created.mrn})`);
-                setShowQuickNewPatient(false);
-              }}
-            />
-          </div>
-        ) : (
-          <form onSubmit={handleConfirm} style={{ padding: "20px 24px" }}>
-            {err && (
-              <div style={{ background: "#fef2f2", color: "#dc2626", border: "1px solid #fecaca", padding: "6px 12px", borderRadius: 4, fontSize: 12.5, marginBottom: 12 }}>
-                {err}
-              </div>
-            )}
+        <div style={{ overflowY: "auto", maxHeight: "calc(92vh - 50px)" }}>
+          {showQuickNewPatient ? (
+            <div style={{ padding: 20 }}>
+              <QuickNewPatientView
+                onCancel={() => setShowQuickNewPatient(false)}
+                onCreated={(created) => {
+                  setSelPatient(created.id);
+                  setPatientQuery(`${created.name} (${created.mrn})`);
+                  setShowQuickNewPatient(false);
+                }}
+              />
+            </div>
+          ) : (
+            <form onSubmit={handleConfirm} style={{ padding: "20px 24px" }}>
+              {err && (
+                <div style={{ background: "#fef2f2", color: "#dc2626", border: "1px solid #fecaca", padding: "6px 12px", borderRadius: 4, fontSize: 12.5, marginBottom: 12 }}>
+                  {err}
+                </div>
+              )}
 
-            <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-              {/* Facility */}
-              <div style={{ display: "grid", gridTemplateColumns: "140px 1fr", alignItems: "center", gap: 12 }}>
-                <label style={{ textAlign: "right", fontSize: 13, color: "#334155", fontWeight: 500 }}>Facility</label>
-                <select
-                  value={facility}
-                  onChange={(e) => setFacility(e.target.value)}
-                  style={{ width: "100%", padding: "6px 10px", border: "1px solid #cbd5e1", borderRadius: 4, fontSize: 13, background: "#fff" }}
-                >
-                  <option value="Heal Your Heart Neelankarai - HUH001">Heal Your Heart Neelankarai - HUH001</option>
-                  <option value="Heal Your Heart Royapettah - HUH002">Heal Your Heart Royapettah - HUH002</option>
-                  <option value="Heal Your Heart Manapakkam - HUH003">Heal Your Heart Manapakkam - HUH003</option>
-                </select>
-              </div>
+              <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                {/* Facility */}
+                <div style={{ display: "grid", gridTemplateColumns: "140px 1fr", alignItems: "center", gap: 12 }}>
+                  <label style={{ textAlign: "right", fontSize: 13, color: "#334155", fontWeight: 500 }}>Facility</label>
+                  <select
+                    value={facility}
+                    onChange={(e) => setFacility(e.target.value)}
+                    style={{ width: "100%", padding: "6px 10px", border: "1px solid #cbd5e1", borderRadius: 4, fontSize: 13, background: "#fff" }}
+                  >
+                    <option value="Heal Your Heart Neelankarai - HUH001">Heal Your Heart Neelankarai - HUH001</option>
+                    <option value="Heal Your Heart Royapettah - HUH002">Heal Your Heart Royapettah - HUH002</option>
+                    <option value="Heal Your Heart Manapakkam - HUH003">Heal Your Heart Manapakkam - HUH003</option>
+                  </select>
+                </div>
 
-              {/* Patient * */}
-              <div style={{ display: "grid", gridTemplateColumns: "140px 1fr", alignItems: "center", gap: 12 }}>
-                <label style={{ textAlign: "right", fontSize: 13, color: "#334155", fontWeight: 500 }}>
-                  Patient <span style={{ color: "#ef4444" }}>*</span>
-                </label>
-                <div style={{ position: "relative", display: "flex", gap: 6, width: "100%" }} ref={patientRef}>
-                  <div style={{ position: "relative", flex: 1 }}>
-                    <input
-                      type="text"
-                      placeholder="Search by Name / Record ID / Mobile Phone"
-                      value={patientQuery}
-                      onChange={(e) => {
-                        setPatientQuery(e.target.value);
-                        setSelPatient("");
-                        setShowPatientDropdown(true);
-                      }}
-                      onFocus={() => setShowPatientDropdown(true)}
-                      style={{ width: "100%", padding: "6px 26px 6px 10px", border: "1px solid #38bdf8", outline: "none", borderRadius: 4, fontSize: 13 }}
-                    />
+                {/* Patient * */}
+                <div style={{ display: "grid", gridTemplateColumns: "140px 1fr", alignItems: "center", gap: 12 }}>
+                  <label style={{ textAlign: "right", fontSize: 13, color: "#334155", fontWeight: 500 }}>
+                    Patient <span style={{ color: "#ef4444" }}>*</span>
+                  </label>
+                  <div style={{ position: "relative", display: "flex", gap: 6, width: "100%" }} ref={patientRef}>
+                    <div style={{ position: "relative", flex: 1 }}>
+                      <input
+                        type="text"
+                        placeholder="Search by Name / Record ID / Mobile Phone"
+                        value={patientQuery}
+                        onChange={(e) => {
+                          setPatientQuery(e.target.value);
+                          setSelPatient("");
+                          setShowPatientDropdown(true);
+                        }}
+                        onFocus={() => setShowPatientDropdown(true)}
+                        style={{
+                          width: "100%",
+                          padding: "6px 26px 6px 10px",
+                          border: !selPatient && err ? "1.5px solid #ef4444" : "1px solid #38bdf8",
+                          boxShadow: !selPatient && err ? "0 0 0 1px #ef4444" : undefined,
+                          outline: "none",
+                          borderRadius: 4,
+                          fontSize: 13,
+                        }}
+                      />
                     {patientQuery && (
                       <button
                         type="button"
@@ -662,6 +730,12 @@ function NewWaitingListModal({
                           <div
                             key={p.id}
                             style={{ padding: "6px 10px", cursor: "pointer", borderBottom: "1px solid #f1f5f9", fontSize: 12 }}
+                            onMouseDown={(e) => {
+                              e.preventDefault();
+                              setSelPatient(p.id);
+                              setPatientQuery(`${p.name} (${p.mrn})`);
+                              setShowPatientDropdown(false);
+                            }}
                             onClick={() => {
                               setSelPatient(p.id);
                               setPatientQuery(`${p.name} (${p.mrn})`);
@@ -965,25 +1039,33 @@ function NewWaitingListModal({
               {/* Actions Footer */}
               <div style={{ display: "grid", gridTemplateColumns: "140px 1fr", alignItems: "center", gap: 12, marginTop: 8 }}>
                 <div></div>
-                <div style={{ display: "flex", gap: 8 }}>
-                  <button
-                    type="submit"
-                    style={{ background: "#f59e0b", color: "#fff", border: "none", borderRadius: 4, padding: "6px 18px", fontSize: 13, fontWeight: 500, cursor: "pointer" }}
-                  >
-                    Confirm
-                  </button>
-                  <button
-                    type="button"
-                    onClick={onClose}
-                    style={{ background: "#f1f5f9", color: "#475569", border: "1px solid #cbd5e1", borderRadius: 4, padding: "6px 16px", fontSize: 13, cursor: "pointer" }}
-                  >
-                    Cancel
-                  </button>
+                <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                  {err && (
+                    <div style={{ color: "#dc2626", fontSize: 12.5, fontWeight: 500 }}>
+                      {err}
+                    </div>
+                  )}
+                  <div style={{ display: "flex", gap: 8 }}>
+                    <button
+                      type="submit"
+                      style={{ background: "#f59e0b", color: "#fff", border: "none", borderRadius: 4, padding: "7px 20px", fontSize: 13, fontWeight: 600, cursor: "pointer" }}
+                    >
+                      Confirm
+                    </button>
+                    <button
+                      type="button"
+                      onClick={onClose}
+                      style={{ background: "#f1f5f9", color: "#475569", border: "1px solid #cbd5e1", borderRadius: 4, padding: "7px 18px", fontSize: 13, cursor: "pointer" }}
+                    >
+                      Cancel
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>
           </form>
         )}
+        </div>
       </div>
     </div>
   );
@@ -2251,10 +2333,6 @@ function Schedule() {
             </div>
           </div>
 
-          <div style={{ fontSize: 13.5, fontWeight: 700, color: "#1e293b", margin: "4px 0 6px" }}>
-            Waiting List
-          </div>
-
           {/* DAY VIEW */}
           {waitingListView === "Day" && (
             <div
@@ -2262,19 +2340,31 @@ function Schedule() {
                 background: "#ffffff",
                 border: "1px solid #e2e8f0",
                 borderRadius: 4,
-                minHeight: 440,
+                minHeight: 460,
                 width: "100%",
-                padding: dayEntries.length === 0 ? 0 : 16,
-                display: dayEntries.length === 0 ? "flex" : "block",
-                alignItems: "center",
-                justifyContent: "center",
+                display: "flex",
+                flexDirection: "column",
+                boxShadow: "0 1px 3px rgba(0,0,0,0.02)",
               }}
             >
-              {dayEntries.length === 0 ? (
-                <div style={{ color: "#334155", fontSize: 13, textAlign: "center" }}>
-                  Waiting List not available
-                </div>
-              ) : (
+              <div style={{ padding: "12px 18px", borderBottom: "1px solid #f1f5f9", fontSize: 13.5, fontWeight: 700, color: "#1e293b" }}>
+                Waiting List
+              </div>
+              <div
+                style={{
+                  flex: 1,
+                  display: dayEntries.length === 0 ? "flex" : "block",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  padding: dayEntries.length === 0 ? 0 : 16,
+                  minHeight: 380,
+                }}
+              >
+                {dayEntries.length === 0 ? (
+                  <div style={{ color: "#334155", fontSize: 13, textAlign: "center" }}>
+                    Waiting List not available
+                  </div>
+                ) : (
                 <table className="charm-reports-table" style={{ width: "100%" }}>
                   <thead>
                     <tr>
@@ -2337,6 +2427,7 @@ function Schedule() {
                   </tbody>
                 </table>
               )}
+              </div>
             </div>
           )}
 

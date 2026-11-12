@@ -1233,6 +1233,30 @@ main.main-patient-chart {
   width: min(1060px, 95vw);
 }
 
+.charm-modal-backdrop {
+  position: fixed !important;
+  inset: 0 !important;
+  background: rgba(15, 23, 42, 0.45) !important;
+  backdrop-filter: blur(2px);
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  z-index: 9999 !important;
+  padding: 16px;
+  overflow-y: auto;
+}
+
+.charm-modal-window {
+  position: relative;
+  background: #ffffff;
+  border-radius: 6px;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.3), 0 8px 10px -6px rgba(0, 0, 0, 0.2);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  max-height: 92vh;
+}
+
 .modal-head {
   padding: 18px 22px;
   border-bottom: 1px solid var(--border-default);

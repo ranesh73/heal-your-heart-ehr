@@ -711,8 +711,28 @@ export function AppointmentForm({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErr("");
-    if (!selPatient && !patientId) {
+    let targetPatientId = selPatient || patientId;
+    if (!targetPatientId && patientQuery.trim()) {
+      const q = patientQuery.trim().toLowerCase();
+      const match = patients.find(
+        (p) =>
+          (p.name || "").toLowerCase() === q ||
+          (p.mrn || "").toLowerCase() === q ||
+          `${p.name} (${p.mrn})`.toLowerCase() === q ||
+          (p.name || "").toLowerCase().includes(q)
+      );
+      if (match) {
+        targetPatientId = match.id;
+        setSelPatient(match.id);
+      }
+    }
+    if (!targetPatientId) {
       setErr("Please select a patient.");
+      const pInput = document.querySelector<HTMLInputElement>(".charm-patient-search-input");
+      if (pInput) {
+        pInput.focus();
+        pInput.scrollIntoView({ behavior: "smooth", block: "nearest" });
+      }
       return;
     }
     if (!providerId) {
@@ -731,10 +751,10 @@ export function AppointmentForm({
       if (startAmpm === "PM" && h24 < 12) h24 += 12;
       if (startAmpm === "AM" && h24 === 12) h24 = 0;
       const [year, month, day] = selDate.split("-");
-      const localTimeString = `${year}-${month.padStart(2, "0")}-${day.padStart(2, "0")}T${String(h24).padStart(2, "0")}:${startMin.padStart(2, "0")}:00`;
+      const localTimeString = `${year}-${month.padStart(2, "0")}-${day.padStart(2, "0")}T${String(h24).padStart(2, "0")}:${startMin.padStart(2, "0")}:00+05:30`;
 
       const payload: any = {
-        patient_id: patientId || selPatient,
+        patient_id: targetPatientId,
         provider_id: providerId,
         resource_id: resourceId || null,
         start_at: toISO(localTimeString),
@@ -831,6 +851,7 @@ export function AppointmentForm({
                       }}
                       onFocus={() => setShowPatientDropdown(true)}
                       required={!selPatient}
+                      style={!selPatient && !patientId && err ? { borderColor: "#ef4444", boxShadow: "0 0 0 1px #ef4444" } : undefined}
                     />
                     {patientQuery && (
                       <button
@@ -882,6 +903,12 @@ export function AppointmentForm({
                           <div
                             key={p.id}
                             className={`charm-patient-search-item ${selPatient === p.id ? "selected" : ""}`}
+                            onMouseDown={(e) => {
+                              e.preventDefault();
+                              setSelPatient(p.id);
+                              setPatientQuery(`${p.name} (${p.mrn})`);
+                              setShowPatientDropdown(false);
+                            }}
                             onClick={() => {
                               setSelPatient(p.id);
                               setPatientQuery(`${p.name} (${p.mrn})`);
@@ -1239,22 +1266,6 @@ export function AppointmentForm({
               </div>
             </div>
 
-            {/* Concurrent Booking Option */}
-            <div className="charm-form-row">
-              <label className="charm-field-label">Slot Booking</label>
-              <label style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 13, cursor: "pointer" }}>
-                <input
-                  type="checkbox"
-                  checked={allowOverlap}
-                  onChange={(e) => setAllowOverlap(e.target.checked)}
-                  style={{ accentColor: "#f59e0b", width: 15, height: 15, cursor: "pointer" }}
-                />
-                <span style={{ color: "#334155", fontWeight: 500 }}>
-                  Allow multiple appointments in same time slot (Concurrent booking)
-                </span>
-              </label>
-            </div>
-
             {periodType === "period" && (
               <>
                 <div className="charm-form-row">
@@ -1354,21 +1365,28 @@ export function AppointmentForm({
           </div>
 
           {/* ACTION BUTTONS */}
-          <div className="charm-appt-footer">
-            <button
-              type="submit"
-              disabled={submitting}
-              className="charm-btn-confirm"
-            >
-              {submitting ? "Saving..." : (appointment ? "Reschedule" : "Confirm")}
-            </button>
-            <button
-              type="button"
-              className="charm-btn-cancel"
-              onClick={onClose}
-            >
-              Cancel
-            </button>
+          <div className="charm-appt-footer" style={{ display: "flex", flexDirection: "column", alignItems: "flex-start", gap: 10 }}>
+            {err && (
+              <div className="error-box" style={{ width: "100%", margin: 0 }}>
+                {err}
+              </div>
+            )}
+            <div style={{ display: "flex", gap: 8 }}>
+              <button
+                type="submit"
+                disabled={submitting}
+                className="charm-btn-confirm"
+              >
+                {submitting ? "Saving..." : (appointment ? "Reschedule" : "Confirm")}
+              </button>
+              <button
+                type="button"
+                className="charm-btn-cancel"
+                onClick={onClose}
+              >
+                Cancel
+              </button>
+            </div>
           </div>
         </form>
       )}
