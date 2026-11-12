@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useForm, useFieldArray } from "react-hook-form";
 import {
@@ -272,14 +272,105 @@ function Schedule() {
     "Vijayalakshmi K": true,
   });
 
-  const reportVisitTypesList = [
-    "Absent",
-    "Admission",
-    "EECP Treatment",
-    "EECP Demo",
-    "Follow-up Visit",
-    "New Patient Visit",
-  ];
+  // Dynamic Appointment Statuses & Visit Types synchronized with Settings
+  const [availableStatuses, setAvailableStatuses] = useState<{ id: string; name: string; color: string }[]>(() => {
+    try {
+      const saved = localStorage.getItem("hyh_appointment_statuses");
+      if (saved) return JSON.parse(saved);
+    } catch {}
+    return [
+      { id: "1", name: "Confirmed", color: "#10b981" },
+      { id: "2", name: "Checked in", color: "#3b82f6" },
+      { id: "3", name: "Completed", color: "#059669" },
+      { id: "4", name: "Cancelled", color: "#ef4444" },
+      { id: "5", name: "No show", color: "#f59e0b" },
+      { id: "6", name: "Absent", color: "#64748b" },
+      { id: "7", name: "Admission", color: "#8b5cf6" },
+      { id: "8", name: "Consultation / Demo", color: "#06b6d4" },
+      { id: "9", name: "Consulted", color: "#14b8a6" },
+      { id: "10", name: "Diabetic / HT Management", color: "#ec4899" },
+      { id: "11", name: "Discharge", color: "#6366f1" },
+      { id: "12", name: "EECP Treatment 1st Day", color: "#f97316" },
+      { id: "13", name: "EECP Treatment 20 Sessions 1st Day", color: "#d946ef" },
+      { id: "14", name: "EECP Treatment Completed", color: "#22c55e" },
+      { id: "15", name: "EECP Treatment Started", color: "#84cc16" },
+    ];
+  });
+
+  const [availableVisitTypes, setAvailableVisitTypes] = useState<{ id: string; name: string; mode?: string; duration?: number; color?: string }[]>(() => {
+    try {
+      const saved = localStorage.getItem("hyh_visit_types");
+      if (saved) return JSON.parse(saved);
+    } catch {}
+    return [
+      { id: "vt1", name: "Absent", duration: 30 },
+      { id: "vt2", name: "Admission", duration: 45 },
+      { id: "vt3", name: "Diabetes/HT Management", duration: 30 },
+      { id: "vt4", name: "EECP Treatment", duration: 60 },
+      { id: "vt5", name: "EECP Demo", duration: 45 },
+      { id: "vt6", name: "Follow-up Visit", duration: 20 },
+      { id: "vt7", name: "New Patient Visit", duration: 45 },
+      { id: "vt8", name: "Telehealth Video Consult", duration: 30 },
+      { id: "vt9", name: "Walk-in visits", duration: 20 },
+    ];
+  });
+
+  useEffect(() => {
+    api<any[]>("/calendar/appointment-statuses")
+      .then((data) => {
+        if (data && data.length > 0) {
+          setAvailableStatuses(data);
+          localStorage.setItem("hyh_appointment_statuses", JSON.stringify(data));
+        }
+      })
+      .catch(() => {});
+
+    api<any[]>("/calendar/visit-types")
+      .then((data) => {
+        if (data && data.length > 0) {
+          setAvailableVisitTypes(data);
+          localStorage.setItem("hyh_visit_types", JSON.stringify(data));
+        }
+      })
+      .catch(() => {});
+
+    const onStatusUpdate = () => {
+      try {
+        const saved = localStorage.getItem("hyh_appointment_statuses");
+        if (saved) setAvailableStatuses(JSON.parse(saved));
+      } catch {}
+    };
+    const onVisitTypeUpdate = () => {
+      try {
+        const saved = localStorage.getItem("hyh_visit_types");
+        if (saved) setAvailableVisitTypes(JSON.parse(saved));
+      } catch {}
+    };
+
+    window.addEventListener("hyh_appointment_statuses_updated", onStatusUpdate);
+    window.addEventListener("hyh_visit_types_updated", onVisitTypeUpdate);
+    return () => {
+      window.removeEventListener("hyh_appointment_statuses_updated", onStatusUpdate);
+      window.removeEventListener("hyh_visit_types_updated", onVisitTypeUpdate);
+    };
+  }, []);
+
+  const getStatusColor = (st: string) => {
+    const norm = (st || "").toLowerCase().replace(/[^a-z0-9]/g, "");
+    const match = availableStatuses.find(
+      (s) => s.name.toLowerCase().replace(/[^a-z0-9]/g, "") === norm
+    );
+    if (match?.color) return match.color;
+    if (norm.includes("confirm")) return "#10b981";
+    if (norm.includes("check")) return "#3b82f6";
+    if (norm.includes("complet")) return "#059669";
+    if (norm.includes("cancel")) return "#ef4444";
+    if (norm.includes("show") || norm.includes("miss") || norm.includes("absent")) return "#f59e0b";
+    if (norm.includes("start") || norm.includes("eecp")) return "#84cc16";
+    return "#7c3aed";
+  };
+
+  const reportVisitTypesList = availableVisitTypes.map((vt) => vt.name);
   const [selectedReportVisitTypes, setSelectedReportVisitTypes] = useState<Record<string, boolean>>({
     "Absent": false,
     "Admission": false,
@@ -302,13 +393,7 @@ function Schedule() {
     "Consultation Room 1": true,
   });
 
-  const reportStatusesList = [
-    "Confirmed",
-    "Checked in",
-    "Completed",
-    "Cancelled",
-    "Missed",
-  ];
+  const reportStatusesList = availableStatuses.map((st) => st.name);
   const [selectedReportStatuses, setSelectedReportStatuses] = useState<Record<string, boolean>>({
     "Confirmed": true,
     "Checked in": true,
@@ -1027,13 +1112,12 @@ function Schedule() {
                             </div>
                             <div style={{ marginTop: 8 }}>
                               <select
-                                value={a.status === "completed" ? "completed" : a.status === "checked-in" ? "checked-in" : "eecp-started"}
+                                value={a.status}
                                 onChange={async (e) => {
                                   try {
-                                    const newStat = e.target.value === "eecp-started" ? "checked-in" : e.target.value;
                                     await api("/appointments/" + a.id + "/status", "POST", {
                                       version: a.version,
-                                      status: newStat,
+                                      status: e.target.value,
                                     });
                                     await refresh();
                                     notify("Status updated.");
@@ -1041,13 +1125,36 @@ function Schedule() {
                                     notify("Status updated.");
                                   }
                                 }}
-                                className="charm-status-pill purple"
-                                style={{ border: "none", cursor: "pointer", background: "#7c3aed", color: "#fff", padding: "3px 8px", borderRadius: 4, fontWeight: 600, fontSize: 11 }}
+                                className="charm-status-pill"
+                                style={{
+                                  border: "none",
+                                  cursor: "pointer",
+                                  background: getStatusColor(a.status),
+                                  color: "#fff",
+                                  padding: "3px 8px",
+                                  borderRadius: 4,
+                                  fontWeight: 600,
+                                  fontSize: 11,
+                                }}
                               >
-                                <option value="eecp-started">EECP Treatment Started ▾</option>
-                                <option value="checked-in">Checked In ▾</option>
-                                <option value="completed">Completed ▾</option>
-                                <option value="cancelled">Cancelled ▾</option>
+                                {availableStatuses.map((st) => {
+                                  const val = st.name.toLowerCase().replace(/\s+/g, "-");
+                                  return (
+                                    <option key={st.id || st.name} value={val} style={{ background: "#ffffff", color: "#0f172a" }}>
+                                      {st.name} ▾
+                                    </option>
+                                  );
+                                })}
+                                {a.status &&
+                                  !availableStatuses.some(
+                                    (st) =>
+                                      st.name.toLowerCase().replace(/\s+/g, "-") ===
+                                      a.status.toLowerCase().replace(/\s+/g, "-")
+                                  ) && (
+                                    <option value={a.status} style={{ background: "#ffffff", color: "#0f172a" }}>
+                                      {a.status} ▾
+                                    </option>
+                                  )}
                               </select>
                             </div>
                           </div>
@@ -1798,12 +1905,7 @@ function Schedule() {
               {
                 name: "status",
                 label: "New status",
-                options:
-                  statusModal.status === "confirmed"
-                    ? ["checked-in", "cancelled", "missed"]
-                    : statusModal.plan_id
-                      ? ["cancelled", "missed"]
-                      : ["completed", "cancelled", "missed"],
+                options: availableStatuses.map((s) => s.name.toLowerCase().replace(/\s+/g, "-")),
                 required: true,
               },
               {

@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 import { SettingOption } from "./settingsData";
 import { useApp } from "../context";
+import { api } from "../api";
 
 export function SettingDetailModal({
   option,
@@ -61,10 +62,19 @@ export function SettingDetailModal({
     setIsSaved(false);
   };
 
-  const handleSave = (e: React.FormEvent) => {
+  const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     const storageKey = `hyh_setting_${option.id}`;
     localStorage.setItem(storageKey, JSON.stringify(formData));
+    try {
+      await api(`/admin/settings/${option.categoryId}/${option.id}`, "PUT", formData);
+    } catch {}
+
+    window.dispatchEvent(
+      new CustomEvent("hyh_setting_updated", {
+        detail: { categoryId: option.categoryId, optionId: option.id, data: formData },
+      })
+    );
     setIsSaved(true);
     notify(`${option.name} configuration updated and saved.`);
     setTimeout(() => setIsSaved(false), 3000);

@@ -26,40 +26,6 @@ import { navigate } from "../api";
 // Row 5: Patient Recall | Quick Text | Directory | PHR Settings
 // Row 6: Charm TeleHealth | Charm Connect | Account | Security
 // Row 7: Charm Assist
-const COLUMN_1_IDS = [
-  "facility",
-  "questionnaires",
-  "lab-image",
-  "billing",
-  "patient-recall",
-  "charm-telehealth",
-  "charm-assist",
-];
-const COLUMN_2_IDS = [
-  "calendar",
-  "documents",
-  "rx",
-  "inventory",
-  "quick-text",
-  "charm-connect",
-];
-const COLUMN_3_IDS = [
-  "patient",
-  "consultation",
-  "immunization",
-  "message",
-  "directory",
-  "account",
-];
-const COLUMN_4_IDS = [
-  "templates",
-  "health-trackers",
-  "injections",
-  "task",
-  "phr-settings",
-  "security",
-];
-
 export function SettingsDashboard() {
   const { user } = useApp();
   const [searchQuery, setSearchQuery] = useState("");
@@ -69,24 +35,6 @@ export function SettingsDashboard() {
 
   const searchInputRef = useRef<HTMLInputElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
-
-  // Group categories into 4 columns
-  const col1Categories = useMemo(
-    () => SETTINGS_CATEGORIES.filter((c) => COLUMN_1_IDS.includes(c.id)),
-    []
-  );
-  const col2Categories = useMemo(
-    () => SETTINGS_CATEGORIES.filter((c) => COLUMN_2_IDS.includes(c.id)),
-    []
-  );
-  const col3Categories = useMemo(
-    () => SETTINGS_CATEGORIES.filter((c) => COLUMN_3_IDS.includes(c.id)),
-    []
-  );
-  const col4Categories = useMemo(
-    () => SETTINGS_CATEGORIES.filter((c) => COLUMN_4_IDS.includes(c.id)),
-    []
-  );
 
   // Filter and rank options based on search query
   const searchResults = useMemo(() => {
@@ -334,28 +282,10 @@ export function SettingsDashboard() {
         </div>
       </section>
 
-      {/* Main Settings Content Panel (Large white panel, scrollable, 4-column responsive grid) */}
+      {/* Main Settings Content Panel (Large white panel, scrollable, 4-column responsive grid with perfect horizontal heading alignment) */}
       <section className="charm-settings-content-panel">
         <div className="charm-settings-grid-4col">
-          {/* Column 1 */}
-          <div className="charm-settings-column">
-            {col1Categories.map(renderCategoryCard)}
-          </div>
-
-          {/* Column 2 */}
-          <div className="charm-settings-column">
-            {col2Categories.map(renderCategoryCard)}
-          </div>
-
-          {/* Column 3 */}
-          <div className="charm-settings-column">
-            {col3Categories.map(renderCategoryCard)}
-          </div>
-
-          {/* Column 4 */}
-          <div className="charm-settings-column">
-            {col4Categories.map(renderCategoryCard)}
-          </div>
+          {SETTINGS_CATEGORIES.map(renderCategoryCard)}
         </div>
       </section>
 

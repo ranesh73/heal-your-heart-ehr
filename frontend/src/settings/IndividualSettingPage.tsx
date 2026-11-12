@@ -7,6 +7,11 @@ import { KioskSetupPage } from "./facility/KioskSetupPage";
 import { DepartmentsPage } from "./facility/DepartmentsPage";
 import { RolesPage } from "./facility/RolesPage";
 import { FacilityNotificationsPage } from "./facility/FacilityNotificationsPage";
+import { AppointmentStatusPage } from "./calendar/AppointmentStatusPage";
+import { VisitTypesPage } from "./calendar/VisitTypesPage";
+import { EventTypesPage } from "./calendar/EventTypesPage";
+import { ProviderTimingsPage } from "./calendar/ProviderTimingsPage";
+import { WebEmbedPage } from "./calendar/WebEmbedPage";
 import { SettingContentView } from "./SettingContentView";
 import { SETTINGS_CATEGORIES, ALL_SETTING_OPTIONS } from "./settingsData";
 import { navigate } from "../api";
@@ -66,6 +71,57 @@ export function IndividualSettingPage({
         onTabChange={handleTabChange}
       >
         {content}
+      </SettingsLayout>
+    );
+  }
+
+  // Specialized Calendar Subpages
+  if (categoryId === "calendar") {
+    let content: React.ReactNode = null;
+    switch (activeOptionId) {
+      case "provider-timings":
+        content = <ProviderTimingsPage />;
+        break;
+      case "web-embed":
+        content = <WebEmbedPage />;
+        break;
+      case "appointment-status":
+        content = <AppointmentStatusPage />;
+        break;
+      case "visit-types":
+        content = <VisitTypesPage />;
+        break;
+      case "event-types":
+        content = <EventTypesPage />;
+        break;
+      default:
+        const opt = category.options.find((o) => o.id === activeOptionId) || category.options[0];
+        content = opt ? (
+          <SettingContentView
+            category={category}
+            option={opt}
+            onSelectOption={(o) => navigate(`/settings/${categoryId}/${o.id}`)}
+            onBack={() => navigate("/settings")}
+          />
+        ) : null;
+        break;
+    }
+
+    const calendarTabs = category.options.map((opt) => ({
+      id: opt.id,
+      label: opt.name,
+      badge: opt.badge,
+    }));
+
+    return (
+      <SettingsLayout
+        activeTab={activeOptionId}
+        onTabChange={handleTabChange}
+        tabs={calendarTabs}
+      >
+        <div style={{ padding: "16px 20px" }}>
+          {content}
+        </div>
       </SettingsLayout>
     );
   }

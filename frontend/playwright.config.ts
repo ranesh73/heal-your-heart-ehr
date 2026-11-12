@@ -8,8 +8,10 @@ export default defineConfig({
   reporter: [["list"], ["json", { outputFile: "test-results/results.json" }]],
   use: {
     baseURL: process.env.EHR_BROWSER_URL || "http://127.0.0.1:8000",
-    channel: "chrome",
     headless: true,
+    launchOptions: {
+      executablePath: "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe",
+    },
     viewport: { width: 1440, height: 1000 },
     screenshot: "only-on-failure",
     trace: "off",
