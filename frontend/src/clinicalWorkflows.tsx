@@ -30,7 +30,9 @@ import {
   FileText,
   X,
   Check,
+  Eye,
 } from "lucide-react";
+import { InjectionAutocomplete } from "./InjectionAutocomplete";
 
 export function formatDoctorName(name?: string): string {
   if (!name) return "";
@@ -1250,21 +1252,24 @@ export function MedicationsSection({
 
 export function AddInjectionModal({
   patientId,
+  initialOrder = null,
   onClose,
   onSaved,
 }: {
   patientId: string;
+  initialOrder?: Row | null;
   onClose: () => void;
   onSaved: () => void;
 }) {
   const { staff, user, notify } = useApp();
-  const [name, setName] = useState("");
-  const [dosage, setDosage] = useState("2.5 mg / 0.5 ml");
-  const [route, setRoute] = useState("Subcutaneous (SC)");
-  const [site, setSite] = useState("Abdomen - Upper Left");
+  const [name, setName] = useState(initialOrder?.medication_name_snapshot || initialOrder?.name || "");
+  const [catalogueId, setCatalogueId] = useState<string | null>(initialOrder?.catalogue_id || null);
+  const [dosage, setDosage] = useState(initialOrder?.dosage || initialOrder?.dose || "");
+  const [route, setRoute] = useState(initialOrder?.route || "Subcutaneous (SC)");
+  const [site, setSite] = useState(initialOrder?.site || "Deltoid - Left");
   const [lotNumber, setLotNumber] = useState("");
   const [expirationDate, setExpirationDate] = useState("");
-  const [frequency, setFrequency] = useState("Once / Stat");
+  const [frequency, setFrequency] = useState(initialOrder?.frequency || "Once / Stat");
   const [period, setPeriod] = useState("1 Day");
   const [administeredBy, setAdministeredBy] = useState(user.id);
   const [administeredAt, setAdministeredAt] = useState(
@@ -1272,29 +1277,20 @@ export function AddInjectionModal({
       .toISOString()
       .slice(0, 16)
   );
-  const [nurseNotes, setNurseNotes] = useState("");
-  const [comments, setComments] = useState("");
+  const [nurseNotes, setNurseNotes] = useState(initialOrder?.nurse_note || initialOrder?.nurse_notes || "");
+  const [comments, setComments] = useState(initialOrder?.comments || "");
   const [status, setStatus] = useState("administered");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [searchQuery, setSearchQuery] = useState("");
-  const [showDropdown, setShowDropdown] = useState(false);
 
-  // Injection formulary catalog
-  const { data: catalogs = [] } = useQuery<Row[]>({
-    queryKey: ["catalogs", "injection", searchQuery],
-    queryFn: () =>
-      api<Row[]>(
-        `/catalogs?kind=injection${
-          searchQuery ? `&q=${encodeURIComponent(searchQuery)}` : ""
-        }`
-      ),
-    staleTime: 60000,
-  });
-
-  const handleSave = async () => {
+  const handleSave = async (e: React.FormEvent) => {
+    e.preventDefault();
     if (!name.trim()) {
       setError("Please specify the injection or product name.");
+      return;
+    }
+    if (!dosage.trim()) {
+      setError("Please specify dosage & strength.");
       return;
     }
     setSaving(true);
@@ -1302,20 +1298,32 @@ export function AddInjectionModal({
     try {
       await api("/records/injections", "POST", {
         patient_id: patientId,
-        name,
-        dosage,
+        catalogue_id: catalogueId || null,
+        order_id: initialOrder?.id || null,
+        name: name.trim(),
+        dosage: dosage.trim(),
+        dose: dosage.trim(),
         route,
         site,
-        lot_number: lotNumber,
+        lot_number: lotNumber.trim(),
         expiration_date: expirationDate || null,
         frequency,
-        period,
+        period: period.trim(),
         administered_by: administeredBy,
         administered_at: administeredAt ? administeredAt + ":00+05:30" : null,
-        nurse_notes: nurseNotes,
-        comments,
+        nurse_notes: nurseNotes.trim(),
+        comments: comments.trim(),
         status,
       });
+
+      if (initialOrder?.id) {
+        try {
+          await api(`/injections/orders/${initialOrder.id}`, "PATCH", { status: "completed" });
+        } catch (err) {
+          console.error("Order status update notice:", err);
+        }
+      }
+
       notify("Injection administration recorded successfully.");
       onSaved();
       onClose();
@@ -1328,69 +1336,408 @@ export function AddInjectionModal({
 
   return (
     <Modal
-      title="Add Injection"
-      description="Record injection administration with batch/lot tracking, anatomical site, and nurse notes."
+      title={initialOrder ? `Administer Order: ${initialOrder.medication_name_snapshot || initialOrder.name}` : "Add Injection"}
+      description="Record injection administration with master catalogue link, batch/lot tracking, anatomical site, and nurse notes."
       onClose={onClose}
       wide
     >
-      <div className="charm-modal-form">
+      <form onSubmit={handleSave} className="charm-modal-form" style={{ maxHeight: "78vh", overflowY: "auto", paddingRight: 4 }}>
         {error && (
-          <div className="charm-alert charm-alert-danger">
+          <div className="charm-alert charm-alert-danger" style={{ marginBottom: 14 }}>
             <AlertCircle size={16} /> {error}
           </div>
         )}
 
-        <div className="charm-form-grid">
-          {/* Drug name with autocomplete */}
-          <div className="charm-form-group charm-autocomplete-wrap" style={{ gridColumn: "1 / -1" }}>
-            <label>Medication / Product Name *</label>
-            <div className="charm-input-search-box">
-              <Search size={15} className="charm-search-icon" />
-              <input
-                type="text"
-                placeholder="Search or enter injection name (e.g. Fondaflo 2.5, Clexane, Tresiba)..."
-                value={name}
-                onFocus={() => {
-                  setShowDropdown(true);
-                  setSearchQuery(name);
-                }}
-                onChange={(e) => {
-                  setName(e.target.value);
-                  setSearchQuery(e.target.value);
-                }}
+        <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+          {/* SECTION A – INJECTION DETAILS */}
+          <div style={{ background: "#ffffff", padding: "16px 18px", borderRadius: 8, border: "1px solid #e2e8f0" }}>
+            <div style={{ fontSize: 13, fontWeight: 700, color: "#00838f", textTransform: "uppercase", letterSpacing: "0.5px", marginBottom: 12, display: "flex", alignItems: "center", gap: 6 }}>
+              <Syringe size={16} /> Section A — Injection Details
+            </div>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 14 }}>
+              {/* Medication / Product Name */}
+              <div style={{ gridColumn: "1 / -1" }}>
+                <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: "#334155", marginBottom: 5 }}>
+                  Medication / Product Name <span style={{ color: "#ef4444" }}>*</span>
+                </label>
+                <InjectionAutocomplete
+                  value={name}
+                  catalogueId={catalogueId}
+                  onChangeText={(text) => {
+                    setName(text);
+                    setCatalogueId(null);
+                  }}
+                  onSelect={(item) => {
+                    setName(item.name);
+                    setCatalogueId(item.id);
+                  }}
+                  placeholder="Search central catalogue (e.g. Deform 20ml, Lasix, Fondaflo, Clexane)..."
+                  required
+                />
+              </div>
+
+              {/* Dosage & Strength */}
+              <div>
+                <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: "#334155", marginBottom: 5 }}>
+                  Dosage & Strength <span style={{ color: "#ef4444" }}>*</span>
+                </label>
+                <input
+                  type="text"
+                  placeholder="e.g. 20 mg / 2 ml, 2.5 mg / 0.5 ml"
+                  value={dosage}
+                  onChange={(e) => setDosage(e.target.value)}
+                  required
+                  className="charm-input"
+                  style={{ width: "100%", height: 36 }}
+                />
+              </div>
+
+              {/* Route */}
+              <div>
+                <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: "#334155", marginBottom: 5 }}>
+                  Route <span style={{ color: "#ef4444" }}>*</span>
+                </label>
+                <select
+                  value={route}
+                  onChange={(e) => setRoute(e.target.value)}
+                  required
+                  className="charm-select"
+                  style={{ width: "100%", height: 36 }}
+                >
+                  <option value="Subcutaneous (SC)">Subcutaneous (SC)</option>
+                  <option value="Intramuscular (IM)">Intramuscular (IM)</option>
+                  <option value="Intravenous (IV)">Intravenous (IV)</option>
+                  <option value="Intradermal (ID)">Intradermal (ID)</option>
+                  <option value="IV Infusion">IV Infusion</option>
+                </select>
+              </div>
+
+              {/* Administration Site */}
+              <div>
+                <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: "#334155", marginBottom: 5 }}>
+                  Administration Site <span style={{ color: "#ef4444" }}>*</span>
+                </label>
+                <select
+                  value={site}
+                  onChange={(e) => setSite(e.target.value)}
+                  required
+                  className="charm-select"
+                  style={{ width: "100%", height: 36 }}
+                >
+                  <option value="Deltoid - Left">Deltoid - Left</option>
+                  <option value="Deltoid - Right">Deltoid - Right</option>
+                  <option value="Gluteal - Left">Gluteal - Left</option>
+                  <option value="Gluteal - Right">Gluteal - Right</option>
+                  <option value="Abdomen - Upper Left">Abdomen - Upper Left</option>
+                  <option value="Abdomen - Upper Right">Abdomen - Upper Right</option>
+                  <option value="Abdomen - Lower Left">Abdomen - Lower Left</option>
+                  <option value="Abdomen - Lower Right">Abdomen - Lower Right</option>
+                  <option value="Vastus Lateralis - Left">Vastus Lateralis - Left</option>
+                  <option value="Vastus Lateralis - Right">Vastus Lateralis - Right</option>
+                  <option value="Basilic Vein - RH">Basilic Vein - RH</option>
+                  <option value="Cephalic Vein - RH">Cephalic Vein - RH</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          {/* SECTION B – BATCH AND EXPIRY DETAILS */}
+          <div style={{ background: "#ffffff", padding: "16px 18px", borderRadius: 8, border: "1px solid #e2e8f0" }}>
+            <div style={{ fontSize: 13, fontWeight: 700, color: "#00838f", textTransform: "uppercase", letterSpacing: "0.5px", marginBottom: 12 }}>
+              Section B — Batch & Expiry Tracking
+            </div>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 14 }}>
+              <div>
+                <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: "#334155", marginBottom: 5 }}>
+                  Batch / Lot Number
+                </label>
+                <input
+                  type="text"
+                  placeholder="e.g. LOT-2026-882A"
+                  value={lotNumber}
+                  onChange={(e) => setLotNumber(e.target.value)}
+                  className="charm-input"
+                  style={{ width: "100%", height: 36 }}
+                />
+              </div>
+              <div>
+                <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: "#334155", marginBottom: 5 }}>
+                  Expiration Date
+                </label>
+                <input
+                  type="date"
+                  value={expirationDate}
+                  onChange={(e) => setExpirationDate(e.target.value)}
+                  className="charm-input"
+                  style={{ width: "100%", height: 36 }}
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* SECTION C – ADMINISTRATION DETAILS */}
+          <div style={{ background: "#ffffff", padding: "16px 18px", borderRadius: 8, border: "1px solid #e2e8f0" }}>
+            <div style={{ fontSize: 13, fontWeight: 700, color: "#00838f", textTransform: "uppercase", letterSpacing: "0.5px", marginBottom: 12 }}>
+              Section C — Administration Details
+            </div>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 14 }}>
+              <div>
+                <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: "#334155", marginBottom: 5 }}>
+                  Frequency
+                </label>
+                <select
+                  value={frequency}
+                  onChange={(e) => setFrequency(e.target.value)}
+                  className="charm-select"
+                  style={{ width: "100%", height: 36 }}
+                >
+                  <option value="Once / Stat">Once / Stat</option>
+                  <option value="Daily">Daily</option>
+                  <option value="Twice daily">Twice daily</option>
+                  <option value="Weekly">Weekly</option>
+                  <option value="PRN (As Needed)">PRN (As Needed)</option>
+                </select>
+              </div>
+
+              <div>
+                <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: "#334155", marginBottom: 5 }}>
+                  Period / Duration
+                </label>
+                <input
+                  type="text"
+                  placeholder="e.g. 1 Day, 5 Days"
+                  value={period}
+                  onChange={(e) => setPeriod(e.target.value)}
+                  className="charm-input"
+                  style={{ width: "100%", height: 36 }}
+                />
+              </div>
+
+              <div>
+                <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: "#334155", marginBottom: 5 }}>
+                  Administered Date & Time
+                </label>
+                <input
+                  type="datetime-local"
+                  value={administeredAt}
+                  onChange={(e) => setAdministeredAt(e.target.value)}
+                  className="charm-input"
+                  style={{ width: "100%", height: 36 }}
+                />
+              </div>
+
+              <div>
+                <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: "#334155", marginBottom: 5 }}>
+                  Administered By
+                </label>
+                <select
+                  value={administeredBy}
+                  onChange={(e) => setAdministeredBy(e.target.value)}
+                  className="charm-select"
+                  style={{ width: "100%", height: 36 }}
+                >
+                  {staff.map((s) => (
+                    <option key={s.id} value={s.id}>
+                      {s.name} ({s.role})
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: "#334155", marginBottom: 5 }}>
+                  Status
+                </label>
+                <select
+                  value={status}
+                  onChange={(e) => setStatus(e.target.value)}
+                  className="charm-select"
+                  style={{ width: "100%", height: 36 }}
+                >
+                  <option value="administered">Administered (Given)</option>
+                  <option value="ordered">Ordered (Pending)</option>
+                  <option value="completed">Completed</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          {/* SECTION D – NURSE NOTES AND OBSERVATIONS */}
+          <div style={{ background: "#ffffff", padding: "16px 18px", borderRadius: 8, border: "1px solid #e2e8f0" }}>
+            <div style={{ fontSize: 13, fontWeight: 700, color: "#00838f", textTransform: "uppercase", letterSpacing: "0.5px", marginBottom: 8 }}>
+              Section D — Nurse Notes & Injection Reaction Observations
+            </div>
+            <div>
+              <textarea
+                rows={3}
+                placeholder="Enter administration observations, tolerance, anatomical site response, vitals post-injection, and reaction observations..."
+                value={nurseNotes}
+                onChange={(e) => setNurseNotes(e.target.value)}
                 className="charm-input"
+                style={{ width: "100%", minHeight: 80, padding: 10, fontSize: 13, boxSizing: "border-box" }}
               />
             </div>
-            {showDropdown && catalogs.length > 0 && (
-              <div className="charm-autocomplete-dropdown">
-                {catalogs.map((cat) => (
-                  <div
-                    key={cat.id}
-                    className="charm-autocomplete-item"
-                    onMouseDown={() => {
-                      setName(cat.name);
-                      if (cat.notes) setDosage(cat.notes);
-                      setShowDropdown(false);
-                    }}
-                  >
-                    <strong>{cat.name}</strong>
-                    <span className="charm-autocomplete-sub">
-                      {cat.code ? `[${cat.code}] ` : ""}
-                      {cat.notes || "Cardiology Injection"}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            )}
+          </div>
+        </div>
+
+        <div className="charm-modal-footer" style={{ marginTop: 20, display: "flex", justifyContent: "flex-end", gap: 10 }}>
+          <Button variant="secondary" onClick={onClose} disabled={saving} type="button">
+            Cancel
+          </Button>
+          <Button variant="primary" type="submit" disabled={saving}>
+            {saving ? "Saving Injection..." : "Save Injection"}
+          </Button>
+        </div>
+      </form>
+    </Modal>
+  );
+}
+
+export function AddPatientInjectionOrderModal({
+  patientId,
+  onClose,
+  onSaved,
+}: {
+  patientId: string;
+  onClose: () => void;
+  onSaved: () => void;
+}) {
+  const { notify } = useApp();
+  const [drugName, setDrugName] = useState("Lasix 20 mg ( 10 mg x 2 ml )");
+  const [catalogueId, setCatalogueId] = useState<string | null>(null);
+  const [dose, setDose] = useState("2.0 ml");
+  const [route, setRoute] = useState("Intravenous");
+  const [site, setSite] = useState("Basilic Vein - RH");
+  const [frequency, setFrequency] = useState("Once");
+  const [nurseNotes, setNurseNotes] = useState("Start Immediate");
+  const [comments, setComments] = useState("Post BP and vitals monitor");
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const presets = [
+    { name: "Lasix 20 mg ( 10 mg x 2 ml )", dose: "2.0 ml", route: "Intravenous", site: "Basilic Vein - RH", freq: "Once" },
+    { name: "Orofer FCM 1K Injection 20 ml", dose: "1.0 gm", route: "Intravenous", site: "Cephalic Vein - RH", freq: "Once a week" },
+    { name: "Heparin Sodium 5000 IU / 5 ml", dose: "5000 IU", route: "Intravenous", site: "IV Line", freq: "Every 6 hours" },
+    { name: "Fondaflo 2.5 mg / 0.5 ml", dose: "2.5 mg", route: "Subcutaneous (SC)", site: "Abdomen - Lower Left", freq: "Daily" },
+    { name: "Clexane 40 mg / 0.4 ml", dose: "40 mg", route: "Subcutaneous (SC)", site: "Abdomen - Lower Right", freq: "Daily" },
+  ];
+
+  const handleApplyPreset = async (p: typeof presets[0]) => {
+    setDrugName(p.name);
+    setDose(p.dose);
+    setRoute(p.route);
+    setSite(p.site);
+    setFrequency(p.freq);
+    try {
+      const prefix = p.name.split(" ")[0];
+      const data = await api<Row[]>(`/injections/catalog?q=${encodeURIComponent(prefix)}`);
+      const match = (data || []).find((c) => c.name.toLowerCase() === p.name.toLowerCase() || c.name.toLowerCase().startsWith(prefix.toLowerCase()));
+      if (match) setCatalogueId(match.id);
+      else setCatalogueId(null);
+    } catch {
+      setCatalogueId(null);
+    }
+  };
+
+  const handleSave = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!drugName.trim()) {
+      setError("Please select or enter the injection name.");
+      return;
+    }
+    setSubmitting(true);
+    setError(null);
+    try {
+      await api("/injections/orders", "POST", {
+        patient_id: patientId,
+        catalogue_id: catalogueId || null,
+        medication_name_snapshot: drugName.trim(),
+        dosage: dose.trim(),
+        route: route.trim(),
+        site: site.trim(),
+        frequency: frequency.trim(),
+        nurse_note: nurseNotes.trim(),
+        comments: comments.trim(),
+        status: "ordered",
+      });
+      notify("Injection order placed successfully.");
+      onSaved();
+      onClose();
+    } catch (err: any) {
+      setError(err.message || "Failed to create injection order.");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  return (
+    <Modal
+      title="Add Injection Order"
+      description="Create a physician injection order linked to the master formulary catalogue."
+      onClose={onClose}
+      wide
+    >
+      <form onSubmit={handleSave} className="charm-modal-form">
+        {error && (
+          <div className="charm-alert charm-alert-danger" style={{ marginBottom: 12 }}>
+            <AlertCircle size={16} /> {error}
+          </div>
+        )}
+
+        {/* Quick formulary buttons */}
+        <div style={{ marginBottom: 14 }}>
+          <div style={{ fontSize: 11, fontWeight: 700, color: "#64748b", textTransform: "uppercase", marginBottom: 6 }}>
+            Quick Formulary Presets
+          </div>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+            {presets.map((p) => (
+              <button
+                key={p.name}
+                type="button"
+                onClick={() => handleApplyPreset(p)}
+                style={{
+                  background: drugName === p.name ? "#e0f2fe" : "#f1f5f9",
+                  color: drugName === p.name ? "#0284c7" : "#334155",
+                  border: drugName === p.name ? "1px solid #7dd3fc" : "1px solid #cbd5e1",
+                  borderRadius: 4,
+                  padding: "4px 8px",
+                  fontSize: 11,
+                  fontWeight: 600,
+                  cursor: "pointer",
+                }}
+              >
+                {p.name.split(" ")[0]} ({p.dose})
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div className="charm-form-grid">
+          <div className="charm-form-group" style={{ gridColumn: "1 / -1" }}>
+            <label>Medication / Product Name *</label>
+            <InjectionAutocomplete
+              value={drugName}
+              catalogueId={catalogueId}
+              onChangeText={(text) => {
+                setDrugName(text);
+                setCatalogueId(null);
+              }}
+              onSelect={(item) => {
+                setDrugName(item.name);
+                setCatalogueId(item.id);
+              }}
+              required
+              placeholder="Search or select injection from central catalogue..."
+            />
           </div>
 
           <div className="charm-form-group">
             <label>Dosage & Strength *</label>
             <input
               type="text"
-              placeholder="e.g. 2.5 mg / 0.5 ml, 10 units"
-              value={dosage}
-              onChange={(e) => setDosage(e.target.value)}
+              value={dose}
+              onChange={(e) => setDose(e.target.value)}
+              required
               className="charm-input"
             />
           </div>
@@ -1402,136 +1749,145 @@ export function AddInjectionModal({
               onChange={(e) => setRoute(e.target.value)}
               className="charm-select"
             >
+              <option value="Intravenous">Intravenous</option>
               <option value="Subcutaneous (SC)">Subcutaneous (SC)</option>
               <option value="Intramuscular (IM)">Intramuscular (IM)</option>
-              <option value="Intravenous (IV)">Intravenous (IV)</option>
-              <option value="Intradermal (ID)">Intradermal (ID)</option>
               <option value="IV Infusion">IV Infusion</option>
             </select>
           </div>
 
           <div className="charm-form-group">
-            <label>Administration Site *</label>
-            <select
-              value={site}
-              onChange={(e) => setSite(e.target.value)}
-              className="charm-select"
-            >
-              <option value="Deltoid - Left">Deltoid - Left</option>
-              <option value="Deltoid - Right">Deltoid - Right</option>
-              <option value="Gluteal - Left">Gluteal - Left</option>
-              <option value="Gluteal - Right">Gluteal - Right</option>
-              <option value="Abdomen - Upper Left">Abdomen - Upper Left</option>
-              <option value="Abdomen - Upper Right">Abdomen - Upper Right</option>
-              <option value="Abdomen - Lower Left">Abdomen - Lower Left</option>
-              <option value="Abdomen - Lower Right">Abdomen - Lower Right</option>
-              <option value="Vastus Lateralis - Left">Vastus Lateralis - Left</option>
-              <option value="Vastus Lateralis - Right">Vastus Lateralis - Right</option>
-            </select>
-          </div>
-
-          <div className="charm-form-group">
-            <label>Batch / Lot Number</label>
+            <label>Administration Site</label>
             <input
               type="text"
-              placeholder="e.g. LOT-FND-8821A"
-              value={lotNumber}
-              onChange={(e) => setLotNumber(e.target.value)}
-              className="charm-input"
-            />
-          </div>
-
-          <div className="charm-form-group">
-            <label>Expiration Date</label>
-            <input
-              type="date"
-              value={expirationDate}
-              onChange={(e) => setExpirationDate(e.target.value)}
+              value={site}
+              onChange={(e) => setSite(e.target.value)}
               className="charm-input"
             />
           </div>
 
           <div className="charm-form-group">
             <label>Frequency</label>
-            <select
-              value={frequency}
-              onChange={(e) => setFrequency(e.target.value)}
-              className="charm-select"
-            >
-              <option value="Once / Stat">Once / Stat</option>
-              <option value="Daily">Daily</option>
-              <option value="Twice daily">Twice daily</option>
-              <option value="Weekly">Weekly</option>
-              <option value="PRN (As Needed)">PRN (As Needed)</option>
-            </select>
-          </div>
-
-          <div className="charm-form-group">
-            <label>Period / Duration</label>
             <input
               type="text"
-              placeholder="e.g. 1 Day, 5 Days"
-              value={period}
-              onChange={(e) => setPeriod(e.target.value)}
+              value={frequency}
+              onChange={(e) => setFrequency(e.target.value)}
               className="charm-input"
             />
-          </div>
-
-          <div className="charm-form-group">
-            <label>Administered Date & Time</label>
-            <input
-              type="datetime-local"
-              value={administeredAt}
-              onChange={(e) => setAdministeredAt(e.target.value)}
-              className="charm-input"
-            />
-          </div>
-
-          <div className="charm-form-group">
-            <label>Administered By</label>
-            <select
-              value={administeredBy}
-              onChange={(e) => setAdministeredBy(e.target.value)}
-              className="charm-select"
-            >
-              {staff.map((s) => (
-                <option key={s.id} value={s.id}>
-                  {s.name} ({s.role})
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div className="charm-form-group">
-            <label>Status</label>
-            <select
-              value={status}
-              onChange={(e) => setStatus(e.target.value)}
-              className="charm-select"
-            >
-              <option value="administered">Administered (Given)</option>
-              <option value="ordered">Ordered (Pending Administration)</option>
-            </select>
           </div>
 
           <div className="charm-form-group" style={{ gridColumn: "1 / -1" }}>
-            <label>Nurse Notes & Injection Reaction Observations</label>
-            <textarea
-              rows={2}
-              placeholder="e.g. Injected into left deltoid without resistance. No redness, swelling, or immediate adverse reaction noted. Patient tolerated well."
+            <label>Note to Nurse</label>
+            <input
+              type="text"
               value={nurseNotes}
               onChange={(e) => setNurseNotes(e.target.value)}
+              placeholder="e.g. Start Immediate, monitor vitals"
+              className="charm-input"
+            />
+          </div>
+
+          <div className="charm-form-group" style={{ gridColumn: "1 / -1" }}>
+            <label>Comments / Precaution</label>
+            <textarea
+              rows={2}
+              value={comments}
+              onChange={(e) => setComments(e.target.value)}
               className="charm-input"
             />
           </div>
         </div>
 
         <div className="charm-modal-footer">
-          <Button variant="secondary" onClick={onClose} disabled={saving}>
+          <Button variant="secondary" onClick={onClose} disabled={submitting} type="button">
             Cancel
           </Button>
-          <Button variant="primary" onClick={handleSave} disabled={saving}>
-            {saving ? "Recording Injection..." : "Record Injection"}
+          <Button variant="primary" type="submit" disabled={submitting}>
+            {submitting ? "Placing Order..." : "Place Injection Order"}
+          </Button>
+        </div>
+      </form>
+    </Modal>
+  );
+}
+
+export function ViewInjectionDetailsModal({
+  item,
+  onClose,
+}: {
+  item: Row;
+  onClose: () => void;
+}) {
+  return (
+    <Modal
+      title="Injection Administration Details"
+      description="Comprehensive clinical and audit record for this injection."
+      onClose={onClose}
+    >
+      <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+        <div style={{ background: "#f8fafc", padding: "14px 16px", borderRadius: 6, border: "1px solid #e2e8f0" }}>
+          <div style={{ fontSize: 16, fontWeight: 700, color: "#00838f" }}>
+            {item.name || item.product_name || "Injection"}
+          </div>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 4 }}>
+            <span style={{ fontSize: 13, color: "#334155", fontWeight: 600 }}>
+              Dosage: {item.dosage || item.dose || "—"}
+            </span>
+            {item.catalogue_id && (
+              <span style={{ fontSize: 11, background: "#e0f2fe", color: "#0369a1", padding: "2px 6px", borderRadius: 4, fontWeight: 500 }}>
+                Master Formulary Linked
+              </span>
+            )}
+          </div>
+        </div>
+
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, fontSize: 13 }}>
+          <div>
+            <span style={{ color: "#64748b", display: "block", fontSize: 11, fontWeight: 600 }}>PARENTERAL ROUTE</span>
+            <strong>{item.route || "—"}</strong>
+          </div>
+          <div>
+            <span style={{ color: "#64748b", display: "block", fontSize: 11, fontWeight: 600 }}>ADMINISTRATION SITE</span>
+            <strong>{item.site || "—"}</strong>
+          </div>
+          <div>
+            <span style={{ color: "#64748b", display: "block", fontSize: 11, fontWeight: 600 }}>BATCH / LOT NUMBER</span>
+            <strong>{item.lot_number || "—"}</strong>
+          </div>
+          <div>
+            <span style={{ color: "#64748b", display: "block", fontSize: 11, fontWeight: 600 }}>EXPIRATION DATE</span>
+            <strong>{item.expiration_date ? day(item.expiration_date) : "—"}</strong>
+          </div>
+          <div>
+            <span style={{ color: "#64748b", display: "block", fontSize: 11, fontWeight: 600 }}>ADMINISTERED AT</span>
+            <strong>{item.administered_at ? dateTime(item.administered_at) : item.created_at ? dateTime(item.created_at) : "—"}</strong>
+          </div>
+          <div>
+            <span style={{ color: "#64748b", display: "block", fontSize: 11, fontWeight: 600 }}>ADMINISTERED BY</span>
+            <strong>{item.administered_by_name ? formatDoctorName(item.administered_by_name) : "Clinical Staff"}</strong>
+          </div>
+          <div>
+            <span style={{ color: "#64748b", display: "block", fontSize: 11, fontWeight: 600 }}>STATUS</span>
+            <Badge value={item.status || "administered"} />
+          </div>
+          <div>
+            <span style={{ color: "#64748b", display: "block", fontSize: 11, fontWeight: 600 }}>FREQUENCY & DURATION</span>
+            <strong>{item.frequency || "Once"} {item.period ? `(${item.period})` : ""}</strong>
+          </div>
+        </div>
+
+        <div style={{ background: "#ffffff", padding: "12px 14px", borderRadius: 6, border: "1px solid #e2e8f0" }}>
+          <span style={{ color: "#64748b", display: "block", fontSize: 11, fontWeight: 600, marginBottom: 4 }}>
+            NURSE OBSERVATIONS & REACTION NOTES
+          </span>
+          <p style={{ margin: 0, fontSize: 13, color: "#1e293b", whiteSpace: "pre-wrap" }}>
+            {item.nurse_notes || item.nurse_note || item.comments || "No adverse reaction or immediate observations noted. Patient tolerated administration well."}
+          </p>
+        </div>
+
+        <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 8 }}>
+          <Button variant="secondary" onClick={onClose}>
+            Close
           </Button>
         </div>
       </div>
@@ -1551,14 +1907,46 @@ export function InjectionsSection({
   onRefresh: () => void;
 }) {
   const [subTab, setSubTab] = useState<"Injections" | "Injection Orders">("Injections");
-  const [modal, setModal] = useState<"" | "add">("");
+  const [modal, setModal] = useState<"" | "add" | "order" | "administer_order">("");
+  const [selectedOrder, setSelectedOrder] = useState<Row | null>(null);
+  const [viewItem, setViewItem] = useState<Row | null>(null);
+  const [searchTerm, setSearchTerm] = useState("");
 
-  const filtered = useMemo(() => {
-    if (subTab === "Injection Orders") {
-      return injections.filter((i) => i.status === "ordered");
-    }
-    return injections;
-  }, [injections, subTab]);
+  // Patient's dedicated injection orders
+  const { data: patientOrders = [], refetch: refetchOrders } = useQuery<Row[]>({
+    queryKey: ["injections", "orders", patient.id],
+    queryFn: () => api<Row[]>(`/injections/orders?patient_id=${patient.id}`),
+  });
+
+  const refreshAll = () => {
+    onRefresh();
+    refetchOrders();
+  };
+
+  // Filter administered injections
+  const filteredInjections = useMemo(() => {
+    return (injections || []).filter((inj) => {
+      if (!searchTerm.trim()) return true;
+      const q = searchTerm.toLowerCase().trim();
+      const nameMatch = (inj.name || "").toLowerCase().includes(q);
+      const lotMatch = (inj.lot_number || "").toLowerCase().includes(q);
+      const routeMatch = (inj.route || "").toLowerCase().includes(q);
+      const siteMatch = (inj.site || "").toLowerCase().includes(q);
+      return nameMatch || lotMatch || routeMatch || siteMatch;
+    });
+  }, [injections, searchTerm]);
+
+  // Filter orders
+  const filteredOrders = useMemo(() => {
+    return (patientOrders || []).filter((ord) => {
+      if (!searchTerm.trim()) return true;
+      const q = searchTerm.toLowerCase().trim();
+      const nameMatch = (ord.medication_name_snapshot || ord.name || "").toLowerCase().includes(q);
+      const docMatch = (ord.ordered_by_name || "").toLowerCase().includes(q);
+      const statusMatch = (ord.status || "").toLowerCase().includes(q);
+      return nameMatch || docMatch || statusMatch;
+    });
+  }, [patientOrders, searchTerm]);
 
   return (
     <div className="charm-clinical-section">
@@ -1573,136 +1961,372 @@ export function InjectionsSection({
           </button>
           <button
             type="button"
-            className={`charm-subtab-btn ${
-              subTab === "Injection Orders" ? "active" : ""
-            }`}
+            className={`charm-subtab-btn ${subTab === "Injection Orders" ? "active" : ""}`}
             onClick={() => setSubTab("Injection Orders")}
           >
-            <FileText size={15} /> Injection Orders (
-            {injections.filter((i) => i.status === "ordered").length})
+            <FileText size={15} /> Injection Orders ({patientOrders.length})
           </button>
         </div>
 
         <div className="charm-actions-group">
-          <Button variant="secondary" onClick={() => alert("Injection protocol templates: Fondaflo SC, Clexane DVT Prophylaxis, Insulin Titration.")}>
-            Templates
-          </Button>
           {writable && (
-            <Button variant="primary" onClick={() => setModal("add")} aria-label="+ Injection">
-              <Plus size={15} style={{ marginRight: 4 }} /> Injection
-            </Button>
+            <>
+              <Button
+                variant="secondary"
+                onClick={() => setModal("order")}
+                aria-label="+ Injection Order"
+              >
+                <Plus size={15} style={{ marginRight: 4 }} /> Injection Order
+              </Button>
+              <Button
+                variant="primary"
+                onClick={() => {
+                  setSelectedOrder(null);
+                  setModal("add");
+                }}
+                aria-label="+ Injection"
+              >
+                <Plus size={15} style={{ marginRight: 4 }} /> Injection
+              </Button>
+            </>
           )}
         </div>
       </div>
 
+      {/* Filter and Search Toolbar */}
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12, gap: 12 }}>
+        <div style={{ position: "relative", flex: 1, maxWidth: 360 }}>
+          <Search
+            size={14}
+            style={{
+              position: "absolute",
+              left: 10,
+              top: "50%",
+              transform: "translateY(-50%)",
+              color: "#94a3b8",
+            }}
+          />
+          <input
+            type="text"
+            placeholder={subTab === "Injections" ? "Search injections by name, lot, route..." : "Search orders by drug, doctor..."}
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="charm-input"
+            style={{ width: "100%", height: 34, paddingLeft: 32, fontSize: 13 }}
+          />
+        </div>
+      </div>
+
       <div className="charm-table-card">
-        <table className="charm-data-table">
-          <thead>
-            <tr>
-              <th>Administered Date / Time</th>
-              <th>Medication & Dosage</th>
-              <th>Route & Site</th>
-              <th>Batch / Lot & Expiry</th>
-              <th>Administered By</th>
-              <th>Status</th>
-              <th>Nurse Notes</th>
-              {writable && <th style={{ width: 80, textAlign: "right" }}>Actions</th>}
-            </tr>
-          </thead>
-          <tbody>
-            {filtered.length === 0 ? (
+        {subTab === "Injections" ? (
+          /* =========================================================================
+             ADMINISTERED INJECTIONS TABLE (10 Standard Clinical Columns)
+             ========================================================================= */
+          <table className="charm-data-table">
+            <thead>
               <tr>
-                <td colSpan={writable ? 8 : 7} className="charm-empty-cell">
-                  <div className="charm-empty-state">
-                    <Syringe size={28} className="charm-empty-icon" />
-                    <strong>No injections recorded</strong>
-                    <p>Injections, subcutaneous anticoagulants, and infusions appear here.</p>
-                    {writable && (
-                      <Button variant="primary" onClick={() => setModal("add")}>
-                        <Plus size={15} style={{ marginRight: 4 }} /> Add Injection
-                      </Button>
-                    )}
-                  </div>
-                </td>
+                <th>Injection Name</th>
+                <th>Dosage / Strength</th>
+                <th>Route</th>
+                <th>Administration Site</th>
+                <th>Batch / Lot</th>
+                <th>Expiration</th>
+                <th>Administered Date / Time</th>
+                <th>Administered By</th>
+                <th>Status</th>
+                <th style={{ width: 100, textAlign: "right" }}>Actions</th>
               </tr>
-            ) : (
-              filtered.map((inj) => (
-                <tr key={inj.id}>
-                  <td>
-                    <div>
-                      <strong>
-                        {inj.administered_at
-                          ? dateTime(inj.administered_at)
-                          : inj.created_at
-                          ? dateTime(inj.created_at)
-                          : "—"}
-                      </strong>
-                    </div>
-                  </td>
-                  <td>
-                    <div className="charm-drug-cell">
-                      <strong className="charm-drug-main-name">{inj.name || inj.product_name || "Injection"}</strong>
-                      <div className="charm-drug-sub">{inj.dosage || inj.dose || ""}</div>
-                      {inj.frequency && (
-                        <span className="charm-pill-tag">{inj.frequency}</span>
+            </thead>
+            <tbody>
+              {filteredInjections.length === 0 ? (
+                <tr>
+                  <td colSpan={10} className="charm-empty-cell">
+                    <div className="charm-empty-state">
+                      <Syringe size={28} className="charm-empty-icon" />
+                      <strong>No injections recorded</strong>
+                      <p>Injections administered to this patient will appear here.</p>
+                      {writable && (
+                        <Button
+                          variant="primary"
+                          onClick={() => {
+                            setSelectedOrder(null);
+                            setModal("add");
+                          }}
+                        >
+                          <Plus size={15} style={{ marginRight: 4 }} /> Add Injection
+                        </Button>
                       )}
                     </div>
                   </td>
-                  <td>
-                    <div>
-                      <strong>{inj.route}</strong>
-                    </div>
-                    <div className="charm-text-muted">{inj.site || "—"}</div>
-                  </td>
-                  <td>
-                    <div>Lot: {inj.lot_number || "—"}</div>
-                    <small className="charm-text-muted">
-                      Exp: {inj.expiration_date ? day(inj.expiration_date) : "—"}
-                    </small>
-                  </td>
-                  <td>
-                    <div>{inj.administered_by_name ? formatDoctorName(inj.administered_by_name) : "Nurse Staff"}</div>
-                    <small className="charm-text-muted">
-                      {inj.administered_by_role || "Staff"}
-                    </small>
-                  </td>
-                  <td>
-                    <Badge value={inj.status || "administered"} />
-                  </td>
-                  <td>
-                    <div className="charm-notes-cell" title={inj.nurse_notes || ""}>
-                      {inj.nurse_notes || "—"}
-                    </div>
-                  </td>
-                  {writable && (
-                    <td style={{ textAlign: "right" }}>
-                      <button
-                        type="button"
-                        className="charm-btn-icon-danger"
-                        title="Delete record"
-                        onClick={async () => {
-                          if (confirm(`Delete injection record for ${inj.name}?`)) {
-                            await api(`/records/injections/${inj.id}`, "DELETE");
-                            onRefresh();
-                          }
-                        }}
-                      >
-                        <Trash2 size={15} />
-                      </button>
-                    </td>
-                  )}
                 </tr>
-              ))
-            )}
-          </tbody>
-        </table>
+              ) : (
+                filteredInjections.map((inj) => (
+                  <tr key={inj.id}>
+                    <td>
+                      <div className="charm-drug-cell">
+                        <strong className="charm-drug-main-name">
+                          {inj.name || inj.product_name || "Injection"}
+                        </strong>
+                        {inj.catalogue_id && (
+                          <span
+                            style={{
+                              display: "inline-block",
+                              fontSize: 10,
+                              fontWeight: 600,
+                              color: "#0369a1",
+                              background: "#e0f2fe",
+                              padding: "1px 5px",
+                              borderRadius: 3,
+                              marginTop: 2,
+                            }}
+                          >
+                            Formulary
+                          </span>
+                        )}
+                      </div>
+                    </td>
+                    <td>
+                      <strong>{inj.dosage || inj.dose || "—"}</strong>
+                    </td>
+                    <td>
+                      <span>{inj.route || "—"}</span>
+                    </td>
+                    <td>
+                      <span className="charm-text-muted">{inj.site || "—"}</span>
+                    </td>
+                    <td>
+                      <span>{inj.lot_number || "—"}</span>
+                    </td>
+                    <td>
+                      <small className="charm-text-muted">
+                        {inj.expiration_date ? day(inj.expiration_date) : "—"}
+                      </small>
+                    </td>
+                    <td>
+                      <div>
+                        <strong>
+                          {inj.administered_at
+                            ? dateTime(inj.administered_at)
+                            : inj.created_at
+                            ? dateTime(inj.created_at)
+                            : "—"}
+                        </strong>
+                      </div>
+                    </td>
+                    <td>
+                      <div>{inj.administered_by_name ? formatDoctorName(inj.administered_by_name) : "Clinical Staff"}</div>
+                      <small className="charm-text-muted">
+                        {inj.administered_by_role || "Staff"}
+                      </small>
+                    </td>
+                    <td>
+                      <Badge value={inj.status || "administered"} />
+                    </td>
+                    <td style={{ textAlign: "right" }}>
+                      <div style={{ display: "inline-flex", gap: 6 }}>
+                        <button
+                          type="button"
+                          className="charm-btn-icon"
+                          title="View Details"
+                          onClick={() => setViewItem(inj)}
+                          style={{
+                            background: "transparent",
+                            border: "1px solid #cbd5e1",
+                            borderRadius: 4,
+                            padding: 4,
+                            cursor: "pointer",
+                            color: "#475569",
+                          }}
+                        >
+                          <Eye size={14} />
+                        </button>
+                        {writable && (
+                          <button
+                            type="button"
+                            className="charm-btn-icon-danger"
+                            title="Delete Record"
+                            onClick={async () => {
+                              if (confirm(`Delete injection record for ${inj.name}?`)) {
+                                await api(`/records/injections/${inj.id}`, "DELETE");
+                                refreshAll();
+                              }
+                            }}
+                            style={{
+                              background: "transparent",
+                              border: "1px solid #fca5a5",
+                              borderRadius: 4,
+                              padding: 4,
+                              cursor: "pointer",
+                              color: "#ef4444",
+                            }}
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        ) : (
+          /* =========================================================================
+             INJECTION ORDERS TABLE (Clinical Orders awaiting Administration)
+             ========================================================================= */
+          <table className="charm-data-table">
+            <thead>
+              <tr>
+                <th>Ordered On</th>
+                <th>Medication / Injection</th>
+                <th>Dosage & Route</th>
+                <th>Site</th>
+                <th>Frequency</th>
+                <th>Ordered By</th>
+                <th>Status</th>
+                <th style={{ width: 150, textAlign: "right" }}>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filteredOrders.length === 0 ? (
+                <tr>
+                  <td colSpan={8} className="charm-empty-cell">
+                    <div className="charm-empty-state">
+                      <FileText size={28} className="charm-empty-icon" />
+                      <strong>No injection orders</strong>
+                      <p>Active physician injection orders for this patient appear here.</p>
+                      {writable && (
+                        <Button variant="primary" onClick={() => setModal("order")}>
+                          <Plus size={15} style={{ marginRight: 4 }} /> Add Injection Order
+                        </Button>
+                      )}
+                    </div>
+                  </td>
+                </tr>
+              ) : (
+                filteredOrders.map((ord) => {
+                  const isPending = ord.status === "ordered" || ord.status === "pending";
+                  return (
+                    <tr key={ord.id}>
+                      <td>
+                        <strong>{ord.ordered_at ? dateTime(ord.ordered_at) : ord.created_at ? dateTime(ord.created_at) : "—"}</strong>
+                      </td>
+                      <td>
+                        <div className="charm-drug-cell">
+                          <strong className="charm-drug-main-name">
+                            {ord.medication_name_snapshot || ord.name}
+                          </strong>
+                          {ord.catalogue_id && (
+                            <span
+                              style={{
+                                display: "inline-block",
+                                fontSize: 10,
+                                fontWeight: 600,
+                                color: "#0369a1",
+                                background: "#e0f2fe",
+                                padding: "1px 5px",
+                                borderRadius: 3,
+                                marginTop: 2,
+                              }}
+                            >
+                              Formulary
+                            </span>
+                          )}
+                        </div>
+                      </td>
+                      <td>
+                        <div><strong>{ord.dosage}</strong></div>
+                        <div className="charm-text-muted">{ord.route}</div>
+                      </td>
+                      <td>{ord.site || "—"}</td>
+                      <td>{ord.frequency || "Once"}</td>
+                      <td>{ord.ordered_by_name || "Doctor"}</td>
+                      <td>
+                        <Badge value={ord.status || "ordered"} />
+                      </td>
+                      <td style={{ textAlign: "right" }}>
+                        <div style={{ display: "inline-flex", gap: 6, alignItems: "center" }}>
+                          {isPending && writable && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setSelectedOrder(ord);
+                                setModal("administer_order");
+                              }}
+                              style={{
+                                background: "#00838f",
+                                color: "#ffffff",
+                                border: "none",
+                                borderRadius: 4,
+                                padding: "4px 8px",
+                                fontSize: 11,
+                                fontWeight: 600,
+                                cursor: "pointer",
+                              }}
+                            >
+                              Administer
+                            </button>
+                          )}
+                          {writable && (
+                            <button
+                              type="button"
+                              title="Cancel Order"
+                              onClick={async () => {
+                                if (confirm(`Cancel injection order for ${ord.medication_name_snapshot || ord.name}?`)) {
+                                  await api(`/injections/orders/${ord.id}`, "DELETE");
+                                  refreshAll();
+                                }
+                              }}
+                              style={{
+                                background: "transparent",
+                                border: "1px solid #fca5a5",
+                                borderRadius: 4,
+                                padding: 4,
+                                cursor: "pointer",
+                                color: "#ef4444",
+                              }}
+                            >
+                              <Trash2 size={13} />
+                            </button>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })
+              )}
+            </tbody>
+          </table>
+        )}
       </div>
 
-      {modal === "add" && (
+      {/* Add Injection Administration Modal */}
+      {(modal === "add" || modal === "administer_order") && (
         <AddInjectionModal
           patientId={patient.id}
+          initialOrder={selectedOrder}
+          onClose={() => {
+            setModal("");
+            setSelectedOrder(null);
+          }}
+          onSaved={refreshAll}
+        />
+      )}
+
+      {/* Add Injection Order Modal */}
+      {modal === "order" && (
+        <AddPatientInjectionOrderModal
+          patientId={patient.id}
           onClose={() => setModal("")}
-          onSaved={onRefresh}
+          onSaved={refreshAll}
+        />
+      )}
+
+      {/* View Details Modal */}
+      {viewItem && (
+        <ViewInjectionDetailsModal
+          item={viewItem}
+          onClose={() => setViewItem(null)}
         />
       )}
     </div>
