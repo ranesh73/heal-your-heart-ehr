@@ -3638,7 +3638,7 @@ export function EncounterEditor({
                     )}
                   </div>
 
-                  {/* SECTION: CHIEF COMPLAINTS (Authentic CharmHealth (S) CC) */}
+                  {/* SECTION: CHIEF COMPLAINTS (Authentic CharmHealth (S) CC - Clean Textarea matching frame_001) */}
                   <div id="sec-cc" className="charm-editor-section">
                     <div className="charm-section-header">
                       <h3>Chief Complaints</h3>
@@ -3651,64 +3651,11 @@ export function EncounterEditor({
                       </button>
                     </div>
 
-                    <div className="charm-cc-questions-picker" style={{ marginBottom: 12 }}>
-                      {ccQuestions.map((q, idx) => (
-                        <div
-                          key={idx}
-                          style={{
-                            display: "flex",
-                            alignItems: "center",
-                            justifyContent: "space-between",
-                            padding: "6px 10px",
-                            background: idx % 2 === 0 ? "#f8fafc" : "#ffffff",
-                            borderBottom: "1px solid #f1f5f9",
-                            fontSize: 12,
-                          }}
-                        >
-                          <span style={{ color: "#334155", flex: 1, paddingRight: 8 }}>
-                            {q}
-                          </span>
-                          <div style={{ display: "flex", gap: 4 }}>
-                            <button
-                              type="button"
-                              className={`charm-toggle-pill ${
-                                ccAnswers[idx] === "Yes" ? "yes-active" : ""
-                              }`}
-                              style={{ padding: "2px 8px", fontSize: 11 }}
-                              onClick={() =>
-                                setCcAnswers((prev) => ({
-                                  ...prev,
-                                  [idx]: prev[idx] === "Yes" ? "" : "Yes",
-                                }))
-                              }
-                            >
-                              Yes
-                            </button>
-                            <button
-                              type="button"
-                              className={`charm-toggle-pill ${
-                                ccAnswers[idx] === "No" ? "no-active" : ""
-                              }`}
-                              style={{ padding: "2px 8px", fontSize: 11 }}
-                              onClick={() =>
-                                setCcAnswers((prev) => ({
-                                  ...prev,
-                                  [idx]: prev[idx] === "No" ? "" : "No",
-                                }))
-                              }
-                            >
-                              No
-                            </button>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-
                     <textarea
-                      rows={3}
+                      rows={4}
                       className="charm-cc-textarea"
                       aria-label="Chief complaint"
-                      placeholder="Additional clinical notes or chief complaints..."
+                      placeholder=""
                       {...register("chief_complaint")}
                     />
                   </div>
