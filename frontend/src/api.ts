@@ -17,30 +17,53 @@ export function setSession(nextCsrf: string, nextBranch?: string) {
 export async function api<T = any>(
   path: string,
   method = "GET",
-  body?: unknown,
+  body?: any,
 ): Promise<T> {
-  const form = body instanceof FormData;
-  const response = await fetch("/api" + path, {
-    method,
-    credentials: "same-origin",
-    headers: {
-      ...(form ? {} : { "Content-Type": "application/json" }),
-      "X-CSRF-Token": csrf,
-      "X-Facility-ID": branch,
-    },
-    body: body === undefined ? undefined : form ? body : JSON.stringify(body),
-  });
-  if (!response.ok) {
-    const data = await response
-      .json()
-      .catch(() => ({ detail: "Request failed" }));
-    throw new Error(
-      typeof data.detail === "string"
-        ? data.detail
-        : "Please check the supplied values",
-    );
+  const isForm = typeof FormData !== "undefined" && body instanceof FormData;
+  const cleanPath = path.startsWith("/api")
+    ? path
+    : "/api" + (path.startsWith("/") ? path : "/" + path);
+  const payload: BodyInit | null | undefined =
+    body === undefined
+      ? undefined
+      : isForm
+      ? body
+      : JSON.stringify(body);
+
+  try {
+    const response = await fetch(cleanPath, {
+      method,
+      credentials: "same-origin",
+      headers: {
+        ...(isForm ? {} : { "Content-Type": "application/json" }),
+        "X-CSRF-Token": csrf,
+        "X-Facility-ID": branch,
+      },
+      body: payload,
+    });
+    if (!response.ok) {
+      if (response.status === 401) {
+        throw new Error("Session expired. Please sign in again.");
+      }
+      if (response.status === 403) {
+        throw new Error("Access restricted. You do not have permission for this clinical action.");
+      }
+      const data = await response
+        .json()
+        .catch(() => ({ detail: `Request failed with status ${response.status}` }));
+      throw new Error(
+        typeof data.detail === "string"
+          ? data.detail
+          : "Please check the supplied values",
+      );
+    }
+    return response.json();
+  } catch (err: any) {
+    if (err.name === "TypeError" && (err.message || "").toLowerCase().includes("fetch")) {
+      throw new Error("Unable to connect to the EHR server. Please check your network and verify the backend is active.");
+    }
+    throw err;
   }
-  return response.json();
 }
 export async function download(path: string, filename: string) {
   const r = await fetch("/api" + path, {
