@@ -62,6 +62,7 @@ class AppointmentInput(Input):
     repeat_count: int = Field(default=1, ge=1, le=100)
     interval_days: int = Field(default=1, ge=1, le=365)
     skip_sundays: bool = True
+    allow_overlap: bool = False
 
     @field_validator('start_at')
     @classmethod
@@ -77,6 +78,7 @@ class Reschedule(Version):
     provider_id: str
     resource_id: str | None = None
     reason: str = Field(min_length=3, max_length=2000)
+    allow_overlap: bool = False
 
     _aware = field_validator('start_at')(AppointmentInput.aware_time.__func__)
 
