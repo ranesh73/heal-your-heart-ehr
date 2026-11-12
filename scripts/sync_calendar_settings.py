@@ -98,3 +98,4 @@ for path in [root / "backend" / "data" / "settings_store.json", root / "backend"
 
     path.write_text(json.dumps(data, indent=2), encoding="utf-8")
     print(f"Updated {path}")
+

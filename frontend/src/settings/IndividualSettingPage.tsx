@@ -11,6 +11,7 @@ import { AppointmentStatusPage } from "./calendar/AppointmentStatusPage";
 import { VisitTypesPage } from "./calendar/VisitTypesPage";
 import { EventTypesPage } from "./calendar/EventTypesPage";
 import { ProviderTimingsPage } from "./calendar/ProviderTimingsPage";
+import { FacilityTimingsPage } from "./calendar/FacilityTimingsPage";
 import { WebEmbedPage } from "./calendar/WebEmbedPage";
 import { SettingContentView } from "./SettingContentView";
 import { SETTINGS_CATEGORIES, ALL_SETTING_OPTIONS } from "./settingsData";
@@ -79,6 +80,9 @@ export function IndividualSettingPage({
   if (categoryId === "calendar") {
     let content: React.ReactNode = null;
     switch (activeOptionId) {
+      case "facility-timings":
+        content = <FacilityTimingsPage />;
+        break;
       case "provider-timings":
         content = <ProviderTimingsPage />;
         break;
