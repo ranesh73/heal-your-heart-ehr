@@ -1,0 +1,643 @@
+/* Horizontal Clinical Pathway & Template Usage Styles */
+
+.consultation-layout {
+  display: flex;
+  gap: 20px;
+  align-items: flex-start;
+  min-height: calc(100vh - 120px);
+}
+
+.consultation-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+/* Patient Banner */
+.patient-banner {
+  background-color: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-left: 4px solid var(--charm-blue);
+  border-radius: 4px;
+  padding: 12px 18px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  box-shadow: var(--shadow-sm);
+}
+
+.patient-banner-info {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.patient-avatar-box {
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  background-color: #e0f2fe;
+  color: var(--charm-blue);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 16px;
+}
+
+.patient-details h2 {
+  font-size: 16px;
+  font-weight: 700;
+  color: #111827;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.patient-subdetails {
+  font-size: 13px;
+  color: #6b7280;
+  margin-top: 2px;
+}
+
+.template-title-chip {
+  background-color: #f3f4f6;
+  border: 1px solid #d1d5db;
+  padding: 4px 12px;
+  border-radius: 14px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #374151;
+}
+
+/* HORIZONTAL CLINICAL PATHWAY CONTAINER */
+.horizontal-pathway-container {
+  background-color: #ffffff;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  padding: 16px;
+  box-shadow: var(--shadow-sm);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.pathway-header-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid #f1f5f9;
+  padding-bottom: 10px;
+}
+
+.pathway-title-wrap {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.pathway-badge {
+  background-color: #e0f2fe;
+  color: #0288d1;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  padding: 2px 8px;
+  border-radius: 10px;
+  letter-spacing: 0.5px;
+}
+
+.pathway-header-row h3 {
+  font-size: 15px;
+  font-weight: 700;
+  color: #1e293b;
+}
+
+.pathway-nav-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.btn-nav-arrow {
+  background-color: #ffffff;
+  border: 1px solid #d1d5db;
+  color: #374151;
+  padding: 4px 10px;
+  font-size: 12px;
+  font-weight: 600;
+  border-radius: 3px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  transition: all 0.15s;
+}
+
+.btn-nav-arrow:hover:not(:disabled) {
+  background-color: #f3f4f6;
+  border-color: #9ca3af;
+}
+
+.btn-nav-arrow:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* The Horizontal Track: Only this container scrolls horizontally */
+.pathway-track-viewport {
+  width: 100%;
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding: 10px 4px 18px 4px;
+  scroll-behavior: smooth;
+}
+
+.pathway-track-viewport::-webkit-scrollbar {
+  height: 7px;
+}
+
+.pathway-track-viewport::-webkit-scrollbar-track {
+  background: #f1f5f9;
+  border-radius: 4px;
+}
+
+.pathway-track-viewport::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 4px;
+}
+
+.pathway-track-viewport::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
+
+.pathway-track-inner {
+  display: inline-flex;
+  align-items: flex-start;
+  gap: 14px;
+  min-width: 100%;
+}
+
+/* Individual Stage Card */
+.pathway-stage-card {
+  width: 290px;
+  min-width: 290px;
+  max-width: 320px;
+  background-color: #ffffff;
+  border: 1px solid #cbd5e1;
+  border-top: 4px solid var(--charm-blue);
+  border-radius: 5px;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.06);
+  display: flex;
+  flex-direction: column;
+  transition: transform 0.2s, box-shadow 0.2s;
+  animation: slideInRight 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes slideInRight {
+  from {
+    opacity: 0;
+    transform: translateX(25px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.stage-card-header {
+  padding: 10px 14px;
+  background-color: #f8fafc;
+  border-bottom: 1px solid #e2e8f0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.stage-step-num {
+  font-size: 11px;
+  font-weight: 700;
+  color: #0288d1;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.stage-card-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: #0f172a;
+  margin-top: 2px;
+  white-space: normal;
+}
+
+.stage-card-body {
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  max-height: 380px;
+  overflow-y: auto;
+}
+
+/* Radio / Checkbox Option Tiles */
+.pathway-option-tile {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 12px;
+  border: 1px solid #e2e8f0;
+  border-radius: 4px;
+  background-color: #ffffff;
+  cursor: pointer;
+  transition: all 0.15s;
+  font-size: 13px;
+  color: #334155;
+  white-space: normal;
+}
+
+.pathway-option-tile:hover {
+  background-color: #f8fafc;
+  border-color: #94a3b8;
+}
+
+.pathway-option-tile.selected {
+  background-color: #f0f9ff;
+  border-color: var(--charm-blue);
+  color: #0369a1;
+  font-weight: 600;
+  box-shadow: 0 0 0 1px var(--charm-blue);
+}
+
+.pathway-option-tile input {
+  accent-color: var(--charm-blue);
+  cursor: pointer;
+}
+
+/* Connecting Arrow */
+.pathway-stage-arrow {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  align-self: center;
+  color: #94a3b8;
+  font-size: 20px;
+  font-weight: 700;
+  padding: 0 4px;
+}
+
+/* Additional Standard Sections below pathway (Objective / Vitals / Assessment) */
+.consultation-sections-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.clinical-section-panel {
+  background-color: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 4px;
+  overflow: hidden;
+  box-shadow: var(--shadow-sm);
+}
+
+.section-panel-header {
+  background-color: #f8fafc;
+  border-bottom: 1px solid #e2e8f0;
+  padding: 10px 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.section-panel-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: #1e293b;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.section-panel-body {
+  padding: 16px;
+}
+
+.grid-col-1 {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.grid-col-2 {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 16px;
+}
+
+.grid-col-3 {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+}
+
+.field-group {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.field-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: #334155;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.field-input {
+  padding: 8px 10px;
+  font-size: 13px;
+  border: 1px solid #cbd5e1;
+  border-radius: 3px;
+  outline: none;
+  background-color: #ffffff;
+  color: #1e293b;
+}
+
+.field-input:focus {
+  border-color: var(--charm-blue);
+}
+
+.field-textarea {
+  min-height: 80px;
+  resize: vertical;
+}
+
+/* STICKY PATIENT SUMMARY (RIGHT SIDE) */
+.patient-summary-sidebar {
+  width: 330px;
+  min-width: 330px;
+  background-color: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 4px;
+  box-shadow: var(--shadow-sm);
+  position: sticky;
+  top: 70px;
+  display: flex;
+  flex-direction: column;
+  max-height: calc(100vh - 90px);
+  overflow: hidden;
+}
+
+.summary-header {
+  background-color: #f9fafb;
+  border-bottom: 1px solid #e5e7eb;
+  padding: 12px 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.summary-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: #111827;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.live-indicator {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11px;
+  color: #16a34a;
+  font-weight: 600;
+}
+
+.live-dot {
+  width: 6px;
+  height: 6px;
+  background-color: #16a34a;
+  border-radius: 50%;
+  animation: pulse 1.5s infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+
+.summary-body {
+  padding: 14px 16px;
+  overflow-y: auto;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.summary-meta-block {
+  background-color: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 4px;
+  padding: 10px 12px;
+  font-size: 12px;
+}
+
+.summary-meta-row {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 4px;
+  color: #475569;
+}
+
+.summary-meta-row strong {
+  color: #0f172a;
+}
+
+.summary-notes-preview {
+  background-color: #fafafa;
+  border: 1px solid #e5e7eb;
+  border-radius: 4px;
+  padding: 12px;
+  font-size: 13px;
+  color: #334155;
+  line-height: 1.6;
+  white-space: pre-wrap;
+  font-family: inherit;
+}
+
+.summary-checklist {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.summary-check-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  font-size: 13px;
+  color: #334155;
+}
+
+.summary-check-icon {
+  color: #16a34a;
+  margin-top: 2px;
+  flex-shrink: 0;
+}
+
+.summary-footer {
+  padding: 14px 16px;
+  border-top: 1px solid #e5e7eb;
+  background-color: #f9fafb;
+}
+
+.btn-complete-consultation {
+  width: 100%;
+  background-color: var(--charm-orange);
+  color: #ffffff;
+  border: none;
+  padding: 10px 16px;
+  font-size: 14px;
+  font-weight: 700;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background-color 0.15s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.btn-complete-consultation:hover {
+  background-color: var(--charm-orange-hover);
+}
+
+/* TEMPLATE BUILDER */
+.builder-layout {
+  display: flex;
+  gap: 16px;
+  align-items: flex-start;
+}
+
+.builder-sidebar {
+  width: 260px;
+  min-width: 260px;
+  background-color: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 4px;
+  box-shadow: var(--shadow-sm);
+  padding: 14px;
+}
+
+.builder-sidebar-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: #4b5563;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 12px;
+  border-bottom: 1px solid #f3f4f6;
+  padding-bottom: 6px;
+}
+
+.component-palette-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.palette-item-btn {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  background-color: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 4px;
+  color: #334155;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  text-align: left;
+  transition: all 0.15s;
+}
+
+.palette-item-btn:hover {
+  background-color: #e0f2fe;
+  border-color: #7dd3fc;
+  color: #0369a1;
+}
+
+.builder-workspace {
+  flex: 1;
+  background-color: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 4px;
+  box-shadow: var(--shadow-sm);
+  padding: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.builder-top-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid #e5e7eb;
+  padding-bottom: 14px;
+}
+
+.builder-title-input {
+  font-size: 18px;
+  font-weight: 700;
+  color: #111827;
+  border: 1px solid transparent;
+  padding: 4px 8px;
+  border-radius: 4px;
+  outline: none;
+  width: 400px;
+}
+
+.builder-title-input:focus {
+  border-color: var(--charm-blue);
+  background-color: #f9fafb;
+}
+
+.builder-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+/* Hierarchy Connector Box inside Builder */
+.hierarchy-builder-box {
+  background-color: #eff6ff;
+  border: 1px solid #bfdbfe;
+  border-radius: 4px;
+  padding: 14px;
+  margin-top: 10px;
+}
+
+.hierarchy-builder-box h4 {
+  font-size: 14px;
+  font-weight: 700;
+  color: #1e40af;
+  margin-bottom: 8px;
+}
+
+.hierarchy-rule-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 8px;
+  font-size: 13px;
+}

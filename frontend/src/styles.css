@@ -10918,15 +10918,17 @@ textarea.charm-input {
   border-radius: 6px;
   padding: 24px 36px 36px 36px;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
-  max-width: 1200px;
+  max-width: 1240px;
   width: calc(100% - 60px);
   margin: 0 auto;
   height: calc(100vh - 170px);
   overflow-y: auto;
+  overflow-x: auto;
 }
 
 .charm-settings-content-panel::-webkit-scrollbar {
   width: 8px;
+  height: 8px;
 }
 
 .charm-settings-content-panel::-webkit-scrollbar-track {
@@ -10942,32 +10944,30 @@ textarea.charm-input {
   background: #aab4be;
 }
 
+.charm-settings-rows-container {
+  display: flex;
+  flex-direction: column;
+  gap: 28px;
+  width: 100%;
+  min-width: 920px;
+}
+
+.charm-settings-row-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  column-gap: 36px;
+  align-items: start;
+}
+
+.charm-settings-empty-slot {
+  visibility: hidden;
+}
+
 .charm-settings-grid-4col {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
   gap: 28px 36px;
   align-items: start;
-}
-
-@media (max-width: 1280px) {
-  .charm-settings-grid-4col {
-    grid-template-columns: repeat(3, 1fr);
-    gap: 24px 30px;
-  }
-}
-
-@media (max-width: 900px) {
-  .charm-settings-grid-4col {
-    grid-template-columns: repeat(2, 1fr);
-    gap: 20px 24px;
-  }
-}
-
-@media (max-width: 600px) {
-  .charm-settings-grid-4col {
-    grid-template-columns: 1fr;
-    gap: 18px;
-  }
 }
 
 .charm-settings-column {
@@ -10979,6 +10979,7 @@ textarea.charm-input {
 .charm-settings-category-card {
   display: flex;
   flex-direction: column;
+  min-width: 0;
 }
 
 .charm-settings-category-heading {
@@ -10987,11 +10988,12 @@ textarea.charm-input {
   color: #166eb8;
   font-family: Lato, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   text-transform: none;
-  margin-bottom: 0px;
-  padding-bottom: 9px;
+  margin: 0;
+  padding-bottom: 8px;
   letter-spacing: normal;
   cursor: pointer;
   transition: color 0.15s ease;
+  line-height: 1.25;
 }
 
 .charm-settings-category-heading:hover {

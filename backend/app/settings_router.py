@@ -392,7 +392,7 @@ def get_setting_option(category: str, option: str, c=Depends(context)):
 
 @router.put('/admin/settings/{category}/{option}')
 def save_setting_option(category: str, option: str, data: dict, c=Depends(context)):
-    c.allow({'admin'})
+    c.allow({'admin', 'doctor', 'reception', 'therapist'})
     store = load_store()
     custom = store.setdefault("custom_settings", {})
     key = f"{category}:{option}"

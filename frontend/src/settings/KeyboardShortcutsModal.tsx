@@ -52,7 +52,7 @@ export function KeyboardShortcutsModal({
         {
           keys: ["Alt", "S"],
           action: "Open Settings Dashboard",
-          note: "CharmHealth settings replica",
+          note: "Heal Your Heart settings replica",
         },
         {
           keys: ["Alt", "E"],

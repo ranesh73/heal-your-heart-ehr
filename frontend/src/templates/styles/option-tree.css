@@ -1,0 +1,241 @@
+/* ==========================================================================
+   Horizontal hierarchical options (hopt-*) with progressive disclosure
+   ========================================================================== */
+
+.hopt-tree-root {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+.hopt-level {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+/* Horizontal sibling options row: wraps naturally inside branch if needed */
+.hopt-options-wrap,
+.hopt-row-scroll,
+.hopt-scroll {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 5px 4px;
+  max-width: 100%;
+  box-sizing: border-box;
+  overflow-x: visible;
+}
+
+/* Keep parent sibling options on one horizontal row when a child branch expands */
+.hopt-options-wrap:has(> .hopt-node.is-expanded) {
+  flex-wrap: nowrap;
+}
+
+/* Each option node owns its pill and its own vertical child container */
+.hopt-node {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: flex-start;
+  position: relative;
+  flex: 0 0 auto;
+  min-width: 0;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+/* Only branches with deeper nested expansions may flex-shrink if container is narrow */
+.hopt-node.has-expanded-child {
+  flex: 0 1 auto;
+}
+
+/* Container for subtrees directly below their selected parent option */
+.hopt-child-branch,
+.hopt-child-container {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 5px;
+  max-width: 100%;
+  box-sizing: border-box;
+  margin-top: 5px;
+  margin-left: 0;
+  padding-left: 8px;
+  position: relative;
+}
+
+/* Allow the last child branch at depth >= 2 to extend into empty space beneath higher-level trailing siblings */
+@media (min-width: 1200px) {
+  .hopt-depth-2 > .hopt-options-wrap > .hopt-node.is-expanded:last-child > .hopt-child-branch {
+    margin-right: -195px;
+    max-width: calc(100% + 195px);
+  }
+}
+
+/* Subtle vertical connector line from parent option down to child row */
+.hopt-child-branch::before,
+.hopt-child-container::before {
+  content: '';
+  position: absolute;
+  top: -5px;
+  left: 2.5px;
+  width: 1.5px;
+  height: 17px;
+  background-color: #cbd5e1;
+}
+
+/* Subtle horizontal connector arm into the child row */
+.hopt-child-branch::after,
+.hopt-child-container::after {
+  content: '';
+  position: absolute;
+  top: 11px;
+  left: 2.5px;
+  width: 4px;
+  height: 1.5px;
+  background-color: #cbd5e1;
+}
+
+/* Option chip button / label container */
+.hopt-opt {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+  padding: 2px 6px;
+  background-color: #ffffff;
+  border: 1px solid #cbd5e1;
+  border-radius: 4px;
+  white-space: nowrap;
+  cursor: pointer;
+  user-select: none;
+  font-family: inherit;
+  font-size: 12px;
+  line-height: 1.3;
+  color: #334155;
+  transition: all 0.15s ease;
+}
+
+.hopt-opt:hover {
+  background-color: #f8fafc;
+  border-color: #94a3b8;
+}
+
+.hopt-opt .hopt-label {
+  cursor: pointer;
+}
+
+.hopt-opt input.hopt-check {
+  flex-shrink: 0;
+  width: 13px;
+  height: 13px;
+  margin: 0;
+  accent-color: #1a73e8;
+  cursor: pointer;
+}
+
+/* Small hierarchy expand/collapse arrow for options with nested children */
+.hopt-arrow {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 13px;
+  height: 13px;
+  margin: 0 0 0 2px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: #64748b;
+  font-family: inherit;
+  font-size: 10px;
+  line-height: 1;
+  text-align: center;
+  cursor: pointer;
+  user-select: none;
+  border-radius: 2px;
+  transition: color 0.15s ease, background-color 0.15s ease;
+}
+
+.hopt-arrow:hover:not(:disabled) {
+  color: #1e293b;
+  background-color: rgba(0, 0, 0, 0.06);
+}
+
+.hopt-opt.on .hopt-arrow {
+  color: #0288d1;
+}
+
+.hopt-opt.on .hopt-arrow:hover:not(:disabled) {
+  color: #01579b;
+  background-color: rgba(2, 136, 209, 0.12);
+}
+
+.hopt-arrow:disabled {
+  cursor: default;
+}
+
+.hopt-arrow-char {
+  display: inline-block;
+  line-height: 1;
+  font-size: 10.5px;
+  transform: translateY(-0.5px);
+  pointer-events: none;
+}
+
+/* Selected option: light blue background, blue border, bold text */
+.hopt-opt.on {
+  background-color: #e8f2fd;
+  border-color: #9cc6f0;
+  color: #12508f;
+  font-weight: 600;
+}
+
+.hopt-opt input.hopt-check:disabled {
+  cursor: default;
+}
+
+.hopt-opt input.hopt-check:disabled + .hopt-label {
+  cursor: default;
+}
+
+.hopt-opt input.hopt-check:focus-visible {
+  outline: 2px solid var(--charm-blue, #0288d1);
+  outline-offset: 1px;
+}
+
+/* Context inside ClinicalFormRenderer */
+.cfr-control .hopt-opt {
+  padding: 2px 4px;
+  gap: 3px;
+}
+
+.cfr-control .hopt-opt .hopt-label {
+  font-size: 11.5px;
+  letter-spacing: -0.01em;
+}
+
+.cfr-row.full-width-control {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 8px;
+}
+
+.cfr-row.full-width-control .cfr-label {
+  flex: none;
+  width: 100%;
+  max-width: 100%;
+}
+
+.cfr-row.full-width-control .cfr-control {
+  width: 100%;
+  min-width: 0;
+}

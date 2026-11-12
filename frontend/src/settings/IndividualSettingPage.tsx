@@ -15,6 +15,7 @@ import { FacilityTimingsPage } from "./calendar/FacilityTimingsPage";
 import { WebEmbedPage } from "./calendar/WebEmbedPage";
 import { SettingContentView } from "./SettingContentView";
 import { SETTINGS_CATEGORIES, ALL_SETTING_OPTIONS } from "./settingsData";
+import { TemplatesModule } from "../templates/TemplatesModule";
 import { navigate } from "../api";
 
 interface IndividualSettingPageProps {
@@ -130,7 +131,18 @@ export function IndividualSettingPage({
     );
   }
 
-  // Other 24 Categories: Render Dedicated Individual Subpage
+  // Dedicated Templates Module (Integrated Horizontal Templates)
+  if (categoryId === "templates") {
+    return (
+      <TemplatesModule
+        initialTab={activeOptionId}
+        onNavigateTab={handleTabChange}
+        onBackToDashboard={() => navigate("/settings")}
+      />
+    );
+  }
+
+  // Other Categories: Render Dedicated Individual Subpage
   const currentOption = category.options.find((o) => o.id === activeOptionId) || category.options[0];
 
   const categoryTabs = category.options.map((opt) => ({

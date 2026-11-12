@@ -26,6 +26,16 @@ import { navigate } from "../api";
 // Row 5: Patient Recall | Quick Text | Directory | PHR Settings
 // Row 6: Charm TeleHealth | Charm Connect | Account | Security
 // Row 7: Charm Assist
+const SETTINGS_ROWS: string[][] = [
+  ["facility", "calendar", "patient", "templates"],
+  ["questionnaires", "documents", "consultation", "health-trackers"],
+  ["lab-image", "rx", "immunization", "injections"],
+  ["billing", "inventory", "message", "task"],
+  ["patient-recall", "quick-text", "directory", "phr-settings"],
+  ["charm-telehealth", "charm-connect", "account", "security"],
+  ["charm-assist"],
+];
+
 export function SettingsDashboard() {
   const { user } = useApp();
   const [searchQuery, setSearchQuery] = useState("");
@@ -35,6 +45,10 @@ export function SettingsDashboard() {
 
   const searchInputRef = useRef<HTMLInputElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
+
+  const categoryMap = useMemo(() => {
+    return new Map(SETTINGS_CATEGORIES.map((c) => [c.id, c]));
+  }, []);
 
   // Filter and rank options based on search query
   const searchResults = useMemo(() => {
@@ -282,10 +296,21 @@ export function SettingsDashboard() {
         </div>
       </section>
 
-      {/* Main Settings Content Panel (Large white panel, scrollable, 4-column responsive grid with perfect horizontal heading alignment) */}
+      {/* Main Settings Content Panel (Large white panel, scrollable, explicit 4-column rows ensuring 100% horizontal heading alignment) */}
       <section className="charm-settings-content-panel">
-        <div className="charm-settings-grid-4col">
-          {SETTINGS_CATEGORIES.map(renderCategoryCard)}
+        <div className="charm-settings-rows-container">
+          {SETTINGS_ROWS.map((rowCatIds, rowIdx) => (
+            <div key={rowIdx} className="charm-settings-row-grid">
+              {rowCatIds.map((catId) => {
+                const category = categoryMap.get(catId);
+                return category ? (
+                  renderCategoryCard(category)
+                ) : (
+                  <div key={catId} className="charm-settings-empty-slot" />
+                );
+              })}
+            </div>
+          ))}
         </div>
       </section>
 

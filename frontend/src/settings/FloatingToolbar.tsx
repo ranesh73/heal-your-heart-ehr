@@ -28,7 +28,7 @@ export function FloatingToolbar({
     <>
       <aside
         className="charm-floating-vertical-toolbar"
-        aria-label="Charm Floating Utilities"
+        aria-label="Heal Your Heart Floating Utilities"
       >
         {/* ICON 1: REFER A FRIEND */}
         <div className="charm-rail-btn-wrapper">

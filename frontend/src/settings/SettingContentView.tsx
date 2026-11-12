@@ -25,6 +25,12 @@ import {
   SettingOption,
 } from "./settingsData";
 import { api } from "../api";
+import { PatientNotificationsSubpage } from "./subpages/PatientNotificationsSubpage";
+import { PatientCategoriesSubpage } from "./subpages/PatientCategoriesSubpage";
+import { QuestionnairesSubpage } from "./subpages/QuestionnairesSubpage";
+import { DsiSubpage } from "./subpages/DsiSubpage";
+import { FlowsheetsSubpage } from "./subpages/FlowsheetsSubpage";
+import { LabsAndDrugsSubpage } from "./subpages/LabsAndDrugsSubpage";
 
 interface SettingContentViewProps {
   category: SettingCategory;
@@ -243,6 +249,51 @@ export function SettingContentView({
 
       {/* 3. Main Body Content Based on Option */}
       <div className="charm-settings-option-body">
+        {/* Subpage 1: Patient Notifications */}
+        {option.id === "text-voice-notifications" && (
+          <PatientNotificationsSubpage type="text-voice" />
+        )}
+        {option.id === "email-notifications" && (
+          <PatientNotificationsSubpage type="email" />
+        )}
+        {option.id === "whatsapp" && (
+          <PatientNotificationsSubpage type="whatsapp" />
+        )}
+
+        {/* Subpage 2: Patient Categories & Referral Sources */}
+        {option.id === "categories" && (
+          <PatientCategoriesSubpage type="categories" />
+        )}
+        {option.id === "referral-source" && (
+          <PatientCategoriesSubpage type="referral-source" />
+        )}
+
+        {/* Subpage 3: Questionnaires */}
+        {option.id === "practice-questionnaires" && (
+          <QuestionnairesSubpage />
+        )}
+
+        {/* Subpage 4: Consultation Decision Support (DSI) */}
+        {option.id === "dsi" && (
+          <DsiSubpage />
+        )}
+
+        {/* Subpage 5: Health Trackers Flowsheets & Preferences */}
+        {option.id === "flowsheets" && (
+          <FlowsheetsSubpage type="flowsheets" />
+        )}
+        {(option.id === "trackers-preferences" || option.id === "treatment-plan") && (
+          <FlowsheetsSubpage type="preferences" />
+        )}
+
+        {/* Subpage 6: Labs & Drugs */}
+        {option.id === "customize-labs" && (
+          <LabsAndDrugsSubpage type="customize-labs" />
+        )}
+        {option.id === "manage-supplements-drugs" && (
+          <LabsAndDrugsSubpage type="manage-supplements-drugs" />
+        )}
+
         {/* VIEW 1: Facility List Table */}
         {option.id === "facility-list" && (
           <div className="charm-settings-table-wrapper">
@@ -432,8 +483,28 @@ export function SettingContentView({
           </div>
         )}
 
-        {/* VIEW 6: Configurable Parameters & Form Fields for All Settings */}
-        {(!["facility-list", "facility-members", "facility-resources", "procedure-codes", "audit-trails"].includes(option.id) || (option.fields && option.fields.length > 0)) && (
+        {/* VIEW 6: Configurable Parameters & Form Fields for All Other Settings */}
+        {![
+          "facility-list",
+          "facility-members",
+          "facility-resources",
+          "procedure-codes",
+          "audit-trails",
+          "text-voice-notifications",
+          "email-notifications",
+          "whatsapp",
+          "categories",
+          "referral-source",
+          "practice-questionnaires",
+          "dsi",
+          "flowsheets",
+          "trackers-preferences",
+          "treatment-plan",
+          "customize-labs",
+          "manage-supplements-drugs",
+        ].includes(option.id) &&
+          option.fields &&
+          option.fields.length > 0 && (
           <div className="charm-settings-form-container">
             <div className="charm-form-header-box">
               <h2 className="text-[16px] font-bold text-slate-800 mb-1">

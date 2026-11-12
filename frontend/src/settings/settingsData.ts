@@ -268,27 +268,15 @@ export const SETTINGS_CATEGORIES: SettingCategory[] = [
       },
       {
         id: "whatsapp",
-        name: "WhatsApp",
+        name: "Whatsapp Notification",
         categoryId: "patient",
         categoryName: "Patient",
         description: "Direct WhatsApp messaging integration for appointment updates, reports and receipts.",
-        keywords: ["whatsapp", "meta", "chat", "messaging", "pdf reports"],
+        keywords: ["whatsapp", "meta", "chat", "messaging", "pdf reports", "notification"],
         fields: [
           { key: "whatsappActive", label: "Enable Official WhatsApp Business Cloud API", type: "toggle", defaultValue: true },
           { key: "sendPdfReports", label: "Deliver Lab & EECP Session Summaries as PDF on WhatsApp", type: "toggle", defaultValue: true },
           { key: "businessNumber", label: "Verified WhatsApp Practice Number", type: "text", defaultValue: "+91 94440 12345" },
-        ],
-      },
-      {
-        id: "notification",
-        name: "Notification",
-        categoryId: "patient",
-        categoryName: "Patient",
-        description: "Global patient notification policies, quiet hours and delivery fallback logic.",
-        keywords: ["quiet hours", "fallback", "dnd"],
-        fields: [
-          { key: "quietHoursStart", label: "Quiet Hours Start Time (No Promotional SMS)", type: "select", options: ["09:00 PM", "10:00 PM"], defaultValue: "09:00 PM" },
-          { key: "quietHoursEnd", label: "Quiet Hours End Time", type: "select", options: ["08:00 AM", "09:00 AM"], defaultValue: "08:00 AM" },
         ],
       },
       {
@@ -421,7 +409,7 @@ export const SETTINGS_CATEGORIES: SettingCategory[] = [
       },
       {
         id: "charmhealth-library",
-        name: "CharmHealth Library",
+        name: "Heal Your Heart Library",
         categoryId: "templates",
         categoryName: "Templates",
         description: "Import specialized cardiology, rehab and internal medicine templates from community library.",
@@ -452,7 +440,7 @@ export const SETTINGS_CATEGORIES: SettingCategory[] = [
       },
       {
         id: "questionnaires-charmhealth-library",
-        name: "CharmHealth Library",
+        name: "Heal Your Heart Library",
         categoryId: "questionnaires",
         categoryName: "Questionnaires",
         description: "Standard clinical questionnaires: PHQ-9, GAD-7, Duke Activity Status Index (DASI).",
@@ -504,7 +492,7 @@ export const SETTINGS_CATEGORIES: SettingCategory[] = [
       },
       {
         id: "documents-charmhealth-library",
-        name: "CharmHealth Library",
+        name: "Heal Your Heart Library",
         categoryId: "documents",
         categoryName: "Documents",
         description: "Standard healthcare education handouts: Dietary Guidelines for CAD, Walking Protocols.",
@@ -1223,14 +1211,14 @@ export const SETTINGS_CATEGORIES: SettingCategory[] = [
   {
     id: "charm-telehealth",
     letter: "U",
-    name: "Charm TeleHealth",
+    name: "Heal Your Heart TeleHealth",
     description: "Virtual video consultations, camera & microphone test utilities and virtual waiting room.",
     options: [
       {
         id: "charm-telehealth-config",
-        name: "Charm TeleHealth",
+        name: "Heal Your Heart TeleHealth",
         categoryId: "charm-telehealth",
-        categoryName: "Charm TeleHealth",
+        categoryName: "Heal Your Heart TeleHealth",
         description: "Configure video consultations, virtual waiting rooms, recording policies and camera tests.",
         keywords: ["telehealth", "video call", "virtual visit", "camera", "microphone"],
         fields: [
@@ -1244,18 +1232,18 @@ export const SETTINGS_CATEGORIES: SettingCategory[] = [
   {
     id: "charm-connect",
     letter: "V",
-    name: "Charm Connect",
+    name: "Heal Your Heart Connect",
     description: "Clinician team instant messaging channels, group collaboration rooms and staff presence.",
     options: [
       {
         id: "charm-connect-config",
-        name: "Charm Connect",
+        name: "Heal Your Heart Connect",
         categoryId: "charm-connect",
-        categoryName: "Charm Connect",
+        categoryName: "Heal Your Heart Connect",
         description: "Internal practice instant messaging, cardiology case discussions and staff presence.",
         keywords: ["chat", "connect", "internal messages", "colleagues", "presence"],
         fields: [
-          { key: "connectActive", label: "Enable Integrated Staff Messenger (Charm Connect)", type: "toggle", defaultValue: true },
+          { key: "connectActive", label: "Enable Integrated Staff Messenger (Heal Your Heart Connect)", type: "toggle", defaultValue: true },
           { key: "allowExternalReferralChat", label: "Allow Secure External Specialist Chat Invites", type: "toggle", defaultValue: true },
         ],
       },
@@ -1386,14 +1374,14 @@ export const SETTINGS_CATEGORIES: SettingCategory[] = [
   {
     id: "charm-assist",
     letter: "Y",
-    name: "Charm Assist",
+    name: "Heal Your Heart Assist",
     description: "AI-powered clinical documentation assistant, voice-to-text and insurance card OCR reader.",
     options: [
       {
         id: "chart-note-assist",
         name: "Chart Note Assist",
         categoryId: "charm-assist",
-        categoryName: "Charm Assist",
+        categoryName: "Heal Your Heart Assist",
         description: "AI clinical dictation, SOAP note summarization, voice-to-text and consultation transcribing.",
         keywords: ["ai", "dictation", "soap assist", "chart note assist", "voice to text"],
         fields: [
@@ -1406,7 +1394,7 @@ export const SETTINGS_CATEGORIES: SettingCategory[] = [
         id: "insurance-card-reader",
         name: "Insurance Card Reader",
         categoryId: "charm-assist",
-        categoryName: "Charm Assist",
+        categoryName: "Heal Your Heart Assist",
         description: "Optical Character Recognition (OCR) scanner for TPA health insurance cards and Aadhaar.",
         keywords: ["ocr", "card reader", "insurance scanner", "camera scan"],
         fields: [

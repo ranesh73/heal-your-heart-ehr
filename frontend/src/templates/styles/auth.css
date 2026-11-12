@@ -1,0 +1,297 @@
+/* ==========================================================================
+   Account screens: log in, create account, forgot password.
+
+   Generic by design - nothing here asks whether the person is a clinician.
+   Visually these follow the same flat enterprise language as the rest of the
+   app: white surface, thin grey border, small radii, compact type.
+   ========================================================================== */
+
+.auth-page {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 32px 16px;
+  background-color: #f5f6f8;
+}
+
+.auth-card {
+  width: 100%;
+  max-width: 420px;
+  background-color: #ffffff;
+  border: 1px solid var(--color-border-light);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-sm);
+  padding: 32px 32px 28px;
+}
+
+.auth-card.wide {
+  max-width: 480px;
+}
+
+.auth-brand {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 22px;
+}
+
+.auth-brand img {
+  height: 34px;
+  max-width: 170px;
+  object-fit: contain;
+}
+
+.auth-title {
+  font-size: 20px;
+  font-weight: 700;
+  color: #111827;
+  margin: 0;
+  letter-spacing: -0.2px;
+}
+
+.auth-subtitle {
+  font-size: 13px;
+  color: var(--color-text-muted);
+  margin: 4px 0 22px;
+}
+
+/* ------------------------------------------------------------- Form fields */
+
+.auth-field {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  margin-bottom: 14px;
+}
+
+.auth-row {
+  display: flex;
+  gap: 12px;
+}
+
+.auth-row .auth-field {
+  flex: 1;
+  min-width: 0;
+}
+
+.auth-field label {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: #374151;
+}
+
+.auth-field input {
+  width: 100%;
+  height: 38px;
+  padding: 0 11px;
+  font-family: inherit;
+  font-size: 13.5px;
+  color: var(--color-text-primary);
+  background-color: #ffffff;
+  border: 1px solid #cbd5e1;
+  border-radius: var(--radius-sm);
+  outline: none;
+}
+
+.auth-field input:focus {
+  border-color: var(--charm-blue);
+  box-shadow: 0 0 0 2px rgba(2, 136, 209, 0.15);
+}
+
+.auth-field input[aria-invalid='true'] {
+  border-color: #dc2626;
+}
+
+.auth-field input:disabled {
+  background-color: #f8fafc;
+  color: #94a3b8;
+}
+
+.auth-password-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.auth-password-wrap input {
+  padding-right: 38px;
+}
+
+.auth-reveal-btn {
+  position: absolute;
+  right: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  background: none;
+  border: none;
+  border-radius: var(--radius-sm);
+  color: #6b7280;
+  cursor: pointer;
+}
+
+.auth-reveal-btn:hover {
+  background-color: #f3f4f6;
+  color: #374151;
+}
+
+.auth-field-error {
+  margin: 0;
+  font-size: 12px;
+  font-weight: 600;
+  color: #dc2626;
+}
+
+.auth-hint {
+  margin: 0;
+  font-size: 11.5px;
+  color: var(--color-text-muted);
+}
+
+/* ------------------------------------------------------------- Messages */
+
+.auth-alert {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 9px 12px;
+  margin-bottom: 16px;
+  border-radius: var(--radius-sm);
+  font-size: 12.5px;
+  line-height: 1.5;
+}
+
+.auth-alert.error {
+  background-color: #fef2f2;
+  border: 1px solid #fecaca;
+  color: #b91c1c;
+}
+
+.auth-alert.info {
+  background-color: #eff6ff;
+  border: 1px solid #bfdbfe;
+  color: #1e40af;
+}
+
+.auth-alert.success {
+  background-color: var(--charm-green-bg);
+  border: 1px solid var(--charm-green-border);
+  color: #1b5e20;
+}
+
+.auth-alert svg {
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+/* ------------------------------------------------------------- Actions */
+
+.auth-submit {
+  width: 100%;
+  height: 38px;
+  margin-top: 4px;
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  color: #ffffff;
+  background-color: var(--charm-blue);
+  border: none;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+}
+
+.auth-submit:hover:not(:disabled) {
+  background-color: var(--charm-blue-hover);
+}
+
+.auth-submit:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.auth-links-row {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 16px;
+  margin: -4px 0 16px;
+}
+
+/* The OTP and recovery links sit at opposite ends, as in the reference. */
+.auth-links-row.spread {
+  justify-content: space-between;
+}
+
+/* Step 2 of sign-in: the identifier entered in step 1, shown read-only with
+   a way back to step 1. A plain bordered strip, not an input. */
+.auth-identity-box {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  height: 38px;
+  padding: 0 11px;
+  margin-bottom: 14px;
+  background-color: #f9fafb;
+  border: 1px solid #cbd5e1;
+  border-radius: var(--radius-sm);
+}
+
+.auth-identity-value {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 13.5px;
+  color: var(--color-text-primary);
+}
+
+.auth-link {
+  background: none;
+  border: none;
+  padding: 0;
+  font-family: inherit;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--charm-blue);
+  cursor: pointer;
+}
+
+.auth-link:hover {
+  text-decoration: underline;
+}
+
+.auth-switch {
+  margin: 18px 0 0;
+  text-align: center;
+  font-size: 12.5px;
+  color: var(--color-text-muted);
+}
+
+.auth-footer {
+  margin-top: 22px;
+  font-size: 11.5px;
+  color: #9ca3af;
+  text-align: center;
+}
+
+.auth-page :focus-visible {
+  outline: 2px solid var(--charm-blue);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
+@media (max-width: 480px) {
+  .auth-card {
+    padding: 24px 20px 22px;
+  }
+
+  .auth-row {
+    flex-direction: column;
+    gap: 0;
+  }
+}
