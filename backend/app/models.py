@@ -275,9 +275,67 @@ class Vital(PatientRecord, Base):
     observed_at = Column(DateTime)
 
 
+class InjectionCatalog(Entity, Base):
+    __tablename__ = 'injection_catalogs'
+    name = Column(String(200), nullable=False)
+    normalized_name = Column(String(200), nullable=False, index=True)
+    original_source_name = Column(String(200), default='')
+    verification_status = Column(String(40), default='verified', nullable=False)
+    is_active = Column(Boolean, default=True, nullable=False)
+    created_by = Column(ForeignKey('users.id'), nullable=True)
+    updated_at = Column(DateTime, default=now, onupdate=now)
+
+
+class InjectionOrder(PatientRecord, Base):
+    __tablename__ = 'injection_orders'
+    encounter_id = Column(ForeignKey('encounters.id'), nullable=True)
+    catalogue_id = Column(ForeignKey('injection_catalogs.id'), nullable=True)
+    medication_name_snapshot = Column(String(200), nullable=False)
+    dosage = Column(String(80), default='')
+    route = Column(String(60), default='')
+    site = Column(String(80), default='')
+    frequency = Column(String(80), default='')
+    nurse_note = Column(Text, default='')
+    comments = Column(Text, default='')
+    status = Column(String(30), default='pending', nullable=False)
+    ordered_by = Column(ForeignKey('users.id'), nullable=False)
+    ordered_at = Column(DateTime, default=now, nullable=False)
+    updated_at = Column(DateTime, default=now, onupdate=now)
+
+
+class InjectionTemplate(Entity, Base):
+    __tablename__ = 'injection_templates'
+    facility_id = Column(ForeignKey('facilities.id'), nullable=True, index=True)
+    template_name = Column(String(160), nullable=False)
+    catalogue_id = Column(ForeignKey('injection_catalogs.id'), nullable=True)
+    medication_name = Column(String(200), nullable=False)
+    dosage = Column(String(80), default='')
+    route = Column(String(60), default='')
+    site = Column(String(80), default='')
+    frequency = Column(String(80), default='')
+    nurse_instructions = Column(Text, default='')
+    is_active = Column(Boolean, default=True, nullable=False)
+    created_by = Column(ForeignKey('users.id'), nullable=True)
+    updated_at = Column(DateTime, default=now, onupdate=now)
+
+
+class InventoryRequisition(Entity, Base):
+    __tablename__ = 'inventory_requisitions'
+    source_facility_id = Column(ForeignKey('facilities.id'), nullable=False)
+    destination_facility_id = Column(ForeignKey('facilities.id'), nullable=False)
+    item_name = Column(String(160), nullable=False)
+    quantity = Column(Integer, nullable=False)
+    requested_by = Column(ForeignKey('users.id'), nullable=False)
+    status = Column(String(30), default='requested', nullable=False)
+    notes = Column(Text, default='')
+    updated_at = Column(DateTime, default=now, onupdate=now)
+
+
 class Injection(PatientRecord, Base):
     __tablename__ = 'injections'
     encounter_id = Column(ForeignKey('encounters.id'))
+    catalogue_id = Column(ForeignKey('injection_catalogs.id'), nullable=True)
+    order_id = Column(ForeignKey('injection_orders.id'), nullable=True)
     name = Column(String(200), nullable=False)
     dose = Column(String(80), default='')
     frequency = Column(String(80), default='')

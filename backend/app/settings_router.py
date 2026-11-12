@@ -387,15 +387,60 @@ def save_provider_timings(data: dict, c=Depends(context)):
 def get_setting_option(category: str, option: str, c=Depends(context)):
     store = load_store()
     key = f"{category}:{option}"
-    return store.get("custom_settings", {}).get(key, {})
+    saved = store.get("custom_settings", {}).get(key)
+    if saved is not None:
+        return saved
+    # Return structured defaults for Inventory settings
+    if key == "inventory:inventory-vaccine-settings":
+        return {
+            "minKitThreshold": 10,
+            "alertOnExpiryDays": 60,
+            "useInventoryAndDispense": True,
+            "recommendDrugsFromInHouse": True,
+            "autoPopulateInvoiceFromChartNoteDrugs": True,
+            "autoPopulateInvoiceFromChartNoteSupplements": True,
+            "autoPopulateDispenseQuantity": True,
+            "autoPopulateOnlySupportedUnits": True,
+            "showStockInEncounter": True,
+            "useVaccinesInventory": True,
+        }
+    if key == "inventory:multi-facility-store-settings":
+        return {
+            "enableMultiStore": False,
+            "enableInterBranchTransfers": True,
+        }
+    if key == "inventory:e-commerce-settings":
+        return {
+            "enableECommerce": False,
+            "allowPracticeOrders": False,
+        }
+    return {}
 
 
 @router.put('/admin/settings/{category}/{option}')
 def save_setting_option(category: str, option: str, data: dict, c=Depends(context)):
     c.allow({'admin', 'doctor', 'reception', 'therapist'})
+    key = f"{category}:{option}"
+    if key == "inventory:inventory-vaccine-settings":
+        if 'minKitThreshold' in data:
+            try:
+                val = int(data['minKitThreshold'])
+                if val < 0:
+                    raise ValueError()
+                data['minKitThreshold'] = val
+            except (ValueError, TypeError):
+                raise HTTPException(422, 'Reorder level must be a positive number or zero')
+        if 'alertOnExpiryDays' in data:
+            try:
+                val = int(data['alertOnExpiryDays'])
+                if val < 0:
+                    raise ValueError()
+                data['alertOnExpiryDays'] = val
+            except (ValueError, TypeError):
+                raise HTTPException(422, 'Days before expiry warning alert must be a positive number or zero')
+
     store = load_store()
     custom = store.setdefault("custom_settings", {})
-    key = f"{category}:{option}"
     custom[key] = data
     save_store(store)
     return data
@@ -613,5 +658,4 @@ def save_facility_timezone(facility_id: str, data: dict, c=Depends(context)):
     save_store(store)
     c.audit('update_facility_timezone', fac)
     return {"ok": True, "facility_id": facility_id, "timezone": tz}
-
 

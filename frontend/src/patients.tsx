@@ -2400,17 +2400,20 @@ export function EncounterEditor({
     "The patient maintain the benefits.": true,
   });
 
-  // Screenshot 1 & dense_frame_173: HPI Frequency Table and Cardiac Symptoms
-  const [hpiChestPain, setHpiChestPain] = useState<"Yes" | "No">("Yes");
+  // Authentic CharmHealth (Frames 003-005): HPI Frequency Table and Cardiac Symptoms
+  const [hpiInitialAssessment, setHpiInitialAssessment] = useState(false);
+  const [hpiChestPain, setHpiChestPain] = useState<"No" | "Yes" | "Other">("Yes");
   const [hpiFreq, setHpiFreq] = useState("j");
   const [hpiNitro, setHpiNitro] = useState("");
   const [hpiWalk, setHpiWalk] = useState("");
-  const [hpiSob, setHpiSob] = useState<"Yes" | "No">("Yes");
+  const [hpiSob, setHpiSob] = useState<"No" | "Yes" | "Other">("Yes");
   const [hpiNyha, setHpiNyha] = useState<string>("Class I");
-  const [hpiEdema, setHpiEdema] = useState<"Yes" | "No">("Yes");
+  const [hpiEdema, setHpiEdema] = useState<"No" | "Yes" | "Other">("Yes");
   const [hpiEdemaStatus, setHpiEdemaStatus] = useState<string>("Stable");
   const [hpiOrthopnea, setHpiOrthopnea] = useState<"Yes" | "No">("Yes");
   const [hpiPnd, setHpiPnd] = useState<"Yes" | "No">("Yes");
+  const [hpiPalpitations, setHpiPalpitations] = useState<"Yes" | "No">("No");
+  const [pmhInitialAssessment, setPmhInitialAssessment] = useState(false);
 
   // Authentic CharmHealth: Past Medical History (PMH) structured fields
   const [pmhCad, setPmhCad] = useState("2020");
@@ -2421,6 +2424,19 @@ export function EncounterEditor({
   const [pmhDm2, setPmhDm2] = useState("");
   const [pmhHtn, setPmhHtn] = useState("");
   const [pmhLipid, setPmhLipid] = useState("");
+
+  // Authentic CharmHealth: Plan, Recommendations & Treatment Notes (frames 017-021)
+  const [dietAvoidPotassium, setDietAvoidPotassium] = useState(true);
+  const [dietFruits, setDietFruits] = useState(false);
+  const [dietVeg, setDietVeg] = useState(false);
+  const [dietOthers, setDietOthers] = useState(false);
+
+  const [lifestyleItems, setLifestyleItems] = useState<Record<string, boolean>>({});
+  const [treatmentNotesCheck, setTreatmentNotesCheck] = useState(false);
+  const [treatmentNotesItems, setTreatmentNotesItems] = useState<Record<string, boolean>>({});
+
+  const [instructionsItems, setInstructionsItems] = useState<Record<string, boolean>>({});
+  const [repeatEecpCheck, setRepeatEecpCheck] = useState(false);
 
   // Authentic CharmHealth: Review of Systems Categories (from frame_018 & dense_frame_175)
   const rosCategories = [
@@ -3738,195 +3754,221 @@ export function EncounterEditor({
                       </button>
                     </div>
 
-                    <div className="charm-hpi-toggle-row">
-                      <span>Chest Pain?</span>
-                      <div className="charm-cc-pills">
-                        <button
-                          type="button"
-                          className={`charm-toggle-pill ${hpiChestPain === "Yes" ? "yes-active" : ""
-                            }`}
-                          onClick={() => setHpiChestPain("Yes")}
-                        >
-                          Yes
-                        </button>
-                        <button
-                          type="button"
-                          className={`charm-toggle-pill ${hpiChestPain === "No" ? "no-active" : ""
-                            }`}
-                          onClick={() => setHpiChestPain("No")}
-                        >
-                          No
-                        </button>
-                      </div>
+                    <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 6 }}>
+                      <label className="charm-checkbox-inline" style={{ fontSize: 12.5, color: "#475569" }}>
+                        <span>Initial Assessment</span>
+                        <input
+                          type="checkbox"
+                          checked={hpiInitialAssessment}
+                          onChange={(e) => setHpiInitialAssessment(e.target.checked)}
+                        />
+                      </label>
                     </div>
 
                     <table className="charm-hpi-structured-table">
                       <tbody>
                         <tr>
-                          <td style={{ width: "35%" }}>
-                            Chest Pain Frequency per Week:
-                            <br />
-                            <small className="muted">(No. of times per week)</small>
+                          <td style={{ width: "22%", fontWeight: 600, verticalAlign: "top", color: "#1e293b" }}>
+                            Chest Pain?
                           </td>
-                          <td>
-                            <input
-                              className="charm-hpi-table-input"
-                              value={hpiFreq}
-                              onChange={(e) => setHpiFreq(e.target.value)}
-                            />
+                          <td style={{ width: "28%", verticalAlign: "top" }}>
+                            <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                              {(["No", "Yes", "Other"] as const).map((opt) => (
+                                <label key={opt} style={{ display: "flex", alignItems: "center", gap: 6, cursor: "pointer", fontSize: 13 }}>
+                                  <input
+                                    type="radio"
+                                    name="hpi_chest_pain_opt"
+                                    checked={hpiChestPain === opt}
+                                    onChange={() => setHpiChestPain(opt)}
+                                  />
+                                  <span>{opt === "Yes" ? "▷ Yes" : opt}</span>
+                                </label>
+                              ))}
+                            </div>
                           </td>
+                          <td style={{ verticalAlign: "top" }}></td>
                         </tr>
                         <tr>
-                          <td>
-                            S/L Nitroglycerin per Week:
-                            <br />
-                            <small className="muted">(No. taken per week)</small>
-                          </td>
-                          <td>
-                            <input
-                              className="charm-hpi-table-input"
-                              value={hpiNitro}
-                              onChange={(e) => setHpiNitro(e.target.value)}
-                            />
-                          </td>
-                        </tr>
-                        <tr>
-                          <td>
-                            Walking Time without Symptoms:
-                            <br />
-                            <small className="muted">(min.)</small>
-                          </td>
-                          <td>
-                            <input
-                              className="charm-hpi-table-input"
-                              placeholder="e.g. 15"
-                              value={hpiWalk}
-                              onChange={(e) => setHpiWalk(e.target.value)}
-                            />
+                          <td colSpan={3} style={{ padding: 0 }}>
+                            <table style={{ width: "100%", borderCollapse: "collapse" }}>
+                              <tbody>
+                                <tr>
+                                  <td style={{ width: "5%", textAlign: "center", borderRight: "1px solid #cbd5e1", borderBottom: "1px solid #cbd5e1" }}>
+                                    <input type="checkbox" defaultChecked />
+                                  </td>
+                                  <td style={{ width: "50%", borderRight: "1px solid #cbd5e1", borderBottom: "1px solid #cbd5e1" }}>
+                                    Chest Pain Frequency per Week: <small className="muted">(No. of times per week)</small>
+                                  </td>
+                                  <td style={{ borderBottom: "1px solid #cbd5e1" }}>
+                                    <input
+                                      className="charm-hpi-table-input"
+                                      value={hpiFreq}
+                                      onChange={(e) => setHpiFreq(e.target.value)}
+                                    />
+                                  </td>
+                                </tr>
+                                <tr>
+                                  <td style={{ borderRight: "1px solid #cbd5e1", borderBottom: "1px solid #cbd5e1" }}></td>
+                                  <td style={{ borderRight: "1px solid #cbd5e1", borderBottom: "1px solid #cbd5e1" }}>
+                                    S/L Nitroglycerin per Week: <small className="muted">(No. taken per week)</small>
+                                  </td>
+                                  <td style={{ borderBottom: "1px solid #cbd5e1" }}>
+                                    <input
+                                      className="charm-hpi-table-input"
+                                      value={hpiNitro}
+                                      onChange={(e) => setHpiNitro(e.target.value)}
+                                    />
+                                  </td>
+                                </tr>
+                                <tr>
+                                  <td style={{ borderRight: "1px solid #cbd5e1" }}></td>
+                                  <td style={{ borderRight: "1px solid #cbd5e1" }}>
+                                    Walking Time without Symptoms: <small className="muted">(min.)</small>
+                                  </td>
+                                  <td>
+                                    <input
+                                      className="charm-hpi-table-input"
+                                      placeholder="e.g. 15"
+                                      value={hpiWalk}
+                                      onChange={(e) => setHpiWalk(e.target.value)}
+                                    />
+                                  </td>
+                                </tr>
+                              </tbody>
+                            </table>
                           </td>
                         </tr>
                       </tbody>
                     </table>
 
-                    {/* Authentic CharmHealth: Shortness of Breath & Cardiac Symptoms (dense_frame_173) */}
-                    <div className="charm-hpi-symptoms-block" style={{ marginTop: 14, padding: "10px 12px", background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: 4 }}>
-                      <div className="charm-hpi-toggle-row" style={{ marginBottom: 8 }}>
-                        <span style={{ fontWeight: 600, fontSize: 13, color: "#1e293b" }}>Shortness of Breath?</span>
-                        <div className="charm-cc-pills">
-                          <button
-                            type="button"
-                            className={`charm-toggle-pill ${hpiSob === "Yes" ? "yes-active" : ""}`}
-                            onClick={() => setHpiSob("Yes")}
-                          >
-                            Yes
-                          </button>
-                          <button
-                            type="button"
-                            className={`charm-toggle-pill ${hpiSob === "No" ? "no-active" : ""}`}
-                            onClick={() => setHpiSob("No")}
-                          >
-                            No
-                          </button>
-                        </div>
-                      </div>
+                    {/* Authentic CharmHealth: Shortness of Breath & Edema of Legs Side-by-Side (frame_004 & frame_005) */}
+                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 10 }}>
+                      {/* Left: Shortness of Breath */}
+                      <table className="charm-hpi-structured-table" style={{ margin: 0 }}>
+                        <tbody>
+                          <tr>
+                            <td style={{ width: "45%", fontWeight: 600, verticalAlign: "top", color: "#1e293b" }}>
+                              Shortness of Breath?
+                            </td>
+                            <td style={{ verticalAlign: "top" }}>
+                              <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                                {(["No", "Yes", "Other"] as const).map((opt) => (
+                                  <label key={opt} style={{ display: "flex", alignItems: "center", gap: 6, cursor: "pointer", fontSize: 13 }}>
+                                    <input
+                                      type="radio"
+                                      name="hpi_sob_opt"
+                                      checked={hpiSob === opt}
+                                      onChange={() => setHpiSob(opt)}
+                                    />
+                                    <span>{opt === "Yes" ? "▷ Yes" : opt}</span>
+                                  </label>
+                                ))}
+                              </div>
+                            </td>
+                          </tr>
+                          <tr>
+                            <td>Trouble breathing while lying flat?</td>
+                            <td>
+                              <div style={{ display: "flex", gap: 14 }}>
+                                <label style={{ display: "flex", alignItems: "center", gap: 4, cursor: "pointer" }}>
+                                  <input
+                                    type="radio"
+                                    name="hpi_orthopnea_opt"
+                                    checked={hpiOrthopnea === "Yes"}
+                                    onChange={() => setHpiOrthopnea("Yes")}
+                                  />
+                                  <span>Yes</span>
+                                </label>
+                                <label style={{ display: "flex", alignItems: "center", gap: 4, cursor: "pointer" }}>
+                                  <input
+                                    type="radio"
+                                    name="hpi_orthopnea_opt"
+                                    checked={hpiOrthopnea === "No"}
+                                    onChange={() => setHpiOrthopnea("No")}
+                                  />
+                                  <span>No</span>
+                                </label>
+                              </div>
+                            </td>
+                          </tr>
+                          <tr>
+                            <td>Palpitations?</td>
+                            <td>
+                              <div style={{ display: "flex", gap: 14 }}>
+                                <label style={{ display: "flex", alignItems: "center", gap: 4, cursor: "pointer" }}>
+                                  <input
+                                    type="radio"
+                                    name="hpi_palp_opt"
+                                    checked={hpiPalpitations === "Yes"}
+                                    onChange={() => setHpiPalpitations("Yes")}
+                                  />
+                                  <span>Yes</span>
+                                </label>
+                                <label style={{ display: "flex", alignItems: "center", gap: 4, cursor: "pointer" }}>
+                                  <input
+                                    type="radio"
+                                    name="hpi_palp_opt"
+                                    checked={hpiPalpitations === "No"}
+                                    onChange={() => setHpiPalpitations("No")}
+                                  />
+                                  <span>No</span>
+                                </label>
+                              </div>
+                            </td>
+                          </tr>
+                        </tbody>
+                      </table>
 
-                      {hpiSob === "Yes" && (
-                        <div style={{ paddingLeft: 14, marginBottom: 10 }}>
-                          <span style={{ fontSize: 12, fontWeight: 600, color: "#475569" }}>NYHA Functional Class:</span>
-                          <div style={{ display: "flex", gap: 6, marginTop: 4 }}>
-                            {["Class I", "Class II", "Class III", "Class IV"].map((cls) => (
-                              <button
-                                key={cls}
-                                type="button"
-                                className={`charm-toggle-pill ${hpiNyha === cls ? "yes-active" : ""}`}
-                                style={{ padding: "2px 8px", fontSize: 11 }}
-                                onClick={() => setHpiNyha(cls)}
-                              >
-                                {cls}
-                              </button>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-
-                      <div className="charm-hpi-toggle-row" style={{ marginBottom: 8 }}>
-                        <span style={{ fontWeight: 600, fontSize: 13, color: "#1e293b" }}>Edema of Legs?</span>
-                        <div className="charm-cc-pills">
-                          <button
-                            type="button"
-                            className={`charm-toggle-pill ${hpiEdema === "Yes" ? "yes-active" : ""}`}
-                            onClick={() => setHpiEdema("Yes")}
-                          >
-                            Yes
-                          </button>
-                          <button
-                            type="button"
-                            className={`charm-toggle-pill ${hpiEdema === "No" ? "no-active" : ""}`}
-                            onClick={() => setHpiEdema("No")}
-                          >
-                            No
-                          </button>
-                        </div>
-                      </div>
-
-                      {hpiEdema === "Yes" && (
-                        <div style={{ paddingLeft: 14, marginBottom: 10 }}>
-                          <span style={{ fontSize: 12, fontWeight: 600, color: "#475569" }}>Edema Status:</span>
-                          <div style={{ display: "flex", gap: 6, marginTop: 4 }}>
-                            {["Improving", "Worsening", "Stable"].map((st) => (
-                              <button
-                                key={st}
-                                type="button"
-                                className={`charm-toggle-pill ${hpiEdemaStatus === st ? "yes-active" : ""}`}
-                                style={{ padding: "2px 8px", fontSize: 11 }}
-                                onClick={() => setHpiEdemaStatus(st)}
-                              >
-                                {st}
-                              </button>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-
-                      <div className="charm-hpi-toggle-row" style={{ marginBottom: 6 }}>
-                        <span style={{ fontSize: 12.5, color: "#334155" }}>Trouble breathing while lying flat? (Orthopnea)</span>
-                        <div className="charm-cc-pills">
-                          <button
-                            type="button"
-                            className={`charm-toggle-pill ${hpiOrthopnea === "Yes" ? "yes-active" : ""}`}
-                            onClick={() => setHpiOrthopnea("Yes")}
-                          >
-                            Yes
-                          </button>
-                          <button
-                            type="button"
-                            className={`charm-toggle-pill ${hpiOrthopnea === "No" ? "no-active" : ""}`}
-                            onClick={() => setHpiOrthopnea("No")}
-                          >
-                            No
-                          </button>
-                        </div>
-                      </div>
-
-                      <div className="charm-hpi-toggle-row">
-                        <span style={{ fontSize: 12.5, color: "#334155" }}>Waking up with sudden onset of shortness of breath at night? (PND)</span>
-                        <div className="charm-cc-pills">
-                          <button
-                            type="button"
-                            className={`charm-toggle-pill ${hpiPnd === "Yes" ? "yes-active" : ""}`}
-                            onClick={() => setHpiPnd("Yes")}
-                          >
-                            Yes
-                          </button>
-                          <button
-                            type="button"
-                            className={`charm-toggle-pill ${hpiPnd === "No" ? "no-active" : ""}`}
-                            onClick={() => setHpiPnd("No")}
-                          >
-                            No
-                          </button>
-                        </div>
-                      </div>
+                      {/* Right: Edema of Legs */}
+                      <table className="charm-hpi-structured-table" style={{ margin: 0 }}>
+                        <tbody>
+                          <tr>
+                            <td style={{ width: "45%", fontWeight: 600, verticalAlign: "top", color: "#1e293b" }}>
+                              Edema of Legs?
+                            </td>
+                            <td style={{ verticalAlign: "top" }}>
+                              <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                                {(["No", "Yes", "Other"] as const).map((opt) => (
+                                  <label key={opt} style={{ display: "flex", alignItems: "center", gap: 6, cursor: "pointer", fontSize: 13 }}>
+                                    <input
+                                      type="radio"
+                                      name="hpi_edema_opt"
+                                      checked={hpiEdema === opt}
+                                      onChange={() => setHpiEdema(opt)}
+                                    />
+                                    <span>{opt === "Yes" ? "▷ Yes" : opt}</span>
+                                  </label>
+                                ))}
+                              </div>
+                            </td>
+                          </tr>
+                          <tr>
+                            <td>Waking up with sudden onset of shortness of breath at night?</td>
+                            <td>
+                              <div style={{ display: "flex", gap: 14 }}>
+                                <label style={{ display: "flex", alignItems: "center", gap: 4, cursor: "pointer" }}>
+                                  <input
+                                    type="radio"
+                                    name="hpi_pnd_opt"
+                                    checked={hpiPnd === "Yes"}
+                                    onChange={() => setHpiPnd("Yes")}
+                                  />
+                                  <span>Yes</span>
+                                </label>
+                                <label style={{ display: "flex", alignItems: "center", gap: 4, cursor: "pointer" }}>
+                                  <input
+                                    type="radio"
+                                    name="hpi_pnd_opt"
+                                    checked={hpiPnd === "No"}
+                                    onChange={() => setHpiPnd("No")}
+                                  />
+                                  <span>No</span>
+                                </label>
+                              </div>
+                            </td>
+                          </tr>
+                        </tbody>
+                      </table>
                     </div>
 
                     <label className="field" style={{ marginTop: 10 }}>
@@ -3951,6 +3993,17 @@ export function EncounterEditor({
                       >
                         Templates
                       </button>
+                    </div>
+
+                    <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 6 }}>
+                      <label className="charm-checkbox-inline" style={{ fontSize: 12.5, color: "#475569" }}>
+                        <span>Initial Assessment</span>
+                        <input
+                          type="checkbox"
+                          checked={pmhInitialAssessment}
+                          onChange={(e) => setPmhInitialAssessment(e.target.checked)}
+                        />
+                      </label>
                     </div>
 
                     <table className="charm-hpi-structured-table">
@@ -4888,47 +4941,50 @@ export function EncounterEditor({
                     />
                   </div>
 
-                  {/* SECTION: PLAN (Authentic CharmHealth (P)) */}
+                  {/* SECTION: PLAN (Authentic CharmHealth (P) - Frames 017-021) */}
                   <div id="sec-plan" className="charm-editor-section">
                     <div className="charm-section-header">
                       <h3>Plan</h3>
-                      <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-                        <button
-                          type="button"
-                          className="charm-btn-link-action"
-                          onClick={() => setActiveTplModal("add_rx")}
-                        >
-                          + Add Rx
-                        </button>
-                        <button
-                          type="button"
-                          className="charm-template-link-btn"
-                          onClick={() => setActiveTplModal("prescription")}
-                        >
-                          Rx Templates
-                        </button>
-                        <button
-                          type="button"
-                          className="charm-template-link-btn"
-                          onClick={() => setActiveTplModal("supplement")}
-                        >
-                          Supplements
-                        </button>
-                        <button
-                          type="button"
-                          className="charm-btn-link-action"
-                          onClick={() => setModal("orders")}
-                        >
-                          + Add order
-                        </button>
-                      </div>
                     </div>
 
-                    <div style={{ marginBottom: 4, fontSize: 13, fontWeight: 600, color: "#334155" }}>
-                      Diet Recommendations
-                    </div>
-                    <div style={{ fontSize: 12, color: "#475569", marginBottom: 8, fontStyle: "italic" }}>
-                      Avoid high potassium foods:-
+                    {/* Prescriptions, Labs & Images action links bar (frame_017) */}
+                    <div className="charm-plan-action-bar" style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 14, padding: "8px 12px", background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: 4, fontSize: 13 }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                        <strong style={{ width: 110, color: "#1e293b" }}>Prescriptions:</strong>
+                        <button type="button" className="charm-link-sm" onClick={() => setActiveTplModal("add_rx")}>Add Rx</button>
+                        <span className="muted">|</span>
+                        <button type="button" className="charm-link-sm" onClick={() => setActiveTplModal("prescription")}>Templates</button>
+                        <span className="muted">|</span>
+                        <a className="charm-link-sm" onClick={() => notify("Viewing past prescriptions")}>Past Rx</a>
+                        <span className="muted">|</span>
+                        <a className="charm-link-sm" onClick={() => notify("Paper Rx generated")}>Paper Rx</a>
+                      </div>
+                      <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                        <strong style={{ width: 110, color: "#1e293b" }}>Labs:</strong>
+                        <button type="button" className="charm-link-sm" onClick={() => setModal("orders")}>Search &amp; Add</button>
+                        <span className="muted">|</span>
+                        <button type="button" className="charm-link-sm" onClick={() => setModal("orders")}>Add Lab</button>
+                        <span className="muted">|</span>
+                        <a className="charm-link-sm" onClick={() => notify("Lab templates")}>Templates</a>
+                        <span className="muted">|</span>
+                        <a className="charm-link-sm" onClick={() => notify("Viewing past lab orders")}>Past Orders</a>
+                        <span className="muted">|</span>
+                        <a className="charm-link-sm" onClick={() => notify("Map Dx")}>Map Dx</a>
+                        <span className="muted">|</span>
+                        <a className="charm-link-sm" onClick={() => notify("View lab orders")}>View Orders</a>
+                      </div>
+                      <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                        <strong style={{ width: 110, color: "#1e293b" }}>Images:</strong>
+                        <button type="button" className="charm-link-sm" onClick={() => setModal("orders")}>Add Image</button>
+                        <span className="muted">|</span>
+                        <a className="charm-link-sm" onClick={() => notify("Imaging templates")}>Templates</a>
+                        <span className="muted">|</span>
+                        <a className="charm-link-sm" onClick={() => notify("Viewing image orders")}>View Orders</a>
+                        <span className="muted">|</span>
+                        <a className="charm-link-sm" onClick={() => notify("Past image orders")}>Past Orders</a>
+                        <span className="muted">|</span>
+                        <a className="charm-link-sm" onClick={() => notify("Map Dx")}>Map Dx</a>
+                      </div>
                     </div>
 
                     <textarea
@@ -4937,13 +4993,189 @@ export function EncounterEditor({
                       aria-label="Care plan"
                       placeholder="Prescriptions, EECP therapy parameters, lifestyle counseling..."
                       {...register("plan")}
+                      style={{ marginBottom: 14 }}
                     />
 
-                    <div id="sec-fu" style={{ marginTop: 12 }}>
-                      <label className="field">
-                        <span>Follow-up instructions</span>
-                        <textarea rows={2} {...register("follow_up")} />
-                      </label>
+                    {/* 1. Diet Recommendation (frame_017 & frame_018) */}
+                    <div style={{ marginBottom: 14 }}>
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
+                        <span style={{ fontWeight: 600, fontSize: 13, color: "#1e293b" }}>Diet Recommendation</span>
+                        <button type="button" className="charm-template-link-btn" onClick={() => notify("Diet templates")}>Templates</button>
+                      </div>
+                      <div style={{ border: "1px solid #cbd5e1", borderRadius: 4, padding: "10px 14px", background: "#fff" }}>
+                        <label className="charm-checkbox-inline" style={{ fontWeight: 600, fontSize: 13, marginBottom: 8, display: "flex" }}>
+                          <span>Avoid high potassium foods:-</span>
+                          <input
+                            type="checkbox"
+                            checked={dietAvoidPotassium}
+                            onChange={(e) => setDietAvoidPotassium(e.target.checked)}
+                          />
+                        </label>
+                        {dietAvoidPotassium && (
+                          <div style={{ display: "flex", gap: 18, marginLeft: 20 }}>
+                            <label className="charm-checkbox-inline" style={{ fontSize: 13 }}>
+                              <input
+                                type="checkbox"
+                                checked={dietFruits}
+                                onChange={(e) => setDietFruits(e.target.checked)}
+                              />
+                              <span>Fruits</span>
+                            </label>
+                            <label className="charm-checkbox-inline" style={{ fontSize: 13 }}>
+                              <input
+                                type="checkbox"
+                                checked={dietVeg}
+                                onChange={(e) => setDietVeg(e.target.checked)}
+                              />
+                              <span>Vegetables</span>
+                            </label>
+                            <label className="charm-checkbox-inline" style={{ fontSize: 13 }}>
+                              <input
+                                type="checkbox"
+                                checked={dietOthers}
+                                onChange={(e) => setDietOthers(e.target.checked)}
+                              />
+                              <span>Others</span>
+                            </label>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* 2. Lifestyle Recommendation (frame_018) */}
+                    <div style={{ marginBottom: 14 }}>
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
+                        <span style={{ fontWeight: 600, fontSize: 13, color: "#1e293b" }}>Lifestyle Recommendation</span>
+                        <button type="button" className="charm-template-link-btn" onClick={() => notify("Lifestyle templates")}>Templates</button>
+                      </div>
+                      <div style={{ border: "1px solid #cbd5e1", borderRadius: 4, padding: "10px 14px", background: "#fff" }}>
+                        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                          {[
+                            "Avoid alcohol / tobacco chewing and quite smoking",
+                            "Follow a heart-friendly diet",
+                            "Regular physical exercise",
+                            "Control your obesity",
+                          ].map((item) => (
+                            <label key={item} className="charm-checkbox-inline" style={{ fontSize: 13 }}>
+                              <input
+                                type="checkbox"
+                                checked={lifestyleItems[item] || false}
+                                onChange={(e) => setLifestyleItems((p) => ({ ...p, [item]: e.target.checked }))}
+                              />
+                              <span>{item}</span>
+                            </label>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* 3. Treatment Notes (frame_018 & frame_019) */}
+                    <div style={{ marginBottom: 14 }}>
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
+                        <span style={{ fontWeight: 600, fontSize: 13, color: "#1e293b" }}>Treatment Notes</span>
+                        <button type="button" className="charm-template-link-btn" onClick={() => notify("Treatment templates")}>Templates</button>
+                      </div>
+                      <div style={{ border: "1px solid #cbd5e1", borderRadius: 4, padding: "10px 14px", background: "#fff" }}>
+                        <label className="charm-checkbox-inline" style={{ fontWeight: 600, fontSize: 13, marginBottom: 8, display: "flex" }}>
+                          <span>EECP Treatment Notes</span>
+                          <input
+                            type="checkbox"
+                            checked={treatmentNotesCheck}
+                            onChange={(e) => setTreatmentNotesCheck(e.target.checked)}
+                          />
+                        </label>
+                        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "6px 16px", marginTop: 6 }}>
+                          {[
+                            "Monitor weight daily",
+                            "Monitor new onset arrhythmias",
+                            "Monitor SpO2",
+                            "Slow pressure regime",
+                            "> 200mmHg in the first 3min.",
+                            "Lower cuff off mode",
+                            "Trigger 1:2 ratio",
+                            "Head end elevation",
+                            "O2 - 2 L/min",
+                            "O2 > 2 L/min",
+                            "Early deflation",
+                            "Early inflation / late deflation",
+                            "Stop treatment - SpO2 falls < 96%",
+                          ].map((item) => (
+                            <label key={item} className="charm-checkbox-inline" style={{ fontSize: 12.5 }}>
+                              <input
+                                type="checkbox"
+                                checked={treatmentNotesItems[item] || false}
+                                onChange={(e) => setTreatmentNotesItems((p) => ({ ...p, [item]: e.target.checked }))}
+                              />
+                              <span>{item}</span>
+                            </label>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* 4. Instructions (frame_020) */}
+                    <div style={{ marginBottom: 14 }}>
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
+                        <span style={{ fontWeight: 600, fontSize: 13, color: "#1e293b" }}>Instructions</span>
+                        <button type="button" className="charm-template-link-btn" onClick={() => notify("Instructions templates")}>Templates</button>
+                      </div>
+                      <div style={{ border: "1px solid #cbd5e1", borderRadius: 4, padding: "10px 14px", background: "#fff" }}>
+                        <div style={{ display: "flex", flexDirection: "column", gap: 7 }}>
+                          {[
+                            "Take medication regularly",
+                            "Salt restricted diet",
+                            "Potassium low diet",
+                            "Fluid restriction",
+                            "Know your drug",
+                            "Report to the clinic if you experience these symptoms:-",
+                            "Follow-up after:-",
+                          ].map((inst) => (
+                            <label key={inst} className="charm-checkbox-inline" style={{ fontSize: 13 }}>
+                              <input
+                                type="checkbox"
+                                checked={instructionsItems[inst] || false}
+                                onChange={(e) => setInstructionsItems((p) => ({ ...p, [inst]: e.target.checked }))}
+                              />
+                              <span>{inst}</span>
+                            </label>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* 5. When to repeat EECP treatment? (frame_020 & frame_021) */}
+                    <div style={{ marginBottom: 14 }}>
+                      <div style={{ border: "1px solid #cbd5e1", borderRadius: 4, padding: "10px 14px", background: "#fff" }}>
+                        <label className="charm-checkbox-inline" style={{ fontWeight: 600, fontSize: 13, marginBottom: 6, display: "flex" }}>
+                          <span>When to repeat EECP treatment?</span>
+                          <input
+                            type="checkbox"
+                            checked={repeatEecpCheck}
+                            onChange={(e) => setRepeatEecpCheck(e.target.checked)}
+                          />
+                        </label>
+                        <p style={{ margin: 0, fontSize: 12, color: "#64748b", lineHeight: 1.5 }}>
+                          Enhanced External Counterpulsation (EECP) treatment may be repeated based on individual patient needs and the response to the initial course. Consider repeating EECP treatment in the following scenarios:
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* 6. Follow-up (frame_021) */}
+                    <div id="sec-fu" style={{ marginTop: 14 }}>
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                          <strong style={{ fontSize: 13, color: "#1e293b" }}>Follow up</strong>
+                          <button type="button" className="charm-link-sm" onClick={() => notify("Follow-up appointment requested")}>Add Follow up</button>
+                          <span className="muted">|</span>
+                          <button type="button" className="charm-link-sm" onClick={() => notify("Follow up templates")}>Templates</button>
+                        </div>
+                      </div>
+                      <textarea
+                        rows={2}
+                        className="charm-cc-textarea"
+                        placeholder="Follow-up instructions and timeline..."
+                        {...register("follow_up")}
+                      />
                     </div>
 
                     <label className="field" style={{ marginTop: 12 }}>

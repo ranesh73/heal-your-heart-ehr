@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import { api, navigate, Row } from "./api";
 import { useApp } from "./context";
+import { InjectionAutocomplete } from "./InjectionAutocomplete";
 
 // Cardiology Quick Order Presets matching practice formulary & CharmHealth video
 const INJECTION_PRESETS = [
@@ -146,11 +147,29 @@ export function CharmInjectionsGlobal() {
   const loadRecords = async () => {
     setLoading(true);
     try {
-      const [injRes, vacRes] = await Promise.all([
+      const [ordersRes, injRes, vacRes] = await Promise.all([
+        api<Row[]>("/injections/orders"),
         api<Row[]>("/records/injections"),
         api<Row[]>("/records/vaccines"),
       ]);
-      setInjections(injRes || []);
+      const combinedInjections = [
+        ...(ordersRes || []).map((o) => ({
+          ...o,
+          id: o.id,
+          is_order: true,
+          patient_id: o.patient_id,
+          name: o.medication_name_snapshot || o.name,
+          dose: o.dosage,
+          dosage: o.dosage,
+          status: o.status || "ordered",
+          created_at: o.ordered_at || o.created_at,
+          ordered_at: o.ordered_at || o.created_at,
+          ordered_by_name: o.ordered_by_name,
+          nurse_notes: o.nurse_note || o.nurse_notes,
+        })),
+        ...(injRes || []).filter((r) => !ordersRes?.some((o) => o.id === r.order_id || o.id === r.id)),
+      ];
+      setInjections(combinedInjections);
       setVaccines(vacRes || []);
     } catch (err) {
       console.error("Failed to load injection/vaccine records:", err);
@@ -268,7 +287,12 @@ export function CharmInjectionsGlobal() {
   const handleDelete = async (id: string, type: "injection" | "vaccine") => {
     if (!confirm(`Are you sure you want to delete this ${type} order?`)) return;
     try {
-      await api(`/records/${type === "injection" ? "injections" : "vaccines"}/${id}`, "DELETE");
+      const item = injections.find((i) => i.id === id);
+      if (type === "injection" && item?.is_order) {
+        await api(`/injections/orders/${id}`, "DELETE");
+      } else {
+        await api(`/records/${type === "injection" ? "injections" : "vaccines"}/${id}`, "DELETE");
+      }
       notify(`${type === "injection" ? "Injection" : "Vaccine"} order deleted successfully.`);
       loadRecords();
     } catch (err) {
@@ -945,6 +969,7 @@ function AddInjectionOrderModal({
   onSuccess: () => void;
 }) {
   const [patientId, setPatientId] = useState<string>(patients[0]?.id || "");
+  const [catalogueId, setCatalogueId] = useState<string | null>(null);
   const [drugName, setDrugName] = useState<string>("Lasix 20 mg ( 10 mg x 2 ml )");
   const [dose, setDose] = useState<string>("2.0 ml");
   const [route, setRoute] = useState<string>("Intravenous");
@@ -956,7 +981,7 @@ function AddInjectionOrderModal({
   const [status, setStatus] = useState<string>("ordered");
   const [submitting, setSubmitting] = useState<boolean>(false);
 
-  const applyPreset = (preset: typeof INJECTION_PRESETS[0]) => {
+  const applyPreset = async (preset: typeof INJECTION_PRESETS[0]) => {
     setDrugName(preset.name);
     setDose(preset.dose);
     setRoute(preset.route);
@@ -965,6 +990,17 @@ function AddInjectionOrderModal({
     setPeriod(preset.period);
     setNurseNotes(preset.nurse_notes);
     setComments(preset.comments);
+    try {
+      const prefix = preset.name.split(" ")[0];
+      const data = await api<Row[]>(`/injections/catalog?q=${encodeURIComponent(prefix)}`);
+      const match = (data || []).find(
+        (c) => c.name.toLowerCase() === preset.name.toLowerCase() || c.name.toLowerCase().startsWith(prefix.toLowerCase())
+      );
+      if (match) setCatalogueId(match.id);
+      else setCatalogueId(null);
+    } catch {
+      setCatalogueId(null);
+    }
   };
 
   const handleSave = async (e: React.FormEvent) => {
@@ -979,19 +1015,36 @@ function AddInjectionOrderModal({
     }
     setSubmitting(true);
     try {
-      await api("/records/injections", "POST", {
-        patient_id: patientId,
-        name: drugName.trim(),
-        dose: dose.trim(),
-        route: route.trim(),
-        site: site.trim(),
-        frequency: frequency.trim(),
-        period: period || 1,
-        period_unit: "Day(s)",
-        nurse_notes: nurseNotes.trim(),
-        comments: comments.trim(),
-        status: status, // "ordered" or "administered"
-      });
+      try {
+        await api("/injections/orders", "POST", {
+          patient_id: patientId,
+          catalogue_id: catalogueId || null,
+          medication_name_snapshot: drugName.trim(),
+          dosage: dose.trim(),
+          route: route.trim(),
+          site: site.trim(),
+          frequency: frequency.trim(),
+          nurse_note: nurseNotes.trim(),
+          comments: comments.trim(),
+          status: status || "ordered",
+        });
+      } catch {
+        // Fallback to records/injections if orders endpoint fails
+        await api("/records/injections", "POST", {
+          patient_id: patientId,
+          catalogue_id: catalogueId || null,
+          name: drugName.trim(),
+          dose: dose.trim(),
+          route: route.trim(),
+          site: site.trim(),
+          frequency: frequency.trim(),
+          period: period || 1,
+          period_unit: "Day(s)",
+          nurse_notes: nurseNotes.trim(),
+          comments: comments.trim(),
+          status: status || "ordered",
+        });
+      }
       onSuccess();
     } catch (err: any) {
       console.error(err);
@@ -1120,20 +1173,19 @@ function AddInjectionOrderModal({
               <label style={{ display: "block", fontSize: 12, fontWeight: 500, color: "#334155", marginBottom: 4 }}>
                 Drug Name *
               </label>
-              <input
-                type="text"
+              <InjectionAutocomplete
                 value={drugName}
-                onChange={(e) => setDrugName(e.target.value)}
-                required
-                placeholder="e.g. Lasix 20 mg ( 10 mg x 2 ml )"
-                style={{
-                  width: "100%",
-                  height: 36,
-                  padding: "0 10px",
-                  borderRadius: 4,
-                  border: "1px solid #cbd5e1",
-                  fontSize: 13,
+                catalogueId={catalogueId}
+                onChangeText={(text) => {
+                  setDrugName(text);
+                  setCatalogueId(null);
                 }}
+                onSelect={(item) => {
+                  setDrugName(item.name);
+                  setCatalogueId(item.id);
+                }}
+                required
+                placeholder="Search or select injection from master catalogue (e.g. Deform 20ml, Lasix, Clexane)..."
               />
             </div>
 
@@ -1771,10 +1823,32 @@ function AdministerRecordModal({
   const handleAdminister = async () => {
     setSubmitting(true);
     try {
-      // update status via api
-      await api(`/records/${type === "injection" ? "injections" : "vaccines"}/${item.id}/status`, "PATCH", {
-        status: "administered",
-      });
+      if (item.is_order) {
+        await api("/records/injections", "POST", {
+          patient_id: item.patient_id,
+          catalogue_id: item.catalogue_id || null,
+          order_id: item.id,
+          name: item.name || item.medication_name_snapshot,
+          dose: item.dose || item.dosage || "",
+          dosage: item.dosage || item.dose || "",
+          route: item.route || "Subcutaneous (SC)",
+          site: item.site || "Deltoid - Left",
+          lot_number: lotNumber,
+          administered_by: adminBy,
+          administered_at: new Date().toISOString(),
+          nurse_notes: item.nurse_notes || item.nurse_note || "",
+          comments: item.comments || "",
+          status: "administered",
+        });
+        await api(`/injections/orders/${item.id}`, "PATCH", {
+          status: "completed",
+        });
+      } else {
+        // update status via api
+        await api(`/records/${type === "injection" ? "injections" : "vaccines"}/${item.id}/status`, "PATCH", {
+          status: "administered",
+        });
+      }
       onSuccess();
     } catch (err: any) {
       console.error(err);

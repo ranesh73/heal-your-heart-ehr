@@ -22,6 +22,8 @@ def upgrade():
             sa.Column('facility_id', sa.String(36), sa.ForeignKey('facilities.id'), nullable=False, index=True),
             sa.Column('author_id', sa.String(36), sa.ForeignKey('users.id'), nullable=False),
             sa.Column('encounter_id', sa.String(36), sa.ForeignKey('encounters.id'), nullable=True),
+            sa.Column('catalogue_id', sa.String(36), nullable=True),
+            sa.Column('order_id', sa.String(36), nullable=True),
             sa.Column('name', sa.String(200), nullable=False),
             sa.Column('dose', sa.String(80), server_default='', nullable=True),
             sa.Column('frequency', sa.String(80), server_default='', nullable=True),

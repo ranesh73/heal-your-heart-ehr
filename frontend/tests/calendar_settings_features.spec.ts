@@ -2,7 +2,7 @@ import { test, expect } from "@playwright/test";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
-const password = readFileSync(resolve(".demo-credentials.txt"), "utf8")
+const password = readFileSync(resolve("../.demo-credentials.txt"), "utf8")
   .match(/Password for all demo accounts: (.+)/)![1]
   .trim();
 

@@ -13,6 +13,8 @@ import { EventTypesPage } from "./calendar/EventTypesPage";
 import { ProviderTimingsPage } from "./calendar/ProviderTimingsPage";
 import { FacilityTimingsPage } from "./calendar/FacilityTimingsPage";
 import { WebEmbedPage } from "./calendar/WebEmbedPage";
+import { InventorySettingsPage } from "./inventory/InventorySettingsPage";
+import { ManageInjectionsPage } from "./injections/ManageInjectionsPage";
 import { SettingContentView } from "./SettingContentView";
 import { SETTINGS_CATEGORIES, ALL_SETTING_OPTIONS } from "./settingsData";
 import { TemplatesModule } from "../templates/TemplatesModule";
@@ -127,6 +129,44 @@ export function IndividualSettingPage({
         <div style={{ padding: "16px 20px" }}>
           {content}
         </div>
+      </SettingsLayout>
+    );
+  }
+
+  // Specialized Inventory Subpages (3 Horizontal Tabs per Part B)
+  if (categoryId === "inventory") {
+    const inventoryTabs = category.options.map((opt) => ({
+      id: opt.id,
+      label: opt.name,
+      badge: opt.badge,
+    }));
+
+    return (
+      <SettingsLayout
+        activeTab={activeOptionId}
+        onTabChange={handleTabChange}
+        tabs={inventoryTabs}
+      >
+        <InventorySettingsPage activeOptionId={activeOptionId} />
+      </SettingsLayout>
+    );
+  }
+
+  // Specialized Manage Injections Subpage (Part D & E)
+  if (categoryId === "injections" && activeOptionId === "manage-injections") {
+    const injectionTabs = category.options.map((opt) => ({
+      id: opt.id,
+      label: opt.name,
+      badge: opt.badge,
+    }));
+
+    return (
+      <SettingsLayout
+        activeTab={activeOptionId}
+        onTabChange={handleTabChange}
+        tabs={injectionTabs}
+      >
+        <ManageInjectionsPage />
       </SettingsLayout>
     );
   }

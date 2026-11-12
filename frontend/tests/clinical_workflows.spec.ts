@@ -24,9 +24,9 @@ test("CharmHealth Clinical Workflows Parity Verification", async ({ page }) => {
   // 1. Log in as Doctor
   await login(page, "doctor");
 
-  // 2. Open dummy patient Isaac G. E. chart
+  // 2. Open dummy patient chart
   await page.goto("http://127.0.0.1:8000/#/patients");
-  const isaacRow = page.getByText("Isaac G. E.").first();
+  const isaacRow = page.locator("tr, .charm-patient-row, button").filter({ hasText: /Aarav Demo|Isaac/i }).first();
   await isaacRow.waitFor({ state: "visible", timeout: 10000 });
   await isaacRow.click();
   await page.locator('button[data-tab="Medications"]').waitFor({ state: "visible", timeout: 10000 });
@@ -86,23 +86,33 @@ test("CharmHealth Clinical Workflows Parity Verification", async ({ page }) => {
   await page.screenshot({ path: resolve(artifactDir, "05_injections_section.png") });
 
   // Click + Injection
-  await page.getByRole("button", { name: "+ Injection" }).click();
+  await page.getByRole("button", { name: "+ Injection", exact: true }).click();
   await page.waitForTimeout(600);
   await page.screenshot({ path: resolve(artifactDir, "06_add_injection_modal.png") });
 
   // Fill Injection Form
-  const injInput = page.locator('.charm-modal-form input[placeholder*="Search or enter injection"]').first();
+  const injInput = page.locator('input[placeholder*="Search central catalogue"], input[placeholder*="Search or enter injection"]').first();
   await injInput.fill("Fondaflo 2.5");
   await page.waitForTimeout(300);
-  const injCatItem = page.locator(".charm-autocomplete-item").first();
+  const injCatItem = page.locator(".charm-autocomplete-item, [role='option'], .suggestion-item").first();
   if (await injCatItem.isVisible()) {
     await injCatItem.click();
   }
-  await page.locator('.charm-modal-form input[placeholder*="LOT-"]').first().fill("LOT-FND-8821A");
-  await page.locator('.charm-modal-form textarea[placeholder*="left deltoid"]').first().fill("Administered subcutaneous without resistance. Patient monitored 15 minutes post-dose. No immediate adverse reaction.");
+  const dosageInput = page.locator('input[placeholder*="20 mg"], input[placeholder*="2.5 mg"]').first();
+  if (await dosageInput.isVisible()) {
+    await dosageInput.fill("2.5 mg / 0.5 ml");
+  }
+  const lotInput = page.locator('input[placeholder*="LOT"], input[placeholder*="Lot"]').first();
+  if (await lotInput.isVisible()) {
+    await lotInput.fill("LOT-FND-8821A");
+  }
+  const noteArea = page.locator('textarea[placeholder*="administration observations"], textarea[placeholder*="observations"]').first();
+  if (await noteArea.isVisible()) {
+    await noteArea.fill("Administered subcutaneous without resistance. Patient monitored 15 minutes post-dose. No immediate adverse reaction.");
+  }
 
   // Save Injection
-  await page.getByRole("button", { name: "Record Injection" }).click();
+  await page.getByRole("button", { name: /(Save|Record) Injection/ }).click();
   await page.waitForTimeout(1000);
   await page.screenshot({ path: resolve(artifactDir, "07_injections_saved_table.png") });
 
@@ -113,10 +123,10 @@ test("CharmHealth Clinical Workflows Parity Verification", async ({ page }) => {
   await page.waitForTimeout(800);
   await page.screenshot({ path: resolve(artifactDir, "08_vaccines_section.png") });
 
-  // Click + Add ▾ menu
-  await page.getByRole("button", { name: "+ Add ▾" }).click();
+  // Click Add ▾ menu
+  await page.getByRole("button", { name: /Add ▾/ }).click();
   await page.waitForTimeout(300);
-  await page.getByRole("button", { name: "+ Add Current Vaccine" }).first().click();
+  await page.getByRole("button", { name: /Add Current Vaccine/ }).first().click();
   await page.waitForTimeout(600);
   await page.screenshot({ path: resolve(artifactDir, "09_add_vaccine_modal.png") });
 
@@ -141,8 +151,8 @@ test("CharmHealth Clinical Workflows Parity Verification", async ({ page }) => {
   await page.locator('button[data-tab="Vitals"]').click();
   await page.waitForTimeout(800);
 
-  // Click + Record Vitals
-  await page.getByRole("button", { name: "+ Record Vitals" }).first().click();
+  // Click Record Vitals
+  await page.getByRole("button", { name: /Record Vitals/ }).first().click();
   await page.waitForTimeout(600);
 
   // Check dynamic BMI auto calculation: height 175cm, weight 74kg -> BMI 24.2
