@@ -53,3 +53,4 @@ for db_path in dbs:
     con.commit()
     con.close()
     print(f"Successfully repaired facility_working_hours in {db_path.name}")
+
