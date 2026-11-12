@@ -202,6 +202,183 @@ def save_notifications(data: dict, c=Depends(context)):
     return data
 
 
+# --- Calendar: Appointment Statuses ---
+@router.get('/calendar/appointment-statuses')
+def get_appointment_statuses(c=Depends(context)):
+    return load_store().get("appointment_statuses", [])
+
+@router.post('/admin/calendar/appointment-statuses')
+def save_appointment_status(data: dict, c=Depends(context)):
+    c.allow({'admin', 'doctor', 'reception', 'therapist'})
+    store = load_store()
+    items = store.get("appointment_statuses", [])
+    item_id = data.get("id")
+    if item_id:
+        for idx, it in enumerate(items):
+            if it.get("id") == item_id:
+                items[idx] = data
+                break
+        else:
+            items.append(data)
+    else:
+        import uuid
+        data["id"] = "status-" + str(uuid.uuid4())[:8]
+        items.append(data)
+    store["appointment_statuses"] = items
+    save_store(store)
+    return data
+
+@router.delete('/admin/calendar/appointment-statuses/{item_id}')
+def delete_appointment_status(item_id: str, c=Depends(context)):
+    c.allow({'admin', 'doctor', 'reception', 'therapist'})
+    store = load_store()
+    items = [x for x in store.get("appointment_statuses", []) if x.get("id") != item_id]
+    store["appointment_statuses"] = items
+    save_store(store)
+    return {"ok": True}
+
+
+# --- Calendar: Visit Types ---
+@router.get('/calendar/visit-types')
+def get_visit_types(c=Depends(context)):
+    return load_store().get("visit_types", [])
+
+@router.post('/admin/calendar/visit-types')
+def save_visit_type(data: dict, c=Depends(context)):
+    c.allow({'admin', 'doctor', 'reception', 'therapist'})
+    store = load_store()
+    items = store.get("visit_types", [])
+    item_id = data.get("id")
+    if item_id:
+        for idx, it in enumerate(items):
+            if it.get("id") == item_id:
+                items[idx] = data
+                break
+        else:
+            items.append(data)
+    else:
+        import uuid
+        data["id"] = "vt-" + str(uuid.uuid4())[:8]
+        items.append(data)
+    store["visit_types"] = items
+    save_store(store)
+    return data
+
+@router.delete('/admin/calendar/visit-types/{item_id}')
+def delete_visit_type(item_id: str, c=Depends(context)):
+    c.allow({'admin', 'doctor', 'reception', 'therapist'})
+    store = load_store()
+    items = [x for x in store.get("visit_types", []) if x.get("id") != item_id]
+    store["visit_types"] = items
+    save_store(store)
+    return {"ok": True}
+
+
+# --- Calendar: Event Types ---
+@router.get('/calendar/event-types')
+def get_event_types(c=Depends(context)):
+    return load_store().get("event_types", [])
+
+@router.post('/admin/calendar/event-types')
+def save_event_type(data: dict, c=Depends(context)):
+    c.allow({'admin', 'doctor', 'reception', 'therapist'})
+    store = load_store()
+    items = store.get("event_types", [])
+    item_id = data.get("id")
+    if item_id:
+        for idx, it in enumerate(items):
+            if it.get("id") == item_id:
+                items[idx] = data
+                break
+        else:
+            items.append(data)
+    else:
+        import uuid
+        data["id"] = "et-" + str(uuid.uuid4())[:8]
+        items.append(data)
+    store["event_types"] = items
+    save_store(store)
+    return data
+
+@router.delete('/admin/calendar/event-types/{item_id}')
+def delete_event_type(item_id: str, c=Depends(context)):
+    c.allow({'admin', 'doctor', 'reception', 'therapist'})
+    store = load_store()
+    items = [x for x in store.get("event_types", []) if x.get("id") != item_id]
+    store["event_types"] = items
+    save_store(store)
+    return {"ok": True}
+
+
+# --- Calendar: Web Embeds ---
+@router.get('/calendar/web-embeds')
+def get_web_embeds(c=Depends(context)):
+    return load_store().get("web_embeds", [])
+
+@router.post('/admin/calendar/web-embeds')
+def save_web_embed(data: dict, c=Depends(context)):
+    c.allow({'admin', 'doctor', 'reception', 'therapist'})
+    store = load_store()
+    items = store.get("web_embeds", [])
+    item_id = data.get("id")
+    if item_id:
+        for idx, it in enumerate(items):
+            if it.get("id") == item_id:
+                items[idx] = data
+                break
+        else:
+            items.append(data)
+    else:
+        import uuid
+        data["id"] = "embed-" + str(uuid.uuid4())[:8]
+        items.append(data)
+    store["web_embeds"] = items
+    save_store(store)
+    return data
+
+@router.delete('/admin/calendar/web-embeds/{item_id}')
+def delete_web_embed(item_id: str, c=Depends(context)):
+    c.allow({'admin', 'doctor', 'reception', 'therapist'})
+    store = load_store()
+    items = [x for x in store.get("web_embeds", []) if x.get("id") != item_id]
+    store["web_embeds"] = items
+    save_store(store)
+    return {"ok": True}
+
+
+# --- Calendar: Provider Timings ---
+@router.get('/calendar/provider-timings')
+def get_provider_timings(facility_id: str = None, provider_id: str = None, c=Depends(context)):
+    store = load_store()
+    timings = store.get("provider_timings", {})
+    key = f"{facility_id or 'all'}_{provider_id or 'all'}"
+    default_hours = store.get("provider_timings_default", {
+        "Sunday": {"start": "12:00 am", "end": "11:45 pm", "not_working": False},
+        "Monday": {"start": "12:00 am", "end": "11:45 pm", "not_working": False},
+        "Tuesday": {"start": "12:00 am", "end": "11:45 pm", "not_working": False},
+        "Wednesday": {"start": "12:00 am", "end": "11:45 pm", "not_working": False},
+        "Thursday": {"start": "12:00 am", "end": "11:45 pm", "not_working": False},
+        "Friday": {"start": "12:00 am", "end": "11:45 pm", "not_working": False},
+        "Saturday": {"start": "12:00 am", "end": "11:45 pm", "not_working": False}
+    })
+    return timings.get(key, {"hours": default_hours, "exceptions": []})
+
+@router.post('/admin/calendar/provider-timings')
+def save_provider_timings(data: dict, c=Depends(context)):
+    c.allow({'admin', 'doctor', 'reception', 'therapist'})
+    store = load_store()
+    timings = store.setdefault("provider_timings", {})
+    facility_id = data.get("facility_id", "all")
+    provider_id = data.get("provider_id", "all")
+    key = f"{facility_id}_{provider_id}"
+    timings[key] = {
+        "hours": data.get("hours", {}),
+        "exceptions": data.get("exceptions", [])
+    }
+    save_store(store)
+    return timings[key]
+
+
 @router.get('/settings/{category}/{option}')
 def get_setting_option(category: str, option: str, c=Depends(context)):
     store = load_store()

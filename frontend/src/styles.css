@@ -10946,6 +10946,7 @@ textarea.charm-input {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
   gap: 28px 36px;
+  align-items: start;
 }
 
 @media (max-width: 1280px) {

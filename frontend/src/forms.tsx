@@ -624,6 +624,88 @@ export function AppointmentForm({
     return `${months[dt.getMonth()]} ${String(dt.getDate()).padStart(2, "0")}, ${dt.getFullYear()}`;
   }, [selDate]);
 
+  // Dynamic Appointment Statuses synchronized from Settings & localStorage
+  const [availableStatuses, setAvailableStatuses] = useState<{ id: string; name: string; color: string }[]>(() => {
+    try {
+      const saved = localStorage.getItem("hyh_appointment_statuses");
+      if (saved) return JSON.parse(saved);
+    } catch {}
+    return [
+      { id: "1", name: "Confirmed", color: "#10b981" },
+      { id: "2", name: "Checked in", color: "#3b82f6" },
+      { id: "3", name: "Completed", color: "#059669" },
+      { id: "4", name: "Cancelled", color: "#ef4444" },
+      { id: "5", name: "No show", color: "#f59e0b" },
+      { id: "6", name: "Absent", color: "#64748b" },
+      { id: "7", name: "Admission", color: "#8b5cf6" },
+      { id: "8", name: "Consultation / Demo", color: "#06b6d4" },
+      { id: "9", name: "Consulted", color: "#14b8a6" },
+      { id: "10", name: "Diabetic / HT Management", color: "#ec4899" },
+      { id: "11", name: "Discharge", color: "#6366f1" },
+      { id: "12", name: "EECP Treatment 1st Day", color: "#f97316" },
+      { id: "13", name: "EECP Treatment 20 Sessions 1st Day", color: "#d946ef" },
+      { id: "14", name: "EECP Treatment Completed", color: "#22c55e" },
+      { id: "15", name: "EECP Treatment Started", color: "#84cc16" },
+    ];
+  });
+
+  // Dynamic Visit Types synchronized from Settings & localStorage
+  const [availableVisitTypes, setAvailableVisitTypes] = useState<{ id: string; name: string; mode?: string; duration?: number; color?: string }[]>(() => {
+    try {
+      const saved = localStorage.getItem("hyh_visit_types");
+      if (saved) return JSON.parse(saved);
+    } catch {}
+    return [
+      { id: "vt1", name: "Cardiology Consultation", duration: 30 },
+      { id: "vt2", name: "EECP session", duration: 60 },
+      { id: "vt3", name: "EECP Treatment", duration: 60 },
+      { id: "vt4", name: "Follow-up Visit", duration: 20 },
+      { id: "vt5", name: "New Patient Visit", duration: 45 },
+      { id: "vt6", name: "Telehealth Video Consult", duration: 30 },
+      { id: "vt7", name: "Walk-in visits", duration: 20 },
+      { id: "vt8", name: "EECP 15th Day Review", duration: 30 },
+    ];
+  });
+
+  useEffect(() => {
+    api<any[]>("/calendar/appointment-statuses")
+      .then((data) => {
+        if (data && data.length > 0) {
+          setAvailableStatuses(data);
+          localStorage.setItem("hyh_appointment_statuses", JSON.stringify(data));
+        }
+      })
+      .catch(() => {});
+
+    api<any[]>("/calendar/visit-types")
+      .then((data) => {
+        if (data && data.length > 0) {
+          setAvailableVisitTypes(data);
+          localStorage.setItem("hyh_visit_types", JSON.stringify(data));
+        }
+      })
+      .catch(() => {});
+
+    const onStatusUpdate = () => {
+      try {
+        const saved = localStorage.getItem("hyh_appointment_statuses");
+        if (saved) setAvailableStatuses(JSON.parse(saved));
+      } catch {}
+    };
+    const onVisitTypeUpdate = () => {
+      try {
+        const saved = localStorage.getItem("hyh_visit_types");
+        if (saved) setAvailableVisitTypes(JSON.parse(saved));
+      } catch {}
+    };
+
+    window.addEventListener("hyh_appointment_statuses_updated", onStatusUpdate);
+    window.addEventListener("hyh_visit_types_updated", onVisitTypeUpdate);
+    return () => {
+      window.removeEventListener("hyh_appointment_statuses_updated", onStatusUpdate);
+      window.removeEventListener("hyh_visit_types_updated", onVisitTypeUpdate);
+    };
+  }, []);
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErr("");
@@ -844,11 +926,20 @@ export function AppointmentForm({
                 value={apptStatus}
                 onChange={(e) => setApptStatus(e.target.value)}
               >
-                <option value="confirmed">Confirmed</option>
-                <option value="checked-in">Checked In</option>
-                <option value="completed">Completed</option>
-                <option value="cancelled">Cancelled</option>
-                <option value="missed">Missed</option>
+                {availableStatuses.map((st) => {
+                  const val = st.name.toLowerCase().replace(/\s+/g, "-");
+                  return (
+                    <option key={st.id || st.name} value={val}>
+                      {st.name}
+                    </option>
+                  );
+                })}
+                {apptStatus &&
+                  !availableStatuses.some(
+                    (st) =>
+                      st.name.toLowerCase().replace(/\s+/g, "-") ===
+                      apptStatus.toLowerCase().replace(/\s+/g, "-")
+                  ) && <option value={apptStatus}>{apptStatus}</option>}
               </select>
             </div>
 
@@ -858,13 +949,29 @@ export function AppointmentForm({
                 aria-label="Visit type"
                 className="charm-field-input"
                 value={visitType}
-                onChange={(e) => setVisitType(e.target.value)}
+                onChange={(e) => {
+                  const vtName = e.target.value;
+                  setVisitType(vtName);
+                  const found = availableVisitTypes.find((vt) => vt.name === vtName);
+                  if (found?.duration) {
+                    setDuration(found.duration);
+                  }
+                  if (found?.mode) {
+                    if (found.mode.toLowerCase().includes("video")) setMode("Video");
+                    else if (found.mode.toLowerCase().includes("phone")) setMode("Phone");
+                    else setMode("In person");
+                  }
+                }}
               >
-                <option value="Cardiology Consultation">Cardiology Consultation</option>
-                <option value="EECP session">EECP session</option>
-                <option value="EECP 15th Day Review">EECP 15th Day Review</option>
-                <option value="Routine Follow-up">Routine Follow-up</option>
-                <option value="Echo / Doppler Evaluation">Echo / Doppler Evaluation</option>
+                {availableVisitTypes.map((vt) => (
+                  <option key={vt.id || vt.name} value={vt.name}>
+                    {vt.name} {vt.duration ? `(${vt.duration} min)` : ""}
+                  </option>
+                ))}
+                {visitType &&
+                  !availableVisitTypes.some((vt) => vt.name === visitType) && (
+                    <option value={visitType}>{visitType}</option>
+                  )}
               </select>
             </div>
 
@@ -977,7 +1084,7 @@ export function AppointmentForm({
                           setSelDate(`${prevD.getFullYear()}-${String(prevD.getMonth() + 1).padStart(2, "0")}-01`);
                         }}
                       >
-                        <
+                        &lt;
                       </button>
                       <div className="charm-dp-title">
                         <select
@@ -1014,7 +1121,7 @@ export function AppointmentForm({
                           setSelDate(`${nextD.getFullYear()}-${String(nextD.getMonth() + 1).padStart(2, "0")}-01`);
                         }}
                       >
-                        >
+                        &gt;
                       </button>
                     </div>
                     <div className="charm-dp-weekdays">

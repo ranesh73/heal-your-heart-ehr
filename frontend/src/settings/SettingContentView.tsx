@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   ArrowLeft,
   Plus,
@@ -24,6 +24,7 @@ import {
   SettingCategory,
   SettingOption,
 } from "./settingsData";
+import { api } from "../api";
 
 interface SettingContentViewProps {
   category: SettingCategory;
@@ -39,6 +40,13 @@ export function SettingContentView({
   onBack,
 }: SettingContentViewProps) {
   const [formData, setFormData] = useState<Record<string, any>>(() => {
+    const storageKey = `hyh_setting_${category.id}_${option.id}`;
+    const saved = localStorage.getItem(storageKey);
+    if (saved) {
+      try {
+        return JSON.parse(saved);
+      } catch {}
+    }
     const initial: Record<string, any> = {};
     option.fields?.forEach((f) => {
       initial[f.key] = f.defaultValue;
@@ -50,17 +58,60 @@ export function SettingContentView({
   const [tableSearch, setTableSearch] = useState("");
   const [actionMenuOpen, setActionMenuOpen] = useState<string | null>(null);
 
+  useEffect(() => {
+    const storageKey = `hyh_setting_${category.id}_${option.id}`;
+    const saved = localStorage.getItem(storageKey);
+    if (saved) {
+      try {
+        setFormData(JSON.parse(saved));
+      } catch {}
+    } else {
+      const initial: Record<string, any> = {};
+      option.fields?.forEach((f) => {
+        initial[f.key] = f.defaultValue;
+      });
+      setFormData(initial);
+    }
+
+    // Attempt to load remote setting
+    api<any>(`/settings/${category.id}/${option.id}`)
+      .then((res) => {
+        if (res && res.data) {
+          setFormData(res.data);
+          localStorage.setItem(storageKey, JSON.stringify(res.data));
+        }
+      })
+      .catch(() => {});
+  }, [category.id, option.id]);
+
   const handleFieldChange = (key: string, value: any) => {
-    setFormData((prev) => ({ ...prev, [key]: value }));
+    setFormData((prev) => {
+      const updated = { ...prev, [key]: value };
+      const storageKey = `hyh_setting_${category.id}_${option.id}`;
+      localStorage.setItem(storageKey, JSON.stringify(updated));
+      return updated;
+    });
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     setSavedNotice(true);
+    const storageKey = `hyh_setting_${category.id}_${option.id}`;
+    localStorage.setItem(storageKey, JSON.stringify(formData));
+    try {
+      await api(`/admin/settings/${category.id}/${option.id}`, "PUT", formData);
+    } catch {}
+
+    window.dispatchEvent(
+      new CustomEvent("hyh_setting_updated", {
+        detail: { categoryId: category.id, optionId: option.id, data: formData },
+      })
+    );
+
     let toast = document.querySelector(".toast");
     if (!toast) {
       toast = document.createElement("div");
       toast.className = "toast";
-      toast.textContent = "Changes saved successfully";
+      toast.textContent = "Changes saved and updated automatically";
       document.body.appendChild(toast);
       setTimeout(() => {
         toast?.remove();
