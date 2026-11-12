@@ -82,3 +82,8 @@ if __name__=='__main__':
         output.write_text('LOCAL DEVELOPMENT ONLY — generated credentials\n\nAccounts:\n'+''.join(r+'@demo.local\n' for r in ['admin','doctor','assistant','therapist','reception','billing'])+'\nPassword for all demo accounts: '+password+'\n',encoding='utf-8')
         print('Synthetic records created. Credentials saved to .demo-credentials.txt in the project root.')
     else: print('Existing database retained; seeding skipped.')
+    try:
+        from scripts.seed_clinical_catalogs import seed_catalogs
+        seed_catalogs()
+    except Exception as e:
+        pass

@@ -711,6 +711,13 @@ def run_restoration():
         db.flush()
         print("Restored imaging test catalogs across all 5 facilities.")
 
+        # Seed clinical formulary catalogs (injections, medications, vaccines)
+        try:
+            from scripts.seed_clinical_catalogs import seed_catalogs
+            seed_catalogs()
+        except Exception as e:
+            print(f"Notice: clinical catalogs check: {e}")
+
         # 15. Diagnostic Lab Orders & Lab Results (clinical_orders & lab_values)
         lab_orders_data = [
             # Order 1: Isaac G. E. - Resulted
