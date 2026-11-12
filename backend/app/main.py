@@ -46,7 +46,9 @@ async def integrity_error(request,exc):
 
 @app.exception_handler(Exception)
 async def unexpected_error(request,exc):
-    logging.getLogger('ehr').error('Request failed: %s',type(exc).__name__)
+    import traceback
+    traceback.print_exc()
+    logging.getLogger('ehr').error('Request failed: %s: %s', type(exc).__name__, exc)
     return JSONResponse({'detail':'The operation could not be completed. No changes were saved.'},status_code=500)
 
 
