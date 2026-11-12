@@ -6,7 +6,7 @@ from pathlib import Path
 from uuid import uuid4
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form
 from fastapi.responses import FileResponse
-from sqlalchemy import select, delete, update
+from sqlalchemy import select, delete, update, func, or_
 from . import models as m, schemas as s
 from .db import DATA_DIR
 from .security import context, CLINICAL, check_version
@@ -133,26 +133,19 @@ def next_image_ref(db):
 def create_record(kind:str,data:dict,c=Depends(context)):
     if kind not in RECORDS: raise HTTPException(404,'Unknown record type')
     c.allow(WRITE_ROLES[kind])
-    if kind == 'medications':
-        out = []
-        for r in rows:
-            d = serialize(r)
-            d['drug_name'] = r.trade_name or r.generic_name or 'Medication'
-            d['dosage'] = r.dose or ''
-            d['dispense'] = f"{r.quantity or 30} {r.dispense_unit or 'Tablets'}"
-            d['period'] = f"{r.duration_days or 30} Days"
-            if r.author_id:
-                staff = c.db.get(m.User, r.author_id)
-                if staff:
-                    d['provider_name'] = staff.name
-            out.append(d)
-        return out
     if kind == 'injections':
         data = dict(data)
         if 'dosage' in data and not data.get('dose'):
             data['dose'] = data['dosage']
         if 'dose' in data and not data.get('dosage'):
             data['dosage'] = data['dose']
+        if not data.get('catalogue_id') and data.get('name'):
+            matched_cat = c.db.scalar(select(m.InjectionCatalog).where(
+                m.InjectionCatalog.normalized_name == data['name'].strip().lower(),
+                m.InjectionCatalog.is_active == True
+            ))
+            if matched_cat:
+                data['catalogue_id'] = matched_cat.id
         if isinstance(data.get('period'), str):
             num = re.search(r'\d+', str(data['period']))
             data['period'] = int(num.group()) if num else 1
@@ -256,7 +249,7 @@ def create_record(kind:str,data:dict,c=Depends(context)):
         if values['duration_days']<1 or values['quantity']<1: raise HTTPException(422,'Duration and quantity must be positive')
         if not re.fullmatch(r'\d+(?:\.\d+)?-\d+(?:\.\d+)?-\d+(?:\.\d+)?-\d+(?:\.\d+)?',values['maen']): raise HTTPException(422,'Use four numeric M-A-E-N doses separated by hyphens')
         if not values.get('status'):
-            values['status'] = 'active'
+            values['status'] = 'draft'
     if kind=='injections':
         if not values.get('administered_by'):
             values['administered_by'] = c.user.id
@@ -318,7 +311,26 @@ def create_record(kind:str,data:dict,c=Depends(context)):
                     except Exception:
                         filtered_values[k] = None
     row = model_cls(**filtered_values, facility_id=c.facility_id, author_id=c.user.id)
-    c.db.add(row); c.audit('create_'+kind,row)
+    c.db.add(row)
+    if kind == 'injections' and getattr(row, 'status', None) == 'administered':
+        item_match = c.db.scalar(
+            select(m.InventoryItem).where(
+                m.InventoryItem.facility_id == c.facility_id,
+                func.lower(m.InventoryItem.name) == func.lower(row.name)
+            )
+        )
+        if item_match:
+            current_bal = c.db.scalar(select(func.coalesce(func.sum(m.StockMovement.quantity), 0)).where(m.StockMovement.item_id == item_match.id)) or 0
+            if current_bal > 0:
+                p_row = c.db.get(m.Patient, row.patient_id)
+                p_mrn = f" ({p_row.mrn})" if p_row else ""
+                c.db.add(m.StockMovement(
+                    item_id=item_match.id,
+                    quantity=-1,
+                    reason=f"Dispensed for injection administration to patient{p_mrn}",
+                    actor_id=c.user.id
+                ))
+    c.audit('create_'+kind, row)
     return serialize(row)
 
 
@@ -344,7 +356,7 @@ def encounters(c=Depends(context)):
 
 @router.post('/encounters')
 def create_encounter(data:s.EncounterInput,c=Depends(context)):
-    c.allow({'doctor','admin','assistant','reception'}); c.patient(data.patient_id); c.staff(data.provider_id,{'doctor'})
+    c.allow({'doctor','admin','assistant'}); c.patient(data.patient_id); c.staff(data.provider_id,{'doctor'})
     if c.user.role == 'doctor' and data.provider_id != c.user.id:
         raise HTTPException(403,'Create encounters under your own clinician account')
     if data.assistant_id: c.staff(data.assistant_id,{'assistant'})
@@ -502,6 +514,20 @@ def delete_record(kind:str,identifier:str,c=Depends(context)):
     if kind=='orders':
         c.db.execute(delete(m.LabValue).where(m.LabValue.order_id==row.id))
         c.db.execute(delete(m.Document).where(m.Document.order_id==row.id))
+    if kind == 'injections':
+        item_match = c.db.scalar(
+            select(m.InventoryItem).where(
+                m.InventoryItem.facility_id == row.facility_id,
+                func.lower(m.InventoryItem.name) == func.lower(row.name)
+            )
+        )
+        if item_match:
+            c.db.add(m.StockMovement(
+                item_id=item_match.id,
+                quantity=1,
+                reason=f"Restored from deleted injection record {row.name}",
+                actor_id=c.user.id
+            ))
     c.db.delete(row); c.audit('delete_'+kind,row)
     return {'status':'deleted','id':identifier}
 
@@ -541,3 +567,273 @@ def download(identifier:str,c=Depends(context)):
     if not path.is_file(): raise HTTPException(404,'Document file is unavailable')
     c.audit('download_document',row)
     return FileResponse(path,media_type='application/octet-stream',filename=row.filename,headers={'X-Content-Type-Options':'nosniff'})
+
+
+# ============================================================================
+# CENTRAL INJECTION CATALOGUE ENDPOINTS
+# ============================================================================
+
+@router.get('/injections/catalog')
+def list_injection_catalog(q: str | None = None, all: bool = False, c=Depends(context)):
+    c.allow(CLINICAL | {'reception'})
+    query = select(m.InjectionCatalog)
+    if not all:
+        query = query.where(m.InjectionCatalog.is_active == True, m.InjectionCatalog.verification_status == 'verified')
+    if q and q.strip():
+        term = q.strip()
+        norm_term = term.lower()
+        query = query.where(
+            or_(
+                m.InjectionCatalog.name.ilike(f'%{term}%'),
+                m.InjectionCatalog.normalized_name.ilike(f'%{norm_term}%'),
+                m.InjectionCatalog.original_source_name.ilike(f'%{term}%')
+            )
+        )
+    items = c.db.scalars(query.order_by(m.InjectionCatalog.name.asc())).all()
+    return [serialize(x) for x in items]
+
+
+@router.post('/admin/injections/catalog')
+def create_injection_catalog(data: s.InjectionCatalogInput, c=Depends(context)):
+    c.allow({'admin', 'doctor'})
+    name_clean = data.name.strip()
+    if not name_clean:
+        raise HTTPException(422, 'Injection name is required')
+    norm = name_clean.lower()
+    existing = c.db.scalar(select(m.InjectionCatalog).where(m.InjectionCatalog.normalized_name == norm))
+    if existing:
+        if not existing.is_active:
+            existing.is_active = True
+            existing.name = name_clean
+            existing.verification_status = 'verified'
+            existing.updated_at = datetime.now()
+            c.audit('reactivate_injection_catalog', existing)
+            return serialize(existing)
+        raise HTTPException(409, f'Injection "{name_clean}" already exists in the catalogue')
+    row = m.InjectionCatalog(
+        name=name_clean,
+        normalized_name=norm,
+        original_source_name=data.original_source_name.strip() or name_clean,
+        verification_status='verified',
+        is_active=True,
+        created_by=c.user.id
+    )
+    c.db.add(row)
+    c.audit('create_injection_catalog', row)
+    return serialize(row)
+
+
+@router.patch('/admin/injections/catalog/{identifier}')
+def update_injection_catalog(identifier: str, data: dict, c=Depends(context)):
+    c.allow({'admin', 'doctor'})
+    row = c.db.get(m.InjectionCatalog, identifier)
+    if not row:
+        raise HTTPException(404, 'Catalogue item not found')
+    if 'name' in data and str(data['name']).strip():
+        name_clean = str(data['name']).strip()
+        norm = name_clean.lower()
+        existing = c.db.scalar(select(m.InjectionCatalog).where(m.InjectionCatalog.normalized_name == norm, m.InjectionCatalog.id != identifier))
+        if existing:
+            raise HTTPException(409, f'Injection "{name_clean}" already exists in the catalogue')
+        row.name = name_clean
+        row.normalized_name = norm
+    if 'is_active' in data:
+        row.is_active = bool(data['is_active'])
+    if 'verification_status' in data:
+        row.verification_status = str(data['verification_status'])
+    row.updated_at = datetime.now()
+    row.version += 1
+    c.audit('update_injection_catalog', row)
+    return serialize(row)
+
+
+@router.delete('/admin/injections/catalog/{identifier}')
+def delete_injection_catalog(identifier: str, c=Depends(context)):
+    c.allow({'admin', 'doctor'})
+    row = c.db.get(m.InjectionCatalog, identifier)
+    if not row:
+        raise HTTPException(404, 'Catalogue item not found')
+    row.is_active = False
+    row.updated_at = datetime.now()
+    row.version += 1
+    c.audit('deactivate_injection_catalog', row)
+    return {'status': 'deactivated', 'id': identifier}
+
+
+# ============================================================================
+# INJECTION ORDERS ENDPOINTS
+# ============================================================================
+
+@router.get('/injections/orders')
+def list_injection_orders(patient_id: str | None = None, status: str | None = None, ordered_by: str | None = None, q: str | None = None, c=Depends(context)):
+    query = select(m.InjectionOrder)
+    if patient_id:
+        query = query.where(m.InjectionOrder.patient_id == patient_id)
+    if status:
+        if status == 'pending_partial':
+            query = query.where(m.InjectionOrder.status.in_(['pending', 'partial', 'ordered']))
+        elif status != 'all' and status != 'ALL':
+            query = query.where(m.InjectionOrder.status == status)
+    if ordered_by and ordered_by != 'ALL':
+        query = query.where(m.InjectionOrder.ordered_by == ordered_by)
+    rows = c.db.scalars(query.order_by(m.InjectionOrder.ordered_at.desc())).all()
+    out = []
+    for r in rows:
+        d = serialize(r)
+        d['name'] = r.medication_name_snapshot
+        p = c.db.get(m.Patient, r.patient_id)
+        if p:
+            d['patient_name'] = f"{p.first_name} {p.last_name}".strip()
+            d['patient_mrn'] = p.mrn
+            d['patient_dob'] = str(p.dob) if p.dob else ''
+            d['patient_sex'] = p.sex or ''
+        if r.ordered_by:
+            staff = c.db.get(m.User, r.ordered_by)
+            if staff:
+                d['ordered_by_name'] = f"Dr. {staff.name}" if staff.role == 'doctor' and not staff.name.startswith("Dr.") else staff.name
+                d['ordered_by_role'] = staff.role
+        if q and q.strip():
+            query_str = q.strip().lower()
+            p_match = query_str in (d.get('patient_name') or '').lower() or query_str in (d.get('patient_mrn') or '').lower() or query_str in (r.medication_name_snapshot or '').lower()
+            if not p_match:
+                continue
+        out.append(d)
+    return out
+
+
+@router.post('/injections/orders')
+def create_injection_order(data: s.InjectionOrderInput, c=Depends(context)):
+    c.allow(CLINICAL | {'reception'})
+    c.patient(data.patient_id)
+    med_name = data.medication_name_snapshot.strip()
+    if not med_name:
+        raise HTTPException(422, 'Medication name is required')
+    cat_id = data.catalogue_id
+    if not cat_id and med_name:
+        matched_cat = c.db.scalar(select(m.InjectionCatalog).where(
+            m.InjectionCatalog.normalized_name == med_name.lower(),
+            m.InjectionCatalog.is_active == True
+        ))
+        if matched_cat:
+            cat_id = matched_cat.id
+    row = m.InjectionOrder(
+        facility_id=c.facility_id,
+        patient_id=data.patient_id,
+        author_id=c.user.id,
+        encounter_id=data.encounter_id,
+        catalogue_id=cat_id,
+        medication_name_snapshot=med_name,
+        dosage=data.dosage.strip(),
+        route=data.route.strip(),
+        site=data.site.strip(),
+        frequency=data.frequency.strip(),
+        nurse_note=data.nurse_note.strip(),
+        comments=data.comments.strip(),
+        status=data.status or 'pending',
+        ordered_by=c.user.id,
+        ordered_at=datetime.now()
+    )
+    c.db.add(row)
+    c.audit('create_injection_order', row)
+    c.db.flush()
+    d = serialize(row)
+    d['name'] = row.medication_name_snapshot
+    p = c.db.get(m.Patient, row.patient_id)
+    if p:
+        d['patient_name'] = f"{p.first_name} {p.last_name}".strip()
+        d['patient_mrn'] = p.mrn
+    d['ordered_by_name'] = f"Dr. {c.user.name}" if c.user.role == 'doctor' and not c.user.name.startswith("Dr.") else c.user.name
+    return d
+
+
+@router.patch('/injections/orders/{identifier}')
+def update_injection_order(identifier: str, data: s.InjectionOrderUpdateInput, c=Depends(context)):
+    c.allow(CLINICAL | {'reception'})
+    row = c.db.get(m.InjectionOrder, identifier)
+    if not row:
+        raise HTTPException(404, 'Order not found')
+    c.patient(row.patient_id)
+    dump = data.model_dump(exclude_unset=True)
+    for k, v in dump.items():
+        if v is not None:
+            setattr(row, k, v)
+    row.updated_at = datetime.now()
+    row.version += 1
+    c.audit('update_injection_order', row)
+    d = serialize(row)
+    d['name'] = row.medication_name_snapshot
+    return d
+
+
+@router.delete('/injections/orders/{identifier}')
+def delete_injection_order(identifier: str, c=Depends(context)):
+    c.allow(CLINICAL | {'reception'})
+    row = c.db.get(m.InjectionOrder, identifier)
+    if not row:
+        raise HTTPException(404, 'Order not found')
+    row.status = 'cancelled'
+    row.updated_at = datetime.now()
+    row.version += 1
+    c.audit('cancel_injection_order', row)
+    return {'status': 'cancelled', 'id': identifier}
+
+
+# ============================================================================
+# INJECTION TEMPLATES ENDPOINTS
+# ============================================================================
+
+@router.get('/injections/templates')
+def list_injection_templates(c=Depends(context)):
+    query = select(m.InjectionTemplate).where(m.InjectionTemplate.is_active == True)
+    rows = c.db.scalars(query.order_by(m.InjectionTemplate.template_name.asc())).all()
+    return [serialize(x) for x in rows]
+
+
+@router.post('/admin/injections/templates')
+def create_injection_template(data: s.InjectionTemplateInput, c=Depends(context)):
+    c.allow(CLINICAL)
+    row = m.InjectionTemplate(
+        facility_id=c.facility_id,
+        template_name=data.template_name.strip(),
+        catalogue_id=data.catalogue_id,
+        medication_name=data.medication_name.strip(),
+        dosage=data.dosage.strip(),
+        route=data.route.strip(),
+        site=data.site.strip(),
+        frequency=data.frequency.strip(),
+        nurse_instructions=data.nurse_instructions.strip(),
+        is_active=data.is_active,
+        created_by=c.user.id
+    )
+    c.db.add(row)
+    c.audit('create_injection_template', row)
+    return serialize(row)
+
+
+@router.patch('/admin/injections/templates/{identifier}')
+def update_injection_template(identifier: str, data: dict, c=Depends(context)):
+    c.allow(CLINICAL)
+    row = c.db.get(m.InjectionTemplate, identifier)
+    if not row:
+        raise HTTPException(404, 'Template not found')
+    for k in ('template_name', 'medication_name', 'dosage', 'route', 'site', 'frequency', 'nurse_instructions', 'is_active', 'catalogue_id'):
+        if k in data:
+            setattr(row, k, data[k])
+    row.updated_at = datetime.now()
+    row.version += 1
+    c.audit('update_injection_template', row)
+    return serialize(row)
+
+
+@router.delete('/admin/injections/templates/{identifier}')
+def delete_injection_template(identifier: str, c=Depends(context)):
+    c.allow(CLINICAL)
+    row = c.db.get(m.InjectionTemplate, identifier)
+    if not row:
+        raise HTTPException(404, 'Template not found')
+    row.is_active = False
+    row.updated_at = datetime.now()
+    row.version += 1
+    c.audit('deactivate_injection_template', row)
+    return {'status': 'deactivated', 'id': identifier}
+

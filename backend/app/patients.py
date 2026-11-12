@@ -73,6 +73,24 @@ def chart(identifier:str,c=Depends(context)):
             result[key]=[serialize(x) for x in rows(model)]
         for inj in result.get('injections', []):
             if not inj.get('dosage') and inj.get('dose'): inj['dosage'] = inj['dose']
+            if inj.get('administered_by'):
+                st = c.db.get(m.User, inj['administered_by'])
+                if st:
+                    inj['administered_by_name'] = st.name
+                    inj['administered_by_role'] = st.role
+            elif inj.get('author_id'):
+                st = c.db.get(m.User, inj['author_id'])
+                if st:
+                    inj['administered_by_name'] = st.name
+                    inj['administered_by_role'] = st.role
+        result['injection_orders'] = [serialize(x) for x in rows(m.InjectionOrder)]
+        for io in result['injection_orders']:
+            io['name'] = io.get('medication_name_snapshot') or ''
+            if io.get('ordered_by'):
+                st = c.db.get(m.User, io['ordered_by'])
+                if st:
+                    io['ordered_by_name'] = f"Dr. {st.name}" if st.role == 'doctor' and not st.name.startswith("Dr.") else st.name
+                    io['ordered_by_role'] = st.role
         for vac in result.get('vaccines', []):
             if not vac.get('name') and vac.get('vaccine_name'): vac['name'] = vac['vaccine_name']
             if not vac.get('dosage') and vac.get('dose'): vac['dosage'] = vac['dose']

@@ -218,8 +218,8 @@ RECORD_FIELDS = {
  'history':[select('category','History category',['Medical','Family','Social','Surgery','Implanted device']),field('content','History','textarea',True),field('event_date','Event date','date')],
  'diagnoses':[field('code','ICD code'),field('description','Diagnosis',required=True),field('onset','Onset','date'),select('status','Status',['active','resolved'])],
  'allergies':[select('category','Type',['Drug','Food','Environmental','Latex','Other']),field('allergen','Allergen or explicit no-known declaration',required=True),select('severity','Severity',['Unknown','Mild','Moderate','Severe','No known allergy']),field('reaction','Reaction','textarea'),select('status','Status',['active','inactive'])],
- 'medications':[field('trade_name','Trade name',required=True),field('generic_name','Generic name'),field('dose','Dose and unit',required=True),field('route','Route',required=True),field('frequency','Frequency'),field('maen','Morning–Afternoon–Evening–Night',required=False),field('timing','Timing / food'),number('duration_days','Duration · days',True,3650),number('quantity','Dispense quantity',True,100000),field('substitution_allowed','Substitution allowed','checkbox'),field('instructions','Instructions','textarea'),field('start_date','Start date','date'),field('end_date','End date','date'),number('refills','Refills',False,24),field('dose_unit','Dose unit'),field('dispense_unit','Dispense unit'),field('timing_when','When'),number('morning','Morning dose',False,100),number('afternoon','Afternoon dose',False,100),number('evening','Evening dose',False,100),number('night','Night dose',False,100),field('is_supplement','Is supplement','checkbox'),select('status','Status',['active','draft','discontinued','completed'],required=False)],
- 'injections':[field('name','Injection Name',required=True),field('dose','Dosage',required=False),field('dosage','Dosage',required=False),field('frequency','Frequency'),number('period','Period',False,365),field('period_unit','Period unit'),field('route','Parenteral Route',required=False),field('site','Injection Site',required=False),field('lot_number','Lot Number'),field('expiration_date','Expiration date','date'),field('administered_at','Administered Date/Time','datetime-local'),field('administered_by','Administered By','staff'),field('nurse_notes','Note to Nurse','textarea'),field('comments','Comments','textarea'),select('status','Status',['administered','ordered','cancelled'],required=False)],
+ 'medications':[field('trade_name','Trade name',required=True),field('generic_name','Generic name'),field('dose','Dose and unit',required=True),field('route','Route',required=True),field('frequency','Frequency'),field('maen','Morning–Afternoon–Evening–Night',required=False),field('timing','Timing / food'),number('duration_days','Duration · days',True,3650),number('quantity','Dispense quantity',True,100000),field('substitution_allowed','Substitution allowed','checkbox'),field('instructions','Instructions','textarea'),field('start_date','Start date','date'),field('end_date','End date','date'),number('refills','Refills',False,24),field('dose_unit','Dose unit'),field('dispense_unit','Dispense unit'),field('timing_when','When'),number('morning','Morning dose',False,100),number('afternoon','Afternoon dose',False,100),number('evening','Evening dose',False,100),number('night','Night dose',False,100),field('is_supplement','Is supplement','checkbox'),select('status','Status',['draft','active','discontinued','completed'],required=False)],
+ 'injections':[field('name','Injection Name',required=True),field('catalogue_id','Catalogue ID',required=False),field('order_id','Order ID',required=False),field('dose','Dosage',required=False),field('dosage','Dosage',required=False),field('frequency','Frequency'),number('period','Period',False,365),field('period_unit','Period unit'),field('route','Parenteral Route',required=False),field('site','Injection Site',required=False),field('lot_number','Lot Number'),field('expiration_date','Expiration date','date'),field('administered_at','Administered Date/Time','datetime-local'),field('administered_by','Administered By','staff'),field('nurse_notes','Note to Nurse','textarea'),field('comments','Comments','textarea'),select('status','Status',['administered','ordered','cancelled'],required=False)],
  'vaccines':[field('vaccine_name','Vaccine',required=False),field('name','Vaccine',required=False),field('cvx_code','CVX code'),field('lot_number','Lot Number'),field('expiration_date','Expiration date','date'),number('series_number','# in Series',False,10),field('dose_in_series','Dose in Series',required=False),field('dose','Dose',required=False),field('dosage','Dosage',required=False),field('manufacturer','Manufacturer',required=False),field('vis_given_date','VIS Given Date',required=False),field('route','Route',required=False),field('site','Site',required=False),field('administered_at','Administered Date/Time','datetime-local'),field('ordered_by','Ordered by','staff'),field('administered_by','Administered by','staff'),field('notes','Notes','textarea'),select('status','Status',['administered','ordered','refused','historical'],required=False)],
  'vitals':VITAL_FIELDS,
  'orders':[select('kind','Order type',['Lab','Imaging','Image','Injection','Vaccine','Referral']),field('name','Order / referral',required=True),field('instructions','Instructions','textarea'),field('lab_ref','Lab Ref',required=False),field('ordered_date','Ordered Date',required=False),field('status','Status',required=False),field('notes_lab_patient','Note to Lab','textarea',required=False),field('notes_intra_office','Intra Office Notes','textarea',required=False),field('order_metadata','Order Metadata','textarea',required=False)],
@@ -231,7 +231,7 @@ RECORD_FIELDS = {
 
 
 def schema_from_fields(name, fields, patient=True, version=False):
-    defs = {'patient_id': (str, ...)} if patient else {}
+    defs: dict[str, Any] = {'patient_id': (str, ...)} if patient else {}
     if version:
         defs['version'] = (int, Field(ge=1))
     for f in fields:
@@ -245,7 +245,7 @@ def schema_from_fields(name, fields, patient=True, version=False):
         elif f['type'] == 'checkbox':
             defs[key] = (bool, False)
         elif f['options']:
-            typ = Literal[tuple(f['options'])]
+            typ = str
             defs[key] = (typ, ... if required else f['options'][0])
         else:
             defs[key] = (str,Field(default=... if required else '',min_length=1 if required else 0,max_length=12000 if f['type']=='textarea' else 200))
@@ -323,3 +323,59 @@ class InventoryInput(Input):
 class StockInput(Input):
     quantity: int = Field(ge=-1000000,le=1000000)
     reason: str = Field(min_length=3,max_length=240)
+
+
+class InjectionCatalogInput(Input):
+    name: str = Field(min_length=1, max_length=200)
+    original_source_name: str = Field(default='', max_length=200)
+    verification_status: str = Field(default='verified', max_length=40)
+    is_active: bool = True
+
+
+class InjectionOrderInput(Input):
+    patient_id: str
+    encounter_id: str | None = None
+    catalogue_id: str | None = None
+    medication_name_snapshot: str = Field(min_length=1, max_length=200)
+    dosage: str = Field(default='', max_length=80)
+    route: str = Field(default='', max_length=60)
+    site: str = Field(default='', max_length=80)
+    frequency: str = Field(default='', max_length=80)
+    nurse_note: str = Field(default='', max_length=2000)
+    comments: str = Field(default='', max_length=2000)
+    status: str = Field(default='pending', max_length=30)
+
+
+class InjectionOrderUpdateInput(Input):
+    dosage: str | None = None
+    route: str | None = None
+    site: str | None = None
+    frequency: str | None = None
+    nurse_note: str | None = None
+    comments: str | None = None
+    status: str | None = None
+
+
+class InjectionTemplateInput(Input):
+    template_name: str = Field(min_length=1, max_length=160)
+    catalogue_id: str | None = None
+    medication_name: str = Field(min_length=1, max_length=200)
+    dosage: str = Field(default='', max_length=80)
+    route: str = Field(default='', max_length=60)
+    site: str = Field(default='', max_length=80)
+    frequency: str = Field(default='', max_length=80)
+    nurse_instructions: str = Field(default='', max_length=2000)
+    is_active: bool = True
+
+
+class InventoryRequisitionInput(Input):
+    source_facility_id: str
+    destination_facility_id: str
+    item_name: str = Field(min_length=1, max_length=160)
+    quantity: int = Field(gt=0, le=1000000)
+    notes: str = Field(default='', max_length=2000)
+
+
+class InventoryRequisitionStatusInput(Input):
+    status: Literal['requested', 'approved', 'dispatched', 'received', 'cancelled']
+
