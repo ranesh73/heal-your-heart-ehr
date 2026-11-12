@@ -85,5 +85,7 @@ if __name__=='__main__':
     try:
         from scripts.seed_clinical_catalogs import seed_catalogs
         seed_catalogs()
+        from scripts.seed_injection_catalogs import seed_injection_catalogs
+        seed_injection_catalogs()
     except Exception as e:
         pass

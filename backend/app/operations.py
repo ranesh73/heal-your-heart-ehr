@@ -105,6 +105,86 @@ def stock(identifier:str,data:s.StockInput,c=Depends(context)):
     return serialize(move)
 
 
+@router.get('/inventory/requisitions')
+def list_requisitions(c=Depends(context)):
+    c.allow({'admin', 'reception', 'therapist', 'doctor'})
+    query = select(m.InventoryRequisition).where(
+        (m.InventoryRequisition.source_facility_id == c.facility_id) | 
+        (m.InventoryRequisition.destination_facility_id == c.facility_id)
+    ).order_by(m.InventoryRequisition.created_at.desc())
+    rows = c.db.scalars(query).all()
+    out = []
+    for r in rows:
+        d = serialize(r)
+        sf = c.db.get(m.Facility, r.source_facility_id)
+        df = c.db.get(m.Facility, r.destination_facility_id)
+        u = c.db.get(m.User, r.requested_by)
+        d['source_facility_name'] = sf.name if sf else ''
+        d['destination_facility_name'] = df.name if df else ''
+        d['requested_by_name'] = u.name if u else ''
+        out.append(d)
+    return out
+
+
+@router.post('/inventory/requisitions')
+def create_requisition(data: s.InventoryRequisitionInput, c=Depends(context)):
+    c.allow({'admin', 'reception', 'therapist', 'doctor'})
+    row = m.InventoryRequisition(
+        source_facility_id=data.source_facility_id,
+        destination_facility_id=data.destination_facility_id,
+        item_name=data.item_name.strip(),
+        quantity=data.quantity,
+        requested_by=c.user.id,
+        status='requested',
+        notes=data.notes.strip()
+    )
+    c.db.add(row)
+    c.audit('create_requisition', row)
+    c.db.flush()
+    return serialize(row)
+
+
+@router.patch('/inventory/requisitions/{identifier}/status')
+def update_requisition_status(identifier: str, data: s.InventoryRequisitionStatusInput, c=Depends(context)):
+    c.allow({'admin', 'reception', 'therapist', 'doctor'})
+    row = c.db.get(m.InventoryRequisition, identifier)
+    if not row:
+        raise HTTPException(404, 'Requisition not found')
+    old_status = row.status
+    new_status = data.status
+    row.status = new_status
+    row.updated_at = datetime.now()
+    row.version += 1
+    
+    # If transitioning to received, transfer stock between facility stores if items exist
+    if old_status != 'received' and new_status == 'received':
+        src_item = c.db.scalar(select(m.InventoryItem).where(
+            m.InventoryItem.facility_id == row.source_facility_id,
+            func.lower(m.InventoryItem.name) == func.lower(row.item_name)
+        ))
+        dest_item = c.db.scalar(select(m.InventoryItem).where(
+            m.InventoryItem.facility_id == row.destination_facility_id,
+            func.lower(m.InventoryItem.name) == func.lower(row.item_name)
+        ))
+        if src_item:
+            c.db.add(m.StockMovement(
+                item_id=src_item.id,
+                quantity=-row.quantity,
+                reason=f"Inter-branch transfer dispatch to {row.destination_facility_id}",
+                actor_id=c.user.id
+            ))
+        if dest_item:
+            c.db.add(m.StockMovement(
+                item_id=dest_item.id,
+                quantity=row.quantity,
+                reason=f"Inter-branch transfer received from {row.source_facility_id}",
+                actor_id=c.user.id
+            ))
+    c.audit('update_requisition_status', row)
+    return serialize(row)
+
+
+
 def metrics(db,facility_id):
     def count(model,condition=True): return db.scalar(select(func.count()).select_from(model).where(model.facility_id==facility_id,condition))
     appointment_status=dict(db.execute(select(m.Appointment.status,func.count()).where(m.Appointment.facility_id==facility_id).group_by(m.Appointment.status)).all())
