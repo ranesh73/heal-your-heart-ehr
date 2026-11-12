@@ -37,3 +37,4 @@ if src_settings.exists():
     print(f"✓ Copied master CharmHealth settings to {dest_settings}")
 
 print("\n>>> SYNC COMPLETE! Your local database now exactly matches the primary developer laptop! <<<")
+

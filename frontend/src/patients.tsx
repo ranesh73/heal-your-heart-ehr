@@ -1933,8 +1933,16 @@ export function PrintPreview({
   return (
     <Modal title="Print preview" onClose={onClose} wide>
       <div className="print-sheet">
-        <small>HEAL YOUR HEART EHR · DEVELOPMENT</small>
-        <h1>{title}</h1>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "2px solid #008278", paddingBottom: 10, marginBottom: 18 }}>
+          <div>
+            <strong style={{ color: "#008278", fontSize: 18, letterSpacing: "0.5px" }}>HEAL YOUR HEART</strong>
+            <div style={{ fontSize: 11, color: "#64748b", fontWeight: 600, textTransform: "uppercase" }}>Speciality Clinic for EECP & Preventive Cardiology</div>
+          </div>
+          <div style={{ fontSize: 11, color: "#64748b", textAlign: "right" }}>
+            CharmHealth Practice Portal<br />Official Clinical Document
+          </div>
+        </div>
+        <h1 style={{ fontSize: 20, color: "#0f172a", margin: "10px 0 16px" }}>{title}</h1>
         {children}
       </div>
       <div className="form-footer">
@@ -2291,7 +2299,7 @@ export function EncounterEditor({
   id: string;
   patientId: string;
 }) {
-  const { user, staff, refresh, notify } = useApp();
+  const { user, staff, facilities, refresh, notify } = useApp();
   const {
     data: chart,
     isLoading,
@@ -5077,44 +5085,453 @@ export function EncounterEditor({
           <ErrorBox error={revisions.error} />
         </Modal>
       )}
-      {modal === "preview" && (
-        <PrintPreview
-          title={chart.patient.name + " · " + encounter.visit_type}
-          onClose={() => setModal("")}
-        >
-          <p>
-            {chart.patient.mrn} · {dateTime(encounter.created_at)} ·{" "}
-            {encounter.status === "signed" ? "Signed" : "UNSIGNED DRAFT"}
-          </p>
-          {noteFields.map(([k, l]) => (
-            <section key={k}>
-              <h3>{l}</h3>
-              <p>{getValues(k) || encounter[k] || "Not documented"}</p>
-            </section>
-          ))}
-          <h3>Symptom review</h3>
-          {symptoms.map((s, i) => (
-            <p key={s}>
-              {s}: {getValues("symptom_" + i) || "Not assessed"}{" "}
-              {getValues("narrative_" + i)}
-            </p>
-          ))}
-          <p>Outcome: {getValues("outcome") || "Not assessed"}</p>
-          {encounter.amendments.map((a: Row) => (
-            <section key={a.id}>
-              <h3>Amendment · {dateTime(a.created_at)}</h3>
-              <p>{a.reason}</p>
-              <p>{a.content}</p>
-            </section>
-          ))}
-          {encounter.signed_at && (
-            <small>
-              Signed {dateTime(encounter.signed_at)} · Record digest{" "}
-              {encounter.signature_digest}
-            </small>
-          )}
-        </PrintPreview>
-      )}
+      {modal === "preview" && (() => {
+        const facility =
+          (facilities || []).find((f: Row) => f.id === encounter.facility_id) ||
+          (facilities && facilities[0]);
+        const doctor =
+          (staff || []).find(
+            (s: Row) => s.id === (encounter.signed_by || encounter.author_id || user.id)
+          );
+        const doctorName = doctor?.name || user?.name || "Dr. Ananya Demo";
+
+        const calculateAge = (dobString?: string) => {
+          if (!dobString) return null;
+          const birth = new Date(dobString);
+          if (isNaN(birth.getTime())) return null;
+          const diff = Date.now() - birth.getTime();
+          return Math.floor(diff / (365.25 * 24 * 60 * 60 * 1000));
+        };
+        const patientAge = calculateAge(chart.patient.dob);
+
+        const latestVital = chart.vitals && chart.vitals.length > 0 ? chart.vitals[0] : null;
+        const activeMeds = (chart.medications || []).filter(
+          (m: any) => m.status === "active" || !m.status
+        );
+        const activeDiagnoses = (chart.diagnoses || []).filter(
+          (d: any) => d.status === "active" || !d.status
+        );
+
+        const cc = getValues("chief_complaint") || encounter.chief_complaint || "";
+        const hpi = getValues("hpi") || encounter.hpi || "";
+        const medHistory = getValues("medical_history") || encounter.medical_history || "";
+        const ros = getValues("ros") || encounter.ros || "";
+        const exam = getValues("examination") || encounter.examination || "";
+        const objective = getValues("objective") || encounter.objective || "";
+        const assessment = getValues("assessment") || encounter.assessment || "";
+        const plan = getValues("plan") || encounter.plan || "";
+        const followUp = getValues("follow_up") || encounter.follow_up || "";
+
+        const assessedSymptoms = symptoms
+          .map((s, i) => {
+            const val = getValues("symptom_" + i) || encounter["symptom_" + i];
+            const narr = getValues("narrative_" + i) || encounter["narrative_" + i];
+            return { symptom: s, value: val, narrative: narr };
+          })
+          .filter((item) => item.value && item.value !== "Not assessed");
+
+        return (
+          <Modal title="Patient Consultation Note Preview" onClose={() => setModal("")} wide>
+            <div className="charm-preview-toolbar">
+              <div className="charm-preview-toolbar-left">
+                <span className="charm-preview-toolbar-badge">CharmHealth Practice Portal</span>
+                <span style={{ fontSize: 13, color: "#64748b", fontWeight: 500 }}>
+                  Official Consultation Summary Letterhead
+                </span>
+              </div>
+              <div className="charm-preview-toolbar-right">
+                <button
+                  type="button"
+                  className="charm-preview-btn-print"
+                  onClick={() => window.print()}
+                >
+                  <Printer size={15} />
+                  Print / Save PDF
+                </button>
+                <button
+                  type="button"
+                  className="charm-preview-btn-close"
+                  onClick={() => setModal("")}
+                >
+                  <X size={15} />
+                  Close
+                </button>
+              </div>
+            </div>
+
+            <div className="charm-print-modal-body">
+              <div className="charm-print-container">
+                {/* 1. Formal Clinic Letterhead */}
+                <div className="charm-print-letterhead">
+                  <div className="charm-print-brand">
+                    <div className="charm-print-brand-icon">
+                      <HeartPulse size={28} />
+                    </div>
+                    <div>
+                      <div className="charm-print-clinic-title">HEAL YOUR HEART</div>
+                      <div className="charm-print-clinic-sub">Speciality Clinic for EECP & Preventive Cardiology</div>
+                      <div className="charm-print-facility-meta">
+                        <strong>{facility?.name || "Heal Your Heart · Neelankarai"}</strong> · {facility?.address || "Demonstration facility · Tamil Nadu"}
+                        <br />
+                        Phone: {facility?.phone || facility?.mobile || "+91 44 2449 1100"} · Web: www.healyourheart.in · Email: care@healyourheart.in
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="charm-print-doc-meta">
+                    <div className="charm-print-doc-title">Consultation Summary</div>
+                    <div
+                      className={
+                        encounter.status === "signed"
+                          ? "charm-print-status-badge charm-print-status-signed"
+                          : "charm-print-status-badge charm-print-status-draft"
+                      }
+                    >
+                      {encounter.status === "signed" ? "✓ Signed & Final" : "● Unsigned Clinical Draft"}
+                    </div>
+                    <div className="charm-print-ref-id">
+                      Ref: ENC-{encounter.id.slice(0, 8).toUpperCase()}
+                    </div>
+                    <div style={{ fontSize: 11, color: "#64748b", marginTop: 3 }}>
+                      Date: {dateTime(encounter.created_at)}
+                    </div>
+                  </div>
+                </div>
+
+                {/* 2. Structured Patient Demographics Banner */}
+                <div className="charm-print-patient-card">
+                  <div className="charm-print-col">
+                    <div className="charm-print-patient-name">{chart.patient.name}</div>
+                    <div className="charm-print-patient-sub">
+                      MRN: <strong>{chart.patient.mrn}</strong> · {patientAge ? `${patientAge} Y` : "Adult"} / {chart.patient.gender || "Not specified"}
+                    </div>
+                    <div className="charm-print-row" style={{ marginTop: 4 }}>
+                      <span className="charm-print-label">DOB:</span>
+                      <span className="charm-print-val">{chart.patient.dob || "—"}</span>
+                    </div>
+                    <div className="charm-print-row">
+                      <span className="charm-print-label">Blood Group:</span>
+                      <span className="charm-print-val">{chart.patient.blood_group || "—"}</span>
+                    </div>
+                    <div className="charm-print-row">
+                      <span className="charm-print-label">Phone:</span>
+                      <span className="charm-print-val">{chart.patient.phone || "—"}</span>
+                    </div>
+                  </div>
+
+                  <div className="charm-print-col">
+                    <div className="charm-print-row">
+                      <span className="charm-print-label">Visit Type:</span>
+                      <span className="charm-print-val">{encounter.visit_type || "Cardiology Consultation"}</span>
+                    </div>
+                    <div className="charm-print-row">
+                      <span className="charm-print-label">Encounter Date:</span>
+                      <span className="charm-print-val">{dateTime(encounter.created_at)}</span>
+                    </div>
+                    <div className="charm-print-row">
+                      <span className="charm-print-label">Attending Doctor:</span>
+                      <span className="charm-print-val">{doctorName}</span>
+                    </div>
+                    <div className="charm-print-row">
+                      <span className="charm-print-label">Clinic Branch:</span>
+                      <span className="charm-print-val">{facility?.name || "Heal Your Heart"}</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* 3. Vital Signs Summary Strip */}
+                {latestVital && (
+                  <div className="charm-print-vitals-strip">
+                    {latestVital.bp_sys && latestVital.bp_dia && (
+                      <div className="charm-print-vital-item">
+                        <span className="charm-print-vital-label">Blood Pressure</span>
+                        <span className="charm-print-vital-val">
+                          {latestVital.bp_sys} / {latestVital.bp_dia} <small style={{ fontWeight: 400, fontSize: 11, color: "#64748b" }}>mmHg</small>
+                        </span>
+                      </div>
+                    )}
+                    {latestVital.pulse_bpm && (
+                      <div className="charm-print-vital-item">
+                        <span className="charm-print-vital-label">Pulse / HR</span>
+                        <span className="charm-print-vital-val">
+                          {latestVital.pulse_bpm} <small style={{ fontWeight: 400, fontSize: 11, color: "#64748b" }}>bpm</small>
+                        </span>
+                      </div>
+                    )}
+                    {latestVital.spo2_pct && (
+                      <div className="charm-print-vital-item">
+                        <span className="charm-print-vital-label">SpO₂</span>
+                        <span className="charm-print-vital-val">
+                          {latestVital.spo2_pct} <small style={{ fontWeight: 400, fontSize: 11, color: "#64748b" }}>%</small>
+                        </span>
+                      </div>
+                    )}
+                    {latestVital.weight_kg && (
+                      <div className="charm-print-vital-item">
+                        <span className="charm-print-vital-label">Weight</span>
+                        <span className="charm-print-vital-val">
+                          {latestVital.weight_kg} <small style={{ fontWeight: 400, fontSize: 11, color: "#64748b" }}>kg</small>
+                        </span>
+                      </div>
+                    )}
+                    {latestVital.height_cm && (
+                      <div className="charm-print-vital-item">
+                        <span className="charm-print-vital-label">Height</span>
+                        <span className="charm-print-vital-val">
+                          {latestVital.height_cm} <small style={{ fontWeight: 400, fontSize: 11, color: "#64748b" }}>cm</small>
+                        </span>
+                      </div>
+                    )}
+                    {latestVital.weight_kg && latestVital.height_cm && (
+                      <div className="charm-print-vital-item">
+                        <span className="charm-print-vital-label">BMI</span>
+                        <span className="charm-print-vital-val">
+                          {(latestVital.weight_kg / Math.pow(latestVital.height_cm / 100, 2)).toFixed(1)}{" "}
+                          <small style={{ fontWeight: 400, fontSize: 11, color: "#64748b" }}>kg/m²</small>
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* 4. Subjective (S) */}
+                <div className="charm-print-section">
+                  <div className="charm-print-sec-header">
+                    <span className="charm-print-sec-pill">S</span>
+                    <h4 className="charm-print-sec-title">Subjective / Chief Complaint & History</h4>
+                  </div>
+                  <div className="charm-print-box highlight">
+                    <div style={{ fontWeight: 700, marginBottom: 4, color: "#008278", fontSize: 12, textTransform: "uppercase" }}>
+                      Chief Complaint
+                    </div>
+                    <p>{cc || "Routine cardiology follow-up and EECP treatment progress evaluation."}</p>
+                  </div>
+
+                  {hpi && (
+                    <div className="charm-print-box" style={{ marginTop: 8 }}>
+                      <div style={{ fontWeight: 700, marginBottom: 4, color: "#334155", fontSize: 12, textTransform: "uppercase" }}>
+                        History of Present Illness
+                      </div>
+                      <p>{hpi}</p>
+                    </div>
+                  )}
+
+                  {medHistory && (
+                    <div className="charm-print-box" style={{ marginTop: 8 }}>
+                      <div style={{ fontWeight: 700, marginBottom: 4, color: "#334155", fontSize: 12, textTransform: "uppercase" }}>
+                        Past Medical & Surgical History
+                      </div>
+                      <p>{medHistory}</p>
+                    </div>
+                  )}
+
+                  {ros && (
+                    <div className="charm-print-box" style={{ marginTop: 8 }}>
+                      <div style={{ fontWeight: 700, marginBottom: 4, color: "#334155", fontSize: 12, textTransform: "uppercase" }}>
+                        Review of Systems
+                      </div>
+                      <p>{ros}</p>
+                    </div>
+                  )}
+
+                  {assessedSymptoms.length > 0 && (
+                    <div className="charm-print-box" style={{ marginTop: 8 }}>
+                      <div style={{ fontWeight: 700, marginBottom: 6, color: "#334155", fontSize: 12, textTransform: "uppercase" }}>
+                        Symptom Review & Assessment
+                      </div>
+                      <ul style={{ margin: 0, paddingLeft: 18, fontSize: 12 }}>
+                        {assessedSymptoms.map((it, idx) => (
+                          <li key={idx} style={{ marginBottom: 3 }}>
+                            <strong>{it.symptom}:</strong> {it.value} {it.narrative ? `(${it.narrative})` : ""}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                </div>
+
+                {/* 5. Objective (O) */}
+                {(exam || objective) && (
+                  <div className="charm-print-section">
+                    <div className="charm-print-sec-header">
+                      <span className="charm-print-sec-pill">O</span>
+                      <h4 className="charm-print-sec-title">Objective / Physical Examination</h4>
+                    </div>
+                    {exam && (
+                      <div className="charm-print-box">
+                        <div style={{ fontWeight: 700, marginBottom: 4, color: "#334155", fontSize: 12, textTransform: "uppercase" }}>
+                          Physical Examination
+                        </div>
+                        <p>{exam}</p>
+                      </div>
+                    )}
+                    {objective && (
+                      <div className="charm-print-box" style={{ marginTop: 8 }}>
+                        <div style={{ fontWeight: 700, marginBottom: 4, color: "#334155", fontSize: 12, textTransform: "uppercase" }}>
+                          Clinical Findings & Observations
+                        </div>
+                        <p>{objective}</p>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* 6. Assessment (A) */}
+                <div className="charm-print-section">
+                  <div className="charm-print-sec-header">
+                    <span className="charm-print-sec-pill">A</span>
+                    <h4 className="charm-print-sec-title">Assessment & Clinical Diagnoses</h4>
+                  </div>
+                  {assessment && (
+                    <div className="charm-print-box">
+                      <div style={{ fontWeight: 700, marginBottom: 4, color: "#334155", fontSize: 12, textTransform: "uppercase" }}>
+                        Clinical Assessment Notes
+                      </div>
+                      <p>{assessment}</p>
+                    </div>
+                  )}
+
+                  {activeDiagnoses.length > 0 && (
+                    <table className="charm-print-table">
+                      <thead>
+                        <tr>
+                          <th>Diagnosis / Clinical Condition</th>
+                          <th style={{ width: 130 }}>ICD-10 Code</th>
+                          <th style={{ width: 90 }}>Status</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {activeDiagnoses.map((diag: any, idx: number) => (
+                          <tr key={idx}>
+                            <td><strong>{diag.description || diag.name}</strong></td>
+                            <td style={{ fontFamily: "monospace" }}>{diag.code || "—"}</td>
+                            <td>
+                              <span style={{ color: "#065f46", fontWeight: 600, textTransform: "capitalize" }}>
+                                {diag.status || "Active"}
+                              </span>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  )}
+                </div>
+
+                {/* 7. Plan (P) */}
+                <div className="charm-print-section">
+                  <div className="charm-print-sec-header">
+                    <span className="charm-print-sec-pill">P</span>
+                    <h4 className="charm-print-sec-title">Plan / Treatment, Prescriptions & Follow-up</h4>
+                  </div>
+                  {plan && (
+                    <div className="charm-print-box">
+                      <div style={{ fontWeight: 700, marginBottom: 4, color: "#334155", fontSize: 12, textTransform: "uppercase" }}>
+                        Care Plan & Diet Recommendations
+                      </div>
+                      <p>{plan}</p>
+                    </div>
+                  )}
+
+                  {activeMeds.length > 0 && (
+                    <div style={{ marginTop: 10 }}>
+                      <div style={{ fontWeight: 700, marginBottom: 4, color: "#334155", fontSize: 12, textTransform: "uppercase" }}>
+                        Prescribed Medications & Supplements
+                      </div>
+                      <table className="charm-print-table">
+                        <thead>
+                          <tr>
+                            <th>Medication / Product</th>
+                            <th>Dose & Route</th>
+                            <th>Frequency (M-A-E-N)</th>
+                            <th>Duration</th>
+                            <th>Instructions</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {activeMeds.map((med: any, idx: number) => (
+                            <tr key={idx}>
+                              <td>
+                                <strong>{med.trade_name || med.name}</strong>
+                                {med.generic_name && (
+                                  <div style={{ fontSize: 11, color: "#64748b" }}>{med.generic_name}</div>
+                                )}
+                              </td>
+                              <td>{med.dose || "—"} · {med.route || "Oral"}</td>
+                              <td>{med.frequency || med.maen || "Once daily"}</td>
+                              <td>{med.duration_days ? `${med.duration_days} Days` : "Ongoing"}</td>
+                              <td>{med.instructions || "As directed by physician"}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+
+                  {followUp && (
+                    <div className="charm-print-box highlight" style={{ marginTop: 10 }}>
+                      <div style={{ fontWeight: 700, marginBottom: 4, color: "#008278", fontSize: 12, textTransform: "uppercase" }}>
+                        Follow-up Advice & Instructions
+                      </div>
+                      <p>{followUp}</p>
+                    </div>
+                  )}
+                </div>
+
+                {/* 8. Amendments (if any) */}
+                {encounter.amendments && encounter.amendments.length > 0 && (
+                  <div className="charm-print-section">
+                    <div className="charm-print-sec-header">
+                      <span className="charm-print-sec-pill" style={{ background: "#d97706" }}>!</span>
+                      <h4 className="charm-print-sec-title">Clinical Amendments & Addenda</h4>
+                    </div>
+                    {encounter.amendments.map((a: Row) => (
+                      <div key={a.id} className="charm-print-box" style={{ marginBottom: 6 }}>
+                        <div style={{ fontSize: 11, fontWeight: 700, color: "#b45309", marginBottom: 3 }}>
+                          Amendment · {dateTime(a.created_at)}
+                        </div>
+                        <p><strong>Reason:</strong> {a.reason}</p>
+                        <p>{a.content}</p>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* 9. Provider Signature & Attestation Block */}
+                <div className="charm-print-signature-wrap">
+                  <div className="charm-print-legal-notice">
+                    <strong>CONTINUITY OF CARE RECORD:</strong>
+                    <br />
+                    This document represents an official clinical consultation summary maintained in the Heal Your Heart Electronic Health Record system.
+                    {encounter.signed_at ? (
+                      <div style={{ marginTop: 4, color: "#047857" }}>
+                        ✓ Electronically signed and attested on {dateTime(encounter.signed_at)}.
+                        {encounter.signature_digest && (
+                          <div style={{ fontFamily: "monospace", fontSize: 10, color: "#64748b", marginTop: 2 }}>
+                            SHA-256 Digest: {encounter.signature_digest}
+                          </div>
+                        )}
+                      </div>
+                    ) : (
+                      <div style={{ marginTop: 4, color: "#b45309" }}>
+                        ● Unsigned Draft Encounter — Prepared by clinical team for final provider review.
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="charm-print-sign-box">
+                    <div className="charm-print-sign-line" />
+                    <div className="charm-print-doctor-name">{doctorName}</div>
+                    <div className="charm-print-doctor-title">Consultant Cardiologist & Clinical Specialist</div>
+                    <div className="charm-print-timestamp">
+                      {encounter.signed_at ? `Signed: ${dateTime(encounter.signed_at)}` : `Draft Date: ${dateTime(encounter.created_at)}`}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </Modal>
+        );
+      })()}
     </div>
   );
 }

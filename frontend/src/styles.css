@@ -12992,3 +12992,461 @@ textarea.charm-input {
   overflow: hidden;
   text-overflow: ellipsis;
 }
+
+/* ==========================================================================
+   CharmHealth Clinical Consultation Note & Letterhead Preview
+   ========================================================================== */
+
+.charm-print-modal-body {
+  padding: 0 !important;
+  background: #f8fafc;
+  max-height: 85vh;
+  overflow-y: auto;
+}
+
+.charm-preview-toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 24px;
+  background: #ffffff;
+  border-bottom: 1px solid #e2e8f0;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+.charm-preview-toolbar-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.charm-preview-toolbar-badge {
+  background: #e6f5f3;
+  color: #008278;
+  padding: 3px 10px;
+  border-radius: 9999px;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.charm-preview-toolbar-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.charm-preview-btn-print {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: #008278;
+  color: #ffffff;
+  border: none;
+  border-radius: 4px;
+  padding: 7px 16px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.charm-preview-btn-print:hover {
+  background: #006961;
+}
+
+.charm-preview-btn-close {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background: #ffffff;
+  color: #475569;
+  border: 1px solid #cbd5e1;
+  border-radius: 4px;
+  padding: 7px 14px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.charm-preview-btn-close:hover {
+  background: #f1f5f9;
+}
+
+.charm-print-container {
+  background: #ffffff;
+  max-width: 860px;
+  margin: 20px auto;
+  padding: 36px 44px;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.06);
+  color: #1e293b;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  line-height: 1.5;
+  box-sizing: border-box;
+}
+
+/* Header & Letterhead Branding */
+.charm-print-letterhead {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  padding-bottom: 18px;
+  border-bottom: 2.5px solid #008278;
+  margin-bottom: 20px;
+}
+
+.charm-print-brand {
+  display: flex;
+  gap: 14px;
+  align-items: center;
+}
+
+.charm-print-brand-icon {
+  width: 48px;
+  height: 48px;
+  border-radius: 10px;
+  background: #e6f5f3;
+  color: #008278;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.charm-print-clinic-title {
+  font-size: 22px;
+  font-weight: 800;
+  letter-spacing: 0.5px;
+  color: #008278;
+  line-height: 1.2;
+}
+
+.charm-print-clinic-sub {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  color: #334155;
+  margin-top: 2px;
+}
+
+.charm-print-facility-meta {
+  font-size: 11px;
+  color: #64748b;
+  margin-top: 4px;
+  line-height: 1.4;
+}
+
+.charm-print-doc-meta {
+  text-align: right;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+}
+
+.charm-print-doc-title {
+  font-size: 14px;
+  font-weight: 800;
+  color: #0f172a;
+  letter-spacing: 0.3px;
+  text-transform: uppercase;
+}
+
+.charm-print-status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 10px;
+  border-radius: 9999px;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-top: 6px;
+}
+
+.charm-print-status-signed {
+  background: #ecfdf5;
+  color: #065f46;
+  border: 1px solid #a7f3d0;
+}
+
+.charm-print-status-draft {
+  background: #fffbeb;
+  color: #92400e;
+  border: 1px solid #fde68a;
+}
+
+.charm-print-ref-id {
+  font-size: 11px;
+  color: #64748b;
+  margin-top: 5px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+}
+
+/* Patient Demographics Banner */
+.charm-print-patient-card {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  padding: 14px 18px;
+  margin-bottom: 22px;
+  display: grid;
+  grid-template-columns: 1.2fr 1fr;
+  gap: 16px;
+}
+
+.charm-print-col {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.charm-print-patient-name {
+  font-size: 16px;
+  font-weight: 800;
+  color: #0f172a;
+}
+
+.charm-print-patient-sub {
+  font-size: 12px;
+  color: #475569;
+}
+
+.charm-print-row {
+  display: flex;
+  gap: 10px;
+  font-size: 12px;
+  color: #334155;
+}
+
+.charm-print-label {
+  font-weight: 600;
+  color: #64748b;
+  min-width: 95px;
+}
+
+.charm-print-val {
+  font-weight: 600;
+  color: #0f172a;
+}
+
+/* Vital Signs Summary Card */
+.charm-print-vitals-strip {
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
+  border-left: 4px solid #008278;
+  border-radius: 4px;
+  padding: 10px 16px;
+  margin-bottom: 22px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 20px;
+  align-items: center;
+}
+
+.charm-print-vital-item {
+  display: flex;
+  flex-direction: column;
+}
+
+.charm-print-vital-label {
+  font-size: 10px;
+  font-weight: 700;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+}
+
+.charm-print-vital-val {
+  font-size: 14px;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+/* SOAP Section Cards */
+.charm-print-section {
+  margin-bottom: 20px;
+  break-inside: avoid;
+}
+
+.charm-print-sec-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding-bottom: 5px;
+  border-bottom: 1px solid #e2e8f0;
+  margin-bottom: 8px;
+}
+
+.charm-print-sec-pill {
+  width: 22px;
+  height: 22px;
+  border-radius: 4px;
+  background: #008278;
+  color: #ffffff;
+  font-size: 11px;
+  font-weight: 800;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.charm-print-sec-title {
+  font-size: 13px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: #0f172a;
+  margin: 0;
+}
+
+.charm-print-box {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 4px;
+  padding: 12px 16px;
+  font-size: 13px;
+  color: #1e293b;
+  line-height: 1.5;
+}
+
+.charm-print-box.highlight {
+  background: #f8fafc;
+  border-left: 3.5px solid #008278;
+}
+
+.charm-print-box p {
+  margin: 0 0 6px 0;
+}
+
+.charm-print-box p:last-child {
+  margin-bottom: 0;
+}
+
+/* Clinical Tables: Diagnoses & Prescriptions */
+.charm-print-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+  margin-top: 8px;
+}
+
+.charm-print-table th {
+  background: #f8fafc;
+  color: #475569;
+  font-weight: 700;
+  text-align: left;
+  padding: 8px 12px;
+  border: 1px solid #cbd5e1;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+
+.charm-print-table td {
+  padding: 8px 12px;
+  border: 1px solid #cbd5e1;
+  color: #1e293b;
+}
+
+.charm-print-table tr:nth-child(even) td {
+  background: #f8fafc;
+}
+
+/* Attestation and Doctor Signature Block */
+.charm-print-signature-wrap {
+  margin-top: 32px;
+  padding-top: 18px;
+  border-top: 1px solid #cbd5e1;
+  display: grid;
+  grid-template-columns: 1.3fr 1fr;
+  gap: 24px;
+  break-inside: avoid;
+}
+
+.charm-print-legal-notice {
+  font-size: 11px;
+  color: #64748b;
+  line-height: 1.5;
+}
+
+.charm-print-sign-box {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  text-align: right;
+}
+
+.charm-print-sign-line {
+  width: 220px;
+  border-bottom: 1.5px solid #0f172a;
+  margin-bottom: 6px;
+}
+
+.charm-print-doctor-name {
+  font-size: 14px;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.charm-print-doctor-title {
+  font-size: 11px;
+  color: #475569;
+}
+
+.charm-print-timestamp {
+  font-size: 11px;
+  color: #64748b;
+  margin-top: 4px;
+}
+
+/* Print Overrides */
+@media print {
+  body {
+    background: #ffffff !important;
+  }
+
+  body * {
+    visibility: hidden;
+  }
+
+  .charm-print-container,
+  .charm-print-container * {
+    visibility: visible !important;
+  }
+
+  .charm-print-container {
+    position: absolute !important;
+    left: 0 !important;
+    top: 0 !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    border: none !important;
+    box-shadow: none !important;
+  }
+
+  .overlay,
+  .modal-head,
+  .form-footer,
+  .charm-preview-toolbar,
+  .charm-modal-header,
+  header,
+  nav,
+  aside,
+  footer {
+    display: none !important;
+  }
+
+  @page {
+    size: A4;
+    margin: 14mm 16mm 14mm 16mm;
+  }
+}

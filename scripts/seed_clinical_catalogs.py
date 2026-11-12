@@ -126,3 +126,4 @@ def seed_catalogs():
 
 if __name__ == "__main__":
     seed_catalogs()
+
