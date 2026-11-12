@@ -87,32 +87,10 @@ const ChoiceGrid: React.FC<FieldProps & { kind: 'radio' | 'checkbox' }> = ({
   kind
 }) => {
   const options = component.options || [];
-  const columns = component.column_count || 3;
-
-  // One option per full-width row, as the reference shows for
-  // "Physical Activity >=150 min/wk".
-  if (columns === 1) {
-    return (
-      <div className="ctv-stacked-rows">
-        {options.map((opt, i) => (
-          <div className="ctv-option-panel ctv-stacked-row" key={opt.id ?? i}>
-            <label className="ctv-option">
-              <ReadOnlyChoice
-                type={kind}
-                name={`${groupKey}-${component.id}`}
-                checked={isChecked(opt, component)}
-              />
-              <span>{txt(opt.option_label)}</span>
-            </label>
-          </div>
-        ))}
-      </div>
-    );
-  }
 
   return (
     <div className="ctv-option-panel">
-      <div className="ctv-option-grid" style={columnStyle(columns)}>
+      <div className="ctv-option-horizontal-wrap">
         {options.map((opt, i) => (
           <label className="ctv-option" key={opt.id ?? i}>
             <ReadOnlyChoice

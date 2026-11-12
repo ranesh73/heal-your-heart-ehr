@@ -57,13 +57,36 @@ export function SettingDetailModal({
 
   if (!option) return null;
 
+  const autoSaveTimerRef = React.useRef<any>(null);
+
   const handleChange = (key: string, value: any) => {
-    setFormData((prev) => ({ ...prev, [key]: value }));
+    setFormData((prev) => {
+      const updated = { ...prev, [key]: value };
+      const storageKey = `hyh_setting_${option.id}`;
+      localStorage.setItem(storageKey, JSON.stringify(updated));
+
+      if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current);
+      autoSaveTimerRef.current = setTimeout(async () => {
+        try {
+          await api(`/admin/settings/${option.categoryId}/${option.id}`, "PUT", updated);
+        } catch {}
+        window.dispatchEvent(
+          new CustomEvent("hyh_setting_updated", {
+            detail: { categoryId: option.categoryId, optionId: option.id, data: updated },
+          })
+        );
+        setIsSaved(true);
+        setTimeout(() => setIsSaved(false), 2000);
+      }, 600);
+
+      return updated;
+    });
     setIsSaved(false);
   };
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current);
     const storageKey = `hyh_setting_${option.id}`;
     localStorage.setItem(storageKey, JSON.stringify(formData));
     try {

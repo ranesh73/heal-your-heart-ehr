@@ -78,6 +78,7 @@ export function SettingContentView({
       });
       setFormData(initial);
     }
+    hasLoadedRef.current = true;
 
     // Attempt to load remote setting
     api<any>(`/settings/${category.id}/${option.id}`)
@@ -90,16 +91,40 @@ export function SettingContentView({
       .catch(() => {});
   }, [category.id, option.id]);
 
+  const hasLoadedRef = React.useRef(false);
+  const autoSaveTimerRef = React.useRef<any>(null);
+
   const handleFieldChange = (key: string, value: any) => {
     setFormData((prev) => {
       const updated = { ...prev, [key]: value };
       const storageKey = `hyh_setting_${category.id}_${option.id}`;
       localStorage.setItem(storageKey, JSON.stringify(updated));
+
+      // Automated auto-save to backend API and dashboard broadcast
+      if (autoSaveTimerRef.current) {
+        clearTimeout(autoSaveTimerRef.current);
+      }
+      autoSaveTimerRef.current = setTimeout(async () => {
+        try {
+          await api(`/admin/settings/${category.id}/${option.id}`, "PUT", updated);
+        } catch {}
+        window.dispatchEvent(
+          new CustomEvent("hyh_setting_updated", {
+            detail: { categoryId: category.id, optionId: option.id, data: updated },
+          })
+        );
+        setSavedNotice(true);
+        setTimeout(() => setSavedNotice(false), 2000);
+      }, 600);
+
       return updated;
     });
   };
 
   const handleSave = async () => {
+    if (autoSaveTimerRef.current) {
+      clearTimeout(autoSaveTimerRef.current);
+    }
     setSavedNotice(true);
     const storageKey = `hyh_setting_${category.id}_${option.id}`;
     localStorage.setItem(storageKey, JSON.stringify(formData));
@@ -232,6 +257,12 @@ export function SettingContentView({
               <Plus size={15} />
               <span>Add Procedure Code</span>
             </button>
+          )}
+
+          {savedNotice && (
+            <span style={{ fontSize: "12px", color: "#059669", fontWeight: 600, display: "inline-flex", alignItems: "center", gap: "4px" }}>
+              <Check size={14} /> Saved automatically
+            </span>
           )}
 
           {option.fields && option.fields.length > 0 && (

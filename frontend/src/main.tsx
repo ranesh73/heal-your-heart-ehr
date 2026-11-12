@@ -469,6 +469,20 @@ function Workspace() {
   const refresh = async () => {
     await qc.invalidateQueries();
   };
+
+  useEffect(() => {
+    const handleSettingUpdated = () => {
+      refresh();
+    };
+    window.addEventListener("hyh_setting_updated", handleSettingUpdated);
+    window.addEventListener("hyh_appointment_statuses_updated", handleSettingUpdated);
+    window.addEventListener("hyh_visit_types_updated", handleSettingUpdated);
+    return () => {
+      window.removeEventListener("hyh_setting_updated", handleSettingUpdated);
+      window.removeEventListener("hyh_appointment_statuses_updated", handleSettingUpdated);
+      window.removeEventListener("hyh_visit_types_updated", handleSettingUpdated);
+    };
+  }, []);
   const context = {
     user,
     staff: staff.data || [],

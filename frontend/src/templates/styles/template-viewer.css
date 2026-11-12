@@ -257,6 +257,14 @@
   border-radius: 3px;
 }
 
+.ctv-option-horizontal-wrap {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px 28px;
+}
+
 .ctv-option-grid {
   display: grid;
   gap: 14px 16px;

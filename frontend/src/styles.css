@@ -10976,7 +10976,7 @@ textarea.charm-input {
 
 .charm-settings-row-grid {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   column-gap: 36px;
   align-items: start;
 }
@@ -10987,7 +10987,7 @@ textarea.charm-input {
 
 .charm-settings-grid-4col {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 28px 36px;
   align-items: start;
 }
@@ -11002,20 +11002,24 @@ textarea.charm-input {
   display: flex;
   flex-direction: column;
   min-width: 0;
+  width: 100%;
 }
 
 .charm-settings-category-heading {
-  font-size: 21px;
+  font-size: 19px;
   font-weight: 400;
   color: #166eb8;
   font-family: Lato, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   text-transform: none;
-  margin: 0;
-  padding-bottom: 8px;
+  margin: 0 0 6px 0;
+  padding: 0;
   letter-spacing: normal;
   cursor: pointer;
   transition: color 0.15s ease;
-  line-height: 1.25;
+  line-height: 24px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .charm-settings-category-heading:hover {
