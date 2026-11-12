@@ -2400,23 +2400,29 @@ export function EncounterEditor({
     "The patient maintain the benefits.": true,
   });
 
-  // Screenshot 1: HPI Frequency Table
+  // Screenshot 1 & dense_frame_173: HPI Frequency Table and Cardiac Symptoms
   const [hpiChestPain, setHpiChestPain] = useState<"Yes" | "No">("Yes");
   const [hpiFreq, setHpiFreq] = useState("j");
   const [hpiNitro, setHpiNitro] = useState("");
   const [hpiWalk, setHpiWalk] = useState("");
+  const [hpiSob, setHpiSob] = useState<"Yes" | "No">("Yes");
+  const [hpiNyha, setHpiNyha] = useState<string>("Class I");
+  const [hpiEdema, setHpiEdema] = useState<"Yes" | "No">("Yes");
+  const [hpiEdemaStatus, setHpiEdemaStatus] = useState<string>("Stable");
+  const [hpiOrthopnea, setHpiOrthopnea] = useState<"Yes" | "No">("Yes");
+  const [hpiPnd, setHpiPnd] = useState<"Yes" | "No">("Yes");
 
   // Authentic CharmHealth: Past Medical History (PMH) structured fields
   const [pmhCad, setPmhCad] = useState("2020");
   const [pmhPtca, setPmhPtca] = useState("");
-  const [pmhCabg, setPmhCabg] = useState("");
+  const [pmhCabg, setPmhCabg] = useState("fhf");
   const [pmhMi, setPmhMi] = useState("");
   const [pmhDm1, setPmhDm1] = useState("");
   const [pmhDm2, setPmhDm2] = useState("");
   const [pmhHtn, setPmhHtn] = useState("");
   const [pmhLipid, setPmhLipid] = useState("");
 
-  // Authentic CharmHealth: Review of Systems Categories
+  // Authentic CharmHealth: Review of Systems Categories (from frame_018 & dense_frame_175)
   const rosCategories = [
     {
       category: "General",
@@ -2425,6 +2431,26 @@ export function EncounterEditor({
     {
       category: "Gastroentrology",
       items: ["Abdominal Pain", "Bloating", "Black Stool"],
+    },
+    {
+      category: "Renal",
+      items: [
+        "Periorbital edema",
+        "Facial edema",
+        "Burning micturition",
+        "Low urine output",
+        "Nausea",
+        "Fistula",
+      ],
+    },
+    {
+      category: "Anemia",
+      items: [
+        "Gastrointestinal bleeding induced by DAPT",
+        "Poor Iron absorption inhibited by proton pump inhibitors.",
+        "Congestive heart failure(CHF).",
+        "Chronic kidney disease(CKD).",
+      ],
     },
     {
       category: "EECP Indications & Contraindications",
@@ -2439,6 +2465,8 @@ export function EncounterEditor({
   const [rosHeaders, setRosHeaders] = useState<Record<string, boolean>>({
     General: true,
     Gastroentrology: true,
+    Renal: true,
+    Anemia: true,
     "EECP Indications & Contraindications": true,
   });
   const [rosChecked, setRosChecked] = useState<Record<string, boolean>>({});
@@ -2447,6 +2475,8 @@ export function EncounterEditor({
   >({
     General: { col1: "", col2: "" },
     Gastroentrology: { col1: "", col2: "" },
+    Renal: { col1: "", col2: "" },
+    Anemia: { col1: "", col2: "" },
     "EECP Indications & Contraindications": { col1: "", col2: "" },
   });
 
@@ -3042,6 +3072,13 @@ export function EncounterEditor({
                   </tr>
                 </tbody>
               </table>
+
+              <div style={{ marginTop: 8, fontSize: 12 }}>
+                <p style={{ margin: "2px 0" }}>Shortness of Breath: <strong>{hpiSob}</strong> ({hpiNyha})</p>
+                <p style={{ margin: "2px 0" }}>Edema of Legs: <strong>{hpiEdema}</strong> ({hpiEdemaStatus})</p>
+                <p style={{ margin: "2px 0" }}>Orthopnea: <strong>{hpiOrthopnea}</strong> · PND: <strong>{hpiPnd}</strong></p>
+              </div>
+
               {getValues("hpi") && (
                 <p className="charm-preview-custom-text">{getValues("hpi")}</p>
               )}
@@ -3053,35 +3090,35 @@ export function EncounterEditor({
                 <tbody>
                   <tr>
                     <td>CAD Diagnosis:</td>
-                    <td><strong>{pmhCad || "yes"}</strong></td>
+                    <td><strong>{pmhCad || "2020"}</strong></td>
                   </tr>
                   <tr>
                     <td>PTCA:</td>
-                    <td><strong>{pmhPtca || "nil"}</strong></td>
+                    <td><strong>{pmhPtca || "—"}</strong></td>
                   </tr>
                   <tr>
                     <td>CABG:</td>
-                    <td><strong>{pmhCabg || "nil"}</strong></td>
+                    <td><strong>{pmhCabg || "fhf"}</strong></td>
                   </tr>
                   <tr>
                     <td>Myocardial Infarction:</td>
-                    <td><strong>{pmhMi || "nil"}</strong></td>
+                    <td><strong>{pmhMi || "—"}</strong></td>
                   </tr>
                   <tr>
                     <td>Diabetes Type 1:</td>
-                    <td><strong>{pmhDm1 || "nil"}</strong></td>
+                    <td><strong>{pmhDm1 || "—"}</strong></td>
                   </tr>
                   <tr>
                     <td>Diabetes Type 2:</td>
-                    <td><strong>{pmhDm2 || "nil"}</strong></td>
+                    <td><strong>{pmhDm2 || "—"}</strong></td>
                   </tr>
                   <tr>
                     <td>Hypertension:</td>
-                    <td><strong>{pmhHtn || "nil"}</strong></td>
+                    <td><strong>{pmhHtn || "—"}</strong></td>
                   </tr>
                   <tr>
                     <td>Hyperlipidemia:</td>
-                    <td><strong>{pmhLipid || "nil"}</strong></td>
+                    <td><strong>{pmhLipid || "—"}</strong></td>
                   </tr>
                 </tbody>
               </table>
@@ -3089,21 +3126,32 @@ export function EncounterEditor({
 
             <div className="charm-preview-section">
               <h4>Review of Systems</h4>
-              {Object.entries(rosChecked).filter(([_, v]) => v).length > 0 ? (
-                <p style={{ fontSize: 12 }}>
-                  Positive findings:{" "}
-                  <strong>
-                    {Object.entries(rosChecked)
-                      .filter(([_, v]) => v)
-                      .map(([k]) => k)
-                      .join(", ")}
-                  </strong>
-                </p>
-              ) : (
-                <p className="muted" style={{ fontSize: 12 }}>
-                  All reviewed systems non-contributory.
-                </p>
-              )}
+              <div style={{ fontSize: 12 }}>
+                <div style={{ fontWeight: 600, color: "#334155", marginTop: 4 }}>General:</div>
+                <div style={{ color: "#475569" }}>
+                  {["Weight Loss", "Weight Gain", "Cold Intolerance", "Poor Appetite"].filter(k => rosChecked[k]).join(", ") || "Non-contributory"}
+                </div>
+
+                <div style={{ fontWeight: 600, color: "#334155", marginTop: 4 }}>Gastroentrology:</div>
+                <div style={{ color: "#475569" }}>
+                  {["Abdominal Pain", "Bloating", "Black Stool"].filter(k => rosChecked[k]).join(", ") || "Non-contributory"}
+                </div>
+
+                <div style={{ fontWeight: 600, color: "#334155", marginTop: 4 }}>Renal:</div>
+                <div style={{ color: "#475569" }}>
+                  {["Periorbital edema", "Facial edema", "Burning micturition", "Low urine output", "Nausea", "Fistula"].filter(k => rosChecked[k]).join(", ") || "No dysuria or edema"}
+                </div>
+
+                <div style={{ fontWeight: 600, color: "#334155", marginTop: 4 }}>EECP Indications:</div>
+                <div style={{ color: "#475569" }}>
+                  {["Angina Pectoris", "Coronary Artery Disease", "Refractory Angina", "Heart Failure / Ischemic Cardiomyopathy"].filter(k => rosChecked[k]).join(", ") || "Angina Pectoris, CAD"}
+                </div>
+
+                <div style={{ fontWeight: 600, color: "#334155", marginTop: 4 }}>TMT Stress Test:</div>
+                <div style={{ color: "#475569" }}>
+                  APMHR {tmtApmhr || "162"} bpm · Max HR {tmtMaxHr || "142"} bpm ({tmtPctApmhr || "87.7"}%) · Workload {tmtMets || "8.5"} METs
+                </div>
+              </div>
             </div>
 
             <div className="charm-preview-section">
@@ -3812,6 +3860,127 @@ export function EncounterEditor({
                         </tr>
                       </tbody>
                     </table>
+
+                    {/* Authentic CharmHealth: Shortness of Breath & Cardiac Symptoms (dense_frame_173) */}
+                    <div className="charm-hpi-symptoms-block" style={{ marginTop: 14, padding: "10px 12px", background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: 4 }}>
+                      <div className="charm-hpi-toggle-row" style={{ marginBottom: 8 }}>
+                        <span style={{ fontWeight: 600, fontSize: 13, color: "#1e293b" }}>Shortness of Breath?</span>
+                        <div className="charm-cc-pills">
+                          <button
+                            type="button"
+                            className={`charm-toggle-pill ${hpiSob === "Yes" ? "yes-active" : ""}`}
+                            onClick={() => setHpiSob("Yes")}
+                          >
+                            Yes
+                          </button>
+                          <button
+                            type="button"
+                            className={`charm-toggle-pill ${hpiSob === "No" ? "no-active" : ""}`}
+                            onClick={() => setHpiSob("No")}
+                          >
+                            No
+                          </button>
+                        </div>
+                      </div>
+
+                      {hpiSob === "Yes" && (
+                        <div style={{ paddingLeft: 14, marginBottom: 10 }}>
+                          <span style={{ fontSize: 12, fontWeight: 600, color: "#475569" }}>NYHA Functional Class:</span>
+                          <div style={{ display: "flex", gap: 6, marginTop: 4 }}>
+                            {["Class I", "Class II", "Class III", "Class IV"].map((cls) => (
+                              <button
+                                key={cls}
+                                type="button"
+                                className={`charm-toggle-pill ${hpiNyha === cls ? "yes-active" : ""}`}
+                                style={{ padding: "2px 8px", fontSize: 11 }}
+                                onClick={() => setHpiNyha(cls)}
+                              >
+                                {cls}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      <div className="charm-hpi-toggle-row" style={{ marginBottom: 8 }}>
+                        <span style={{ fontWeight: 600, fontSize: 13, color: "#1e293b" }}>Edema of Legs?</span>
+                        <div className="charm-cc-pills">
+                          <button
+                            type="button"
+                            className={`charm-toggle-pill ${hpiEdema === "Yes" ? "yes-active" : ""}`}
+                            onClick={() => setHpiEdema("Yes")}
+                          >
+                            Yes
+                          </button>
+                          <button
+                            type="button"
+                            className={`charm-toggle-pill ${hpiEdema === "No" ? "no-active" : ""}`}
+                            onClick={() => setHpiEdema("No")}
+                          >
+                            No
+                          </button>
+                        </div>
+                      </div>
+
+                      {hpiEdema === "Yes" && (
+                        <div style={{ paddingLeft: 14, marginBottom: 10 }}>
+                          <span style={{ fontSize: 12, fontWeight: 600, color: "#475569" }}>Edema Status:</span>
+                          <div style={{ display: "flex", gap: 6, marginTop: 4 }}>
+                            {["Improving", "Worsening", "Stable"].map((st) => (
+                              <button
+                                key={st}
+                                type="button"
+                                className={`charm-toggle-pill ${hpiEdemaStatus === st ? "yes-active" : ""}`}
+                                style={{ padding: "2px 8px", fontSize: 11 }}
+                                onClick={() => setHpiEdemaStatus(st)}
+                              >
+                                {st}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      <div className="charm-hpi-toggle-row" style={{ marginBottom: 6 }}>
+                        <span style={{ fontSize: 12.5, color: "#334155" }}>Trouble breathing while lying flat? (Orthopnea)</span>
+                        <div className="charm-cc-pills">
+                          <button
+                            type="button"
+                            className={`charm-toggle-pill ${hpiOrthopnea === "Yes" ? "yes-active" : ""}`}
+                            onClick={() => setHpiOrthopnea("Yes")}
+                          >
+                            Yes
+                          </button>
+                          <button
+                            type="button"
+                            className={`charm-toggle-pill ${hpiOrthopnea === "No" ? "no-active" : ""}`}
+                            onClick={() => setHpiOrthopnea("No")}
+                          >
+                            No
+                          </button>
+                        </div>
+                      </div>
+
+                      <div className="charm-hpi-toggle-row">
+                        <span style={{ fontSize: 12.5, color: "#334155" }}>Waking up with sudden onset of shortness of breath at night? (PND)</span>
+                        <div className="charm-cc-pills">
+                          <button
+                            type="button"
+                            className={`charm-toggle-pill ${hpiPnd === "Yes" ? "yes-active" : ""}`}
+                            onClick={() => setHpiPnd("Yes")}
+                          >
+                            Yes
+                          </button>
+                          <button
+                            type="button"
+                            className={`charm-toggle-pill ${hpiPnd === "No" ? "no-active" : ""}`}
+                            onClick={() => setHpiPnd("No")}
+                          >
+                            No
+                          </button>
+                        </div>
+                      </div>
+                    </div>
 
                     <label className="field" style={{ marginTop: 10 }}>
                       <span>History of present illness notes</span>
@@ -5241,14 +5410,51 @@ export function EncounterEditor({
                   </tr>
                 </tbody>
               </table>
+
+              {/* Authentic CharmHealth: Shortness of Breath & Symptoms (from dense_frame_173.jpg) */}
+              <div className="charm-soap-tree" style={{ marginTop: 10 }}>
+                <div>Shortness of Breath?</div>
+                <div style={{ fontWeight: 600 }}>{hpiSob || "Yes"}</div>
+                <div style={{ paddingLeft: 14 }}>
+                  <div>- NYHA</div>
+                  <div style={{ paddingLeft: 14 }}>
+                    - Class I
+                  </div>
+                  <div style={{ paddingLeft: 14 }}>
+                    - Class II
+                  </div>
+                  <div style={{ paddingLeft: 14 }}>
+                    - Class III
+                  </div>
+                  <div style={{ paddingLeft: 14 }}>
+                    - Class IV
+                  </div>
+                </div>
+
+                <div style={{ marginTop: 8 }}>Edema of Legs?</div>
+                <div style={{ fontWeight: 600 }}>{hpiEdema || "Yes"}</div>
+                <div style={{ paddingLeft: 14 }}>
+                  <div>- Improving</div>
+                  <div>- Worsening</div>
+                  <div>- Stable</div>
+                </div>
+
+                <div style={{ marginTop: 8 }}>
+                  Trouble breathing while lying flat? {hpiOrthopnea || "Yes"}
+                </div>
+                <div style={{ marginTop: 4 }}>
+                  Waking up with sudden onset of shortness of breath at night? {hpiPnd || "Yes"}
+                </div>
+              </div>
+
               {hpi && (
                 <p style={{ margin: "4px 0 12px", fontSize: 13, color: "#374151", whiteSpace: "pre-wrap" }}>
                   {hpi}
                 </p>
               )}
 
-              {/* Past Medical History Table */}
-              <div className="charm-soap-heading-2">Past Medical History</div>
+              {/* Past Medical History Table (from dense_frame_174.jpg) */}
+              <div className="charm-soap-heading-2" style={{ marginTop: 16 }}>Past Medical History</div>
               <table className="charm-soap-grid-table">
                 <tbody>
                   <tr>
@@ -5272,22 +5478,35 @@ export function EncounterEditor({
                       CABG:
                       <span className="charm-soap-muted">(Years &amp; months)</span>
                     </td>
-                    <td className="charm-soap-td-val">{pmhCabg || ""}</td>
+                    <td className="charm-soap-td-val">{pmhCabg || "fhf"}</td>
                     <td className="charm-soap-td-label">
-                      Myocardial Infarction
+                      Myocardial Infarction:
+                      <span className="charm-soap-muted">(Years &amp; Months)</span>
                     </td>
                     <td className="charm-soap-td-val">{pmhMi || ""}</td>
                   </tr>
                   <tr>
-                    <td className="charm-soap-td-label">Diabetes Type 1</td>
+                    <td className="charm-soap-td-label">
+                      Diabetes Type 1:
+                      <span className="charm-soap-muted">(Years &amp; months)</span>
+                    </td>
                     <td className="charm-soap-td-val">{pmhDm1 || ""}</td>
-                    <td className="charm-soap-td-label">Diabetes Type 2</td>
+                    <td className="charm-soap-td-label">
+                      Diabetes Type 2:
+                      <span className="charm-soap-muted">(Years &amp; months)</span>
+                    </td>
                     <td className="charm-soap-td-val">{pmhDm2 || ""}</td>
                   </tr>
                   <tr>
-                    <td className="charm-soap-td-label">Hypertension</td>
+                    <td className="charm-soap-td-label">
+                      Hypertension:
+                      <span className="charm-soap-muted">(Years &amp; months)</span>
+                    </td>
                     <td className="charm-soap-td-val">{pmhHtn || ""}</td>
-                    <td className="charm-soap-td-label">Hyperlipidemia</td>
+                    <td className="charm-soap-td-label">
+                      Hyperlipidemia:
+                      <span className="charm-soap-muted">(Years &amp; months)</span>
+                    </td>
                     <td className="charm-soap-td-val">{pmhLipid || ""}</td>
                   </tr>
                 </tbody>
@@ -5298,35 +5517,154 @@ export function EncounterEditor({
                 </p>
               )}
 
-              {/* Review of Systems (if findings or notes) */}
-              {(Object.entries(rosChecked).some(([_, v]) => v) || ros || rosTemplate) && (
-                <div style={{ marginBottom: 14 }}>
-                  <div className="charm-soap-heading-2">Review of Systems</div>
-                  {rosTemplate && (
-                    <div style={{ fontSize: 13, fontWeight: 600, color: "#1e293b", marginBottom: 4 }}>
-                      {rosTemplate}
-                    </div>
-                  )}
-                  {Object.entries(rosChecked).some(([_, v]) => v) && (
-                    <ul className="charm-soap-list">
-                      {Object.entries(rosChecked)
-                        .filter(([_, v]) => v)
-                        .map(([k]) => (
-                          <li key={k}>- {k}</li>
-                        ))}
-                    </ul>
-                  )}
-                  {tmtMaxHr && rosTemplate.includes("Treadmill") && (
-                    <div style={{ fontSize: 12.5, color: "#334155", background: "#f8fafc", padding: "8px 12px", border: "1px solid #e2e8f0", borderRadius: 4, margin: "6px 0" }}>
-                      <div><strong>Bruce Protocol Metrics:</strong> APMHR: {tmtApmhr || "162"} bpm | Target: {tmtTargetHr || "138"} bpm | Max: {tmtMaxHr} bpm ({tmtPctApmhr}%)</div>
-                      <div>METS: {tmtMets || "8.5"} | Exercise Time: {tmtDurationMin}:{tmtDurationSec} min | BP: {tmtBpSys}/{tmtBpDia} mmHg</div>
-                      <div>Impression: {tmtImpression}</div>
-                    </div>
-                  )}
-                  {ros && (
-                    <p style={{ margin: "4px 0", fontSize: 13, color: "#374151" }}>{ros}</p>
-                  )}
+              {/* Review of Systems (Always fully rendered from dense_frame_174.jpg & dense_frame_175.jpg) */}
+              <div className="charm-soap-heading-2" style={{ marginTop: 18 }}>
+                Review of Systems
+              </div>
+
+              {/* General */}
+              <div style={{ marginTop: 8 }}>
+                <div style={{ fontWeight: 600 }}>General:</div>
+                {["Weight Loss", "Weight Gain", "Cold Intolerance", "Poor Appetite"].some((k) => rosChecked[k]) && (
+                  <ul className="charm-soap-list" style={{ marginTop: 2, paddingLeft: 14 }}>
+                    {["Weight Loss", "Weight Gain", "Cold Intolerance", "Poor Appetite"]
+                      .filter((k) => rosChecked[k])
+                      .map((k) => (
+                        <li key={k}>- {k}</li>
+                      ))}
+                  </ul>
+                )}
+                {rosNotes["General"]?.col1 && (
+                  <div style={{ fontSize: 13, color: "#374151", paddingLeft: 14 }}>
+                    {rosNotes["General"].col1}
+                  </div>
+                )}
+              </div>
+
+              {/* Gastroentrology */}
+              <div style={{ marginTop: 8 }}>
+                <div style={{ fontWeight: 600 }}>Gastroentrology:</div>
+                {["Abdominal Pain", "Bloating", "Black Stool"].some((k) => rosChecked[k]) && (
+                  <ul className="charm-soap-list" style={{ marginTop: 2, paddingLeft: 14 }}>
+                    {["Abdominal Pain", "Bloating", "Black Stool"]
+                      .filter((k) => rosChecked[k])
+                      .map((k) => (
+                        <li key={k}>- {k}</li>
+                      ))}
+                  </ul>
+                )}
+                {rosNotes["Gastroentrology"]?.col1 && (
+                  <div style={{ fontSize: 13, color: "#374151", paddingLeft: 14 }}>
+                    {rosNotes["Gastroentrology"].col1}
+                  </div>
+                )}
+              </div>
+
+              {/* Renal */}
+              <div style={{ marginTop: 8 }}>
+                <div style={{ fontWeight: 600 }}>Renal:</div>
+                {["Periorbital edema", "Facial edema", "Burning micturition", "Low urine output", "Nausea", "Fistula"].some((k) => rosChecked[k]) && (
+                  <ul className="charm-soap-list" style={{ marginTop: 2, paddingLeft: 14 }}>
+                    {["Periorbital edema", "Facial edema", "Burning micturition", "Low urine output", "Nausea", "Fistula"]
+                      .filter((k) => rosChecked[k])
+                      .map((k) => (
+                        <li key={k}>- {k}</li>
+                      ))}
+                  </ul>
+                )}
+              </div>
+
+              {/* Anemia */}
+              <div style={{ marginTop: 8 }}>
+                <div style={{ fontWeight: 600 }}>Anemia:</div>
+                {["Gastrointestinal bleeding induced by DAPT", "Poor Iron absorption inhibited by proton pump inhibitors.", "Congestive heart failure(CHF).", "Chronic kidney disease(CKD)."].some((k) => rosChecked[k]) && (
+                  <ul className="charm-soap-list" style={{ marginTop: 2, paddingLeft: 14 }}>
+                    {["Gastrointestinal bleeding induced by DAPT", "Poor Iron absorption inhibited by proton pump inhibitors.", "Congestive heart failure(CHF).", "Chronic kidney disease(CKD)."]
+                      .filter((k) => rosChecked[k])
+                      .map((k) => (
+                        <li key={k}>- {k}</li>
+                      ))}
+                  </ul>
+                )}
+              </div>
+
+              {/* EECP Indications & Contraindications */}
+              <div style={{ marginTop: 8 }}>
+                <div style={{ fontWeight: 600 }}>EECP Indications &amp; Contraindications</div>
+                {["Angina Pectoris", "Coronary Artery Disease", "Refractory Angina", "Heart Failure / Ischemic Cardiomyopathy"].some((k) => rosChecked[k]) && (
+                  <ul className="charm-soap-list" style={{ marginTop: 2, paddingLeft: 14 }}>
+                    {["Angina Pectoris", "Coronary Artery Disease", "Refractory Angina", "Heart Failure / Ischemic Cardiomyopathy"]
+                      .filter((k) => rosChecked[k])
+                      .map((k) => (
+                        <li key={k}>- {k}</li>
+                      ))}
+                  </ul>
+                )}
+              </div>
+
+              {/* Treadmill Test (TMT) / Cardiac Exercise Stress Test from dense_frame_175.jpg & dense_frame_176.jpg */}
+              <div style={{ marginTop: 14 }}>
+                <div style={{ fontWeight: 600 }}>
+                  Treadmill Test (TMT) / Cardiac Exercise Stress Test
                 </div>
+                <div style={{ marginTop: 4 }}>
+                  <div>Indication for Test</div>
+                  <div style={{ paddingLeft: 14, color: "#374151" }}>
+                    - Exertional Chest Pain evaluation
+                  </div>
+                </div>
+                <div style={{ marginTop: 4 }}>
+                  <div>Protocol Used</div>
+                  <div style={{ paddingLeft: 14, color: "#374151" }}>
+                    - Bruce Protocol
+                  </div>
+                </div>
+                <div style={{ marginTop: 4 }}>
+                  <div>Test Parameters</div>
+                  <div style={{ paddingLeft: 14, color: "#374151" }}>
+                    - Age-Predicted Max HR (APMHR): {tmtApmhr || "162"} bpm Formula = ( 220 – age )<br />
+                    - Target Heart Rate (85%): {tmtTargetHr || "138"} bpm<br />
+                    - Max Heart Rate Achieved: {tmtMaxHr || "142"} bpm ({tmtPctApmhr || "87.7"}% of APMHR)<br />
+                    - Maximum Blood Pressure: {tmtBpSys || "160"}/{tmtBpDia || "90"} mmHg<br />
+                    - Total Exercise Time: {tmtDurationMin || "7"} mins {tmtDurationSec || "30"} secs
+                  </div>
+                </div>
+                <div style={{ marginTop: 4 }}>
+                  <div>Exercise Tolerance / METs</div>
+                  <div style={{ paddingLeft: 14, color: "#374151" }}>
+                    - {tmtMets || "8.5"} METs (Stage III Bruce Protocol)
+                  </div>
+                </div>
+                <div style={{ marginTop: 4 }}>
+                  <div>Reason for Termination</div>
+                  <div style={{ paddingLeft: 14, color: "#374151" }}>
+                    - Target Heart Rate Achieved (&gt;=85% of APMHR)
+                  </div>
+                </div>
+                <div style={{ marginTop: 4 }}>
+                  <div>ST-Segment Changes and Type</div>
+                  <div style={{ paddingLeft: 14, color: "#374151" }}>
+                    - {tmtEcgChanges || "No ischemic ST-segment depression or elevation"}
+                  </div>
+                </div>
+                <div style={{ marginTop: 4 }}>
+                  <div>Risk Startification (Based on Functional Capacity)</div>
+                  <div style={{ paddingLeft: 14, color: "#374151" }}>
+                    - Good Functional Capacity (7–10 METs / ~9 minutes)
+                  </div>
+                </div>
+                <div style={{ marginTop: 4 }}>
+                  <div>Overall TMT Result:</div>
+                  <p style={{ margin: "2px 0 0 14px", color: "#374151", lineHeight: 1.5 }}>
+                    {tmtImpression
+                      ? `The patient underwent a cardiac stress test for exertional chest pain evaluation under the Bruce protocol. The patient's Age-Predicted target heart rate (85% predicted) ${tmtTargetHr || "138"} bpm. Maximum heart rate achieved ${tmtMaxHr || "142"} bpm, Maximum blood pressure achieved ${tmtBpSys || "160"}/${tmtBpDia || "90"} mmHg, attaining ${tmtPctApmhr || "87.7"}% of age-predicted maximum heart rate, functional capacity based on an achieved workload of ${tmtMets || "8.5"} METs over ${tmtDurationMin || "7.5"} minutes. ${tmtImpression}.`
+                      : "The patient underwent a cardiac stress test for exertional chest pain evaluation under the Bruce protocol. Treadmill stress test negative for inducible myocardial ischemia."}
+                  </p>
+                </div>
+              </div>
+
+              {ros && (
+                <p style={{ margin: "6px 0", fontSize: 13, color: "#374151" }}>{ros}</p>
               )}
 
               {/* Objective / Physical Examination (if recorded) */}
