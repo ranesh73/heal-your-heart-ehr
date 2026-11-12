@@ -386,6 +386,28 @@ function Workspace() {
   const [moreMenuOpen, setMoreMenuOpen] = useState(false);
   const [activeBranch, setActiveBranch] = useState(branch);
 
+  const notify = (text: string) => {
+    setToast(text);
+    setTimeout(() => setToast(""), 5000);
+  };
+  const refresh = async () => {
+    await qc.invalidateQueries();
+  };
+
+  useEffect(() => {
+    const handleSettingUpdated = () => {
+      refresh();
+    };
+    window.addEventListener("hyh_setting_updated", handleSettingUpdated);
+    window.addEventListener("hyh_appointment_statuses_updated", handleSettingUpdated);
+    window.addEventListener("hyh_visit_types_updated", handleSettingUpdated);
+    return () => {
+      window.removeEventListener("hyh_setting_updated", handleSettingUpdated);
+      window.removeEventListener("hyh_appointment_statuses_updated", handleSettingUpdated);
+      window.removeEventListener("hyh_visit_types_updated", handleSettingUpdated);
+    };
+  }, []);
+
   // Global Keyboard Shortcuts (Shift + K, Alt navigation, Escape)
   useKeyboardShortcuts({
     onOpenShortcuts: () => setShortcutsModalOpen(true),
@@ -462,27 +484,6 @@ function Workspace() {
   const parts = path.split("/").filter(Boolean);
   const page = (!parts[0] || parts[0] === "login") ? "home" : parts[0];
 
-  const notify = (text: string) => {
-    setToast(text);
-    setTimeout(() => setToast(""), 5000);
-  };
-  const refresh = async () => {
-    await qc.invalidateQueries();
-  };
-
-  useEffect(() => {
-    const handleSettingUpdated = () => {
-      refresh();
-    };
-    window.addEventListener("hyh_setting_updated", handleSettingUpdated);
-    window.addEventListener("hyh_appointment_statuses_updated", handleSettingUpdated);
-    window.addEventListener("hyh_visit_types_updated", handleSettingUpdated);
-    return () => {
-      window.removeEventListener("hyh_setting_updated", handleSettingUpdated);
-      window.removeEventListener("hyh_appointment_statuses_updated", handleSettingUpdated);
-      window.removeEventListener("hyh_visit_types_updated", handleSettingUpdated);
-    };
-  }, []);
   const context = {
     user,
     staff: staff.data || [],
