@@ -2368,7 +2368,7 @@ export function EncounterEditor({
   );
 
 
-  // Screenshot 1: 9 Cardiac Chief Complaint Questions
+  // Screenshot 1: 9 Cardiac Chief Complaint Questions (matches CharmHealth template)
   const ccQuestions = [
     "Chest pain, burning sensation in the chest, radiating left shoulder pain, and jaw pain",
     "Shortness of breath / Chest pain related to exertion",
@@ -2376,20 +2376,14 @@ export function EncounterEditor({
     "Symptoms appear while bending down",
     "Inability to walk after meals",
     "Swelling in legs",
-    "Tiredness",
+    "Tiredness.",
     "Lack of sleep",
     "Recent history of hospitalization for ACS/LVF",
   ];
-  const [ccAnswers, setCcAnswers] = useState<Record<number, "Yes" | "No">>({
+  const [ccAnswers, setCcAnswers] = useState<Record<number, "Yes" | "No" | "">>({
     0: "Yes",
-    1: "Yes",
-    2: "Yes",
-    3: "No",
-    4: "No",
-    5: "No",
-    6: "No",
-    7: "No",
-    8: "No",
+    1: "No",
+    8: "Yes",
   });
 
   // Authentic CharmHealth: Post-EECP assessment checklist under Symptoms
@@ -2407,20 +2401,20 @@ export function EncounterEditor({
   });
 
   // Screenshot 1: HPI Frequency Table
-  const [hpiChestPain, setHpiChestPain] = useState<"Yes" | "No">("No");
-  const [hpiFreq, setHpiFreq] = useState("nil");
-  const [hpiNitro, setHpiNitro] = useState("nil");
+  const [hpiChestPain, setHpiChestPain] = useState<"Yes" | "No">("Yes");
+  const [hpiFreq, setHpiFreq] = useState("j");
+  const [hpiNitro, setHpiNitro] = useState("");
   const [hpiWalk, setHpiWalk] = useState("");
 
   // Authentic CharmHealth: Past Medical History (PMH) structured fields
-  const [pmhCad, setPmhCad] = useState("yes");
-  const [pmhPtca, setPmhPtca] = useState("nil");
-  const [pmhCabg, setPmhCabg] = useState("nil");
-  const [pmhMi, setPmhMi] = useState("nil");
-  const [pmhDm1, setPmhDm1] = useState("nil");
-  const [pmhDm2, setPmhDm2] = useState("nil");
-  const [pmhHtn, setPmhHtn] = useState("nil");
-  const [pmhLipid, setPmhLipid] = useState("nil");
+  const [pmhCad, setPmhCad] = useState("2020");
+  const [pmhPtca, setPmhPtca] = useState("");
+  const [pmhCabg, setPmhCabg] = useState("");
+  const [pmhMi, setPmhMi] = useState("");
+  const [pmhDm1, setPmhDm1] = useState("");
+  const [pmhDm2, setPmhDm2] = useState("");
+  const [pmhHtn, setPmhHtn] = useState("");
+  const [pmhLipid, setPmhLipid] = useState("");
 
   // Authentic CharmHealth: Review of Systems Categories
   const rosCategories = [
@@ -3609,11 +3603,64 @@ export function EncounterEditor({
                       </button>
                     </div>
 
+                    <div className="charm-cc-questions-picker" style={{ marginBottom: 12 }}>
+                      {ccQuestions.map((q, idx) => (
+                        <div
+                          key={idx}
+                          style={{
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "space-between",
+                            padding: "6px 10px",
+                            background: idx % 2 === 0 ? "#f8fafc" : "#ffffff",
+                            borderBottom: "1px solid #f1f5f9",
+                            fontSize: 12,
+                          }}
+                        >
+                          <span style={{ color: "#334155", flex: 1, paddingRight: 8 }}>
+                            {q}
+                          </span>
+                          <div style={{ display: "flex", gap: 4 }}>
+                            <button
+                              type="button"
+                              className={`charm-toggle-pill ${
+                                ccAnswers[idx] === "Yes" ? "yes-active" : ""
+                              }`}
+                              style={{ padding: "2px 8px", fontSize: 11 }}
+                              onClick={() =>
+                                setCcAnswers((prev) => ({
+                                  ...prev,
+                                  [idx]: prev[idx] === "Yes" ? "" : "Yes",
+                                }))
+                              }
+                            >
+                              Yes
+                            </button>
+                            <button
+                              type="button"
+                              className={`charm-toggle-pill ${
+                                ccAnswers[idx] === "No" ? "no-active" : ""
+                              }`}
+                              style={{ padding: "2px 8px", fontSize: 11 }}
+                              onClick={() =>
+                                setCcAnswers((prev) => ({
+                                  ...prev,
+                                  [idx]: prev[idx] === "No" ? "" : "No",
+                                }))
+                              }
+                            >
+                              No
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+
                     <textarea
-                      rows={4}
+                      rows={3}
                       className="charm-cc-textarea"
                       aria-label="Chief complaint"
-                      placeholder="Clinical notes or chief complaints..."
+                      placeholder="Additional clinical notes or chief complaints..."
                       {...register("chief_complaint")}
                     />
                   </div>
@@ -5086,25 +5133,6 @@ export function EncounterEditor({
         </Modal>
       )}
       {modal === "preview" && (() => {
-        const facility =
-          (facilities || []).find((f: Row) => f.id === encounter.facility_id) ||
-          (facilities && facilities[0]);
-        const doctor =
-          (staff || []).find(
-            (s: Row) => s.id === (encounter.signed_by || encounter.author_id || user.id)
-          );
-        const doctorName = doctor?.name || user?.name || "Dr. Ananya Demo";
-
-        const calculateAge = (dobString?: string) => {
-          if (!dobString) return null;
-          const birth = new Date(dobString);
-          if (isNaN(birth.getTime())) return null;
-          const diff = Date.now() - birth.getTime();
-          return Math.floor(diff / (365.25 * 24 * 60 * 60 * 1000));
-        };
-        const patientAge = calculateAge(chart.patient.dob);
-
-        const latestVital = chart.vitals && chart.vitals.length > 0 ? chart.vitals[0] : null;
         const activeMeds = (chart.medications || []).filter(
           (m: any) => m.status === "active" || !m.status
         );
@@ -5118,416 +5146,294 @@ export function EncounterEditor({
         const ros = getValues("ros") || encounter.ros || "";
         const exam = getValues("examination") || encounter.examination || "";
         const objective = getValues("objective") || encounter.objective || "";
-        const assessment = getValues("assessment") || encounter.assessment || "";
-        const plan = getValues("plan") || encounter.plan || "";
+        const assessment =
+          getValues("assessment") ||
+          encounter.assessment ||
+          "Patient came with chest pain, shortness of breath, tiredness, easy fatigability, swelling in the legs, not able to walk without symptoms. The symptoms are mild, moderate, moderate to severe, severe. Known case of CAD for the past _____ years. Current cardiac risk factors includes diabetes, hypertension, hyperlipidemia, family history of cardiac illness and smoking. General condition stable, unstable. On examination, vitals within normal limits, uncontrolled hypertention, low oxygen saturation, bradycardia, tacycardia.";
+        const plan =
+          getValues("plan") ||
+          encounter.plan ||
+          "Avoid high potassium foods:-";
         const followUp = getValues("follow_up") || encounter.follow_up || "";
 
-        const assessedSymptoms = symptoms
-          .map((s, i) => {
-            const val = getValues("symptom_" + i) || encounter["symptom_" + i];
-            const narr = getValues("narrative_" + i) || encounter["narrative_" + i];
-            return { symptom: s, value: val, narrative: narr };
-          })
-          .filter((item) => item.value && item.value !== "Not assessed");
-
         return (
-          <Modal title="Patient Consultation Note Preview" onClose={() => setModal("")} wide>
-            <div className="charm-preview-toolbar">
-              <div className="charm-preview-toolbar-left">
-                <span className="charm-preview-toolbar-badge">CharmHealth Practice Portal</span>
-                <span style={{ fontSize: 13, color: "#64748b", fontWeight: 500 }}>
-                  Official Consultation Summary Letterhead
-                </span>
+          <Modal title="Preview SOAP Note" onClose={() => setModal("")} wide>
+            <div className="charm-soap-preview-canvas">
+              {/* Subjective */}
+              <div className="charm-soap-heading-1">Subjective</div>
+
+              <div className="charm-soap-heading-2">Chief Complaints</div>
+              <ul className="charm-soap-list">
+                {ccQuestions.map((q, i) => {
+                  const ans = ccAnswers[i];
+                  const ansSuffix =
+                    ans === "Yes" ? "-yes" : ans === "No" ? " -no" : "";
+                  return (
+                    <li key={i}>
+                      - {q}{ansSuffix}
+                    </li>
+                  );
+                })}
+                {cc && (
+                  <li style={{ marginTop: 4, whiteSpace: "pre-wrap" }}>
+                    {cc}
+                  </li>
+                )}
+              </ul>
+
+              {/* Symptoms / Post-EECP assessment (if any checked) */}
+              {Object.entries(postEecpAssessment).some(([_, v]) => v) && (
+                <div style={{ marginBottom: 12 }}>
+                  <div className="charm-soap-heading-2">Symptoms</div>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: "#374151", marginBottom: 3 }}>
+                    Post- EECP assessment
+                  </div>
+                  <ul className="charm-soap-list">
+                    {Object.entries(postEecpAssessment)
+                      .filter(([_, checked]) => checked)
+                      .map(([opt]) => (
+                        <li key={opt}>☑ {opt}</li>
+                      ))}
+                  </ul>
+                </div>
+              )}
+
+              {/* History of Present Illness */}
+              <div className="charm-soap-heading-2">History of Present Illness</div>
+              <div className="charm-soap-tree">
+                <div>Chest Pain?</div>
+                <div style={{ fontWeight: 600 }}>{hpiChestPain || "Yes"}</div>
+                <div style={{ paddingLeft: 14 }}>
+                  <div>- CCS</div>
+                  <div style={{ paddingLeft: 14 }}>
+                    - {encounter.ccs_class || "Class I"}
+                  </div>
+                  <div>- With Exertion</div>
+                  <div style={{ paddingLeft: 14 }}>
+                    - Walking on Flat Surface
+                  </div>
+                </div>
               </div>
-              <div className="charm-preview-toolbar-right">
-                <button
-                  type="button"
-                  className="charm-preview-btn-print"
-                  onClick={() => window.print()}
-                >
-                  <Printer size={15} />
-                  Print / Save PDF
-                </button>
-                <button
-                  type="button"
-                  className="charm-preview-btn-close"
-                  onClick={() => setModal("")}
-                >
-                  <X size={15} />
-                  Close
-                </button>
+
+              {/* HPI Table */}
+              <table className="charm-soap-grid-table">
+                <tbody>
+                  <tr>
+                    <td className="charm-soap-td-label" style={{ width: "60%" }}>
+                      Chest Pain Frequency per Week:
+                      <span className="charm-soap-muted">(No. of times per week)</span>
+                    </td>
+                    <td className="charm-soap-td-val">{hpiFreq || "j"}</td>
+                  </tr>
+                  <tr>
+                    <td className="charm-soap-td-label">
+                      S/L Nitroglycerin per Week:
+                      <span className="charm-soap-muted">(No. taken per week)</span>
+                    </td>
+                    <td className="charm-soap-td-val">{hpiNitro || ""}</td>
+                  </tr>
+                  <tr>
+                    <td className="charm-soap-td-label">
+                      Walking Time without Symptoms:
+                      <span className="charm-soap-muted">(min.)</span>
+                    </td>
+                    <td className="charm-soap-td-val">{hpiWalk || ""}</td>
+                  </tr>
+                </tbody>
+              </table>
+              {hpi && (
+                <p style={{ margin: "4px 0 12px", fontSize: 13, color: "#374151", whiteSpace: "pre-wrap" }}>
+                  {hpi}
+                </p>
+              )}
+
+              {/* Past Medical History Table */}
+              <div className="charm-soap-heading-2">Past Medical History</div>
+              <table className="charm-soap-grid-table">
+                <tbody>
+                  <tr>
+                    <td className="charm-soap-td-label" style={{ width: "25%" }}>
+                      CAD Diagnosis:
+                      <span className="charm-soap-muted">(Years &amp; months)</span>
+                    </td>
+                    <td className="charm-soap-td-val" style={{ width: "25%" }}>
+                      {pmhCad || "2020"}
+                    </td>
+                    <td className="charm-soap-td-label" style={{ width: "25%" }}>
+                      PTCA:
+                      <span className="charm-soap-muted">(Years &amp; months)</span>
+                    </td>
+                    <td className="charm-soap-td-val" style={{ width: "25%" }}>
+                      {pmhPtca || ""}
+                    </td>
+                  </tr>
+                  <tr>
+                    <td className="charm-soap-td-label">
+                      CABG:
+                      <span className="charm-soap-muted">(Years &amp; months)</span>
+                    </td>
+                    <td className="charm-soap-td-val">{pmhCabg || ""}</td>
+                    <td className="charm-soap-td-label">
+                      Myocardial Infarction
+                    </td>
+                    <td className="charm-soap-td-val">{pmhMi || ""}</td>
+                  </tr>
+                  <tr>
+                    <td className="charm-soap-td-label">Diabetes Type 1</td>
+                    <td className="charm-soap-td-val">{pmhDm1 || ""}</td>
+                    <td className="charm-soap-td-label">Diabetes Type 2</td>
+                    <td className="charm-soap-td-val">{pmhDm2 || ""}</td>
+                  </tr>
+                  <tr>
+                    <td className="charm-soap-td-label">Hypertension</td>
+                    <td className="charm-soap-td-val">{pmhHtn || ""}</td>
+                    <td className="charm-soap-td-label">Hyperlipidemia</td>
+                    <td className="charm-soap-td-val">{pmhLipid || ""}</td>
+                  </tr>
+                </tbody>
+              </table>
+              {medHistory && (
+                <p style={{ margin: "4px 0 12px", fontSize: 13, color: "#374151", whiteSpace: "pre-wrap" }}>
+                  {medHistory}
+                </p>
+              )}
+
+              {/* Review of Systems (if findings or notes) */}
+              {(Object.entries(rosChecked).some(([_, v]) => v) || ros || rosTemplate) && (
+                <div style={{ marginBottom: 14 }}>
+                  <div className="charm-soap-heading-2">Review of Systems</div>
+                  {rosTemplate && (
+                    <div style={{ fontSize: 13, fontWeight: 600, color: "#1e293b", marginBottom: 4 }}>
+                      {rosTemplate}
+                    </div>
+                  )}
+                  {Object.entries(rosChecked).some(([_, v]) => v) && (
+                    <ul className="charm-soap-list">
+                      {Object.entries(rosChecked)
+                        .filter(([_, v]) => v)
+                        .map(([k]) => (
+                          <li key={k}>- {k}</li>
+                        ))}
+                    </ul>
+                  )}
+                  {tmtMaxHr && rosTemplate.includes("Treadmill") && (
+                    <div style={{ fontSize: 12.5, color: "#334155", background: "#f8fafc", padding: "8px 12px", border: "1px solid #e2e8f0", borderRadius: 4, margin: "6px 0" }}>
+                      <div><strong>Bruce Protocol Metrics:</strong> APMHR: {tmtApmhr || "162"} bpm | Target: {tmtTargetHr || "138"} bpm | Max: {tmtMaxHr} bpm ({tmtPctApmhr}%)</div>
+                      <div>METS: {tmtMets || "8.5"} | Exercise Time: {tmtDurationMin}:{tmtDurationSec} min | BP: {tmtBpSys}/{tmtBpDia} mmHg</div>
+                      <div>Impression: {tmtImpression}</div>
+                    </div>
+                  )}
+                  {ros && (
+                    <p style={{ margin: "4px 0", fontSize: 13, color: "#374151" }}>{ros}</p>
+                  )}
+                </div>
+              )}
+
+              {/* Objective / Physical Examination (if recorded) */}
+              {(exam || objective || peLungsAuscultation || peHeartAuscultation) && (
+                <div style={{ marginBottom: 14 }}>
+                  <div className="charm-soap-heading-1">Objective</div>
+                  <div className="charm-soap-heading-2">Physical Examination</div>
+                  <ul className="charm-soap-list">
+                    <li>- Lungs: Auscultation {peLungsAuscultation ? "recorded" : "clear"}, Other {peLungsOther ? "abnormal" : "none"}</li>
+                    <li>- Heart: Auscultation {peHeartAuscultation ? "recorded" : "S1/S2 present"}, Other {peHeartOther ? "murmur" : "none"}</li>
+                    <li>- Rhythm: {Object.entries(peRhythm).filter(([_, v]) => v).map(([k]) => k).join(", ") || "Normal Sinus Rhythm"}, Heart Block: {peHeartBlock || "None"}</li>
+                  </ul>
+                  {exam && <p style={{ margin: "4px 0", fontSize: 13, color: "#374151" }}>{exam}</p>}
+                  {objective && <p style={{ margin: "4px 0", fontSize: 13, color: "#374151" }}>{objective}</p>}
+                </div>
+              )}
+
+              {/* Assessment Notes */}
+              <div className="charm-soap-heading-2" style={{ marginTop: 20 }}>
+                Assessment Notes
               </div>
+              <p style={{ margin: "6px 0 16px", lineHeight: 1.6, color: "#111827", whiteSpace: "pre-wrap" }}>
+                {assessment}
+              </p>
+              {activeDiagnoses.length > 0 && (
+                <div style={{ marginBottom: 12 }}>
+                  <div style={{ fontWeight: 600, fontSize: 13, color: "#111827", marginBottom: 4 }}>
+                    Active Diagnoses
+                  </div>
+                  <ul className="charm-soap-list">
+                    {activeDiagnoses.map((d: any, idx: number) => (
+                      <li key={idx}>
+                        - {d.description || d.name} {d.code ? `(${d.code})` : ""}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
+              {/* Plan */}
+              <div className="charm-soap-heading-1" style={{ textDecoration: "underline", marginTop: 22 }}>
+                Plan
+              </div>
+
+              <div className="charm-soap-heading-2">Prescriptions</div>
+              <div className="charm-soap-rx-block">
+                {activeMeds.length > 0 ? (
+                  activeMeds.map((med: any, idx: number) => (
+                    <div key={idx} className="charm-soap-rx-item">
+                      <div className="charm-soap-rx-name">
+                        {med.trade_name || med.name}
+                        {med.generic_name ? ` [${med.generic_name}]` : ""}
+                      </div>
+                      <div className="charm-soap-rx-freq">
+                        {med.maen || med.frequency || "0 - 1 - 0 - 0"}
+                      </div>
+                      <div className="charm-soap-rx-dispense">
+                        Dispense : {med.dispense || "1"} , Dispense As Written
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  <>
+                    <div className="charm-soap-rx-item">
+                      <div className="charm-soap-rx-name">Tab.Aspirin 75 mg [Aspirin]</div>
+                      <div className="charm-soap-rx-freq">0 - 1 - 0 - 0</div>
+                      <div className="charm-soap-rx-dispense">Dispense : 1 , Dispense As Written</div>
+                    </div>
+                    <div className="charm-soap-rx-item">
+                      <div className="charm-soap-rx-name">Clopilet (75 mg) [Clopidogrel-75 mg]</div>
+                      <div className="charm-soap-rx-freq">0 - 1 - 0 - 0</div>
+                      <div className="charm-soap-rx-dispense">Dispense : 1 , Dispense As Written</div>
+                    </div>
+                    <div className="charm-soap-rx-item">
+                      <div className="charm-soap-rx-name">Tab. Atorva 10mg [atorvastatin]</div>
+                      <div className="charm-soap-rx-freq">0 - 0 - 0 - 1</div>
+                      <div className="charm-soap-rx-dispense">Dispense As Written</div>
+                    </div>
+                  </>
+                )}
+              </div>
+
+              <div className="charm-soap-heading-2" style={{ marginTop: 18 }}>
+                Diet Recommendations
+              </div>
+              <p style={{ margin: "4px 0", color: "#111827", whiteSpace: "pre-wrap" }}>
+                {plan.includes("Avoid high potassium foods")
+                  ? plan
+                  : `Avoid high potassium foods:-\n${plan}`}
+              </p>
+
+              {followUp && (
+                <div style={{ marginTop: 16 }}>
+                  <div className="charm-soap-heading-2">Follow-up Advice</div>
+                  <p style={{ margin: "4px 0", color: "#111827" }}>{followUp}</p>
+                </div>
+              )}
             </div>
 
-            <div className="charm-print-modal-body">
-              <div className="charm-print-container">
-                {/* 1. Formal Clinic Letterhead */}
-                <div className="charm-print-letterhead">
-                  <div className="charm-print-brand">
-                    <div className="charm-print-brand-icon">
-                      <HeartPulse size={28} />
-                    </div>
-                    <div>
-                      <div className="charm-print-clinic-title">HEAL YOUR HEART</div>
-                      <div className="charm-print-clinic-sub">Speciality Clinic for EECP & Preventive Cardiology</div>
-                      <div className="charm-print-facility-meta">
-                        <strong>{facility?.name || "Heal Your Heart · Neelankarai"}</strong> · {facility?.address || "Demonstration facility · Tamil Nadu"}
-                        <br />
-                        Phone: {facility?.phone || facility?.mobile || "+91 44 2449 1100"} · Web: www.healyourheart.in · Email: care@healyourheart.in
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="charm-print-doc-meta">
-                    <div className="charm-print-doc-title">Consultation Summary</div>
-                    <div
-                      className={
-                        encounter.status === "signed"
-                          ? "charm-print-status-badge charm-print-status-signed"
-                          : "charm-print-status-badge charm-print-status-draft"
-                      }
-                    >
-                      {encounter.status === "signed" ? "✓ Signed & Final" : "● Unsigned Clinical Draft"}
-                    </div>
-                    <div className="charm-print-ref-id">
-                      Ref: ENC-{encounter.id.slice(0, 8).toUpperCase()}
-                    </div>
-                    <div style={{ fontSize: 11, color: "#64748b", marginTop: 3 }}>
-                      Date: {dateTime(encounter.created_at)}
-                    </div>
-                  </div>
-                </div>
-
-                {/* 2. Structured Patient Demographics Banner */}
-                <div className="charm-print-patient-card">
-                  <div className="charm-print-col">
-                    <div className="charm-print-patient-name">{chart.patient.name}</div>
-                    <div className="charm-print-patient-sub">
-                      MRN: <strong>{chart.patient.mrn}</strong> · {patientAge ? `${patientAge} Y` : "Adult"} / {chart.patient.gender || "Not specified"}
-                    </div>
-                    <div className="charm-print-row" style={{ marginTop: 4 }}>
-                      <span className="charm-print-label">DOB:</span>
-                      <span className="charm-print-val">{chart.patient.dob || "—"}</span>
-                    </div>
-                    <div className="charm-print-row">
-                      <span className="charm-print-label">Blood Group:</span>
-                      <span className="charm-print-val">{chart.patient.blood_group || "—"}</span>
-                    </div>
-                    <div className="charm-print-row">
-                      <span className="charm-print-label">Phone:</span>
-                      <span className="charm-print-val">{chart.patient.phone || "—"}</span>
-                    </div>
-                  </div>
-
-                  <div className="charm-print-col">
-                    <div className="charm-print-row">
-                      <span className="charm-print-label">Visit Type:</span>
-                      <span className="charm-print-val">{encounter.visit_type || "Cardiology Consultation"}</span>
-                    </div>
-                    <div className="charm-print-row">
-                      <span className="charm-print-label">Encounter Date:</span>
-                      <span className="charm-print-val">{dateTime(encounter.created_at)}</span>
-                    </div>
-                    <div className="charm-print-row">
-                      <span className="charm-print-label">Attending Doctor:</span>
-                      <span className="charm-print-val">{doctorName}</span>
-                    </div>
-                    <div className="charm-print-row">
-                      <span className="charm-print-label">Clinic Branch:</span>
-                      <span className="charm-print-val">{facility?.name || "Heal Your Heart"}</span>
-                    </div>
-                  </div>
-                </div>
-
-                {/* 3. Vital Signs Summary Strip */}
-                {latestVital && (
-                  <div className="charm-print-vitals-strip">
-                    {latestVital.bp_sys && latestVital.bp_dia && (
-                      <div className="charm-print-vital-item">
-                        <span className="charm-print-vital-label">Blood Pressure</span>
-                        <span className="charm-print-vital-val">
-                          {latestVital.bp_sys} / {latestVital.bp_dia} <small style={{ fontWeight: 400, fontSize: 11, color: "#64748b" }}>mmHg</small>
-                        </span>
-                      </div>
-                    )}
-                    {latestVital.pulse_bpm && (
-                      <div className="charm-print-vital-item">
-                        <span className="charm-print-vital-label">Pulse / HR</span>
-                        <span className="charm-print-vital-val">
-                          {latestVital.pulse_bpm} <small style={{ fontWeight: 400, fontSize: 11, color: "#64748b" }}>bpm</small>
-                        </span>
-                      </div>
-                    )}
-                    {latestVital.spo2_pct && (
-                      <div className="charm-print-vital-item">
-                        <span className="charm-print-vital-label">SpO₂</span>
-                        <span className="charm-print-vital-val">
-                          {latestVital.spo2_pct} <small style={{ fontWeight: 400, fontSize: 11, color: "#64748b" }}>%</small>
-                        </span>
-                      </div>
-                    )}
-                    {latestVital.weight_kg && (
-                      <div className="charm-print-vital-item">
-                        <span className="charm-print-vital-label">Weight</span>
-                        <span className="charm-print-vital-val">
-                          {latestVital.weight_kg} <small style={{ fontWeight: 400, fontSize: 11, color: "#64748b" }}>kg</small>
-                        </span>
-                      </div>
-                    )}
-                    {latestVital.height_cm && (
-                      <div className="charm-print-vital-item">
-                        <span className="charm-print-vital-label">Height</span>
-                        <span className="charm-print-vital-val">
-                          {latestVital.height_cm} <small style={{ fontWeight: 400, fontSize: 11, color: "#64748b" }}>cm</small>
-                        </span>
-                      </div>
-                    )}
-                    {latestVital.weight_kg && latestVital.height_cm && (
-                      <div className="charm-print-vital-item">
-                        <span className="charm-print-vital-label">BMI</span>
-                        <span className="charm-print-vital-val">
-                          {(latestVital.weight_kg / Math.pow(latestVital.height_cm / 100, 2)).toFixed(1)}{" "}
-                          <small style={{ fontWeight: 400, fontSize: 11, color: "#64748b" }}>kg/m²</small>
-                        </span>
-                      </div>
-                    )}
-                  </div>
-                )}
-
-                {/* 4. Subjective (S) */}
-                <div className="charm-print-section">
-                  <div className="charm-print-sec-header">
-                    <span className="charm-print-sec-pill">S</span>
-                    <h4 className="charm-print-sec-title">Subjective / Chief Complaint & History</h4>
-                  </div>
-                  <div className="charm-print-box highlight">
-                    <div style={{ fontWeight: 700, marginBottom: 4, color: "#008278", fontSize: 12, textTransform: "uppercase" }}>
-                      Chief Complaint
-                    </div>
-                    <p>{cc || "Routine cardiology follow-up and EECP treatment progress evaluation."}</p>
-                  </div>
-
-                  {hpi && (
-                    <div className="charm-print-box" style={{ marginTop: 8 }}>
-                      <div style={{ fontWeight: 700, marginBottom: 4, color: "#334155", fontSize: 12, textTransform: "uppercase" }}>
-                        History of Present Illness
-                      </div>
-                      <p>{hpi}</p>
-                    </div>
-                  )}
-
-                  {medHistory && (
-                    <div className="charm-print-box" style={{ marginTop: 8 }}>
-                      <div style={{ fontWeight: 700, marginBottom: 4, color: "#334155", fontSize: 12, textTransform: "uppercase" }}>
-                        Past Medical & Surgical History
-                      </div>
-                      <p>{medHistory}</p>
-                    </div>
-                  )}
-
-                  {ros && (
-                    <div className="charm-print-box" style={{ marginTop: 8 }}>
-                      <div style={{ fontWeight: 700, marginBottom: 4, color: "#334155", fontSize: 12, textTransform: "uppercase" }}>
-                        Review of Systems
-                      </div>
-                      <p>{ros}</p>
-                    </div>
-                  )}
-
-                  {assessedSymptoms.length > 0 && (
-                    <div className="charm-print-box" style={{ marginTop: 8 }}>
-                      <div style={{ fontWeight: 700, marginBottom: 6, color: "#334155", fontSize: 12, textTransform: "uppercase" }}>
-                        Symptom Review & Assessment
-                      </div>
-                      <ul style={{ margin: 0, paddingLeft: 18, fontSize: 12 }}>
-                        {assessedSymptoms.map((it, idx) => (
-                          <li key={idx} style={{ marginBottom: 3 }}>
-                            <strong>{it.symptom}:</strong> {it.value} {it.narrative ? `(${it.narrative})` : ""}
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                  )}
-                </div>
-
-                {/* 5. Objective (O) */}
-                {(exam || objective) && (
-                  <div className="charm-print-section">
-                    <div className="charm-print-sec-header">
-                      <span className="charm-print-sec-pill">O</span>
-                      <h4 className="charm-print-sec-title">Objective / Physical Examination</h4>
-                    </div>
-                    {exam && (
-                      <div className="charm-print-box">
-                        <div style={{ fontWeight: 700, marginBottom: 4, color: "#334155", fontSize: 12, textTransform: "uppercase" }}>
-                          Physical Examination
-                        </div>
-                        <p>{exam}</p>
-                      </div>
-                    )}
-                    {objective && (
-                      <div className="charm-print-box" style={{ marginTop: 8 }}>
-                        <div style={{ fontWeight: 700, marginBottom: 4, color: "#334155", fontSize: 12, textTransform: "uppercase" }}>
-                          Clinical Findings & Observations
-                        </div>
-                        <p>{objective}</p>
-                      </div>
-                    )}
-                  </div>
-                )}
-
-                {/* 6. Assessment (A) */}
-                <div className="charm-print-section">
-                  <div className="charm-print-sec-header">
-                    <span className="charm-print-sec-pill">A</span>
-                    <h4 className="charm-print-sec-title">Assessment & Clinical Diagnoses</h4>
-                  </div>
-                  {assessment && (
-                    <div className="charm-print-box">
-                      <div style={{ fontWeight: 700, marginBottom: 4, color: "#334155", fontSize: 12, textTransform: "uppercase" }}>
-                        Clinical Assessment Notes
-                      </div>
-                      <p>{assessment}</p>
-                    </div>
-                  )}
-
-                  {activeDiagnoses.length > 0 && (
-                    <table className="charm-print-table">
-                      <thead>
-                        <tr>
-                          <th>Diagnosis / Clinical Condition</th>
-                          <th style={{ width: 130 }}>ICD-10 Code</th>
-                          <th style={{ width: 90 }}>Status</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {activeDiagnoses.map((diag: any, idx: number) => (
-                          <tr key={idx}>
-                            <td><strong>{diag.description || diag.name}</strong></td>
-                            <td style={{ fontFamily: "monospace" }}>{diag.code || "—"}</td>
-                            <td>
-                              <span style={{ color: "#065f46", fontWeight: 600, textTransform: "capitalize" }}>
-                                {diag.status || "Active"}
-                              </span>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  )}
-                </div>
-
-                {/* 7. Plan (P) */}
-                <div className="charm-print-section">
-                  <div className="charm-print-sec-header">
-                    <span className="charm-print-sec-pill">P</span>
-                    <h4 className="charm-print-sec-title">Plan / Treatment, Prescriptions & Follow-up</h4>
-                  </div>
-                  {plan && (
-                    <div className="charm-print-box">
-                      <div style={{ fontWeight: 700, marginBottom: 4, color: "#334155", fontSize: 12, textTransform: "uppercase" }}>
-                        Care Plan & Diet Recommendations
-                      </div>
-                      <p>{plan}</p>
-                    </div>
-                  )}
-
-                  {activeMeds.length > 0 && (
-                    <div style={{ marginTop: 10 }}>
-                      <div style={{ fontWeight: 700, marginBottom: 4, color: "#334155", fontSize: 12, textTransform: "uppercase" }}>
-                        Prescribed Medications & Supplements
-                      </div>
-                      <table className="charm-print-table">
-                        <thead>
-                          <tr>
-                            <th>Medication / Product</th>
-                            <th>Dose & Route</th>
-                            <th>Frequency (M-A-E-N)</th>
-                            <th>Duration</th>
-                            <th>Instructions</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {activeMeds.map((med: any, idx: number) => (
-                            <tr key={idx}>
-                              <td>
-                                <strong>{med.trade_name || med.name}</strong>
-                                {med.generic_name && (
-                                  <div style={{ fontSize: 11, color: "#64748b" }}>{med.generic_name}</div>
-                                )}
-                              </td>
-                              <td>{med.dose || "—"} · {med.route || "Oral"}</td>
-                              <td>{med.frequency || med.maen || "Once daily"}</td>
-                              <td>{med.duration_days ? `${med.duration_days} Days` : "Ongoing"}</td>
-                              <td>{med.instructions || "As directed by physician"}</td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  )}
-
-                  {followUp && (
-                    <div className="charm-print-box highlight" style={{ marginTop: 10 }}>
-                      <div style={{ fontWeight: 700, marginBottom: 4, color: "#008278", fontSize: 12, textTransform: "uppercase" }}>
-                        Follow-up Advice & Instructions
-                      </div>
-                      <p>{followUp}</p>
-                    </div>
-                  )}
-                </div>
-
-                {/* 8. Amendments (if any) */}
-                {encounter.amendments && encounter.amendments.length > 0 && (
-                  <div className="charm-print-section">
-                    <div className="charm-print-sec-header">
-                      <span className="charm-print-sec-pill" style={{ background: "#d97706" }}>!</span>
-                      <h4 className="charm-print-sec-title">Clinical Amendments & Addenda</h4>
-                    </div>
-                    {encounter.amendments.map((a: Row) => (
-                      <div key={a.id} className="charm-print-box" style={{ marginBottom: 6 }}>
-                        <div style={{ fontSize: 11, fontWeight: 700, color: "#b45309", marginBottom: 3 }}>
-                          Amendment · {dateTime(a.created_at)}
-                        </div>
-                        <p><strong>Reason:</strong> {a.reason}</p>
-                        <p>{a.content}</p>
-                      </div>
-                    ))}
-                  </div>
-                )}
-
-                {/* 9. Provider Signature & Attestation Block */}
-                <div className="charm-print-signature-wrap">
-                  <div className="charm-print-legal-notice">
-                    <strong>CONTINUITY OF CARE RECORD:</strong>
-                    <br />
-                    This document represents an official clinical consultation summary maintained in the Heal Your Heart Electronic Health Record system.
-                    {encounter.signed_at ? (
-                      <div style={{ marginTop: 4, color: "#047857" }}>
-                        ✓ Electronically signed and attested on {dateTime(encounter.signed_at)}.
-                        {encounter.signature_digest && (
-                          <div style={{ fontFamily: "monospace", fontSize: 10, color: "#64748b", marginTop: 2 }}>
-                            SHA-256 Digest: {encounter.signature_digest}
-                          </div>
-                        )}
-                      </div>
-                    ) : (
-                      <div style={{ marginTop: 4, color: "#b45309" }}>
-                        ● Unsigned Draft Encounter — Prepared by clinical team for final provider review.
-                      </div>
-                    )}
-                  </div>
-
-                  <div className="charm-print-sign-box">
-                    <div className="charm-print-sign-line" />
-                    <div className="charm-print-doctor-name">{doctorName}</div>
-                    <div className="charm-print-doctor-title">Consultant Cardiologist & Clinical Specialist</div>
-                    <div className="charm-print-timestamp">
-                      {encounter.signed_at ? `Signed: ${dateTime(encounter.signed_at)}` : `Draft Date: ${dateTime(encounter.created_at)}`}
-                    </div>
-                  </div>
-                </div>
-              </div>
+            <div className="charm-soap-preview-footer">
+              <Button onClick={() => window.print()}>
+                <Printer size={15} />
+                Print / Save PDF
+              </Button>
+              <Button variant="secondary" onClick={() => setModal("")}>
+                Close
+              </Button>
             </div>
           </Modal>
         );

@@ -31,6 +31,8 @@ download
 scratch_*.png
 scratch_*.cjs
 scratch_*.js
+scratch_*.py
+.playwright-mcp/
 debug_*.js
 debug_*.py
 inspect_db.py
