@@ -2425,6 +2425,19 @@ export function EncounterEditor({
   const [pmhHtn, setPmhHtn] = useState("");
   const [pmhLipid, setPmhLipid] = useState("");
 
+  // Authentic CharmHealth: Plan, Recommendations & Treatment Notes (frames 017-021)
+  const [dietAvoidPotassium, setDietAvoidPotassium] = useState(true);
+  const [dietFruits, setDietFruits] = useState(false);
+  const [dietVeg, setDietVeg] = useState(false);
+  const [dietOthers, setDietOthers] = useState(false);
+
+  const [lifestyleItems, setLifestyleItems] = useState<Record<string, boolean>>({});
+  const [treatmentNotesCheck, setTreatmentNotesCheck] = useState(false);
+  const [treatmentNotesItems, setTreatmentNotesItems] = useState<Record<string, boolean>>({});
+
+  const [instructionsItems, setInstructionsItems] = useState<Record<string, boolean>>({});
+  const [repeatEecpCheck, setRepeatEecpCheck] = useState(false);
+
   // Authentic CharmHealth: Review of Systems Categories (from frame_018 & dense_frame_175)
   const rosCategories = [
     {
@@ -4928,47 +4941,50 @@ export function EncounterEditor({
                     />
                   </div>
 
-                  {/* SECTION: PLAN (Authentic CharmHealth (P)) */}
+                  {/* SECTION: PLAN (Authentic CharmHealth (P) - Frames 017-021) */}
                   <div id="sec-plan" className="charm-editor-section">
                     <div className="charm-section-header">
                       <h3>Plan</h3>
-                      <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-                        <button
-                          type="button"
-                          className="charm-btn-link-action"
-                          onClick={() => setActiveTplModal("add_rx")}
-                        >
-                          + Add Rx
-                        </button>
-                        <button
-                          type="button"
-                          className="charm-template-link-btn"
-                          onClick={() => setActiveTplModal("prescription")}
-                        >
-                          Rx Templates
-                        </button>
-                        <button
-                          type="button"
-                          className="charm-template-link-btn"
-                          onClick={() => setActiveTplModal("supplement")}
-                        >
-                          Supplements
-                        </button>
-                        <button
-                          type="button"
-                          className="charm-btn-link-action"
-                          onClick={() => setModal("orders")}
-                        >
-                          + Add order
-                        </button>
-                      </div>
                     </div>
 
-                    <div style={{ marginBottom: 4, fontSize: 13, fontWeight: 600, color: "#334155" }}>
-                      Diet Recommendations
-                    </div>
-                    <div style={{ fontSize: 12, color: "#475569", marginBottom: 8, fontStyle: "italic" }}>
-                      Avoid high potassium foods:-
+                    {/* Prescriptions, Labs & Images action links bar (frame_017) */}
+                    <div className="charm-plan-action-bar" style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 14, padding: "8px 12px", background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: 4, fontSize: 13 }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                        <strong style={{ width: 110, color: "#1e293b" }}>Prescriptions:</strong>
+                        <button type="button" className="charm-link-sm" onClick={() => setActiveTplModal("add_rx")}>Add Rx</button>
+                        <span className="muted">|</span>
+                        <button type="button" className="charm-link-sm" onClick={() => setActiveTplModal("prescription")}>Templates</button>
+                        <span className="muted">|</span>
+                        <a className="charm-link-sm" onClick={() => notify("Viewing past prescriptions")}>Past Rx</a>
+                        <span className="muted">|</span>
+                        <a className="charm-link-sm" onClick={() => notify("Paper Rx generated")}>Paper Rx</a>
+                      </div>
+                      <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                        <strong style={{ width: 110, color: "#1e293b" }}>Labs:</strong>
+                        <button type="button" className="charm-link-sm" onClick={() => setModal("orders")}>Search &amp; Add</button>
+                        <span className="muted">|</span>
+                        <button type="button" className="charm-link-sm" onClick={() => setModal("orders")}>Add Lab</button>
+                        <span className="muted">|</span>
+                        <a className="charm-link-sm" onClick={() => notify("Lab templates")}>Templates</a>
+                        <span className="muted">|</span>
+                        <a className="charm-link-sm" onClick={() => notify("Viewing past lab orders")}>Past Orders</a>
+                        <span className="muted">|</span>
+                        <a className="charm-link-sm" onClick={() => notify("Map Dx")}>Map Dx</a>
+                        <span className="muted">|</span>
+                        <a className="charm-link-sm" onClick={() => notify("View lab orders")}>View Orders</a>
+                      </div>
+                      <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                        <strong style={{ width: 110, color: "#1e293b" }}>Images:</strong>
+                        <button type="button" className="charm-link-sm" onClick={() => setModal("orders")}>Add Image</button>
+                        <span className="muted">|</span>
+                        <a className="charm-link-sm" onClick={() => notify("Imaging templates")}>Templates</a>
+                        <span className="muted">|</span>
+                        <a className="charm-link-sm" onClick={() => notify("Viewing image orders")}>View Orders</a>
+                        <span className="muted">|</span>
+                        <a className="charm-link-sm" onClick={() => notify("Past image orders")}>Past Orders</a>
+                        <span className="muted">|</span>
+                        <a className="charm-link-sm" onClick={() => notify("Map Dx")}>Map Dx</a>
+                      </div>
                     </div>
 
                     <textarea
@@ -4977,13 +4993,189 @@ export function EncounterEditor({
                       aria-label="Care plan"
                       placeholder="Prescriptions, EECP therapy parameters, lifestyle counseling..."
                       {...register("plan")}
+                      style={{ marginBottom: 14 }}
                     />
 
-                    <div id="sec-fu" style={{ marginTop: 12 }}>
-                      <label className="field">
-                        <span>Follow-up instructions</span>
-                        <textarea rows={2} {...register("follow_up")} />
-                      </label>
+                    {/* 1. Diet Recommendation (frame_017 & frame_018) */}
+                    <div style={{ marginBottom: 14 }}>
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
+                        <span style={{ fontWeight: 600, fontSize: 13, color: "#1e293b" }}>Diet Recommendation</span>
+                        <button type="button" className="charm-template-link-btn" onClick={() => notify("Diet templates")}>Templates</button>
+                      </div>
+                      <div style={{ border: "1px solid #cbd5e1", borderRadius: 4, padding: "10px 14px", background: "#fff" }}>
+                        <label className="charm-checkbox-inline" style={{ fontWeight: 600, fontSize: 13, marginBottom: 8, display: "flex" }}>
+                          <span>Avoid high potassium foods:-</span>
+                          <input
+                            type="checkbox"
+                            checked={dietAvoidPotassium}
+                            onChange={(e) => setDietAvoidPotassium(e.target.checked)}
+                          />
+                        </label>
+                        {dietAvoidPotassium && (
+                          <div style={{ display: "flex", gap: 18, marginLeft: 20 }}>
+                            <label className="charm-checkbox-inline" style={{ fontSize: 13 }}>
+                              <input
+                                type="checkbox"
+                                checked={dietFruits}
+                                onChange={(e) => setDietFruits(e.target.checked)}
+                              />
+                              <span>Fruits</span>
+                            </label>
+                            <label className="charm-checkbox-inline" style={{ fontSize: 13 }}>
+                              <input
+                                type="checkbox"
+                                checked={dietVeg}
+                                onChange={(e) => setDietVeg(e.target.checked)}
+                              />
+                              <span>Vegetables</span>
+                            </label>
+                            <label className="charm-checkbox-inline" style={{ fontSize: 13 }}>
+                              <input
+                                type="checkbox"
+                                checked={dietOthers}
+                                onChange={(e) => setDietOthers(e.target.checked)}
+                              />
+                              <span>Others</span>
+                            </label>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* 2. Lifestyle Recommendation (frame_018) */}
+                    <div style={{ marginBottom: 14 }}>
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
+                        <span style={{ fontWeight: 600, fontSize: 13, color: "#1e293b" }}>Lifestyle Recommendation</span>
+                        <button type="button" className="charm-template-link-btn" onClick={() => notify("Lifestyle templates")}>Templates</button>
+                      </div>
+                      <div style={{ border: "1px solid #cbd5e1", borderRadius: 4, padding: "10px 14px", background: "#fff" }}>
+                        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                          {[
+                            "Avoid alcohol / tobacco chewing and quite smoking",
+                            "Follow a heart-friendly diet",
+                            "Regular physical exercise",
+                            "Control your obesity",
+                          ].map((item) => (
+                            <label key={item} className="charm-checkbox-inline" style={{ fontSize: 13 }}>
+                              <input
+                                type="checkbox"
+                                checked={lifestyleItems[item] || false}
+                                onChange={(e) => setLifestyleItems((p) => ({ ...p, [item]: e.target.checked }))}
+                              />
+                              <span>{item}</span>
+                            </label>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* 3. Treatment Notes (frame_018 & frame_019) */}
+                    <div style={{ marginBottom: 14 }}>
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
+                        <span style={{ fontWeight: 600, fontSize: 13, color: "#1e293b" }}>Treatment Notes</span>
+                        <button type="button" className="charm-template-link-btn" onClick={() => notify("Treatment templates")}>Templates</button>
+                      </div>
+                      <div style={{ border: "1px solid #cbd5e1", borderRadius: 4, padding: "10px 14px", background: "#fff" }}>
+                        <label className="charm-checkbox-inline" style={{ fontWeight: 600, fontSize: 13, marginBottom: 8, display: "flex" }}>
+                          <span>EECP Treatment Notes</span>
+                          <input
+                            type="checkbox"
+                            checked={treatmentNotesCheck}
+                            onChange={(e) => setTreatmentNotesCheck(e.target.checked)}
+                          />
+                        </label>
+                        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "6px 16px", marginTop: 6 }}>
+                          {[
+                            "Monitor weight daily",
+                            "Monitor new onset arrhythmias",
+                            "Monitor SpO2",
+                            "Slow pressure regime",
+                            "> 200mmHg in the first 3min.",
+                            "Lower cuff off mode",
+                            "Trigger 1:2 ratio",
+                            "Head end elevation",
+                            "O2 - 2 L/min",
+                            "O2 > 2 L/min",
+                            "Early deflation",
+                            "Early inflation / late deflation",
+                            "Stop treatment - SpO2 falls < 96%",
+                          ].map((item) => (
+                            <label key={item} className="charm-checkbox-inline" style={{ fontSize: 12.5 }}>
+                              <input
+                                type="checkbox"
+                                checked={treatmentNotesItems[item] || false}
+                                onChange={(e) => setTreatmentNotesItems((p) => ({ ...p, [item]: e.target.checked }))}
+                              />
+                              <span>{item}</span>
+                            </label>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* 4. Instructions (frame_020) */}
+                    <div style={{ marginBottom: 14 }}>
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
+                        <span style={{ fontWeight: 600, fontSize: 13, color: "#1e293b" }}>Instructions</span>
+                        <button type="button" className="charm-template-link-btn" onClick={() => notify("Instructions templates")}>Templates</button>
+                      </div>
+                      <div style={{ border: "1px solid #cbd5e1", borderRadius: 4, padding: "10px 14px", background: "#fff" }}>
+                        <div style={{ display: "flex", flexDirection: "column", gap: 7 }}>
+                          {[
+                            "Take medication regularly",
+                            "Salt restricted diet",
+                            "Potassium low diet",
+                            "Fluid restriction",
+                            "Know your drug",
+                            "Report to the clinic if you experience these symptoms:-",
+                            "Follow-up after:-",
+                          ].map((inst) => (
+                            <label key={inst} className="charm-checkbox-inline" style={{ fontSize: 13 }}>
+                              <input
+                                type="checkbox"
+                                checked={instructionsItems[inst] || false}
+                                onChange={(e) => setInstructionsItems((p) => ({ ...p, [inst]: e.target.checked }))}
+                              />
+                              <span>{inst}</span>
+                            </label>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* 5. When to repeat EECP treatment? (frame_020 & frame_021) */}
+                    <div style={{ marginBottom: 14 }}>
+                      <div style={{ border: "1px solid #cbd5e1", borderRadius: 4, padding: "10px 14px", background: "#fff" }}>
+                        <label className="charm-checkbox-inline" style={{ fontWeight: 600, fontSize: 13, marginBottom: 6, display: "flex" }}>
+                          <span>When to repeat EECP treatment?</span>
+                          <input
+                            type="checkbox"
+                            checked={repeatEecpCheck}
+                            onChange={(e) => setRepeatEecpCheck(e.target.checked)}
+                          />
+                        </label>
+                        <p style={{ margin: 0, fontSize: 12, color: "#64748b", lineHeight: 1.5 }}>
+                          Enhanced External Counterpulsation (EECP) treatment may be repeated based on individual patient needs and the response to the initial course. Consider repeating EECP treatment in the following scenarios:
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* 6. Follow-up (frame_021) */}
+                    <div id="sec-fu" style={{ marginTop: 14 }}>
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                          <strong style={{ fontSize: 13, color: "#1e293b" }}>Follow up</strong>
+                          <button type="button" className="charm-link-sm" onClick={() => notify("Follow-up appointment requested")}>Add Follow up</button>
+                          <span className="muted">|</span>
+                          <button type="button" className="charm-link-sm" onClick={() => notify("Follow up templates")}>Templates</button>
+                        </div>
+                      </div>
+                      <textarea
+                        rows={2}
+                        className="charm-cc-textarea"
+                        placeholder="Follow-up instructions and timeline..."
+                        {...register("follow_up")}
+                      />
                     </div>
 
                     <label className="field" style={{ marginTop: 12 }}>
