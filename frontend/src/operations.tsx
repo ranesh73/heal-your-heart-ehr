@@ -1709,22 +1709,30 @@ function Schedule() {
             </div>
 
             {/* Dynamic CharmHealth Stat Summary Pills */}
-            <div className="charm-stat-pills" style={{ display: "flex", flexWrap: "wrap", gap: 8, alignItems: "center" }}>
+            <div className="charm-stat-pills" style={{ display: "flex", flexWrap: "wrap", gap: 8, alignItems: "center", marginBottom: 12 }}>
               <div
                 className={`charm-stat-chip ${statusFilter === "ALL" ? "orange" : ""}`}
                 onClick={() => setStatusFilter("ALL")}
                 style={{
                   cursor: "pointer",
+                  display: "flex",
+                  flexDirection: "column",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  minWidth: 54,
+                  padding: "4px 10px",
                   background: statusFilter === "ALL" ? "#ea580c" : "#fff",
-                  color: statusFilter === "ALL" ? "#fff" : "#334155",
-                  borderColor: statusFilter === "ALL" ? "#ea580c" : "#cbd5e1",
+                  color: statusFilter === "ALL" ? "#fff" : "#ea580c",
+                  borderColor: "#ea580c",
                   borderWidth: 1,
                   borderStyle: "solid",
-                  fontWeight: 600,
+                  borderRadius: 4,
+                  boxShadow: "0 1px 2px rgba(0,0,0,0.04)",
                   transition: "all 0.15s ease",
                 }}
               >
-                <strong>{filtered.length}</strong> ALL
+                <span style={{ fontSize: 15, fontWeight: 700, lineHeight: 1.1 }}>{filtered.length}</span>
+                <span style={{ fontSize: 9.5, fontWeight: 700, letterSpacing: "0.5px", marginTop: 2 }}>ALL</span>
               </div>
               {Object.entries(statusCounts).map(([sName, count]) => {
                 const conf = availableStatuses.find((s) => s.name.toLowerCase() === sName.toLowerCase());
@@ -1737,17 +1745,28 @@ function Schedule() {
                     onClick={() => setStatusFilter(isSelected ? "ALL" : sName)}
                     style={{
                       cursor: "pointer",
+                      display: "flex",
+                      flexDirection: "column",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      minWidth: 70,
+                      padding: "4px 12px",
                       background: isSelected ? chipColor : "#fff",
                       color: isSelected ? "#fff" : chipColor,
                       borderColor: chipColor,
                       borderWidth: 1,
                       borderStyle: "solid",
-                      fontWeight: 600,
+                      borderRadius: 4,
+                      boxShadow: "0 1px 2px rgba(0,0,0,0.04)",
                       transition: "all 0.15s ease",
+                      textAlign: "center",
                     }}
                     title={`Click to filter by ${sName}`}
                   >
-                    <strong>{count}</strong> {sName.toUpperCase()}
+                    <span style={{ fontSize: 15, fontWeight: 700, lineHeight: 1.1 }}>{count}</span>
+                    <span style={{ fontSize: 9.5, fontWeight: 700, letterSpacing: "0.5px", marginTop: 2, maxWidth: 140, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                      {sName.toUpperCase()}
+                    </span>
                   </div>
                 );
               })}
