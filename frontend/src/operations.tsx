@@ -2003,35 +2003,99 @@ function Schedule() {
                               <span className="slot-plus-text">+ Click to book at {hour}</span>
                             </div>
                           ) : (
-                            <div className="charm-day-appt-cards">
-                              {slotAppts.map((currentSlotAppt) => {
-                                const isEECP = currentSlotAppt.visit_type?.toLowerCase().includes("eecp");
-                                const pat = patients.find((p) => p.id === currentSlotAppt.patient_id);
-                                return (
-                                  <div
-                                    key={currentSlotAppt.id}
-                                    className={`charm-day-appt-card ${isEECP ? "eecp-theme" : "consult-theme"} status-${currentSlotAppt.status}`}
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      setSelectedAppt(currentSlotAppt);
-                                    }}
-                                    title="Click to view appointment details & actions"
-                                  >
-                                    <div className="charm-day-card-header">
-                                      <span className="day-card-patient">
-                                        {pat?.name || patientName(currentSlotAppt.patient_id, patients)} [{pat?.mrn || "HUHNKR" + currentSlotAppt.id.slice(0, 4)}]
+                            <div className="charm-day-appt-cards" style={{ display: "flex", flexDirection: "column", gap: 3, width: "100%" }}>
+                              {slotAppts.length > 1 ? (
+                                slotAppts.map((currentSlotAppt) => {
+                                  const isEECP = currentSlotAppt.visit_type?.toLowerCase().includes("eecp");
+                                  const pat = patients.find((p) => p.id === currentSlotAppt.patient_id);
+                                  const pName = pat?.name || patientName(currentSlotAppt.patient_id, patients);
+                                  const startTime = localInput(currentSlotAppt.start_at).slice(11, 16);
+                                  const endTime = localInput(currentSlotAppt.end_at).slice(11, 16);
+                                  const displayStatus = currentSlotAppt.status_label || (currentSlotAppt.status === "checked-in" ? "Checked in" : currentSlotAppt.status === "confirmed" ? "Confirmed" : currentSlotAppt.status === "completed" ? "Completed" : currentSlotAppt.status === "cancelled" ? "Cancelled" : currentSlotAppt.status);
+                                  const stConfig = availableStatuses.find(
+                                    (s) => s.name.toLowerCase() === displayStatus.toLowerCase()
+                                  );
+                                  const accentColor = stConfig?.color || (isEECP ? "#10b981" : "#0284c7");
+                                  return (
+                                    <div
+                                      key={currentSlotAppt.id}
+                                      className="charm-week-appt-strip"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        setSelectedAppt(currentSlotAppt);
+                                      }}
+                                      title={`${pName} (${startTime} - ${endTime}) · ${displayStatus} · ${staff.find((s) => s.id === currentSlotAppt.provider_id)?.name || ""}`}
+                                      style={{
+                                        display: "flex",
+                                        alignItems: "center",
+                                        gap: 6,
+                                        background: "#f8fafc",
+                                        border: "1px solid #cbd5e1",
+                                        borderLeft: `4px solid ${accentColor}`,
+                                        borderRadius: 3,
+                                        padding: "4px 8px",
+                                        fontSize: 11,
+                                        cursor: "pointer",
+                                        boxShadow: "0 1px 2px rgba(0,0,0,0.05)",
+                                        overflow: "hidden",
+                                        whiteSpace: "nowrap",
+                                        textOverflow: "ellipsis",
+                                        transition: "all 0.15s ease",
+                                      }}
+                                    >
+                                      <span style={{ fontWeight: 700, color: "#1e293b", fontSize: 10.5, flexShrink: 0 }}>
+                                        {startTime} - {endTime}
                                       </span>
-                                      <Badge value={currentSlotAppt.status} />
+                                      <span style={{ fontWeight: 600, color: "#0f172a", overflow: "hidden", textOverflow: "ellipsis", flex: 1 }}>
+                                        {pName} [{pat?.mrn || "HUHNKR" + currentSlotAppt.id.slice(0, 4)}]
+                                      </span>
+                                      <span
+                                        style={{
+                                          fontSize: 9,
+                                          fontWeight: 700,
+                                          padding: "1px 5px",
+                                          borderRadius: 2,
+                                          background: accentColor + "20",
+                                          color: accentColor,
+                                          textTransform: "uppercase",
+                                          flexShrink: 0,
+                                        }}
+                                      >
+                                        {displayStatus}
+                                      </span>
                                     </div>
-                                    <div className="charm-day-card-meta">
-                                      <span>🕒 {localInput(currentSlotAppt.start_at).slice(11, 16)} - {localInput(currentSlotAppt.end_at).slice(11, 16)}</span>
-                                      <span>🩺 {staff.find((s) => s.id === currentSlotAppt.provider_id)?.name}</span>
-                                      <span>🏥 {resources.find((r) => r.id === currentSlotAppt.resource_id)?.name || (isEECP ? "EECP Bed" : "Consult Room")}</span>
-                                      <span>🏷️ {currentSlotAppt.visit_type}</span>
+                                  );
+                                })
+                              ) : (
+                                slotAppts.map((currentSlotAppt) => {
+                                  const isEECP = currentSlotAppt.visit_type?.toLowerCase().includes("eecp");
+                                  const pat = patients.find((p) => p.id === currentSlotAppt.patient_id);
+                                  return (
+                                    <div
+                                      key={currentSlotAppt.id}
+                                      className={`charm-day-appt-card ${isEECP ? "eecp-theme" : "consult-theme"} status-${currentSlotAppt.status}`}
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        setSelectedAppt(currentSlotAppt);
+                                      }}
+                                      title="Click to view appointment details & actions"
+                                    >
+                                      <div className="charm-day-card-header">
+                                        <span className="day-card-patient">
+                                          {pat?.name || patientName(currentSlotAppt.patient_id, patients)} [{pat?.mrn || "HUHNKR" + currentSlotAppt.id.slice(0, 4)}]
+                                        </span>
+                                        <Badge value={currentSlotAppt.status} />
+                                      </div>
+                                      <div className="charm-day-card-meta">
+                                        <span>🕒 {localInput(currentSlotAppt.start_at).slice(11, 16)} - {localInput(currentSlotAppt.end_at).slice(11, 16)}</span>
+                                        <span>🩺 {staff.find((s) => s.id === currentSlotAppt.provider_id)?.name}</span>
+                                        <span>🏥 {resources.find((r) => r.id === currentSlotAppt.resource_id)?.name || (isEECP ? "EECP Bed" : "Consult Room")}</span>
+                                        <span>🏷️ {currentSlotAppt.visit_type}</span>
+                                      </div>
                                     </div>
-                                  </div>
-                                );
-                              })}
+                                  );
+                                })
+                              )}
                               {["reception", "doctor", "therapist", "admin"].includes(user.role) && (
                                 <button
                                   type="button"
