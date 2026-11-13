@@ -1,8 +1,9 @@
 import { useState, useMemo, useRef, useEffect } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { api, branch, Field, Row, today, toISO } from "./api";
+import { api, branch, Field, Row, today, toISO, localInput } from "./api";
 import { useApp } from "./context";
 import { Modal, DynamicForm, ErrorBox, Button } from "./ui";
+import { addWaitingListEntry } from "./waitingList";
 
 export function PatientForm({
   onClose,
@@ -505,6 +506,8 @@ export function AppointmentForm({
   initialProviderId,
   initialResourceId,
   initialDuration,
+  waitingListEntry,
+  onBooked,
 }: {
   patientId?: string;
   plan?: Row;
@@ -514,9 +517,16 @@ export function AppointmentForm({
   initialProviderId?: string;
   initialResourceId?: string;
   initialDuration?: number;
+  waitingListEntry?: Row;
+  onBooked?: () => void;
 }) {
   const { staff, patients, resources, facilities, refresh, notify } = useApp();
   const qc = useQueryClient();
+  const scheduleAppointments = useQuery({
+    queryKey: ["appointments", branch],
+    queryFn: () => api<Row[]>("/appointments"),
+    enabled: !!waitingListEntry,
+  });
 
   const [showQuickNewPatient, setShowQuickNewPatient] = useState(false);
 
@@ -635,6 +645,12 @@ export function AppointmentForm({
     const d = String(initDateTime.getDate()).padStart(2, "0");
     return `${y}-${m}-${d}`;
   });
+  const [selectedFacilityId, setSelectedFacilityId] = useState(
+    appointment?.facility_id || facilities?.[0]?.id || "",
+  );
+  const [appointmentCategory, setAppointmentCategory] = useState<
+    "Appointment" | "Other Events" | "Waiting List"
+  >("Appointment");
   const [showDatePicker, setShowDatePicker] = useState(false);
   const datePickerRef = useRef<HTMLDivElement>(null);
 
@@ -656,9 +672,14 @@ export function AppointmentForm({
       : initialDuration || (plan ? 60 : 30)
   );
   const [visitType, setVisitType] = useState(
-    appointment?.visit_type || (plan ? "EECP session" : "Cardiology Consultation")
+    appointment?.visit_type || waitingListEntry?.visit_type || (plan ? "EECP session" : "Cardiology Consultation")
   );
-  const [mode, setMode] = useState(appointment?.mode || "In person");
+  const [mode, setMode] = useState<"In person" | "Phone" | "Video">(() => {
+    const savedMode = (appointment?.mode || waitingListEntry?.mode || "").trim().toLowerCase();
+    if (savedMode.includes("phone")) return "Phone";
+    if (savedMode.includes("video")) return "Video";
+    return "In person";
+  });
   const [apptStatus, setApptStatus] = useState(appointment?.status || "confirmed");
   const [periodType, setPeriodType] = useState<"single" | "period">(plan ? "period" : "single");
   const [repeatCount, setRepeatCount] = useState<number>(
@@ -667,10 +688,16 @@ export function AppointmentForm({
   const [intervalDays, setIntervalDays] = useState<number>(1);
   const [skipSundays, setSkipSundays] = useState(true);
   const [allowOverlap, setAllowOverlap] = useState(true);
-  const [reason, setReason] = useState(appointment?.reason || "");
+  const [reason, setReason] = useState(appointment?.reason || waitingListEntry?.reason || "");
   const [message, setMessage] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [err, setErr] = useState<string>("");
+
+  useEffect(() => {
+    if (!selectedFacilityId && facilities?.[0]?.id) {
+      setSelectedFacilityId(facilities[0].id);
+    }
+  }, [facilities, selectedFacilityId]);
 
   // Close dropdowns on outside click
   useEffect(() => {
@@ -685,6 +712,24 @@ export function AppointmentForm({
     document.addEventListener("mousedown", handleOutside);
     return () => document.removeEventListener("mousedown", handleOutside);
   }, []);
+
+  const waitingProviderName =
+    staff.find((member) => member.id === providerId)?.name ||
+    waitingListEntry?.provider_name ||
+    "Provider";
+  const formatWaitingDate = (value: string) =>
+    value
+      ? new Intl.DateTimeFormat("en-US", {
+        month: "short",
+        day: "numeric",
+        year: "numeric",
+      }).format(new Date(`${value}T12:00:00`))
+      : "";
+  const waitingDateAppointments = (scheduleAppointments.data || []).filter(
+    (item) =>
+      item.provider_id === providerId &&
+      localInput(item.start_at).slice(0, 10) === selDate,
+  );
 
   // Filter patients by name, MRN, phone
   const filteredPatients = useMemo(() => {
@@ -707,6 +752,14 @@ export function AppointmentForm({
     const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
     return `${months[dt.getMonth()]} ${String(dt.getDate()).padStart(2, "0")}, ${dt.getFullYear()}`;
   }, [selDate]);
+
+  const shiftScheduleDate = (amount: number) => {
+    const target = new Date(`${selDate}T12:00:00`);
+    target.setDate(target.getDate() + amount);
+    setSelDate(
+      `${target.getFullYear()}-${String(target.getMonth() + 1).padStart(2, "0")}-${String(target.getDate()).padStart(2, "0")}`,
+    );
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -739,13 +792,65 @@ export function AppointmentForm({
       setErr("Please select a provider.");
       return;
     }
-    if (plan && !resourceId) {
+    if (plan && !resourceId && appointmentCategory !== "Waiting List") {
       setErr("EECP requires an assigned bed.");
       return;
     }
 
     setSubmitting(true);
     try {
+      if (!appointment && !waitingListEntry && appointmentCategory === "Waiting List") {
+        const selectedPatient = patients.find((patient) => patient.id === targetPatientId);
+        const selectedProvider = staff.find((member) => member.id === providerId);
+        const selectedFacility = facilities.find((facility) => facility.id === selectedFacilityId);
+        const selectedResource = resources.find((resource) => resource.id === resourceId);
+        const count =
+          periodType === "period" && Number.isFinite(repeatCount)
+            ? Math.max(1, Math.floor(repeatCount))
+            : 1;
+        const interval = Number.isFinite(intervalDays)
+          ? Math.max(1, Math.floor(intervalDays))
+          : 1;
+        const waitingDates: string[] = [];
+        const nextDate = new Date(`${selDate}T12:00:00`);
+
+        while (waitingDates.length < count) {
+          if (periodType === "period" && skipSundays && nextDate.getDay() === 0) {
+            nextDate.setDate(nextDate.getDate() + 1);
+            continue;
+          }
+          waitingDates.push(
+            `${nextDate.getFullYear()}-${String(nextDate.getMonth() + 1).padStart(2, "0")}-${String(nextDate.getDate()).padStart(2, "0")}`,
+          );
+          if (waitingDates.length < count) nextDate.setDate(nextDate.getDate() + interval);
+        }
+
+        const timePreference = `${startHour}:${startMin} ${startAmpm}`;
+        addWaitingListEntry({
+          id: `wl_${Date.now()}`,
+          facility: selectedFacility?.name || facilities?.[0]?.name || "",
+          facility_id: selectedFacilityId || undefined,
+          patient_id: targetPatientId,
+          patient_name: selectedPatient?.name || patientQuery.trim(),
+          mrn: selectedPatient?.mrn || "",
+          phone: selectedPatient?.phone || "",
+          provider_id: providerId,
+          provider_name: selectedProvider?.name || waitingProviderName,
+          visit_type: visitType,
+          resource: selectedResource?.name || "",
+          mode: mode === "Phone" ? "Phone Call" : mode === "Video" ? "Video" : "In Person",
+          dates: waitingDates,
+          preferred_date: waitingDates[0],
+          date_preference: "Specific Date(s)",
+          time_preference: timePreference,
+          reason,
+          created_at: new Date().toISOString(),
+        });
+        notify("Added to Waiting List.");
+        onClose();
+        return;
+      }
+
       // Calculate start_at timestamp
       let h24 = parseInt(startHour, 10);
       if (startAmpm === "PM" && h24 < 12) h24 += 12;
@@ -779,6 +884,7 @@ export function AppointmentForm({
       await refresh();
       await qc.refetchQueries({ queryKey: ["chart"] });
       notify(appointment ? "Appointment rescheduled." : "Appointment booking confirmed.");
+      if (waitingListEntry) onBooked?.();
       onClose();
     } catch (ex: any) {
       setErr(ex?.detail || ex?.message || "Failed to schedule appointment");
@@ -792,6 +898,8 @@ export function AppointmentForm({
       title={
         showQuickNewPatient
           ? "New Appointment"
+          : waitingListEntry
+          ? "Confirm Waiting List"
           : appointment
           ? "Reschedule Appointment"
           : "New Appointment"
@@ -814,25 +922,86 @@ export function AppointmentForm({
 
           {/* LEFT COLUMN: Main Scheduling Fields */}
           <div className="charm-appt-col-left">
-            <div className="charm-form-row">
+            {waitingListEntry && (
+              <>
+                <div className="charm-waiting-confirm-patient">
+                  <span>Patient</span>
+                  <strong>{waitingListEntry.patient_name || patients.find((p) => p.id === patientId)?.name || "—"}</strong>
+                  <span>Record ID</span>
+                  <strong>{waitingListEntry.mrn || "—"}</strong>
+                </div>
+                <section className="charm-waiting-confirm-details">
+                  <strong>Waiting List Details</strong>
+                  <dl>
+                    <dt>Facility</dt>
+                    <dd>{waitingListEntry.facility || facilities?.[0]?.name || "—"}</dd>
+                    <dt>Provider</dt>
+                    <dd>{waitingProviderName}</dd>
+                    <dt>Date Preference</dt>
+                    <dd>
+                      {(waitingListEntry.dates || [])
+                        .filter(Boolean)
+                        .map((value: string) => formatWaitingDate(value))
+                        .join(", ") ||
+                        formatWaitingDate(waitingListEntry.preferred_date || "") ||
+                        "—"}
+                    </dd>
+                    <dt>Time Preference</dt>
+                    <dd>{waitingListEntry.time_preference || "Any Time"}</dd>
+                    <dt>Appointment Mode</dt>
+                    <dd>{waitingListEntry.mode || "In Person"}</dd>
+                  </dl>
+                </section>
+                <div className="charm-waiting-schedule-title">Schedule Appointment</div>
+              </>
+            )}
+            {!waitingListEntry && <div className="charm-form-row">
               <label className="charm-field-label">Facility</label>
-              <select className="charm-field-input" defaultValue={facilities?.[0]?.id}>
+              <select
+                className="charm-field-input"
+                value={selectedFacilityId}
+                onChange={(e) => setSelectedFacilityId(e.target.value)}
+              >
                 {(facilities || []).map((f) => (
                   <option key={f.id} value={f.id}>
                     {f.name} - {f.code || "HUH001"}
                   </option>
                 ))}
               </select>
-            </div>
+            </div>}
 
-            <div className="charm-form-row">
+            {!appointment && !waitingListEntry && <div className="charm-form-row">
               <label className="charm-field-label">Category</label>
               <div className="charm-radio-group">
-                <label><input type="radio" name="cat" defaultChecked /> Appointment</label>
-                <label><input type="radio" name="cat" /> Other Events</label>
-                <label><input type="radio" name="cat" /> Waiting List</label>
+                <label>
+                  <input
+                    type="radio"
+                    name="cat"
+                    checked={appointmentCategory === "Appointment"}
+                    onChange={() => setAppointmentCategory("Appointment")}
+                  />{" "}
+                  Appointment
+                </label>
+                <label>
+                  <input
+                    type="radio"
+                    name="cat"
+                    checked={appointmentCategory === "Other Events"}
+                    onChange={() => setAppointmentCategory("Other Events")}
+                  />{" "}
+                  Other Events
+                </label>
+                <label>
+                  <input
+                    type="radio"
+                    name="cat"
+                    checked={appointmentCategory === "Waiting List"}
+                    onChange={() => setAppointmentCategory("Waiting List")}
+                  />{" "}
+                  Waiting List
+                </label>
               </div>
-            </div>
+            </div>}
 
             {!patientId && !appointment && (
               <div className="charm-form-row">
@@ -928,7 +1097,7 @@ export function AppointmentForm({
               </div>
             )}
 
-            <div className="charm-form-row">
+            {!waitingListEntry && <div className="charm-form-row">
               <label className="charm-field-label">Provider *</label>
               <select
                 aria-label="Provider / therapist"
@@ -946,7 +1115,7 @@ export function AppointmentForm({
                     </option>
                   ))}
               </select>
-            </div>
+            </div>}
 
             <div className="charm-form-row">
               <label className="charm-field-label">Status</label>
@@ -1027,6 +1196,7 @@ export function AppointmentForm({
               </select>
             </div>
 
+            {!waitingListEntry && <>
             {/* APPOINTMENT MODE (Horizontal Radio Group - CharmHealth Frame 055 & 070) */}
             <div className="charm-form-row">
               <label className="charm-field-label">Appointment Mode</label>
@@ -1035,7 +1205,7 @@ export function AppointmentForm({
                   <input
                     type="radio"
                     name="mode"
-                    checked={mode === "In person" || mode === "In Person"}
+                    checked={mode === "In person"}
                     onChange={() => setMode("In person")}
                   />{" "}
                   In Person
@@ -1044,7 +1214,7 @@ export function AppointmentForm({
                   <input
                     type="radio"
                     name="mode"
-                    checked={mode === "Phone" || mode === "Phone Call"}
+                    checked={mode === "Phone"}
                     onChange={() => setMode("Phone")}
                   />{" "}
                   Phone Call
@@ -1053,14 +1223,16 @@ export function AppointmentForm({
                   <input
                     type="radio"
                     name="mode"
-                    checked={mode === "Video" || mode === "Video Consult"}
+                    checked={mode === "Video"}
                     onChange={() => setMode("Video")}
                   />{" "}
                   Video Consult
                 </label>
               </div>
             </div>
+            </>}
 
+            {!waitingListEntry && <>
             {/* APPOINTMENT FOR (Horizontal Radio Group - CharmHealth Frame 055 & 070) */}
             <div className="charm-form-row">
               <label className="charm-field-label">Appointment For</label>
@@ -1085,6 +1257,7 @@ export function AppointmentForm({
                 </label>
               </div>
             </div>
+            </>}
 
             {/* Date Selection (Authentic CharmHealth Formatted Date & Picker) */}
             <div className="charm-form-row">
@@ -1339,6 +1512,78 @@ export function AppointmentForm({
 
           {/* RIGHT COLUMN: Questionnaires & Consent Forms */}
           <div className="charm-appt-col-right">
+            {waitingListEntry && (
+              <div className="charm-waiting-schedule-panel">
+                <div className="charm-waiting-schedule-provider">{waitingProviderName}</div>
+                <div className="charm-waiting-schedule-date">
+                  <button type="button" aria-label="Previous day" onClick={() => shiftScheduleDate(-1)}>
+                    ‹
+                  </button>
+                  <strong>
+                    {new Intl.DateTimeFormat("en-US", {
+                      month: "short",
+                      day: "numeric",
+                      year: "numeric",
+                    }).format(new Date(`${selDate}T12:00:00`))}
+                  </strong>
+                  <button type="button" aria-label="Next day" onClick={() => shiftScheduleDate(1)}>
+                    ›
+                  </button>
+                </div>
+                <div className="charm-waiting-schedule-day">
+                  {new Intl.DateTimeFormat("en-US", {
+                    weekday: "long",
+                    month: "numeric",
+                    day: "numeric",
+                  }).format(new Date(`${selDate}T12:00:00`))}
+                </div>
+                <div className="charm-waiting-schedule-slots">
+                  {Array.from({ length: 90 }, (_, index) => {
+                    const minutes = 360 + index * 10;
+                    const hour = Math.floor(minutes / 60);
+                    const minute = minutes % 60;
+                    const hour12 = hour % 12 || 12;
+                    const timeLabel = `${hour12}:${String(minute).padStart(2, "0")}${hour < 12 ? "am" : "pm"}`;
+                    const occupied = waitingDateAppointments.find((item) => {
+                      const startValue = localInput(item.start_at);
+                      const [startHourValue, startMinuteValue] = startValue.slice(11, 16).split(":").map(Number);
+                      const startMinutes = startHourValue * 60 + startMinuteValue;
+                      const endValue = item.end_at ? localInput(item.end_at) : "";
+                      const [endHourValue, endMinuteValue] = endValue
+                        ? endValue.slice(11, 16).split(":").map(Number)
+                        : [startHourValue, startMinuteValue + 30];
+                      const endMinutes = endHourValue * 60 + endMinuteValue;
+                      return minutes >= startMinutes && minutes < endMinutes;
+                    });
+                    return (
+                      <div className="charm-waiting-schedule-slot" key={minutes}>
+                        <span>{timeLabel}</span>
+                        <button
+                          type="button"
+                          className={occupied ? "occupied" : ""}
+                          disabled={!!occupied}
+                          aria-label={occupied ? `Booked at ${timeLabel}` : `Select ${timeLabel}`}
+                          onClick={() => {
+                            setStartHour(String(hour12).padStart(2, "0"));
+                            setStartMin(String(minute).padStart(2, "0"));
+                            setStartAmpm(hour < 12 ? "AM" : "PM");
+                          }}
+                        >
+                          {occupied
+                            ? patients.find((p) => p.id === occupied.patient_id)?.name || "Booked"
+                            : ""}
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
+                {scheduleAppointments.isError && (
+                  <div className="charm-waiting-schedule-error" role="alert">
+                    Unable to load this provider's schedule.
+                  </div>
+                )}
+              </div>
+            )}
             <div className="charm-qbox-title">Questionnaires / Consent Forms</div>
             <div className="charm-qbox-list">
               <label className="charm-qbox-item">

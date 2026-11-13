@@ -20,8 +20,14 @@ export function FacilityMembersPage() {
     email: "",
     role: "assistant",
     phone: "",
+    password: "",
     title: "Physician Assistant",
   });
+
+  const closeAddModal = () => {
+    setShowAddModal(false);
+    setNewMember((current) => ({ ...current, password: "" }));
+  };
 
   const loadData = async () => {
     setLoading(true);
@@ -55,11 +61,11 @@ export function FacilityMembersPage() {
         name: newMember.name,
         email: newMember.email,
         role: newMember.role,
-        password: "password123",
+        password: newMember.password,
         facility_ids: facilities.map((f) => f.id),
       });
       setShowAddModal(false);
-      setNewMember({ name: "", email: "", role: "assistant", phone: "", title: "Physician Assistant" });
+      setNewMember({ name: "", email: "", role: "assistant", phone: "", password: "", title: "Physician Assistant" });
       await loadData();
     } catch (err: any) {
       alert(err.message || "Failed to create staff member");
@@ -291,7 +297,7 @@ export function FacilityMembersPage() {
 
       {/* Add Member Modal */}
       {showAddModal && (
-        <div className="charm-modal-overlay" onClick={() => setShowAddModal(false)}>
+        <div className="charm-modal-overlay" onClick={closeAddModal}>
           <div
             className="charm-modal-dialog"
             style={{ maxWidth: 540 }}
@@ -302,7 +308,7 @@ export function FacilityMembersPage() {
               <button
                 type="button"
                 className="charm-modal-close"
-                onClick={() => setShowAddModal(false)}
+                onClick={closeAddModal}
               >
                 <X size={18} />
               </button>
@@ -327,6 +333,18 @@ export function FacilityMembersPage() {
                     value={newMember.email}
                     onChange={(e) => setNewMember({ ...newMember, email: e.target.value })}
                     placeholder="e.g. member@healyourheart.in"
+                  />
+                </div>
+                <div className="charm-form-group">
+                  <label>Initial Password <span className="req">*</span></label>
+                  <input
+                    type="password"
+                    autoComplete="new-password"
+                    required
+                    minLength={12}
+                    value={newMember.password}
+                    onChange={(e) => setNewMember({ ...newMember, password: e.target.value })}
+                    placeholder="At least 12 characters"
                   />
                 </div>
                 <div className="charm-form-group">
@@ -360,7 +378,7 @@ export function FacilityMembersPage() {
                 <button
                   type="button"
                   className="charm-btn-cancel"
-                  onClick={() => setShowAddModal(false)}
+                  onClick={closeAddModal}
                 >
                   Cancel
                 </button>

@@ -8,6 +8,7 @@ import {
   CalendarDays,
   Check,
   ChevronDown,
+  Clock3,
   Download,
   Eye,
   Plus,
@@ -50,6 +51,17 @@ import {
 } from "./ui";
 import { AppointmentForm, RecordForm, QuickNewPatientView } from "./forms";
 import { PrintPreview, RecordDetail, RecordList } from "./patients";
+import {
+  ProviderAvailabilityPanel,
+  ProviderAvailabilityResults,
+  ProviderAvailabilityResult,
+} from "./ProviderAvailability";
+import {
+  readWaitingListEntries,
+  saveWaitingListEntries,
+  WAITING_LIST_STORAGE_KEY,
+  WAITING_LIST_UPDATED_EVENT,
+} from "./waitingList";
 
 const APPOINTMENT_LABEL_OPTIONS = [
   "Consulted",
@@ -73,6 +85,59 @@ const APPOINTMENT_WORKFLOW_OPTIONS = [
   { value: "completed", label: "Completed" },
   { value: "cancelled", label: "Cancelled" },
 ] as const;
+
+function waitingListStartAt(entry: any, fallbackDate: string) {
+  const date = entry.preferred_date || entry.dates?.find(Boolean) || fallbackDate;
+  const match = String(entry.time_preference || "").match(/(\d{1,2})(?::(\d{2}))?\s*(AM|PM)/i);
+  if (!match) return `${date}T10:00`;
+  let hour = Number(match[1]) % 12;
+  if (match[3].toUpperCase() === "PM") hour += 12;
+  return `${date}T${String(hour).padStart(2, "0")}:${match[2] || "00"}`;
+}
+
+function waitingEntryMatchesDate(entry: any, dateStr: string) {
+  const dates = Array.isArray(entry.dates)
+    ? entry.dates.filter((value: unknown): value is string => typeof value === "string" && /^\d{4}-\d{2}-\d{2}$/.test(value))
+    : [];
+  const preferredDate = typeof entry.preferred_date === "string" ? entry.preferred_date : "";
+
+  if (entry.date_preference === "Period") {
+    const start = dates[0] || preferredDate;
+    const end = dates[1] || start;
+    if (!start) return false;
+    return dateStr >= (start < end ? start : end) && dateStr <= (start > end ? start : end);
+  }
+
+  return dates.includes(dateStr) || preferredDate === dateStr;
+}
+
+function WaitingListDateBadge({
+  date,
+  count,
+  onClick,
+}: {
+  date: string;
+  count: number;
+  onClick: () => void;
+}) {
+  if (!count) return null;
+
+  return (
+    <button
+      type="button"
+      className="charm-waiting-counter charm-waiting-date-counter"
+      onClick={(event) => {
+        event.stopPropagation();
+        onClick();
+      }}
+      aria-label={`Open ${count} waiting list ${count === 1 ? "entry" : "entries"} for ${date}`}
+      title={`Waiting list for ${date}`}
+    >
+      Waiting List
+      <span className="charm-waiting-counter-badge">{count}</span>
+    </button>
+  );
+}
 
 export function AppointmentTable({ rows }: { rows: Row[] }) {
   const { user, patients, staff, resources, refresh, notify } = useApp();
@@ -468,28 +533,37 @@ function NewWaitingListModal({
   onClose,
   onConfirm,
   initialDate,
+  initialEntry,
 }: {
   onClose: () => void;
   onConfirm: (entry: any) => void;
   initialDate?: string;
+  initialEntry?: any;
 }) {
   const { staff, patients, facilities } = useApp();
   const [showQuickNewPatient, setShowQuickNewPatient] = useState(false);
   const [facility, setFacility] = useState(
-    facilities?.[0]?.name ? `${facilities[0].name} - ${facilities[0].code || "HUH001"}` : "Heal Your Heart Neelankarai - HUH001"
+    initialEntry?.facility || (facilities?.[0]?.name ? `${facilities[0].name} - ${facilities[0].code || "HUH001"}` : "Heal Your Heart Neelankarai - HUH001")
   );
-  const [selPatient, setSelPatient] = useState("");
-  const [patientQuery, setPatientQuery] = useState("");
+  const [selPatient, setSelPatient] = useState(initialEntry?.patient_id || "");
+  const [patientQuery, setPatientQuery] = useState(() => {
+    const patient = patients.find((p) => p.id === initialEntry?.patient_id);
+    return patient ? `${patient.name} (${patient.mrn})` : initialEntry?.patient_name || "";
+  });
   const [showPatientDropdown, setShowPatientDropdown] = useState(false);
   const patientRef = useRef<HTMLDivElement>(null);
 
   const [providerId, setProviderId] = useState(
-    staff.find((s) => ["doctor", "therapist"].includes(s.role))?.id || ""
+    initialEntry?.provider_id || staff.find((s) => ["doctor", "therapist"].includes(s.role))?.id || ""
   );
-  const [visitType, setVisitType] = useState("--Select--");
-  const [resource, setResource] = useState("--Select--");
-  const [apptMode, setApptMode] = useState<"In Person" | "Phone Call">("In Person");
-  const [datePreference, setDatePreference] = useState<"Specific Date(s)" | "Period">("Specific Date(s)");
+  const [visitType, setVisitType] = useState(initialEntry?.visit_type || "--Select--");
+  const [resource, setResource] = useState(initialEntry?.resource || "--Select--");
+  const [apptMode, setApptMode] = useState<"In Person" | "Phone Call">(
+    initialEntry?.mode === "Phone Call" ? "Phone Call" : "In Person"
+  );
+  const [datePreference, setDatePreference] = useState<"Specific Date(s)" | "Period">(
+    initialEntry?.date_preference === "Period" ? "Period" : "Specific Date(s)"
+  );
 
   const formatDisplayDate = (dStr: string) => {
     if (!dStr) return "";
@@ -504,18 +578,18 @@ function NewWaitingListModal({
     return dStr;
   };
 
-  const initDateStr = initialDate || today();
+  const initDateStr = initialEntry?.preferred_date || initialDate || today();
   const [opt1, setOpt1] = useState(() => formatDisplayDate(initDateStr));
-  const [opt1Raw, setOpt1Raw] = useState(initDateStr);
-  const [opt2, setOpt2] = useState("");
-  const [opt2Raw, setOpt2Raw] = useState("");
-  const [opt3, setOpt3] = useState("");
-  const [opt3Raw, setOpt3Raw] = useState("");
+  const [opt1Raw, setOpt1Raw] = useState(initialEntry?.dates?.[0] || initDateStr);
+  const [opt2, setOpt2] = useState(() => formatDisplayDate(initialEntry?.dates?.[1] || ""));
+  const [opt2Raw, setOpt2Raw] = useState(initialEntry?.dates?.[1] || "");
+  const [opt3, setOpt3] = useState(() => formatDisplayDate(initialEntry?.dates?.[2] || ""));
+  const [opt3Raw, setOpt3Raw] = useState(initialEntry?.dates?.[2] || "");
 
-  const [fromDate, setFromDate] = useState(() => formatDisplayDate(initDateStr));
-  const [fromDateRaw, setFromDateRaw] = useState(initDateStr);
-  const [toDate, setToDate] = useState("");
-  const [toDateRaw, setToDateRaw] = useState("");
+  const [fromDate, setFromDate] = useState(() => formatDisplayDate(initialEntry?.dates?.[0] || initDateStr));
+  const [fromDateRaw, setFromDateRaw] = useState(initialEntry?.dates?.[0] || initDateStr);
+  const [toDate, setToDate] = useState(() => formatDisplayDate(initialEntry?.dates?.[1] || ""));
+  const [toDateRaw, setToDateRaw] = useState(initialEntry?.dates?.[1] || "");
 
   const datePickerRef1 = useRef<HTMLInputElement>(null);
   const datePickerRef2 = useRef<HTMLInputElement>(null);
@@ -523,8 +597,8 @@ function NewWaitingListModal({
   const fromDatePickerRef = useRef<HTMLInputElement>(null);
   const toDatePickerRef = useRef<HTMLInputElement>(null);
 
-  const [timePreference, setTimePreference] = useState("Any Time");
-  const [reason, setReason] = useState("");
+  const [timePreference, setTimePreference] = useState(initialEntry?.time_preference || "Any Time");
+  const [reason, setReason] = useState(initialEntry?.reason || "");
   const [err, setErr] = useState("");
 
   useEffect(() => {
@@ -581,7 +655,8 @@ function NewWaitingListModal({
     const mainDate = datePreference === "Specific Date(s)" ? (opt1Raw || initDateStr) : (fromDateRaw || initDateStr);
 
     const newEntry = {
-      id: "wl_" + Date.now(),
+      ...initialEntry,
+      id: initialEntry?.id || "wl_" + Date.now(),
       facility,
       patient_id: targetPatientId,
       patient_name: pat?.name || patientQuery,
@@ -599,7 +674,8 @@ function NewWaitingListModal({
       preferred_date: mainDate,
       time_preference: timePreference,
       reason,
-      created_at: new Date().toISOString(),
+      created_at: initialEntry?.created_at || new Date().toISOString(),
+      updated_at: initialEntry ? new Date().toISOString() : undefined,
     };
 
     onConfirm(newEntry);
@@ -647,7 +723,7 @@ function NewWaitingListModal({
           }}
         >
           <h3 style={{ margin: 0, fontSize: 17, fontWeight: 500, color: "#334155" }}>
-            New Waiting List
+            {initialEntry ? "Waiting List Details" : "New Waiting List"}
           </h3>
           <button
             type="button"
@@ -1081,7 +1157,7 @@ function NewWaitingListModal({
                       type="submit"
                       style={{ background: "#f59e0b", color: "#fff", border: "none", borderRadius: 4, padding: "7px 20px", fontSize: 13, fontWeight: 600, cursor: "pointer" }}
                     >
-                      Confirm
+                      {initialEntry ? "Update" : "Confirm"}
                     </button>
                     <button
                       type="button"
@@ -1103,7 +1179,7 @@ function NewWaitingListModal({
 }
 
 function Schedule() {
-  const { user, staff, patients, resources, refresh, notify } = useApp();
+  const { user, staff, patients, facilities, resources, refresh, notify } = useApp();
   const clinicalProviders = useMemo(() => {
     const list = staff.filter((s) => ["doctor", "therapist"].includes(s.role));
     return list.length > 0 ? list : staff;
@@ -1113,7 +1189,8 @@ function Schedule() {
   const [provider, setProvider] = useState("");
   const [add, setAdd] = useState(false);
   const [availability, setAvailability] = useState(false);
-  const [drawerOpen, setDrawerOpen] = useState(true);
+  const [providerAvailabilityOpen, setProviderAvailabilityOpen] = useState(false);
+  const [availabilityResult, setAvailabilityResult] = useState<ProviderAvailabilityResult | null>(null);
   const [calSubtab, setCalSubtab] = useState("Calendar");
   const [waitingListView, setWaitingListView] = useState<"Day" | "Week" | "Month">("Day");
   const [waitingPrefillDate, setWaitingPrefillDate] = useState<string>("");
@@ -1149,32 +1226,68 @@ function Schedule() {
   const [paymentModalAppt, setPaymentModalAppt] = useState<Row | null>(null);
 
   const [waitingListModal, setWaitingListModal] = useState(false);
-  const [waitingEntries, setWaitingEntries] = useState<any[]>(() => {
-    try {
-      const saved = localStorage.getItem("hyh_waiting_list_entries");
-      if (saved) return JSON.parse(saved);
-    } catch {}
-    return [];
-  });
+  const [waitingDetailsOpen, setWaitingDetailsOpen] = useState(false);
+  const [waitingDetailsDate, setWaitingDetailsDate] = useState("");
+  const [editingWaitingEntry, setEditingWaitingEntry] = useState<any | null>(null);
+  const [confirmWaitingEntry, setConfirmWaitingEntry] = useState<any | null>(null);
+  const [waitingEntries, setWaitingEntries] = useState<any[]>(readWaitingListEntries);
+
+  useEffect(() => {
+    const onWaitingListUpdate = (event: Event) => {
+      const entries = (event as CustomEvent<any[]>).detail;
+      setWaitingEntries(Array.isArray(entries) ? entries : readWaitingListEntries());
+    };
+    const onStorage = (event: StorageEvent) => {
+      if (event.key === WAITING_LIST_STORAGE_KEY) {
+        setWaitingEntries(readWaitingListEntries());
+      }
+    };
+    window.addEventListener(WAITING_LIST_UPDATED_EVENT, onWaitingListUpdate);
+    window.addEventListener("storage", onStorage);
+    return () => {
+      window.removeEventListener(WAITING_LIST_UPDATED_EVENT, onWaitingListUpdate);
+      window.removeEventListener("storage", onStorage);
+    };
+  }, []);
+
+  const waitingEntriesForDate = (dateStr: string) =>
+    waitingEntries.filter((entry) => waitingEntryMatchesDate(entry, dateStr));
+  const openWaitingDetails = (dateStr: string) => {
+    setWaitingDetailsDate(dateStr);
+    setWaitingDetailsOpen(true);
+  };
+  const closeWaitingDetails = () => {
+    setWaitingDetailsOpen(false);
+    setWaitingDetailsDate("");
+  };
 
   const addWaitingEntry = (entry: any) => {
-    setWaitingEntries((prev) => {
-      const next = [entry, ...prev];
-      try {
-        localStorage.setItem("hyh_waiting_list_entries", JSON.stringify(next));
-      } catch {}
-      return next;
-    });
+    const next = [entry, ...waitingEntries.filter((current) => current.id !== entry.id)];
+    saveWaitingListEntries(next);
+    setWaitingEntries(next);
   };
 
   const removeWaitingEntry = (id: string) => {
-    setWaitingEntries((prev) => {
-      const next = prev.filter((e) => e.id !== id);
-      try {
-        localStorage.setItem("hyh_waiting_list_entries", JSON.stringify(next));
-      } catch {}
-      return next;
-    });
+    const next = waitingEntries.filter((entry) => entry.id !== id);
+    saveWaitingListEntries(next);
+    setWaitingEntries(next);
+  };
+
+  const updateWaitingEntry = (entry: any) => {
+    const next = waitingEntries.map((current) => current.id === entry.id ? entry : current);
+    saveWaitingListEntries(next);
+    setWaitingEntries(next);
+  };
+
+  const openWaitingEntryConfirmation = (entry: any) => {
+    closeWaitingDetails();
+    setConfirmWaitingEntry(entry);
+  };
+
+  const openWaitingEntryEdit = (entry: any) => {
+    closeWaitingDetails();
+    setEditingWaitingEntry(entry);
+    setWaitingListModal(true);
   };
 
   // Reports Filter Matrix
@@ -1245,6 +1358,19 @@ function Schedule() {
       { id: "vt9", name: "Walk-in visits", duration: 20 },
     ];
   });
+
+  const closeProviderAvailability = () => {
+    setProviderAvailabilityOpen(false);
+    setAvailabilityResult(null);
+  };
+
+  const toggleProviderAvailability = () => {
+    if (providerAvailabilityOpen) {
+      closeProviderAvailability();
+    } else {
+      setProviderAvailabilityOpen(true);
+    }
+  };
 
   useEffect(() => {
     api<any[]>("/calendar/appointment-statuses")
@@ -1658,15 +1784,10 @@ function Schedule() {
     return d;
   });
 
-  const dayEntries = waitingEntries.filter(
-    (e) => e.preferred_date === date || (Array.isArray(e.dates) && e.dates.includes(date))
+  const dayEntries = waitingEntriesForDate(date);
+  const weekEntries = waitingEntries.filter((entry) =>
+    weekDays.some((day) => waitingEntryMatchesDate(entry, day.toISOString().slice(0, 10)))
   );
-  const weekStartStr = startOfWeek.toISOString().slice(0, 10);
-  const weekEndStr = endOfWeek.toISOString().slice(0, 10);
-  const weekEntries = waitingEntries.filter((e) => {
-    const d = e.preferred_date || (Array.isArray(e.dates) ? e.dates[0] : "");
-    return d >= weekStartStr && d <= weekEndStr;
-  });
 
   // Authentic CharmHealth Month Grid calculation (Sun - Sat 7-col)
   const monthCells = useMemo<
@@ -2012,99 +2133,52 @@ function Schedule() {
       {/* 2. Main Calendar Layout: Left Drawer + Right Schedule */}
       {calSubtab === "Calendar" && (
         <div className="charm-cal-split">
-          {/* Left: Collapsible Provider Availability Drawer */}
-          <aside className={`charm-cal-drawer ${drawerOpen ? "open" : "collapsed"}`}>
-            <div className="charm-drawer-head">
-              <span style={{ display: "flex", alignItems: "center", gap: 6, fontWeight: 600, fontSize: 13 }}>
-                Provider Availability
-              </span>
-              <button
-                type="button"
-                className="charm-drawer-toggle"
-                onClick={() => setDrawerOpen(!drawerOpen)}
-                title="Toggle Drawer"
-              >
-                {drawerOpen ? "◀" : "▶"}
-              </button>
-            </div>
-
-            {drawerOpen && (
-              <div className="charm-drawer-body">
-                <div className="charm-drawer-field">
-                  <label>Facility *</label>
-                  <select defaultValue="curr">
-                    <option value="curr">Heal Your Heart Neelankarai - HUH001</option>
-                    <option value="roy">Heal Your Heart Royapettah - HUH002</option>
-                    <option value="man">Heal Your Heart Manapakkam - HUH003</option>
-                  </select>
-                </div>
-
-                <div className="charm-drawer-field">
-                  <label>Provider *</label>
-                  <select
-                    aria-label="Filter provider"
-                    value={provider}
-                    onChange={(e) => setProvider(e.target.value)}
-                  >
-                    <option value="">All providers</option>
-                    {staff
-                      .filter((s) => ["doctor", "therapist"].includes(s.role))
-                      .map((s) => (
-                        <option key={s.id} value={s.id}>
-                          {s.name} ({s.role})
-                        </option>
-                      ))}
-                  </select>
-                </div>
-
-                <div className="charm-drawer-field">
-                  <label>Visit Type</label>
-                  <select>
-                    <option value="">--Select--</option>
-                    <option value="eecp">EECP Treatment</option>
-                    <option value="consult">Cardiology Consultation</option>
-                    <option value="echo">2D Echo & Doppler</option>
-                  </select>
-                </div>
-
-                <div className="charm-drawer-field">
-                  <label>Duration *</label>
-                  <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                    <input type="number" defaultValue={10} style={{ width: 60 }} />
-                    <span style={{ fontSize: 11, color: "#64748b" }}>minutes</span>
-                  </div>
-                </div>
-
-                <div className="charm-drawer-alert">
-                  Provider Timings not configured for this member.{" "}
-                  <button
-                    type="button"
-                    className="text-link"
-                    onClick={() => setAvailability(true)}
-                    style={{ fontSize: 11 }}
-                  >
-                    Configure
-                  </button>
-                </div>
-              </div>
-            )}
-          </aside>
+          {providerAvailabilityOpen && (
+            <ProviderAvailabilityPanel
+              providers={staff.filter((member) => ["doctor", "therapist"].includes(member.role))}
+              facilities={facilities}
+              visitTypes={availableVisitTypes}
+              schedules={avail.data || []}
+              appointments={appts.data || []}
+              onClose={closeProviderAvailability}
+              onSearch={setAvailabilityResult}
+            />
+          )}
 
           {/* Right: Main Appointments Workspace */}
           <section className="charm-cal-content">
+            {availabilityResult ? (
+              <ProviderAvailabilityResults
+                result={availabilityResult}
+                onClose={() => setAvailabilityResult(null)}
+              />
+            ) : (
+              <>
             {/* Controls Header */}
             <div className="charm-cal-controls">
               {/* View switcher buttons */}
-              <div className="charm-view-pills">
-                {["List View", "Day", "Week", "Month"].map((v) => (
-                  <button
-                    key={v}
-                    className={`charm-view-btn ${view === v ? "active" : ""}`}
-                    onClick={() => setView(v)}
-                  >
-                    {v}
-                  </button>
-                ))}
+              <div className="charm-calendar-view-switcher">
+                <button
+                  type="button"
+                  className={`charm-provider-availability-toggle ${providerAvailabilityOpen ? "active" : ""}`}
+                  onClick={toggleProviderAvailability}
+                  aria-label={providerAvailabilityOpen ? "Close Provider Availability" : "Open Provider Availability"}
+                  aria-expanded={providerAvailabilityOpen}
+                  title="Provider Availability"
+                >
+                  <Clock3 size={18} />
+                </button>
+                <div className="charm-view-pills">
+                  {["List View", "Day", "Week", "Month"].map((v) => (
+                    <button
+                      key={v}
+                      className={`charm-view-btn ${view === v ? "active" : ""}`}
+                      onClick={() => setView(v)}
+                    >
+                      {v}
+                    </button>
+                  ))}
+                </div>
               </div>
 
               {/* Date Display and Nav */}
@@ -2159,10 +2233,17 @@ function Schedule() {
 
             {/* Yellow Timezone Banner with Functional Sort by Selector */}
             <div className="charm-cal-yellow-banner" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "6px 14px", background: "#fef9c3", border: "1px solid #fef08a", borderRadius: 4, marginBottom: 12 }}>
-              <div>
+              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                 <span style={{ fontSize: 12, color: "#854d0e" }}>
                   Appointments are shown in <strong>Asia/Kolkata (IST)</strong> time zone
                 </span>
+                {view === "List View" && (
+                  <WaitingListDateBadge
+                    date={date}
+                    count={waitingEntriesForDate(date).length}
+                    onClick={() => openWaitingDetails(date)}
+                  />
+                )}
               </div>
               <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: "#475569" }}>
                 <span style={{ fontWeight: 500 }}>Sort by</span>
@@ -2266,7 +2347,8 @@ function Schedule() {
                   <div className="charm-week-time-col">Time</div>
                   {Array.from({ length: 7 }, (_, i) => {
                     const d = new Date(selectedDate.getTime() + i * 86400000);
-                    const isCurrent = d.toISOString().slice(0, 10) === date;
+                    const dayDateStr = d.toISOString().slice(0, 10);
+                    const isCurrent = dayDateStr === date;
                     return (
                       <div
                         key={i}
@@ -2276,6 +2358,11 @@ function Schedule() {
                           {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"][d.getDay()]}{" "}
                           {d.getMonth() + 1}/{d.getDate()}
                         </strong>
+                        <WaitingListDateBadge
+                          date={dayDateStr}
+                          count={waitingEntriesForDate(dayDateStr).length}
+                          onClick={() => openWaitingDetails(dayDateStr)}
+                        />
                       </div>
                     );
                   })}
@@ -2459,6 +2546,11 @@ function Schedule() {
                     <small style={{ color: "#64748b" }}>
                       {filtered.length} appointment{filtered.length === 1 ? "" : "s"} scheduled today
                     </small>
+                    <WaitingListDateBadge
+                      date={date}
+                      count={waitingEntriesForDate(date).length}
+                      onClick={() => openWaitingDetails(date)}
+                    />
                   </div>
                   {["reception", "doctor", "therapist", "admin"].includes(user.role) && (
                     <Button
@@ -2653,6 +2745,7 @@ function Schedule() {
                     const dayAppts = scopedAppts
                       .filter((a) => localInput(a.start_at).slice(0, 10) === cell.dateStr)
                       .sort((a, b) => a.start_at.localeCompare(b.start_at));
+                    const waitingCount = waitingEntriesForDate(cell.dateStr).length;
 
                     return (
                       <div
@@ -2679,6 +2772,12 @@ function Schedule() {
                             </span>
                           )}
                         </div>
+
+                        <WaitingListDateBadge
+                          date={cell.dateStr}
+                          count={waitingCount}
+                          onClick={() => openWaitingDetails(cell.dateStr)}
+                        />
 
                         <div className="charm-cal-month-chips-container">
                           {dayAppts.map((appt) => {
@@ -2974,6 +3073,8 @@ function Schedule() {
                 ) : null}
               </div>
             )}
+              </>
+            )}
           </section>
         </div>
       )}
@@ -3161,30 +3262,24 @@ function Schedule() {
                           {entry.reason || "—"}
                         </td>
                         <td style={{ textAlign: "right" }}>
-                          <div style={{ display: "inline-flex", gap: 6, alignItems: "center" }}>
+                          <div className="charm-waiting-actions">
                             <button
                               type="button"
-                              className="charm-btn-default"
-                              style={{ fontSize: 11, padding: "3px 8px", background: "#f0fdf4", color: "#166534", borderColor: "#bbf7d0" }}
-                              onClick={() => {
-                                setBookingSlot({
-                                  startAt: date + "T10:00",
-                                  providerId: entry.provider_id,
-                                  patientId: entry.patient_id,
-                                  duration: 30,
-                                });
-                              }}
-                              title="Convert to appointment"
+                              onClick={() => openWaitingEntryConfirmation(entry)}
                             >
-                              Book Appt
+                              Confirm
                             </button>
                             <button
                               type="button"
-                              style={{ background: "transparent", border: "none", color: "#94a3b8", cursor: "pointer", fontSize: 14 }}
-                              onClick={() => removeWaitingEntry(entry.id)}
-                              title="Remove from waiting list"
+                              onClick={() => openWaitingEntryEdit(entry)}
                             >
-                              ✕
+                              Edit
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => removeWaitingEntry(entry.id)}
+                            >
+                              Cancel
                             </button>
                           </div>
                         </td>
@@ -3217,9 +3312,7 @@ function Schedule() {
                 <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 10 }}>
                   {weekDays.map((wd) => {
                     const dateStr = wd.toISOString().slice(0, 10);
-                    const entriesForDay = weekEntries.filter(
-                      (e) => e.preferred_date === dateStr || (Array.isArray(e.dates) && e.dates.includes(dateStr))
-                    );
+                    const entriesForDay = waitingEntriesForDate(dateStr);
                     const isToday = dateStr === today();
                     return (
                       <div
@@ -3314,9 +3407,7 @@ function Schedule() {
               ))}
 
               {monthCells.map((cell, idx) => {
-                const cellEntries = waitingEntries.filter(
-                  (e) => e.preferred_date === cell.dateStr || (Array.isArray(e.dates) && e.dates.includes(cell.dateStr))
-                );
+                const cellEntries = waitingEntriesForDate(cell.dateStr);
 
                 return (
                   <div
@@ -3736,19 +3827,102 @@ function Schedule() {
       )}
 
       {/* Authentic CharmHealth New Waiting List Modal (Frame 078 / User Uploaded Screenshot) */}
+      {waitingDetailsOpen && (
+        <Modal
+          title={`Waiting List Details · ${new Intl.DateTimeFormat("en-US", {
+            month: "short",
+            day: "numeric",
+            year: "numeric",
+            timeZone: "UTC",
+          }).format(new Date(`${waitingDetailsDate}T12:00:00Z`))}`}
+          onClose={closeWaitingDetails}
+          wide
+        >
+          <div className="charm-waiting-details-content">
+            <table className="charm-reports-table charm-waiting-details-table">
+              <thead>
+                <tr>
+                  <th>Patient</th>
+                  <th>Provider</th>
+                  <th>Time Preference</th>
+                  <th>Mobile Phone</th>
+                  <th>Reason</th>
+                  <th aria-label="Actions" />
+                </tr>
+              </thead>
+              <tbody>
+                {waitingEntriesForDate(waitingDetailsDate).map((entry) => (
+                  <tr key={entry.id}>
+                    <td>
+                      <strong>{entry.patient_name}</strong>
+                      {entry.mrn && <span className="charm-waiting-details-mrn">[{entry.mrn}]</span>}
+                    </td>
+                    <td>{entry.provider_name || "—"}</td>
+                    <td>{entry.time_preference || "Any Time"}</td>
+                    <td>{entry.phone || "—"}</td>
+                    <td>{entry.reason || "—"}</td>
+                    <td>
+                      <div className="charm-waiting-actions">
+                        <button type="button" onClick={() => openWaitingEntryConfirmation(entry)}>
+                          Confirm
+                        </button>
+                        <button type="button" onClick={() => openWaitingEntryEdit(entry)}>
+                          Edit
+                        </button>
+                        <button type="button" onClick={() => removeWaitingEntry(entry.id)}>
+                          Cancel
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+                {waitingEntriesForDate(waitingDetailsDate).length === 0 && (
+                  <tr>
+                    <td colSpan={6} className="charm-waiting-details-empty">
+                      No people are currently on the waiting list.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </Modal>
+      )}
+
       {waitingListModal && (
         <NewWaitingListModal
           initialDate={waitingPrefillDate || date}
+          initialEntry={editingWaitingEntry || undefined}
           onClose={() => {
             setWaitingListModal(false);
             setWaitingPrefillDate("");
+            setEditingWaitingEntry(null);
           }}
           onConfirm={(entry) => {
-            addWaitingEntry(entry);
+            if (editingWaitingEntry) {
+              updateWaitingEntry(entry);
+              notify("Waiting list entry updated.");
+            } else {
+              addWaitingEntry(entry);
+              notify("Patient added to Waiting List.");
+            }
             setWaitingListModal(false);
             setWaitingPrefillDate("");
-            notify("Patient added to Waiting List.");
+            setEditingWaitingEntry(null);
           }}
+        />
+      )}
+
+      {confirmWaitingEntry && (
+        <AppointmentForm
+          patientId={confirmWaitingEntry.patient_id}
+          initialStart={waitingListStartAt(confirmWaitingEntry, date)}
+          initialProviderId={confirmWaitingEntry.provider_id}
+          initialResourceId={resources.find((resource) => resource.name === confirmWaitingEntry.resource)?.id}
+          initialDuration={10}
+          waitingListEntry={confirmWaitingEntry}
+          onBooked={() => removeWaitingEntry(confirmWaitingEntry.id)}
+          onClose={() => setConfirmWaitingEntry(null)}
         />
       )}
 
