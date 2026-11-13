@@ -575,10 +575,10 @@ def download(identifier:str,c=Depends(context)):
 
 @router.get('/injections/catalog')
 def list_injection_catalog(q: str | None = None, all: bool = False, c=Depends(context)):
-    c.allow(CLINICAL | {'reception'})
+    c.allow(CLINICAL | {'reception', 'billing'})
     query = select(m.InjectionCatalog)
     if not all:
-        query = query.where(m.InjectionCatalog.is_active == True, m.InjectionCatalog.verification_status == 'verified')
+        query = query.where(m.InjectionCatalog.is_active == True)
     if q and q.strip():
         term = q.strip()
         norm_term = term.lower()

@@ -234,6 +234,7 @@ class Medication(PatientRecord, Base):
     evening = Column(Float, default=0.0)
     night = Column(Float, default=0.0)
     is_supplement = Column(Boolean, default=False, nullable=False)
+    catalogue_id = Column(String(36), nullable=True, index=True)
     __table_args__ = (CheckConstraint('quantity > 0 AND duration_days > 0'),)
 
 
@@ -570,6 +571,66 @@ class InventoryItem(Entity, Base):
     supplier = Column(String(160), default='')
     reorder_level = Column(Integer, default=0, nullable=False)
     unit = Column(String(20), default='each', nullable=False)
+    group_name = Column(String(100), default='Drug')
+    product_code = Column(String(80), default='')
+    hsn_code = Column(String(40), default='')
+    trade_name = Column(String(200), default='')
+    strength = Column(String(60), default='')
+    strength_unit = Column(String(40), default='')
+    route = Column(String(60), default='')
+    dose_form = Column(String(60), default='Tablet')
+    tax_percent = Column(Float, default=0.0)
+    order_quantity = Column(Integer, default=0)
+    cost_price = Column(Float, default=0.0)
+    retail_price = Column(Float, default=0.0)
+    is_active = Column(Boolean, default=True, nullable=False)
+    manufacturer = Column(String(200), default='')
+    catalogue_id = Column(String(36), nullable=True, index=True)
+
+
+class InventorySupplier(Entity, Base):
+    __tablename__ = 'inventory_suppliers'
+    facility_id = Column(ForeignKey('facilities.id'), nullable=False, index=True)
+    name = Column(String(200), nullable=False)
+    contact_person = Column(String(120), default='')
+    work_phone = Column(String(40), default='')
+    mobile_phone = Column(String(40), default='')
+    fax = Column(String(40), default='')
+    address = Column(Text, default='')
+    city = Column(String(100), default='')
+    state = Column(String(100), default='')
+    postal_code = Column(String(20), default='')
+    country = Column(String(100), default='India')
+    email = Column(String(160), default='')
+    notes = Column(Text, default='')
+    is_active = Column(Boolean, default=True, nullable=False)
+
+
+class InventoryCategory(Entity, Base):
+    __tablename__ = 'inventory_categories'
+    facility_id = Column(ForeignKey('facilities.id'), nullable=False, index=True)
+    name = Column(String(100), nullable=False)
+    group_name = Column(String(100), nullable=False)
+    description = Column(Text, default='')
+    is_active = Column(Boolean, default=True, nullable=False)
+
+
+class InventoryBatch(Entity, Base):
+    __tablename__ = 'inventory_batches'
+    facility_id = Column(ForeignKey('facilities.id'), nullable=False, index=True)
+    item_id = Column(ForeignKey('inventory_items.id'), nullable=False, index=True)
+    batch_number = Column(String(80), nullable=False)
+    expiry_date = Column(Date, nullable=True)
+    received_date = Column(Date, nullable=True)
+    supplier_id = Column(ForeignKey('inventory_suppliers.id'), nullable=True)
+    supplier_name = Column(String(200), default='')
+    manufacturer = Column(String(200), default='')
+    cost_price = Column(Float, default=0.0)
+    retail_price = Column(Float, default=0.0)
+    storage_location = Column(String(100), default='')
+    pack = Column(String(80), default='')
+    reference_number = Column(String(100), default='')
+    initial_quantity = Column(Integer, default=0)
 
 
 class StockMovement(Entity, Base):
@@ -578,6 +639,77 @@ class StockMovement(Entity, Base):
     quantity = Column(Integer, nullable=False)
     reason = Column(String(240), nullable=False)
     actor_id = Column(ForeignKey('users.id'), nullable=False)
+    batch_id = Column(ForeignKey('inventory_batches.id'), nullable=True)
+    batch_number = Column(String(80), default='')
+    movement_type = Column(String(40), default='received')
+    facility_id = Column(ForeignKey('facilities.id'), nullable=True)
+    reference = Column(String(120), default='')
+
+
+class MedicineCatalog(Entity, Base):
+    __tablename__ = 'medicine_catalogs'
+    product_name = Column(String(250), nullable=False)
+    trade_name = Column(String(250), nullable=False)
+    normalized_name = Column(String(250), nullable=False, index=True)
+    normalized_trade = Column(String(250), nullable=False, index=True)
+    is_active = Column(Boolean, default=True, nullable=False)
+
+
+class SupplementCatalog(Entity, Base):
+    __tablename__ = 'supplement_catalogs'
+    name = Column(String(250), nullable=False)
+    normalized_name = Column(String(250), nullable=False, index=True)
+    dosage_form = Column(String(80), default='Tablet')
+    strength = Column(String(80), default='')
+    route = Column(String(60), default='Oral')
+    is_active = Column(Boolean, default=True, nullable=False)
+    updated_at = Column(DateTime, default=now, onupdate=now)
+
+
+class PrescriptionTemplate(Entity, Base):
+    __tablename__ = 'prescription_templates'
+    facility_id = Column(ForeignKey('facilities.id'), nullable=True, index=True)
+    template_name = Column(String(160), nullable=False)
+    catalogue_id = Column(ForeignKey('medicine_catalogs.id'), nullable=True, index=True)
+    drug_name = Column(String(250), nullable=False)
+    generic_name = Column(String(250), default='')
+    dosage = Column(String(80), default='')
+    route = Column(String(60), default='Oral')
+    frequency = Column(String(80), default='')
+    maen = Column(String(40), default='1-0-0-0')
+    duration = Column(String(40), default='30 Day(s)')
+    instructions = Column(Text, default='')
+    is_active = Column(Boolean, default=True, nullable=False)
+    created_by = Column(ForeignKey('users.id'), nullable=True)
+    updated_at = Column(DateTime, default=now, onupdate=now)
+
+
+class SupplementTemplate(Entity, Base):
+    __tablename__ = 'supplement_templates'
+    facility_id = Column(ForeignKey('facilities.id'), nullable=True, index=True)
+    template_name = Column(String(160), nullable=False)
+    catalogue_id = Column(ForeignKey('supplement_catalogs.id'), nullable=True, index=True)
+    supplement_name = Column(String(250), nullable=False)
+    dosage = Column(String(80), default='')
+    route = Column(String(60), default='Oral')
+    frequency = Column(String(80), default='')
+    duration = Column(String(40), default='30 Day(s)')
+    instructions = Column(Text, default='')
+    is_active = Column(Boolean, default=True, nullable=False)
+    created_by = Column(ForeignKey('users.id'), nullable=True)
+    updated_at = Column(DateTime, default=now, onupdate=now)
+
+
+class InventoryReportExport(Entity, Base):
+    __tablename__ = 'inventory_report_exports'
+    facility_id = Column(ForeignKey('facilities.id'), nullable=False, index=True)
+    report_name = Column(String(120), nullable=False)
+    requested_by = Column(ForeignKey('users.id'), nullable=False)
+    requested_by_name = Column(String(120), default='')
+    date_range = Column(String(100), default='')
+    status = Column(String(30), default='Ready', nullable=False)
+    file_path = Column(String(255), default='')
+    record_count = Column(Integer, default=0)
 
 
 class Sequence(Base):
@@ -603,3 +735,14 @@ class Job(Entity, Base):
     status = Column(String(30), default='pending', nullable=False)
     result = Column(Text, default='')
     completed_at = Column(DateTime)
+
+
+class UserPreference(Entity, Base):
+    __tablename__ = 'user_preferences'
+    user_id = Column(ForeignKey('users.id'), nullable=False, index=True)
+    facility_id = Column(ForeignKey('facilities.id'), nullable=True)
+    section = Column(String(60), nullable=False, index=True)
+    data = Column(Text, nullable=False, default='{}')
+    updated_at = Column(DateTime, default=now, onupdate=now)
+    __table_args__ = (UniqueConstraint('user_id', 'section'),)
+

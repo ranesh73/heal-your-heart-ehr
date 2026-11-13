@@ -1272,16 +1272,16 @@ export const SETTINGS_CATEGORIES: SettingCategory[] = [
   {
     id: "charm-telehealth",
     letter: "U",
-    name: "Charm TeleHealth",
+    name: "Heal Your Heart Telehealth",
     description: "Virtual video consultations, camera & microphone test utilities and virtual waiting room.",
     options: [
       {
         id: "charm-telehealth-config",
-        name: "Charm TeleHealth",
+        name: "Heal Your Heart Telehealth",
         categoryId: "charm-telehealth",
-        categoryName: "Charm TeleHealth",
+        categoryName: "Heal Your Heart Telehealth",
         description: "Configure video consultations, virtual waiting rooms, recording policies and camera tests.",
-        keywords: ["telehealth", "video call", "virtual visit", "camera", "microphone"],
+        keywords: ["telehealth", "heal your heart telehealth", "video call", "virtual visit", "camera", "microphone"],
         fields: [
           { key: "telehealthActive", label: "Enable Virtual Cardiology TeleHealth Visits", type: "toggle", defaultValue: true },
           { key: "waitingRoomMessage", label: "Virtual Waiting Room Greeting", type: "text", defaultValue: "Please hold on; Dr. Ananya will join your video consultation momentarily." },
@@ -1291,28 +1291,8 @@ export const SETTINGS_CATEGORIES: SettingCategory[] = [
     ],
   },
   {
-    id: "charm-connect",
-    letter: "V",
-    name: "Charm Connect",
-    description: "Clinician team instant messaging channels, group collaboration rooms and staff presence.",
-    options: [
-      {
-        id: "charm-connect-config",
-        name: "Charm Connect",
-        categoryId: "charm-connect",
-        categoryName: "Charm Connect",
-        description: "Internal practice instant messaging, cardiology case discussions and staff presence.",
-        keywords: ["chat", "connect", "internal messages", "colleagues", "presence"],
-        fields: [
-          { key: "connectActive", label: "Enable Integrated Staff Messenger (Charm Connect)", type: "toggle", defaultValue: true },
-          { key: "allowExternalReferralChat", label: "Allow Secure External Specialist Chat Invites", type: "toggle", defaultValue: true },
-        ],
-      },
-    ],
-  },
-  {
     id: "account",
-    letter: "W",
+    letter: "V",
     name: "Account",
     description: "Personal doctor profile, credentials, password security, two-factor authentication and timezone.",
     options: [
@@ -1354,6 +1334,18 @@ export const SETTINGS_CATEGORIES: SettingCategory[] = [
         ],
       },
       {
+        id: "change-profile-password",
+        name: "Change Profile Password",
+        categoryId: "account",
+        categoryName: "Account",
+        description: "Update dedicated clinician chart profile authorization PIN and password.",
+        keywords: ["profile password", "chart pin", "sign password", "security"],
+        fields: [
+          { key: "currentProfilePassword", label: "Current Profile PIN / Password", type: "text", defaultValue: "••••" },
+          { key: "newProfilePassword", label: "New Profile PIN / Password", type: "text", defaultValue: "" },
+        ],
+      },
+      {
         id: "check-email-delivery",
         name: "Check Email Delivery",
         categoryId: "account",
@@ -1380,7 +1372,7 @@ export const SETTINGS_CATEGORIES: SettingCategory[] = [
   },
   {
     id: "security",
-    letter: "X",
+    letter: "W",
     name: "Security",
     description: "HIPAA audit trails, user login activity history, active browser sessions and incident reports.",
     options: [
@@ -1428,39 +1420,6 @@ export const SETTINGS_CATEGORIES: SettingCategory[] = [
         keywords: ["incident", "breach", "security report", "compliance"],
         fields: [
           { key: "incidentNotificationEmail", label: "Security Officer Escalation Email", type: "text", defaultValue: "security@healyourheart.in" },
-        ],
-      },
-    ],
-  },
-  {
-    id: "charm-assist",
-    letter: "Y",
-    name: "Charm Assist",
-    description: "AI-powered clinical documentation assistant, voice-to-text and insurance card OCR reader.",
-    options: [
-      {
-        id: "chart-note-assist",
-        name: "Chart Note Assist",
-        categoryId: "charm-assist",
-        categoryName: "Charm Assist",
-        description: "AI clinical dictation, SOAP note summarization, voice-to-text and consultation transcribing.",
-        keywords: ["ai", "dictation", "soap assist", "chart note assist", "voice to text"],
-        fields: [
-          { key: "enableAIAssist", label: "Enable AI Clinical Note Scribe & Summarizer", type: "toggle", defaultValue: true },
-          { key: "aiModelMode", label: "AI Reasoning Depth", type: "select", options: ["High Accuracy (Clinical Reasoning)", "Fast Scribe (Real-time)"], defaultValue: "High Accuracy (Clinical Reasoning)" },
-          { key: "autoExtractVitals", label: "Auto-extract Blood Pressure and Pulse from Dictation", type: "toggle", defaultValue: true },
-        ],
-      },
-      {
-        id: "insurance-card-reader",
-        name: "Insurance Card Reader",
-        categoryId: "charm-assist",
-        categoryName: "Charm Assist",
-        description: "Optical Character Recognition (OCR) scanner for TPA health insurance cards and Aadhaar.",
-        keywords: ["ocr", "card reader", "insurance scanner", "camera scan"],
-        fields: [
-          { key: "enableOCRCardReader", label: "Enable 1-Click Camera OCR for Patient Insurance Cards", type: "toggle", defaultValue: true },
-          { key: "autoFillPolicyNumber", label: "Auto-populate Policy & TPA ID into Billing Demographics", type: "toggle", defaultValue: true },
         ],
       },
     ],

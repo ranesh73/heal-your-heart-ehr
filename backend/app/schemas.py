@@ -218,7 +218,7 @@ RECORD_FIELDS = {
  'history':[select('category','History category',['Medical','Family','Social','Surgery','Implanted device']),field('content','History','textarea',True),field('event_date','Event date','date')],
  'diagnoses':[field('code','ICD code'),field('description','Diagnosis',required=True),field('onset','Onset','date'),select('status','Status',['active','resolved'])],
  'allergies':[select('category','Type',['Drug','Food','Environmental','Latex','Other']),field('allergen','Allergen or explicit no-known declaration',required=True),select('severity','Severity',['Unknown','Mild','Moderate','Severe','No known allergy']),field('reaction','Reaction','textarea'),select('status','Status',['active','inactive'])],
- 'medications':[field('trade_name','Trade name',required=True),field('generic_name','Generic name'),field('dose','Dose and unit',required=True),field('route','Route',required=True),field('frequency','Frequency'),field('maen','Morning–Afternoon–Evening–Night',required=False),field('timing','Timing / food'),number('duration_days','Duration · days',True,3650),number('quantity','Dispense quantity',True,100000),field('substitution_allowed','Substitution allowed','checkbox'),field('instructions','Instructions','textarea'),field('start_date','Start date','date'),field('end_date','End date','date'),number('refills','Refills',False,24),field('dose_unit','Dose unit'),field('dispense_unit','Dispense unit'),field('timing_when','When'),number('morning','Morning dose',False,100),number('afternoon','Afternoon dose',False,100),number('evening','Evening dose',False,100),number('night','Night dose',False,100),field('is_supplement','Is supplement','checkbox'),select('status','Status',['draft','active','discontinued','completed'],required=False)],
+ 'medications':[field('trade_name','Trade name',required=True),field('generic_name','Generic name'),field('catalogue_id','Catalogue ID',required=False),field('dose','Dose and unit',required=True),field('route','Route',required=True),field('frequency','Frequency'),field('maen','Morning–Afternoon–Evening–Night',required=False),field('timing','Timing / food'),number('duration_days','Duration · days',True,3650),number('quantity','Dispense quantity',True,100000),field('substitution_allowed','Substitution allowed','checkbox'),field('instructions','Instructions','textarea'),field('start_date','Start date','date'),field('end_date','End date','date'),number('refills','Refills',False,24),field('dose_unit','Dose unit'),field('dispense_unit','Dispense unit'),field('timing_when','When'),number('morning','Morning dose',False,100),number('afternoon','Afternoon dose',False,100),number('evening','Evening dose',False,100),number('night','Night dose',False,100),field('is_supplement','Is supplement','checkbox'),select('status','Status',['draft','active','discontinued','completed'],required=False)],
  'injections':[field('name','Injection Name',required=True),field('catalogue_id','Catalogue ID',required=False),field('order_id','Order ID',required=False),field('dose','Dosage',required=False),field('dosage','Dosage',required=False),field('frequency','Frequency'),number('period','Period',False,365),field('period_unit','Period unit'),field('route','Parenteral Route',required=False),field('site','Injection Site',required=False),field('lot_number','Lot Number'),field('expiration_date','Expiration date','date'),field('administered_at','Administered Date/Time','datetime-local'),field('administered_by','Administered By','staff'),field('nurse_notes','Note to Nurse','textarea'),field('comments','Comments','textarea'),select('status','Status',['administered','ordered','cancelled'],required=False)],
  'vaccines':[field('vaccine_name','Vaccine',required=False),field('name','Vaccine',required=False),field('cvx_code','CVX code'),field('lot_number','Lot Number'),field('expiration_date','Expiration date','date'),number('series_number','# in Series',False,10),field('dose_in_series','Dose in Series',required=False),field('dose','Dose',required=False),field('dosage','Dosage',required=False),field('manufacturer','Manufacturer',required=False),field('vis_given_date','VIS Given Date',required=False),field('route','Route',required=False),field('site','Site',required=False),field('administered_at','Administered Date/Time','datetime-local'),field('ordered_by','Ordered by','staff'),field('administered_by','Administered by','staff'),field('notes','Notes','textarea'),select('status','Status',['administered','ordered','refused','historical'],required=False)],
  'vitals':VITAL_FIELDS,
@@ -378,4 +378,116 @@ class InventoryRequisitionInput(Input):
 
 class InventoryRequisitionStatusInput(Input):
     status: Literal['requested', 'approved', 'dispatched', 'received', 'cancelled']
+
+
+class InventoryProductInput(Input):
+    name: str = Field(min_length=1, max_length=160)
+    category: str = Field(min_length=1, max_length=100)
+    group_name: str = Field(default='Drug', max_length=100)
+    product_code: str = Field(default='', max_length=80)
+    hsn_code: str = Field(default='', max_length=40)
+    trade_name: str = Field(default='', max_length=200)
+    strength: str = Field(default='', max_length=60)
+    strength_unit: str = Field(default='', max_length=40)
+    route: str = Field(default='', max_length=60)
+    dose_form: str = Field(default='Tablet', max_length=60)
+    tax_percent: float = Field(default=0.0, ge=0.0, le=100.0)
+    reorder_level: int = Field(default=0, ge=0)
+    order_quantity: int = Field(default=0, ge=0)
+    unit: str = Field(default='each', max_length=20)
+    cost_price: float = Field(default=0.0, ge=0.0)
+    retail_price: float = Field(default=0.0, ge=0.0)
+    supplier: str = Field(default='', max_length=160)
+    manufacturer: str = Field(default='', max_length=200)
+    catalogue_id: str | None = None
+    is_active: bool = True
+    # Optional opening stock / batch details
+    stock_received_date: date | None = None
+    batch_number: str = Field(default='', max_length=80)
+    expiry_date: date | None = None
+    quantity: int = Field(default=0, ge=0)
+    storage_location: str = Field(default='', max_length=100)
+    pack: str = Field(default='', max_length=80)
+    reference_number: str = Field(default='', max_length=100)
+
+
+class InventorySupplierInput(Input):
+    name: str = Field(min_length=1, max_length=200)
+    contact_person: str = Field(default='', max_length=120)
+    work_phone: str = Field(default='', max_length=40)
+    mobile_phone: str = Field(default='', max_length=40)
+    fax: str = Field(default='', max_length=40)
+    address: str = Field(default='', max_length=2000)
+    city: str = Field(default='', max_length=100)
+    state: str = Field(default='', max_length=100)
+    postal_code: str = Field(default='', max_length=20)
+    country: str = Field(default='India', max_length=100)
+    email: str = Field(default='', max_length=160)
+    notes: str = Field(default='', max_length=2000)
+    is_active: bool = True
+
+
+class InventoryCategoryInput(Input):
+    name: str = Field(min_length=1, max_length=100)
+    group_name: str = Field(min_length=1, max_length=100)
+    description: str = Field(default='', max_length=2000)
+    is_active: bool = True
+
+
+class InventoryBatchInput(Input):
+    item_id: str
+    batch_number: str = Field(min_length=1, max_length=80)
+    expiry_date: date | None = None
+    received_date: date | None = None
+    supplier_name: str = Field(default='', max_length=200)
+    manufacturer: str = Field(default='', max_length=200)
+    cost_price: float = Field(default=0.0, ge=0.0)
+    retail_price: float = Field(default=0.0, ge=0.0)
+    storage_location: str = Field(default='', max_length=100)
+    pack: str = Field(default='', max_length=80)
+    reference_number: str = Field(default='', max_length=100)
+    quantity: int = Field(gt=0, le=1000000)
+
+
+class BulkInventoryRowInput(Input):
+    product_name: str = Field(min_length=1, max_length=160)
+    trade_name: str = Field(default='', max_length=200)
+    product_code: str = Field(default='', max_length=80)
+    strength: str = Field(default='', max_length=60)
+    strength_unit: str = Field(default='', max_length=40)
+    route: str = Field(default='', max_length=60)
+    dose_form: str = Field(default='Tablet', max_length=60)
+    quantity: int = Field(default=0, ge=0)
+    cost_price: float = Field(default=0.0, ge=0.0)
+    retail_price: float = Field(default=0.0, ge=0.0)
+    category: str = Field(default='', max_length=100)
+    group_name: str = Field(default='Drug', max_length=100)
+    supplier: str = Field(default='', max_length=160)
+    stock_received_date: date | None = None
+    batch_number: str = Field(default='', max_length=80)
+    expiry_date: date | None = None
+    hsn_code: str = Field(default='', max_length=40)
+    manufacturer: str = Field(default='', max_length=200)
+    tax_percent: float = Field(default=0.0, ge=0.0, le=100.0)
+    reorder_level: int = Field(default=0, ge=0)
+    order_quantity: int = Field(default=0, ge=0)
+    storage_location: str = Field(default='', max_length=100)
+    pack: str = Field(default='', max_length=80)
+    reference_number: str = Field(default='', max_length=100)
+
+
+class BulkInventoryInput(Input):
+    group_name: str = Field(default='Drug', max_length=100)
+    category: str = Field(default='', max_length=100)
+    supplier: str = Field(default='', max_length=160)
+    stock_received_date: date | None = None
+    rows: list[BulkInventoryRowInput] = Field(default_factory=list)
+
+
+class InventoryReportExportInput(Input):
+    report_name: str = Field(min_length=1, max_length=120)
+    date_range: str = Field(default='', max_length=100)
+    status: str = Field(default='Ready', max_length=30)
+    record_count: int = Field(default=0, ge=0)
+
 

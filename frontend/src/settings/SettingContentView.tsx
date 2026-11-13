@@ -436,10 +436,10 @@ export function SettingContentView({
         {(!["facility-list", "facility-members", "facility-resources", "procedure-codes", "audit-trails"].includes(option.id) || (option.fields && option.fields.length > 0)) && (
           <div className="charm-settings-form-container">
             <div className="charm-form-header-box">
-              <h2 className="text-[16px] font-bold text-slate-800 mb-1">
+              <h2 className="charm-form-header-title">
                 {option.name}
               </h2>
-              <p className="text-[12.5px] text-slate-600">
+              <p className="charm-form-header-desc">
                 {option.description}
               </p>
             </div>
@@ -447,27 +447,31 @@ export function SettingContentView({
             <div className="charm-form-grid">
               {option.fields?.map((f) => {
                 const val = formData[f.key];
+                const isFullWidth = f.type === "textarea";
                 return (
-                  <div key={f.key} className="charm-field-group">
+                  <div
+                    key={f.key}
+                    className={`charm-field-group ${isFullWidth ? "charm-field-full-width" : ""}`}
+                  >
                     <label className="charm-field-label">
                       {f.label}
                     </label>
 
                     {f.type === "toggle" && (
-                      <div className="flex items-center gap-3 mt-1">
-                        <label className="charm-toggle-switch">
+                      <div className="charm-toggle-row">
+                        <label className="charm-toggle-control">
                           <input
                             type="checkbox"
                             checked={Boolean(val)}
                             onChange={(e) =>
                               handleFieldChange(f.key, e.target.checked)
                             }
+                            className="charm-checkbox-input"
                           />
-                          <span className="charm-toggle-slider" />
+                          <span className={`charm-toggle-status-text ${val ? "enabled" : "disabled"}`}>
+                            {val ? "Enabled" : "Disabled"}
+                          </span>
                         </label>
-                        <span className="text-[13px] text-slate-700">
-                          {val ? "Enabled" : "Disabled"}
-                        </span>
                       </div>
                     )}
 
@@ -483,7 +487,7 @@ export function SettingContentView({
                     {f.type === "number" && (
                       <input
                         type="number"
-                        className="charm-input-text"
+                        className="charm-input-text charm-input-number"
                         value={val ?? 0}
                         onChange={(e) =>
                           handleFieldChange(f.key, Number(e.target.value))
@@ -508,20 +512,37 @@ export function SettingContentView({
                     {f.type === "textarea" && (
                       <textarea
                         className="charm-textarea"
-                        rows={3}
+                        rows={4}
                         value={val || ""}
                         onChange={(e) => handleFieldChange(f.key, e.target.value)}
                       />
                     )}
 
                     {f.description && (
-                      <span className="text-[11.5px] text-slate-400 mt-1 block">
+                      <span className="charm-field-description">
                         {f.description}
                       </span>
                     )}
                   </div>
                 );
               })}
+            </div>
+
+            {/* Bottom Form Action */}
+            <div className="charm-form-actions-footer">
+              <button
+                type="button"
+                className="charm-btn-primary-action"
+                onClick={handleSave}
+              >
+                <Save size={14} />
+                <span>Save Changes</span>
+              </button>
+              {savedNotice && (
+                <span className="charm-saved-notice">
+                  <Check size={14} /> Saved successfully
+                </span>
+              )}
             </div>
           </div>
         )}

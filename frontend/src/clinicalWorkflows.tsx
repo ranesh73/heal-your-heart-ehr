@@ -33,6 +33,7 @@ import {
   Eye,
 } from "lucide-react";
 import { InjectionAutocomplete } from "./InjectionAutocomplete";
+import { CatalogAutocomplete } from "./CatalogAutocomplete";
 
 export function formatDoctorName(name?: string): string {
   if (!name) return "";
@@ -49,6 +50,7 @@ export function formatDoctorName(name?: string): string {
 
 interface PrescriptionDraftItem {
   drug_name: string;
+  trade_name?: string;
   dosage: string;
   dose_unit: string;
   route: string;
@@ -196,6 +198,7 @@ export function AddPrescriptionModal({
         await api("/records/medications", "POST", {
           patient_id: patientId,
           drug_name: it.drug_name,
+          trade_name: it.trade_name || it.drug_name,
           dosage: `${it.dosage} ${it.dose_unit}`,
           route: it.route,
           morning: it.morning,
@@ -311,48 +314,25 @@ export function AddPrescriptionModal({
 
               {/* Drug Autocomplete Search */}
               <div className="charm-rx-drug-row">
-                <div className="charm-autocomplete-wrap" style={{ flex: 2 }}>
-                  <label>Drug Name / Formulation *</label>
-                  <div className="charm-input-search-box">
-                    <Search size={15} className="charm-search-icon" />
-                    <input
-                      type="text"
-                      className="charm-input"
-                      placeholder="Type drug name (e.g. Telma, Rosuva gold, Diamicron)..."
-                      value={item.drug_name}
-                      onFocus={() => {
-                        setActiveSearchIdx(idx);
-                        setSearchQuery(item.drug_name);
-                      }}
-                      onChange={(e) => {
-                        updateItem(idx, { drug_name: e.target.value });
-                        setSearchQuery(e.target.value);
-                      }}
-                    />
-                  </div>
-                  {activeSearchIdx === idx && catalogs.length > 0 && (
-                    <div className="charm-autocomplete-dropdown">
-                      {catalogs.slice(0, 8).map((cat) => (
-                        <div
-                          key={cat.id}
-                          className="charm-autocomplete-item"
-                          onMouseDown={() => {
-                            updateItem(idx, {
-                              drug_name: cat.name,
-                              instructions: cat.instructions || item.instructions,
-                            });
-                            setActiveSearchIdx(null);
-                          }}
-                        >
-                          <strong>{cat.name}</strong>
-                          <span className="charm-autocomplete-sub">
-                            {cat.code ? `[${cat.code}] ` : ""}
-                            {cat.notes || "Cardiology formulary"}
-                          </span>
-                        </div>
-                      ))}
-                    </div>
-                  )}
+                <div style={{ flex: 2 }}>
+                  <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: "#334155", marginBottom: 4 }}>
+                    Drug Name / Formulation *
+                  </label>
+                  <CatalogAutocomplete
+                    value={item.drug_name}
+                    type="medicine"
+                    placeholder="Search master formulary (e.g. Telma, Rosuva gold, Isosorbide, Diamicron)..."
+                    onChangeText={(text) => updateItem(idx, { drug_name: text })}
+                    onSelect={(cat) => {
+                      updateItem(idx, {
+                        drug_name: cat.name,
+                        trade_name: cat.trade_name || cat.name,
+                        route: cat.route || item.route || "Oral",
+                        instructions: cat.details?.instructions || item.instructions,
+                      });
+                    }}
+                    required
+                  />
                 </div>
 
                 <div className="charm-form-group" style={{ flex: 1 }}>

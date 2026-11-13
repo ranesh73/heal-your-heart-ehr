@@ -4498,7 +4498,7 @@ main.main-patient-chart {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: #131c27;
+  background: #003330;
   cursor: pointer;
   border: 0;
   border-bottom: 1px solid rgba(255, 255, 255, 0.08);
@@ -4508,17 +4508,15 @@ main.main-patient-chart {
 }
 
 .charm-sidebar-top-brand:hover {
-  background: #0d9488;
+  background: #004743;
 }
 
-.charm-sidebar-brand-icon {
-  color: #00d2b4;
+.charm-sidebar-brand-svg {
   transition: transform 0.15s ease;
 }
 
-.charm-sidebar-top-brand:hover .charm-sidebar-brand-icon {
-  color: #ffffff;
-  transform: scale(1.1);
+.charm-sidebar-top-brand:hover .charm-sidebar-brand-svg {
+  transform: scale(1.08);
 }
 
 .charm-sidebar-nav-list {
@@ -4736,6 +4734,25 @@ main.main-patient-chart {
   color: var(--brand-teal-deep);
 }
 
+.waffle-grid-icon {
+  display: grid;
+  grid-template-columns: repeat(3, 4px);
+  grid-template-rows: repeat(3, 4px);
+  gap: 3px;
+  width: 18px;
+  height: 18px;
+  align-items: center;
+  justify-content: center;
+}
+
+.waffle-grid-icon span {
+  display: block;
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: #0f766e;
+}
+
 /* 9-Dot Waffle Application Launcher Dropdown */
 .charm-waffle-dropdown {
   position: absolute;
@@ -4793,14 +4810,22 @@ main.main-patient-chart {
 }
 
 .charm-waffle-icon-box {
-  width: 38px;
-  height: 38px;
+  width: 32px;
+  height: 32px;
   border-radius: var(--radius-md);
-  background: var(--brand-teal-light);
+  background: transparent;
   color: var(--brand-teal-primary);
   display: flex;
   align-items: center;
   justify-content: center;
+}
+
+.charm-waffle-tile-img {
+  width: 28px;
+  height: 28px;
+  object-fit: contain;
+  pointer-events: none;
+  display: block;
 }
 
 .charm-waffle-item span {
@@ -5010,13 +5035,13 @@ main.main-patient-chart {
   background: var(--status-error-bg);
 }
 
-/* 2. Global Header & Teal Banner (Image 2) */
+/* 2. Global Header & Fixed Topbar (Image 1 Header Reference) */
 .charm-global-topbar {
-  background: var(--bg-surface);
-  border-bottom: 1px solid var(--border-default);
+  background: #ffffff;
+  border-bottom: 1px solid #e2e8f0;
   position: sticky;
   top: 0;
-  z-index: 100;
+  z-index: 1000;
 }
 
 .charm-header-top-row {
@@ -5025,7 +5050,13 @@ main.main-patient-chart {
   align-items: center;
   justify-content: space-between;
   padding: 0 20px;
-  border-bottom: 1px solid var(--border-subtle);
+  background: #ffffff;
+}
+
+.charm-header-left-group {
+  display: flex;
+  align-items: center;
+  gap: 12px;
 }
 
 .charm-logo-area {
@@ -5038,31 +5069,56 @@ main.main-patient-chart {
   flex-shrink: 0;
 }
 
-.brand-logo-icon {
-  color: var(--brand-teal-primary);
-  flex-shrink: 0;
+.charm-header-brand-img {
+  height: 25px;
+  width: auto;
+  object-fit: contain;
+  display: block;
 }
 
-.charm-logo-text-teal {
+.charm-brand-title {
+  display: inline-flex;
+  align-items: baseline;
+  user-select: none;
+  line-height: 1;
+}
+
+.charm-brand-heal-your {
   font-size: 16px;
-  font-weight: 750;
-  color: var(--brand-teal-deep);
-  letter-spacing: -0.3px;
-  white-space: nowrap;
-  flex-shrink: 0;
+  font-weight: 700;
+  color: #0f766e;
+  letter-spacing: -0.2px;
 }
 
-.charm-logo-badge {
-  font-size: 10px;
-  font-weight: 700;
-  color: var(--brand-teal-primary);
-  background: var(--brand-teal-light);
-  padding: 2px 5px;
-  border-radius: var(--radius-sm);
-  border: 1px solid var(--brand-teal-subtle);
-  letter-spacing: 0.5px;
-  white-space: nowrap;
-  flex-shrink: 0;
+.charm-brand-heart {
+  font-size: 16px;
+  font-weight: 800;
+  color: #ef4444;
+  margin-right: 4px;
+  letter-spacing: -0.2px;
+}
+
+.charm-brand-ehr {
+  position: relative;
+  display: inline-flex;
+  flex-direction: column;
+}
+
+.charm-brand-ehr em {
+  font-style: italic;
+  font-weight: 800;
+  font-size: 15px;
+  color: #0f766e;
+  letter-spacing: 0.3px;
+  line-height: 1;
+}
+
+.charm-brand-ehr-underline {
+  height: 2px;
+  width: 100%;
+  border-radius: 1px;
+  background: linear-gradient(90deg, #0f766e 40%, #ef4444 100%);
+  margin-top: 2px;
 }
 
 .charm-header-search-compact {
@@ -5123,72 +5179,88 @@ main.main-patient-chart {
 }
 
 .charm-btn-telehealth {
-  background: var(--status-success-bg);
-  color: var(--status-success);
-  border: 1px solid var(--status-success-border);
-  border-radius: var(--radius-sm);
-  padding: 5px 12px;
-  font-size: 12px;
+  background: #ecfdf5;
+  color: #0f766e;
+  border: 1px solid #a7f3d0;
+  border-radius: 9999px;
+  padding: 5px 14px;
+  font-size: 12.5px;
   font-weight: 600;
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: 7px;
   cursor: pointer;
-  transition: all 0.12s ease;
+  transition: all 0.15s ease;
+  box-shadow: 0 1px 2px rgba(15, 118, 110, 0.05);
 }
 
 .charm-btn-telehealth:hover {
-  background: #BBF7D0;
+  background: #d1fae5;
+  border-color: #6ee7b7;
+  color: #042f2e;
 }
 
 .charm-branch-selector-wrap {
+  position: relative;
   display: flex;
   align-items: center;
   gap: 6px;
-  font-size: 12px;
-  color: var(--text-primary);
-  font-weight: 500;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 7px;
+  padding: 0 10px;
+  height: 32px;
 }
 
 .charm-branch-dropdown {
-  border: 1px solid var(--border-default);
-  border-radius: var(--radius-sm);
-  padding: 4px 10px;
-  font-size: 12px;
-  color: var(--text-primary);
-  background: var(--bg-surface);
+  border: 0;
+  padding: 0 16px 0 0;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: #1e293b;
+  background: transparent;
   cursor: pointer;
+  outline: none;
+  appearance: none;
+  -webkit-appearance: none;
+}
+
+.charm-branch-chevron {
+  position: absolute;
+  right: 8px;
+  pointer-events: none;
 }
 
 .charm-icon-btn-round {
   width: 32px;
   height: 32px;
   border-radius: 50%;
-  border: 1px solid var(--border-default);
-  background: var(--bg-surface);
-  color: var(--text-secondary);
+  border: 1px solid #e2e8f0;
+  background: #ffffff;
+  color: #475569;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
   position: relative;
-  transition: all 0.12s ease;
+  transition: all 0.15s ease;
 }
 
 .charm-icon-btn-round:hover {
-  background: var(--bg-surface-secondary);
-  color: var(--brand-teal-deep);
-  border-color: var(--brand-teal-accent);
+  background: #f8fafc;
+  color: #0f766e;
+  border-color: #cbd5e1;
 }
 
 .charm-bell-dot {
   position: absolute;
-  top: 5px;
-  right: 5px;
+  top: 4px;
+  right: 4px;
   width: 7px;
   height: 7px;
-  background: var(--status-error);
+  background: #ef4444;
   border-radius: 50%;
+  border: 1.5px solid #ffffff;
 }
 
 .charm-avatar-menu-trigger {
@@ -5199,37 +5271,60 @@ main.main-patient-chart {
   width: 32px;
   height: 32px;
   border-radius: 50%;
-  background: var(--brand-teal-deep);
+  background: #064e4b;
   color: #ffffff;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 12px;
+  font-size: 11.5px;
   font-weight: 700;
-  box-shadow: 0 1px 3px rgba(22, 78, 82, 0.2);
+  letter-spacing: 0.5px;
+  cursor: pointer;
+  transition: transform 0.15s ease;
+  box-shadow: 0 1px 3px rgba(6, 78, 75, 0.2);
 }
 
-/* Signature CharmHealth Teal Search Banner (Image 2) */
+.charm-user-avatar-circle:hover {
+  transform: scale(1.05);
+}
+
+.charm-avatar-badge-circle {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: transparent;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #0f766e;
+  cursor: pointer;
+  transition: color 0.15s ease;
+}
+
+.charm-avatar-badge-circle:hover {
+  color: #064e4b;
+}
+
+/* Signature CharmHealth Teal Search Banner */
 .charm-home-teal-banner {
-  background: linear-gradient(135deg, var(--brand-teal-deep) 0%, var(--brand-teal-primary) 100%);
-  padding: 20px;
+  background: linear-gradient(135deg, #0d4d49 0%, #115e59 100%);
+  padding: 16px 20px;
   display: flex;
   justify-content: center;
   align-items: center;
-  box-shadow: inset 0 -2px 6px rgba(0, 0, 0, 0.08);
 }
 
 .charm-teal-search-pill {
   width: 100%;
-  max-width: 720px;
-  height: 46px;
-  background: var(--bg-surface);
-  border-radius: var(--radius-full);
+  max-width: 660px;
+  height: 44px;
+  background: #ffffff;
+  border-radius: 9999px;
   display: flex;
   align-items: center;
-  padding: 0 18px;
+  padding: 0 10px 0 18px;
   gap: 12px;
-  box-shadow: var(--shadow-md);
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.08);
   border: 1px solid rgba(255, 255, 255, 0.4);
 }
 
@@ -5239,7 +5334,12 @@ main.main-patient-chart {
   font-size: 13.5px;
   width: 100%;
   outline: none;
-  color: var(--text-primary);
+  color: #0f172a;
+}
+
+.charm-teal-search-pill input::placeholder {
+  color: #64748b;
+  font-size: 13.5px;
 }
 
 .charm-teal-search-pill input:focus {
@@ -5247,12 +5347,12 @@ main.main-patient-chart {
 }
 
 .charm-pill-add-pat {
-  background: var(--brand-teal-primary);
+  background: #0f766e;
   color: #ffffff;
   border: 0;
   border-radius: 50%;
-  width: 30px;
-  height: 30px;
+  width: 28px;
+  height: 28px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -5263,20 +5363,20 @@ main.main-patient-chart {
 
 .charm-pill-add-pat:hover {
   transform: scale(1.08);
-  background: var(--brand-teal-hover);
+  background: #0d635d;
 }
 
-/* 3. Authentic 14-Module Home Launcher (Image 2) */
+/* 3. Global Dashboard 15-Module Cards (Scoped to Home Landing Dashboard) */
 .charm-home-launcher-container {
-  max-width: 980px;
-  margin: 32px auto 20px;
-  padding: 0 20px;
+  max-width: 960px;
+  margin: 44px auto 36px;
+  padding: 0 24px;
 }
 
 .charm-home-grid-3x5 {
   display: grid;
   grid-template-columns: repeat(5, 1fr);
-  gap: 28px 24px;
+  gap: 36px 28px;
   justify-items: center;
 }
 
@@ -5287,9 +5387,9 @@ main.main-patient-chart {
   gap: 10px;
   cursor: pointer;
   text-align: center;
-  transition: transform 0.16s ease;
+  transition: transform 0.18s cubic-bezier(0.16, 1, 0.3, 1);
   user-select: none;
-  width: 100px;
+  width: 104px;
 }
 
 .charm-grid-module-card:hover {
@@ -5297,36 +5397,44 @@ main.main-patient-chart {
 }
 
 .charm-grid-icon-box {
-  width: 64px;
-  height: 64px;
-  border-radius: 14px;
-  background: var(--bg-surface);
-  color: var(--brand-teal-primary);
+  width: 96px;
+  height: 96px;
+  border-radius: 20px;
+  background: transparent;
   display: flex;
   align-items: center;
   justify-content: center;
-  border: 1px solid var(--border-default);
-  box-shadow: var(--shadow-sm);
-  transition: all 0.16s ease;
+  border: none;
+  box-shadow: none;
+  transition: transform 0.18s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .charm-grid-module-card:hover .charm-grid-icon-box {
-  background: var(--brand-teal-primary);
-  color: #ffffff;
-  border-color: var(--brand-teal-primary);
-  box-shadow: 0 6px 16px rgba(22, 140, 137, 0.25);
+  background: transparent;
+  border: none;
+  box-shadow: none;
+}
+
+.charm-grid-tile-img {
+  width: 96px;
+  height: 96px;
+  object-fit: contain;
+  pointer-events: none;
+  display: block;
+  user-select: none;
 }
 
 .charm-grid-card-label {
-  font-size: 13px;
+  font-size: 13.5px;
   font-weight: 600;
-  color: var(--text-primary);
-  transition: color 0.16s ease;
+  color: #1e293b;
+  letter-spacing: -0.01em;
+  transition: color 0.18s ease;
+  white-space: nowrap;
 }
 
 .charm-grid-module-card:hover .charm-grid-card-label {
-  color: var(--brand-teal-deep);
-  font-weight: 700;
+  color: #0f766e;
 }
 
 /* Floating Voice Assistant pill button (Image 2) */
@@ -6165,7 +6273,7 @@ main.main-patient-chart {
   gap: 12px;
 }
 
-.charm-field-label {
+.charm-form-row .charm-field-label {
   font-size: 12px;
   font-weight: 600;
   color: #334155;
@@ -11047,9 +11155,20 @@ textarea.charm-input {
 }
 
 /* In-Card Setting View (Matching CharmHealth In-Card Screen) */
+.charm-settings-inner-container {
+  display: flex;
+  flex-direction: column;
+  max-width: 1180px;
+  margin: 0 auto;
+  padding: 20px 24px;
+  width: 100%;
+  box-sizing: border-box;
+}
+
 .charm-in-card-settings-view {
   display: flex;
   flex-direction: column;
+  width: 100%;
 }
 
 .charm-settings-tab-bar-strip {
@@ -11207,61 +11326,190 @@ textarea.charm-input {
   color: #334155;
 }
 
+/* Settings Form Container & Grid */
 .charm-settings-form-container {
-  padding: 8px 0;
+  max-width: 860px;
+  width: 100%;
+  margin: 0;
+  padding: 4px 0 24px;
+  box-sizing: border-box;
 }
 
 .charm-form-header-box {
   background: #f8fafc;
   border: 1px solid #e2e8f0;
   border-radius: 6px;
-  padding: 12px 16px;
-  margin-bottom: 20px;
+  padding: 14px 18px;
+  margin-bottom: 22px;
+}
+
+.charm-form-header-title {
+  font-size: 15px;
+  font-weight: 700;
+  color: #0f172a;
+  margin: 0 0 4px 0;
+}
+
+.charm-form-header-desc {
+  font-size: 12.5px;
+  color: #64748b;
+  margin: 0;
+  line-height: 1.5;
 }
 
 .charm-form-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 18px 24px;
+  align-items: start;
+}
+
+@media (max-width: 768px) {
+  .charm-form-grid {
+    grid-template-columns: 1fr;
+  }
 }
 
 .charm-field-group {
   display: flex;
   flex-direction: column;
+  align-items: flex-start;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.charm-field-group.charm-field-full-width {
+  grid-column: 1 / -1;
 }
 
 .charm-field-label {
   font-size: 12.5px;
   font-weight: 600;
   color: #334155;
-  margin-bottom: 4px;
+  margin-bottom: 6px;
+  text-align: left !important;
+  width: 100%;
 }
 
 .charm-input-text,
 .charm-select {
-  height: 34px;
+  width: 100%;
+  max-width: 400px;
+  height: 35px;
   border: 1px solid #cbd5e1;
   border-radius: 4px;
-  padding: 0 10px;
+  padding: 0 12px;
   font-size: 13px;
   color: #1e293b;
+  background: #ffffff;
   outline: none;
+  box-sizing: border-box;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.charm-input-number {
+  max-width: 200px;
 }
 
 .charm-input-text:focus,
 .charm-select:focus,
 .charm-textarea:focus {
-  border-color: #166eb8;
+  border-color: #0284c7;
+  box-shadow: 0 0 0 2px rgba(2, 132, 199, 0.12);
 }
 
 .charm-textarea {
+  width: 100%;
+  max-width: 760px;
   border: 1px solid #cbd5e1;
   border-radius: 4px;
-  padding: 8px 10px;
+  padding: 10px 12px;
   font-size: 13px;
   color: #1e293b;
+  background: #ffffff;
   outline: none;
   font-family: inherit;
+  box-sizing: border-box;
+  resize: vertical;
+  min-height: 84px;
+  line-height: 1.5;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.charm-field-description {
+  font-size: 11.5px;
+  color: #64748b;
+  margin-top: 4px;
+  text-align: left;
+  line-height: 1.4;
+}
+
+/* Enable / Disable Controls (Strictly single inline-flex row) */
+.charm-toggle-row {
+  display: flex;
+  align-items: center;
+  min-height: 35px;
+  margin-top: 2px;
+}
+
+.charm-toggle-control {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  user-select: none;
+  white-space: nowrap;
+}
+
+.charm-checkbox-input {
+  width: 16px;
+  height: 16px;
+  border-radius: 3px;
+  border: 1px solid #cbd5e1;
+  accent-color: #0f766e;
+  cursor: pointer;
+  margin: 0;
+  flex-shrink: 0;
+}
+
+.charm-toggle-status-text {
+  font-size: 13px;
+  font-weight: 500;
+  color: #334155;
+  white-space: nowrap;
+  line-height: 1;
+}
+
+.charm-toggle-status-text.enabled {
+  color: #0f766e;
+  font-weight: 600;
+}
+
+.charm-toggle-status-text.disabled {
+  color: #64748b;
+  font-weight: 500;
+}
+
+.charm-form-actions-footer {
+  margin-top: 24px;
+  padding-top: 16px;
+  border-top: 1px solid #f1f5f9;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.charm-saved-notice {
+  font-size: 12px;
+  color: #15803d;
+  background: #f0fdf4;
+  border: 1px solid #bbf7d0;
+  border-radius: 4px;
+  padding: 4px 10px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 500;
 }
 
 /* 4. Modals & Popups Specific Styling */
@@ -12236,9 +12484,15 @@ textarea.charm-input {
 .charm-settings-main-card {
   background: #ffffff;
   border: 1px solid #e2e8f0;
-  border-radius: 8px;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.03);
+  border-radius: 6px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+  max-width: 1380px;
+  margin: 0 auto;
   overflow: hidden;
+}
+
+.charm-settings-tab-content {
+  background: #ffffff;
 }
 
 /* Tabs Bar */
