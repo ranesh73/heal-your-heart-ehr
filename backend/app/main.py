@@ -52,6 +52,14 @@ async def unexpected_error(request,exc):
     return JSONResponse({'detail':'The operation could not be completed. No changes were saved.'},status_code=500)
 
 
+@app.on_event('startup')
+def startup_sync():
+    try:
+        settings_router.load_store()
+    except Exception as e:
+        logging.getLogger('ehr').warning('Startup settings sync failed: %s', e)
+
+
 @app.get('/api/health')
 def health(): return {'status':'ok','mode':'development','external_integrations':False}
 

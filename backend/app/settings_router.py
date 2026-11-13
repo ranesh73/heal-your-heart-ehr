@@ -10,11 +10,33 @@ from .serialization import serialize
 
 router = APIRouter(prefix='/api')
 SETTINGS_FILE = Path(__file__).resolve().parent.parent / 'data' / 'settings_store.json'
+SEED_FILE = Path(__file__).resolve().parent.parent / 'seed_data' / 'settings_store.json'
 
 
 def load_store():
-    if not SETTINGS_FILE.exists():
-        initial = {
+    store = {}
+    if SETTINGS_FILE.exists():
+        try:
+            with open(SETTINGS_FILE, 'r', encoding='utf-8') as f:
+                store = json.load(f) or {}
+        except Exception:
+            store = {}
+    
+    # If store is missing or missing vital keys, auto-hydrate from SEED_FILE
+    needs_save = False
+    if SEED_FILE.exists():
+        try:
+            with open(SEED_FILE, 'r', encoding='utf-8') as f:
+                seed = json.load(f) or {}
+            for key, val in seed.items():
+                if key not in store or (isinstance(val, list) and len(store.get(key, [])) == 0) or (isinstance(val, dict) and not store.get(key)):
+                    store[key] = val
+                    needs_save = True
+        except Exception:
+            pass
+
+    if not store:
+        store = {
             "kiosk_accounts": [
                 {
                     "id": "kiosk-1",
@@ -94,21 +116,23 @@ def load_store():
             },
             "custom_settings": {}
         }
-        SETTINGS_FILE.parent.mkdir(parents=True, exist_ok=True)
-        with open(SETTINGS_FILE, 'w', encoding='utf-8') as f:
-            json.dump(initial, f, indent=2)
-        return initial
-    try:
-        with open(SETTINGS_FILE, 'r', encoding='utf-8') as f:
-            return json.load(f)
-    except Exception:
-        return {}
+        needs_save = True
+
+    if needs_save or not SETTINGS_FILE.exists():
+        save_store(store)
+    return store
 
 
 def save_store(store):
     SETTINGS_FILE.parent.mkdir(parents=True, exist_ok=True)
     with open(SETTINGS_FILE, 'w', encoding='utf-8') as f:
         json.dump(store, f, indent=2)
+    try:
+        SEED_FILE.parent.mkdir(parents=True, exist_ok=True)
+        with open(SEED_FILE, 'w', encoding='utf-8') as f:
+            json.dump(store, f, indent=2)
+    except Exception:
+        pass
 
 
 @router.get('/kiosk-accounts')

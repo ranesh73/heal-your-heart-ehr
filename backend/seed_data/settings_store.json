@@ -318,58 +318,68 @@
     },
     {
       "id": "status-3",
+      "name": "Cancelled",
+      "color": "#ef4444"
+    },
+    {
+      "id": "status-4",
       "name": "Checked in",
       "color": "#008000"
     },
     {
-      "id": "status-4",
+      "id": "status-5",
       "name": "Confirmed",
       "color": "#84cc16"
     },
     {
-      "id": "status-5",
+      "id": "status-6",
       "name": "Consultation / Demo",
       "color": "#854d0e"
     },
     {
-      "id": "status-6",
+      "id": "status-7",
       "name": "Consulted",
       "color": "#1e1b4b"
     },
     {
-      "id": "status-7",
+      "id": "status-8",
       "name": "Diabetic / HT Management",
       "color": "#d97706"
     },
     {
-      "id": "status-8",
+      "id": "status-9",
       "name": "Discharge",
       "color": "#06b6d4"
     },
     {
-      "id": "status-9",
+      "id": "status-10",
       "name": "EECP Treatment 1st Day",
       "color": "#ea580c"
     },
     {
-      "id": "status-10",
+      "id": "status-11",
       "name": "EECP Treatment 20 Sessions 1st Day",
       "color": "#dc2626"
     },
     {
-      "id": "status-11",
+      "id": "status-12",
       "name": "EECP Treatment Completed",
       "color": "#64748b"
     },
     {
-      "id": "status-12",
+      "id": "status-13",
       "name": "EECP Treatment Started",
       "color": "#78350f"
     },
     {
-      "id": "status-13",
+      "id": "status-14",
       "name": "No show",
       "color": "#9ca3af"
+    },
+    {
+      "id": "status-15",
+      "name": "Rescheduled",
+      "color": "#a7f3d0"
     }
   ],
   "visit_types": [

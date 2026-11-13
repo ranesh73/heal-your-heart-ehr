@@ -1084,6 +1084,7 @@ function Schedule() {
   const [waitingPrefillDate, setWaitingPrefillDate] = useState<string>("");
   const [reschedule, setReschedule] = useState<Row>();
   const [statusModal, setStatusModal] = useState<Row>();
+  const [statusFilter, setStatusFilter] = useState("ALL");
   const [bookingSlot, setBookingSlot] = useState<{
     startAt: string;
     providerId?: string;
@@ -1150,24 +1151,27 @@ function Schedule() {
   const [availableStatuses, setAvailableStatuses] = useState<{ id: string; name: string; color: string }[]>(() => {
     try {
       const saved = localStorage.getItem("hyh_appointment_statuses");
-      if (saved) return JSON.parse(saved);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
     } catch {}
     return [
-      { id: "1", name: "Confirmed", color: "#10b981" },
-      { id: "2", name: "Checked in", color: "#3b82f6" },
-      { id: "3", name: "Completed", color: "#059669" },
-      { id: "4", name: "Cancelled", color: "#ef4444" },
-      { id: "5", name: "No show", color: "#f59e0b" },
-      { id: "6", name: "Absent", color: "#64748b" },
-      { id: "7", name: "Admission", color: "#8b5cf6" },
-      { id: "8", name: "Consultation / Demo", color: "#06b6d4" },
-      { id: "9", name: "Consulted", color: "#14b8a6" },
-      { id: "10", name: "Diabetic / HT Management", color: "#ec4899" },
-      { id: "11", name: "Discharge", color: "#6366f1" },
-      { id: "12", name: "EECP Treatment 1st Day", color: "#f97316" },
-      { id: "13", name: "EECP Treatment 20 Sessions 1st Day", color: "#d946ef" },
-      { id: "14", name: "EECP Treatment Completed", color: "#22c55e" },
-      { id: "15", name: "EECP Treatment Started", color: "#84cc16" },
+      { id: "status-1", name: "Absent", color: "#0000ff" },
+      { id: "status-2", name: "Admission", color: "#004d40" },
+      { id: "status-3", name: "Cancelled", color: "#ef4444" },
+      { id: "status-4", name: "Checked in", color: "#008000" },
+      { id: "status-5", name: "Confirmed", color: "#84cc16" },
+      { id: "status-6", name: "Consultation / Demo", color: "#854d0e" },
+      { id: "status-7", name: "Consulted", color: "#1e1b4b" },
+      { id: "status-8", name: "Diabetic / HT Management", color: "#d97706" },
+      { id: "status-9", name: "Discharge", color: "#06b6d4" },
+      { id: "status-10", name: "EECP Treatment 1st Day", color: "#ea580c" },
+      { id: "status-11", name: "EECP Treatment 20 Sessions 1st Day", color: "#dc2626" },
+      { id: "status-12", name: "EECP Treatment Completed", color: "#64748b" },
+      { id: "status-13", name: "EECP Treatment Started", color: "#78350f" },
+      { id: "status-14", name: "No show", color: "#9ca3af" },
+      { id: "status-15", name: "Rescheduled", color: "#a7f3d0" },
     ];
   });
 
@@ -1209,10 +1213,19 @@ function Schedule() {
       .catch(() => {});
 
     const onStatusUpdate = () => {
-      try {
-        const saved = localStorage.getItem("hyh_appointment_statuses");
-        if (saved) setAvailableStatuses(JSON.parse(saved));
-      } catch {}
+      api<any[]>("/calendar/appointment-statuses")
+        .then((data) => {
+          if (data && data.length > 0) {
+            setAvailableStatuses(data);
+            localStorage.setItem("hyh_appointment_statuses", JSON.stringify(data));
+          }
+        })
+        .catch(() => {
+          try {
+            const saved = localStorage.getItem("hyh_appointment_statuses");
+            if (saved) setAvailableStatuses(JSON.parse(saved));
+          } catch {}
+        });
     };
     const onVisitTypeUpdate = () => {
       try {
@@ -1349,6 +1362,25 @@ function Schedule() {
       new Date(a.start_at) >= rangeStart &&
       new Date(a.start_at) < rangeEnd,
   );
+
+  const statusCounts = useMemo(() => {
+    const counts: Record<string, number> = {};
+    for (const a of filtered) {
+      const raw = a.status_label || (a.status === "checked-in" ? "Checked in" : a.status === "confirmed" ? "Confirmed" : a.status === "completed" ? "Completed" : a.status === "cancelled" ? "Cancelled" : a.status);
+      const match = availableStatuses.find((s) => s.name.toLowerCase() === raw.toLowerCase());
+      const label = match ? match.name : raw;
+      counts[label] = (counts[label] || 0) + 1;
+    }
+    return counts;
+  }, [filtered, availableStatuses]);
+
+  const displayedAppts = useMemo(() => {
+    if (statusFilter === "ALL") return filtered;
+    return filtered.filter((a) => {
+      const raw = a.status_label || (a.status === "checked-in" ? "Checked in" : a.status === "confirmed" ? "Confirmed" : a.status === "completed" ? "Completed" : a.status === "cancelled" ? "Cancelled" : a.status);
+      return raw.toLowerCase() === statusFilter.toLowerCase();
+    });
+  }, [filtered, statusFilter]);
 
   const activeCalView = calSubtab === "Waiting List" ? waitingListView : view;
   const shift = (amount: number) => {
@@ -1676,14 +1708,49 @@ function Schedule() {
               </div>
             </div>
 
-            {/* Stat summary pills */}
-            <div className="charm-stat-pills">
-              <div className="charm-stat-chip orange">
+            {/* Dynamic CharmHealth Stat Summary Pills */}
+            <div className="charm-stat-pills" style={{ display: "flex", flexWrap: "wrap", gap: 8, alignItems: "center" }}>
+              <div
+                className={`charm-stat-chip ${statusFilter === "ALL" ? "orange" : ""}`}
+                onClick={() => setStatusFilter("ALL")}
+                style={{
+                  cursor: "pointer",
+                  background: statusFilter === "ALL" ? "#ea580c" : "#fff",
+                  color: statusFilter === "ALL" ? "#fff" : "#334155",
+                  borderColor: statusFilter === "ALL" ? "#ea580c" : "#cbd5e1",
+                  borderWidth: 1,
+                  borderStyle: "solid",
+                  fontWeight: 600,
+                  transition: "all 0.15s ease",
+                }}
+              >
                 <strong>{filtered.length}</strong> ALL
               </div>
-              <div className="charm-stat-chip purple">
-                <strong>{filtered.filter((a) => a.status === "checked-in" || a.status === "confirmed").length || 6}</strong> EECP TREATMENT STARTED
-              </div>
+              {Object.entries(statusCounts).map(([sName, count]) => {
+                const conf = availableStatuses.find((s) => s.name.toLowerCase() === sName.toLowerCase());
+                const chipColor = conf?.color || "#7c3aed";
+                const isSelected = statusFilter.toLowerCase() === sName.toLowerCase();
+                return (
+                  <div
+                    key={sName}
+                    className="charm-stat-chip"
+                    onClick={() => setStatusFilter(isSelected ? "ALL" : sName)}
+                    style={{
+                      cursor: "pointer",
+                      background: isSelected ? chipColor : "#fff",
+                      color: isSelected ? "#fff" : chipColor,
+                      borderColor: chipColor,
+                      borderWidth: 1,
+                      borderStyle: "solid",
+                      fontWeight: 600,
+                      transition: "all 0.15s ease",
+                    }}
+                    title={`Click to filter by ${sName}`}
+                  >
+                    <strong>{count}</strong> {sName.toUpperCase()}
+                  </div>
+                );
+              })}
             </div>
 
             <ErrorBox error={appts.error || error} />
@@ -1751,38 +1818,99 @@ function Schedule() {
                                   <span className="charm-slot-plus">+</span>
                                 </div>
                               )}
-                              {slotAppts.map((currentSlotAppt) => {
-                                const isEECP = currentSlotAppt.visit_type?.toLowerCase().includes("eecp");
-                                return (
-                                  <div
-                                    key={currentSlotAppt.id}
-                                    className={`charm-week-appt-card ${isEECP ? "eecp-appt" : "consult-appt"} status-${currentSlotAppt.status}`}
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      setSelectedAppt(currentSlotAppt);
-                                    }}
-                                    title="Click to view appointment details & actions"
-                                  >
-                                    <div className="appt-header-line">
-                                      <span className="appt-time">
-                                        {localInput(currentSlotAppt.start_at).slice(11, 16)} - {localInput(currentSlotAppt.end_at).slice(11, 16)}
-                                      </span>
-                                      <span className={`status-badge-mini ${currentSlotAppt.status}`}>
-                                        {currentSlotAppt.status}
-                                      </span>
+                              {slotAppts.length > 1 ? (
+                                <div className="charm-stacked-file-group" style={{ display: "flex", flexDirection: "column", gap: 3, width: "100%" }}>
+                                  {slotAppts.map((currentSlotAppt) => {
+                                    const isEECP = currentSlotAppt.visit_type?.toLowerCase().includes("eecp");
+                                    const stConfig = availableStatuses.find(
+                                      (s) => s.name.toLowerCase() === (currentSlotAppt.status_label || currentSlotAppt.status).toLowerCase()
+                                    );
+                                    const accentColor = stConfig?.color || (isEECP ? "#8b5cf6" : "#0284c7");
+                                    return (
+                                      <div
+                                        key={currentSlotAppt.id}
+                                        className="charm-week-appt-strip"
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          setSelectedAppt(currentSlotAppt);
+                                        }}
+                                        title={`${patientName(currentSlotAppt.patient_id, patients)} · ${localInput(currentSlotAppt.start_at).slice(11, 16)} - ${localInput(currentSlotAppt.end_at).slice(11, 16)} · ${currentSlotAppt.status_label || currentSlotAppt.status}`}
+                                        style={{
+                                          display: "flex",
+                                          alignItems: "center",
+                                          gap: 6,
+                                          background: "#f8fafc",
+                                          border: "1px solid #cbd5e1",
+                                          borderLeft: `4px solid ${accentColor}`,
+                                          borderRadius: 3,
+                                          padding: "3px 6px",
+                                          fontSize: 11,
+                                          cursor: "pointer",
+                                          boxShadow: "0 1px 2px rgba(0,0,0,0.05)",
+                                          overflow: "hidden",
+                                          whiteSpace: "nowrap",
+                                          textOverflow: "ellipsis",
+                                          transition: "all 0.15s ease",
+                                        }}
+                                      >
+                                        <span style={{ fontWeight: 700, color: "#1e293b", fontSize: 10, flexShrink: 0 }}>
+                                          {localInput(currentSlotAppt.start_at).slice(11, 16)}
+                                        </span>
+                                        <span style={{ fontWeight: 600, color: "#0f172a", overflow: "hidden", textOverflow: "ellipsis", flex: 1 }}>
+                                          {patientName(currentSlotAppt.patient_id, patients)}
+                                        </span>
+                                        <span
+                                          style={{
+                                            fontSize: 9,
+                                            fontWeight: 700,
+                                            padding: "1px 5px",
+                                            borderRadius: 2,
+                                            background: accentColor + "20",
+                                            color: accentColor,
+                                            textTransform: "uppercase",
+                                            flexShrink: 0,
+                                          }}
+                                        >
+                                          {currentSlotAppt.status_label || currentSlotAppt.status}
+                                        </span>
+                                      </div>
+                                    );
+                                  })}
+                                </div>
+                              ) : (
+                                slotAppts.map((currentSlotAppt) => {
+                                  const isEECP = currentSlotAppt.visit_type?.toLowerCase().includes("eecp");
+                                  return (
+                                    <div
+                                      key={currentSlotAppt.id}
+                                      className={`charm-week-appt-card ${isEECP ? "eecp-appt" : "consult-appt"} status-${currentSlotAppt.status}`}
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        setSelectedAppt(currentSlotAppt);
+                                      }}
+                                      title="Click to view appointment details & actions"
+                                    >
+                                      <div className="appt-header-line">
+                                        <span className="appt-time">
+                                          {localInput(currentSlotAppt.start_at).slice(11, 16)} - {localInput(currentSlotAppt.end_at).slice(11, 16)}
+                                        </span>
+                                        <span className={`status-badge-mini ${currentSlotAppt.status}`}>
+                                          {currentSlotAppt.status}
+                                        </span>
+                                      </div>
+                                      <div className="appt-patient">
+                                        {patientName(currentSlotAppt.patient_id, patients)}
+                                      </div>
+                                      <div className="appt-provider">
+                                        {staff.find((s) => s.id === currentSlotAppt.provider_id)?.name}
+                                      </div>
+                                      <div className="appt-room">
+                                        {resources.find((r) => r.id === currentSlotAppt.resource_id)?.name || (isEECP ? "EECP Bed" : "Consult Room")}
+                                      </div>
                                     </div>
-                                    <div className="appt-patient">
-                                      {patientName(currentSlotAppt.patient_id, patients)}
-                                    </div>
-                                    <div className="appt-provider">
-                                      {staff.find((s) => s.id === currentSlotAppt.provider_id)?.name}
-                                    </div>
-                                    <div className="appt-room">
-                                      {resources.find((r) => r.id === currentSlotAppt.resource_id)?.name || (isEECP ? "EECP Bed" : "Consult Room")}
-                                    </div>
-                                  </div>
-                                );
-                              })}
+                                  );
+                                })
+                              )}
                               {!isSlotEmpty && ["reception", "doctor", "therapist", "admin"].includes(user.role) && (
                                 <button
                                   type="button"
@@ -2021,7 +2149,7 @@ function Schedule() {
             ) : (
               /* 4. Authentic CharmHealth List View (Image 3) */
               <div className="charm-appt-card-list">
-                {filtered.map((a) => {
+                {displayedAppts.map((a) => {
                   const pat = patients.find((p) => p.id === a.patient_id);
                   const prv = staff.find((s) => s.id === a.provider_id);
                   const res = resources.find((r) => r.id === a.resource_id);
@@ -2201,11 +2329,23 @@ function Schedule() {
                   );
                 })}
 
-                {filtered.length === 0 && (
+                {filtered.length === 0 ? (
                   <div style={{ padding: 32, textAlign: "center", color: "#64748b", background: "#fff", border: "1px solid #e2e8f0", borderRadius: 6 }}>
                     No appointments scheduled for this date.
                   </div>
-                )}
+                ) : displayedAppts.length === 0 ? (
+                  <div style={{ padding: 32, textAlign: "center", color: "#64748b", background: "#fff", border: "1px solid #e2e8f0", borderRadius: 6 }}>
+                    No appointments found matching status "<strong>{statusFilter}</strong>".{" "}
+                    <button
+                      type="button"
+                      className="text-link"
+                      onClick={() => setStatusFilter("ALL")}
+                      style={{ marginLeft: 6, fontWeight: 600 }}
+                    >
+                      Show all ({filtered.length})
+                    </button>
+                  </div>
+                ) : null}
               </div>
             )}
           </section>
