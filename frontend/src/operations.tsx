@@ -4261,7 +4261,7 @@ export function AdministrationPage() {
     {
       id: "calendar",
       title: "Calendar",
-      items: ["Facility Timings", "Provider Timings", "Online Appointments", "Appointment Status", "Visit Types", "Schedule Rules"],
+      items: ["Facility Timings", "Provider Timings", "Online Appointments", "Web Embed", "Appointment Fields", "Appointment Status", "Visit Types", "Event Types"],
     },
     {
       id: "patient",

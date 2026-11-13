@@ -349,6 +349,22 @@ def duplicate_template(template_id: int):
     return {"success": True, "id": new_id, "name": new_name}
 
 
+@router.put("/templates/{template_id}/status")
+def set_template_status(template_id: int, data: dict):
+    is_active = 1 if data.get("is_active", True) else 0
+    conn = get_con()
+    cursor = conn.cursor()
+    cursor.execute("SELECT name FROM templates WHERE id = ?", (template_id,))
+    row = cursor.fetchone()
+    if not row:
+        conn.close()
+        raise HTTPException(404, "Template not found")
+    cursor.execute("UPDATE templates SET is_active = ?, updated_at = datetime('now') WHERE id = ?", (is_active, template_id))
+    conn.commit()
+    conn.close()
+    return {"success": True, "is_active": bool(is_active)}
+
+
 @router.post("/templates/{template_id}/share")
 def share_template(template_id: int):
     conn = get_con()
@@ -406,14 +422,15 @@ def search_templates(q: str = ""):
 
 # --- Medications Reference Catalog ---
 @router.get("/medications")
-def get_medications(condition_key: str = "", category: str = "", search: str = ""):
+def get_medications(condition: str = "", condition_key: str = "", category: str = "", search: str = ""):
+    cond = (condition or condition_key or "").strip().lower()
     conn = get_con()
     cursor = conn.cursor()
     query = "SELECT * FROM medication_references WHERE 1=1"
     params = []
-    if condition_key and condition_key != "all":
+    if cond and cond != "all":
         query += " AND (LOWER(condition_key) = ? OR LOWER(condition_name) LIKE ?)"
-        params.extend([condition_key.lower(), f"%{condition_key.lower()}%"])
+        params.extend([cond, f"%{cond}%"])
     if category and category != "All":
         query += " AND category = ?"
         params.append(category)
@@ -428,8 +445,112 @@ def get_medications(condition_key: str = "", category: str = "", search: str = "
     return [dict(r) for r in rows]
 
 
+@router.get("/medications/{med_id}")
+def get_medication_by_id(med_id: int):
+    conn = get_con()
+    cursor = conn.cursor()
+    cursor.execute("SELECT * FROM medication_references WHERE id = ?", (med_id,))
+    row = cursor.fetchone()
+    conn.close()
+    if not row:
+        raise HTTPException(404, "Medication not found")
+    return dict(row)
+
+
+@router.post("/medications")
+def create_medication(data: dict):
+    conn = get_con()
+    cursor = conn.cursor()
+    cursor.execute("""
+        INSERT INTO medication_references (
+            condition_key, condition_name, medication_name, generic_name,
+            dosage_form, strength, standard_dosage, frequency, instructions, notes, category
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    """, (
+        data.get("condition_key", "general"),
+        data.get("condition_name", "General Medicine"),
+        data.get("medication_name", ""),
+        data.get("generic_name", ""),
+        data.get("dosage_form", "Tablet"),
+        data.get("strength", ""),
+        data.get("standard_dosage", ""),
+        data.get("frequency", "OD"),
+        data.get("instructions", ""),
+        data.get("notes", ""),
+        data.get("category", "General")
+    ))
+    new_id = cursor.lastrowid
+    conn.commit()
+    cursor.execute("SELECT * FROM medication_references WHERE id = ?", (new_id,))
+    row = cursor.fetchone()
+    conn.close()
+    return dict(row)
+
+
+@router.put("/medications/{med_id}")
+def update_medication(med_id: int, data: dict):
+    conn = get_con()
+    cursor = conn.cursor()
+    cursor.execute("""
+        UPDATE medication_references SET
+            condition_key = ?, condition_name = ?, medication_name = ?, generic_name = ?,
+            dosage_form = ?, strength = ?, standard_dosage = ?, frequency = ?,
+            instructions = ?, notes = ?, category = ?
+        WHERE id = ?
+    """, (
+        data.get("condition_key", "general"),
+        data.get("condition_name", "General Medicine"),
+        data.get("medication_name", ""),
+        data.get("generic_name", ""),
+        data.get("dosage_form", "Tablet"),
+        data.get("strength", ""),
+        data.get("standard_dosage", ""),
+        data.get("frequency", "OD"),
+        data.get("instructions", ""),
+        data.get("notes", ""),
+        data.get("category", "General"),
+        med_id
+    ))
+    conn.commit()
+    cursor.execute("SELECT * FROM medication_references WHERE id = ?", (med_id,))
+    row = cursor.fetchone()
+    conn.close()
+    if not row:
+        raise HTTPException(404, "Medication not found")
+    return dict(row)
+
+
+@router.delete("/medications/{med_id}")
+def delete_medication(med_id: int):
+    conn = get_con()
+    cursor = conn.cursor()
+    cursor.execute("DELETE FROM medication_references WHERE id = ?", (med_id,))
+    conn.commit()
+    conn.close()
+    return {"success": True, "message": "Medication deleted"}
+
+
 # --- Consultation Form Responses ---
+@router.get("/consultations")
+@router.get("/template-responses")
+def list_consultations():
+    conn = get_con()
+    cursor = conn.cursor()
+    cursor.execute("SELECT * FROM consultations ORDER BY id DESC LIMIT 50")
+    rows = cursor.fetchall()
+    results = []
+    for r in rows:
+        d = dict(r)
+        cursor.execute("SELECT * FROM template_responses WHERE consultation_id = ?", (d["id"],))
+        d["responses"] = [dict(x) for x in cursor.fetchall()]
+        results.append(d)
+    conn.close()
+    return results
+
+
 @router.post("/responses")
+@router.post("/consultations")
+@router.post("/template-responses")
 def save_consultation_responses(data: dict):
     conn = get_con()
     cursor = conn.cursor()
@@ -461,6 +582,8 @@ def save_consultation_responses(data: dict):
 
 
 @router.get("/responses/{consultation_id}")
+@router.get("/consultations/{consultation_id}")
+@router.get("/template-responses/{consultation_id}")
 def get_consultation_responses(consultation_id: int):
     conn = get_con()
     cursor = conn.cursor()
