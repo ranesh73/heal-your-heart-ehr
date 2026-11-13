@@ -10057,6 +10057,404 @@ textarea.charm-input {
   font-size: 12px;
 }
 
+/* Authentic CharmHealth "New Encounter" Unfinished Consultation Prompt (frame_030) */
+.charm-unfinished-modal {
+  background: #ffffff;
+  border-radius: 6px;
+  width: 95%;
+  max-width: 520px;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.25);
+  border: 1px solid #cbd5e1;
+  overflow: hidden;
+}
+
+.charm-unfinished-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 18px;
+  border-bottom: 1px solid #e2e8f0;
+  background: #f8fafc;
+}
+
+.charm-unfinished-header h3 {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: #1e293b;
+}
+
+.charm-unfinished-body {
+  padding: 20px 24px;
+  font-size: 13px;
+  color: #334155;
+}
+
+.charm-unfinished-desc {
+  margin: 0 0 16px 0;
+  line-height: 1.5;
+}
+
+.charm-unfinished-links {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 20px;
+  padding-left: 8px;
+}
+
+.charm-unfinished-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  color: #0284c7;
+  font-weight: 500;
+  transition: color 0.15s ease;
+}
+
+.charm-unfinished-item:hover {
+  color: #0369a1;
+  text-decoration: underline;
+}
+
+.charm-unfinished-arrow {
+  font-size: 16px;
+  color: #0284c7;
+  font-weight: bold;
+}
+
+.charm-create-new-prompt {
+  border-top: 1px dashed #e2e8f0;
+  padding-top: 14px;
+}
+
+.charm-btn-link-create-new {
+  background: none;
+  border: none;
+  color: #0284c7;
+  font-size: 13px;
+  cursor: pointer;
+  padding: 0;
+  text-decoration: none;
+  font-weight: 500;
+}
+
+.charm-btn-link-create-new:hover {
+  text-decoration: underline;
+  color: #0369a1;
+}
+
+/* ehr2.charmtracker.com says confirmation dialog (frame_022) */
+.charm-confirm-dialog {
+  background: #ffffff;
+  border-radius: 8px;
+  width: 95%;
+  max-width: 440px;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.3);
+  border: 1px solid #cbd5e1;
+  padding: 20px 22px;
+}
+
+.charm-confirm-dialog-header {
+  font-size: 14px;
+  font-weight: 700;
+  color: #0f172a;
+  margin-bottom: 12px;
+}
+
+.charm-confirm-dialog-body {
+  font-size: 13px;
+  color: #334155;
+  line-height: 1.5;
+  margin-bottom: 20px;
+}
+
+.charm-confirm-dialog-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+/* Consultations Tab 2-Pane Layout (frame_020) */
+.charm-consultations-container {
+  display: flex;
+  min-height: 480px;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.charm-consult-left-filters {
+  width: 170px;
+  flex-shrink: 0;
+  border-right: 1px solid #e2e8f0;
+  background: #f8fafc;
+  padding: 12px 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.charm-filter-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 7px 16px;
+  background: transparent;
+  border: none;
+  border-left: 3px solid transparent;
+  font-size: 12.5px;
+  color: #334155;
+  text-align: left;
+  cursor: pointer;
+  transition: all 0.12s ease;
+}
+
+.charm-filter-item:hover {
+  background: #f1f5f9;
+  color: #0f172a;
+}
+
+.charm-filter-item.active {
+  background: #e2e8f0;
+  border-left-color: #0284c7;
+  color: #0284c7;
+  font-weight: 600;
+}
+
+.charm-filter-badge {
+  background: #ef4444;
+  color: #ffffff;
+  border-radius: 10px;
+  padding: 1px 6px;
+  font-size: 10.5px;
+  font-weight: 700;
+}
+
+.charm-consult-main-area {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.charm-consult-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 18px;
+  border-bottom: 1px solid #e2e8f0;
+  background: #ffffff;
+}
+
+.charm-consult-title-area h3 {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: #1e293b;
+}
+
+.charm-consult-actions-area {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.charm-search-notes-wrap {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid #cbd5e1;
+  border-radius: 4px;
+  padding: 4px 10px;
+  background: #ffffff;
+}
+
+.charm-search-notes-wrap input {
+  border: none;
+  outline: none;
+  font-size: 12px;
+  color: #334155;
+  width: 140px;
+}
+
+.charm-btn-orange-consult {
+  background: #ea580c;
+  color: #ffffff;
+  border: none;
+  border-radius: 4px;
+  padding: 6px 14px;
+  font-size: 12.5px;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.charm-btn-orange-consult:hover {
+  background: #c2410c;
+}
+
+.charm-consultations-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12.5px;
+}
+
+.charm-consultations-table th {
+  background: #f8fafc;
+  color: #475569;
+  font-weight: 600;
+  padding: 9px 16px;
+  text-align: left;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.charm-consult-row {
+  cursor: pointer;
+  border-bottom: 1px solid #f1f5f9;
+  transition: background 0.12s ease;
+}
+
+.charm-consult-row:hover {
+  background: #f8fafc;
+}
+
+.charm-consult-row td {
+  padding: 10px 16px;
+  color: #334155;
+}
+
+.charm-enc-title-link {
+  color: #0284c7;
+  font-weight: 500;
+}
+
+.charm-enc-title-link:hover {
+  text-decoration: underline;
+}
+
+.charm-btn-icon-subtle {
+  background: none;
+  border: none;
+  padding: 4px 6px;
+  color: #64748b;
+  cursor: pointer;
+  border-radius: 4px;
+}
+
+.charm-btn-icon-subtle:hover {
+  background: #e2e8f0;
+  color: #0f172a;
+}
+
+.charm-btn-icon-subtle.danger:hover {
+  background: #fee2e2;
+  color: #dc2626;
+}
+
+.charm-empty-table-cell {
+  padding: 30px;
+  text-align: center;
+  color: #94a3b8;
+}
+
+/* Consultation Review View (frame_027) */
+.charm-consultation-view-pane {
+  display: flex;
+  flex-direction: column;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 4px;
+  padding: 16px 20px;
+  gap: 16px;
+}
+
+.charm-consult-view-topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid #e2e8f0;
+  padding-bottom: 12px;
+}
+
+.charm-consult-view-title-group {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.charm-btn-back {
+  background: none;
+  border: 1px solid #cbd5e1;
+  border-radius: 4px;
+  padding: 4px 8px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #475569;
+}
+
+.charm-btn-back:hover {
+  background: #f1f5f9;
+  color: #0f172a;
+}
+
+.charm-consult-view-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.charm-consult-view-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.charm-consult-metadata-box {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 4px;
+  padding: 12px 16px;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px 16px;
+  font-size: 12.5px;
+}
+
+.charm-meta-box-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.charm-meta-box-label {
+  color: #64748b;
+  font-weight: 500;
+}
+
+.charm-meta-box-val {
+  color: #0f172a;
+  font-weight: 600;
+}
+
+.charm-meta-select {
+  border: 1px solid #cbd5e1;
+  border-radius: 3px;
+  padding: 2px 4px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #0f172a;
+  background: #ffffff;
+  outline: none;
+  cursor: pointer;
+}
+
 /* New Encounter Modal (Frame 001, 002) */
 .charm-new-enc-modal {
   background: #ffffff;
