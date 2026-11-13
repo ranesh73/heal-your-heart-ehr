@@ -1130,6 +1130,8 @@ function Schedule() {
   const [selectedAppt, setSelectedAppt] = useState<Row | null>(null);
   const [error, setError] = useState<unknown>();
 
+  const [calSortBy, setCalSortBy] = useState<"Time" | "Token" | "Status" | "Resource" | "Provider">("Time");
+  const [providerQuickSearch, setProviderQuickSearch] = useState("");
   const [calSettingsOpen, setCalSettingsOpen] = useState(false);
   const [calSettings, setCalSettings] = useState({
     showCancelled: false,
@@ -1140,15 +1142,7 @@ function Schedule() {
     colorByAppts: "Provider",
   });
   const [selectedCalProviders, setSelectedCalProviders] = useState<Record<string, boolean>>({});
-  const [selectedCalResources, setSelectedCalResources] = useState<Record<string, boolean>>({
-    "EECP Room 01": true,
-    "EECP Room 02": true,
-    "EECP Room 03": true,
-    "EECP Room 04": true,
-    "EECP Room 05": true,
-    "EECP Room 06": true,
-    "Consultation Room 1": true,
-  });
+  const [selectedCalResources, setSelectedCalResources] = useState<Record<string, boolean>>({});
   const [selectedCalVisitTypes, setSelectedCalVisitTypes] = useState<Record<string, boolean>>({});
   const [shownBalances, setShownBalances] = useState<Record<string, boolean>>({});
   const [lastVisitModalAppt, setLastVisitModalAppt] = useState<Row | null>(null);
@@ -1415,41 +1409,198 @@ function Schedule() {
     rangeEnd = new Date(selectedDate.getTime() + 7 * 86400000);
   }
 
-  const filtered = (appts.data || []).filter(
-    (a) =>
-      (!provider || a.provider_id === provider) &&
-      new Date(a.start_at) >= rangeStart &&
-      new Date(a.start_at) < rangeEnd,
-  );
+  const resourceNames = useMemo(() => {
+    const fromDb = Array.from(new Set(resources.map((r) => r.name))).filter(Boolean);
+    const defaults = [
+      "EECP Room 01", "EECP Room 02", "EECP Room 03", "EECP Room 04",
+      "EECP Room 05", "EECP Room 06", "Consultation Room 1",
+    ];
+    return Array.from(new Set([...fromDb, ...defaults]));
+  }, [resources]);
 
+  const getApptResourceName = (resId?: string) => {
+    if (!resId) return "-- Select --";
+    const r = resources.find((res) => res.id === resId);
+    if (r) return r.name;
+    const map: Record<string, string> = {
+      res_eecp1: "EECP Room 01",
+      res_eecp2: "EECP Room 02",
+      res_eecp3: "EECP Room 03",
+      res_eecp4: "EECP Room 04",
+      res_eecp5: "EECP Room 05",
+      res_eecp6: "EECP Room 06",
+      res_cons1: "Consultation Room 1",
+    };
+    return map[resId] || resId;
+  };
+
+  const normalizeVisitType = (vt?: string) => {
+    if (!vt) return "General Visit";
+    const lower = vt.toLowerCase().trim();
+    if (lower.includes("eecp")) {
+      if (lower.includes("1st day") || lower.includes("first")) return "EECP 1st Day";
+      if (lower.includes("demo")) return "EECP Demo";
+      const dayMatch = lower.match(/eecp\s+(\d+)(?:st|nd|rd|th)?\s*day/);
+      if (dayMatch) return `EECP ${dayMatch[1]}th Day`;
+      return "EECP Treatment";
+    }
+    if (lower.includes("follow")) return "Follow-up Visit";
+    if (lower.includes("new") || lower.includes("consult")) return "New Patient Visit";
+    if (lower.includes("diabet") || lower.includes("ht")) return "Diabetes/HT Management";
+    if (lower.includes("admiss")) return "Admission";
+    if (lower.includes("telehealth") || lower.includes("video")) return "Telehealth Video Consult";
+    if (lower.includes("walk")) return "Walk-in visits";
+    if (lower.includes("absent")) return "Absent";
+    return vt;
+  };
+
+  const isProviderSelected = (provId?: string) => {
+    const hasAnySelected = Object.values(selectedCalProviders).some((v) => v === true);
+    const hasAnyUnselected = Object.values(selectedCalProviders).some((v) => v === false);
+    if (hasAnyUnselected && !hasAnySelected) return false;
+    if (!provId) return true;
+    if (selectedCalProviders[provId] === false) return false;
+    return true;
+  };
+
+  const isResourceSelected = (resId?: string) => {
+    const hasAnySelected = Object.values(selectedCalResources).some((v) => v === true);
+    const hasAnyUnselected = Object.values(selectedCalResources).some((v) => v === false);
+    if (hasAnyUnselected && !hasAnySelected) return false;
+    const resName = getApptResourceName(resId);
+    if (resName === "-- Select --") return true;
+    if (selectedCalResources[resName] === false) return false;
+    return true;
+  };
+
+  const isVisitTypeSelected = (vt?: string) => {
+    const hasAnySelected = Object.values(selectedCalVisitTypes).some((v) => v === true);
+    const hasAnyUnselected = Object.values(selectedCalVisitTypes).some((v) => v === false);
+    if (hasAnyUnselected && !hasAnySelected) return false;
+    if (!vt) return true;
+    if (selectedCalVisitTypes[vt] === false) return false;
+    const norm = normalizeVisitType(vt);
+    if (selectedCalVisitTypes[norm] === false) return false;
+    return true;
+  };
+
+  // 1. Date & Facility filtering
+  const dateAndFacilityFiltered = useMemo(() => {
+    return (appts.data || []).filter((a) => {
+      // Date filter
+      const apptDate = new Date(a.start_at);
+      if (view === "Month") {
+        if (apptDate.getFullYear() !== viewYear || (apptDate.getMonth() + 1) !== viewMonth) return false;
+      } else if (view === "Week") {
+        const t = apptDate.getTime();
+        if (t < rangeStart.getTime() || t >= rangeEnd.getTime()) return false;
+      } else {
+        const localDay = localInput(a.start_at).slice(0, 10);
+        if (localDay !== date) return false;
+      }
+      // Facility filter
+      if (calSettings.viewSchedulesFor === "Current Facility") {
+        if (branch && a.facility_id && a.facility_id !== branch && a.facility_id !== "curr") {
+          return false;
+        }
+      }
+      return true;
+    });
+  }, [appts.data, date, view, viewYear, viewMonth, rangeStart, rangeEnd, calSettings.viewSchedulesFor, branch]);
+
+  // 2. Settings filters (Cancelled toggle, Provider, Resource, Visit Type, and Left Drawer Provider)
+  const scopedAppts = useMemo(() => {
+    return dateAndFacilityFiltered.filter((a) => {
+      if (provider && a.provider_id !== provider) return false;
+      if (!calSettings.showCancelled) {
+        const s = (a.status || "").toLowerCase();
+        if (s === "cancelled" || s === "missed" || s === "no show" || s === "rescheduled") {
+          return false;
+        }
+      }
+      if (!isProviderSelected(a.provider_id)) return false;
+      if (!isResourceSelected(a.resource_id)) return false;
+      if (!isVisitTypeSelected(a.visit_type)) return false;
+      return true;
+    });
+  }, [dateAndFacilityFiltered, provider, calSettings.showCancelled, selectedCalProviders, selectedCalResources, selectedCalVisitTypes, resources]);
+
+  // Backward compatibility alias for single-day list view
+  const filtered = scopedAppts;
+
+  // 3. Status counts derived from scopedAppts (stays stable regardless of which status chip is clicked)
   const statusCounts = useMemo(() => {
     const counts: Record<string, number> = {};
-    for (const a of filtered) {
+    for (const a of scopedAppts) {
       const raw = a.status_label || (a.status === "checked-in" ? "Checked in" : a.status === "confirmed" ? "Confirmed" : a.status === "completed" ? "Completed" : a.status === "cancelled" ? "Cancelled" : a.status);
       const match = availableStatuses.find((s) => s.name.toLowerCase() === raw.toLowerCase());
       const label = match ? match.name : raw;
       counts[label] = (counts[label] || 0) + 1;
     }
     return counts;
-  }, [filtered, availableStatuses]);
+  }, [scopedAppts, availableStatuses]);
 
+  // 4. Status chip filter & Quick Search filter
+  const searchAndStatusFiltered = useMemo(() => {
+    let list = scopedAppts;
+    if (statusFilter !== "ALL") {
+      list = list.filter((a) => {
+        const raw = a.status_label || (a.status === "checked-in" ? "Checked in" : a.status === "confirmed" ? "Confirmed" : a.status === "completed" ? "Completed" : a.status === "cancelled" ? "Cancelled" : a.status);
+        return raw.toLowerCase() === statusFilter.toLowerCase();
+      });
+    }
+    if (providerQuickSearch.trim()) {
+      const q = providerQuickSearch.trim().toLowerCase();
+      list = list.filter((a) => {
+        const provName = (staff.find((s) => s.id === a.provider_id)?.name || "").toLowerCase();
+        const pat = patients.find((p) => p.id === a.patient_id);
+        const patName = (pat?.name || patientName(a.patient_id, patients)).toLowerCase();
+        const patMrn = (pat?.mrn || "").toLowerCase();
+        return provName.includes(q) || patName.includes(q) || patMrn.includes(q);
+      });
+    }
+    return list;
+  }, [scopedAppts, statusFilter, providerQuickSearch, staff, patients]);
+
+  // 5. Sort By application
   const displayedAppts = useMemo(() => {
-    let result = filtered;
-    if (!calSettings.showCancelled) {
-      result = result.filter((a) => a.status !== "cancelled" && a.status !== "missed");
+    const sorted = [...searchAndStatusFiltered];
+    if (calSortBy === "Time") {
+      sorted.sort((a, b) => a.start_at.localeCompare(b.start_at));
+    } else if (calSortBy === "Token") {
+      sorted.sort((a, b) => {
+        const tokA = a.token_number != null ? Number(a.token_number) : 999999;
+        const tokB = b.token_number != null ? Number(b.token_number) : 999999;
+        if (tokA !== tokB) return tokA - tokB;
+        return a.start_at.localeCompare(b.start_at);
+      });
+    } else if (calSortBy === "Status") {
+      sorted.sort((a, b) => {
+        const sA = a.status_label || a.status || "";
+        const sB = b.status_label || b.status || "";
+        const cmp = sA.localeCompare(sB);
+        if (cmp !== 0) return cmp;
+        return a.start_at.localeCompare(b.start_at);
+      });
+    } else if (calSortBy === "Resource") {
+      sorted.sort((a, b) => {
+        const rA = getApptResourceName(a.resource_id);
+        const rB = getApptResourceName(b.resource_id);
+        const cmp = rA.localeCompare(rB);
+        if (cmp !== 0) return cmp;
+        return a.start_at.localeCompare(b.start_at);
+      });
+    } else if (calSortBy === "Provider") {
+      sorted.sort((a, b) => {
+        const pA = staff.find((s) => s.id === a.provider_id)?.name || "zzz";
+        const pB = staff.find((s) => s.id === b.provider_id)?.name || "zzz";
+        const cmp = pA.localeCompare(pB);
+        if (cmp !== 0) return cmp;
+        return a.start_at.localeCompare(b.start_at);
+      });
     }
-    if (Object.keys(selectedCalProviders).length > 0) {
-      result = result.filter((a) => selectedCalProviders[a.provider_id] !== false);
-    }
-    if (Object.keys(selectedCalVisitTypes).length > 0) {
-      result = result.filter((a) => !a.visit_type || selectedCalVisitTypes[a.visit_type] !== false);
-    }
-    if (statusFilter === "ALL") return result;
-    return result.filter((a) => {
-      const raw = a.status_label || (a.status === "checked-in" ? "Checked in" : a.status === "confirmed" ? "Confirmed" : a.status === "completed" ? "Completed" : a.status === "cancelled" ? "Cancelled" : a.status);
-      return raw.toLowerCase() === statusFilter.toLowerCase();
-    });
-  }, [filtered, statusFilter, calSettings.showCancelled, selectedCalProviders, selectedCalVisitTypes]);
+    return sorted;
+  }, [searchAndStatusFiltered, calSortBy, resources, staff]);
 
   const activeCalView = calSubtab === "Waiting List" ? waitingListView : view;
   const shift = (amount: number) => {
@@ -1605,7 +1756,21 @@ function Schedule() {
         <div style={{ display: "flex", alignItems: "center", gap: 14, position: "relative" }}>
           <div className="charm-cal-quicksearch">
             <Search size={14} color="#94a3b8" />
-            <input placeholder="Provider Quick Search" />
+            <input
+              placeholder="Provider Quick Search"
+              value={providerQuickSearch}
+              onChange={(e) => setProviderQuickSearch(e.target.value)}
+            />
+            {providerQuickSearch && (
+              <button
+                type="button"
+                onClick={() => setProviderQuickSearch("")}
+                style={{ border: "none", background: "none", cursor: "pointer", color: "#94a3b8", fontSize: 13, padding: "0 4px" }}
+                title="Clear quick search"
+              >
+                ×
+              </button>
+            )}
           </div>
           <button
             type="button"
@@ -1756,7 +1921,7 @@ function Schedule() {
                         className="text-link"
                         onClick={() => {
                           const all: Record<string, boolean> = {};
-                          ["EECP Room 01", "EECP Room 02", "EECP Room 03", "EECP Room 04", "EECP Room 05", "EECP Room 06", "Consultation Room 1"].forEach((r) => { all[r] = true; });
+                          resourceNames.forEach((r) => { all[r] = true; });
                           setSelectedCalResources(all);
                         }}
                       >
@@ -1768,7 +1933,7 @@ function Schedule() {
                         className="text-link"
                         onClick={() => {
                           const none: Record<string, boolean> = {};
-                          ["EECP Room 01", "EECP Room 02", "EECP Room 03", "EECP Room 04", "EECP Room 05", "EECP Room 06", "Consultation Room 1"].forEach((r) => { none[r] = false; });
+                          resourceNames.forEach((r) => { none[r] = false; });
                           setSelectedCalResources(none);
                         }}
                       >
@@ -1778,7 +1943,7 @@ function Schedule() {
                   </div>
                   <div className="charm-cal-popover-col-list">
                     <div className="charm-cal-popover-col-subhead">Heal Your Heart Neelankarai</div>
-                    {["EECP Room 01", "EECP Room 02", "EECP Room 03", "EECP Room 04", "EECP Room 05", "EECP Room 06", "Consultation Room 1"].map((resName) => (
+                    {resourceNames.map((resName) => (
                       <label key={resName} className="charm-cal-popover-item">
                         <input
                           type="checkbox"
@@ -1992,13 +2157,37 @@ function Schedule() {
               </div>
             </div>
 
-            {/* Yellow Timezone Banner */}
-            <div className="charm-cal-yellow-banner">
+            {/* Yellow Timezone Banner with Functional Sort by Selector */}
+            <div className="charm-cal-yellow-banner" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "6px 14px", background: "#fef9c3", border: "1px solid #fef08a", borderRadius: 4, marginBottom: 12 }}>
               <div>
-                <span>Appointments are shown in <strong>Asia/Kolkata</strong> time zone</span>
+                <span style={{ fontSize: 12, color: "#854d0e" }}>
+                  Appointments are shown in <strong>Asia/Kolkata (IST)</strong> time zone
+                </span>
               </div>
-              <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                <span style={{ fontSize: 11, color: "#64748b" }}>Sort by <strong>Time ▼</strong></span>
+              <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: "#475569" }}>
+                <span style={{ fontWeight: 500 }}>Sort by</span>
+                <select
+                  value={calSortBy}
+                  onChange={(e) => setCalSortBy(e.target.value as any)}
+                  aria-label="Sort appointments by"
+                  style={{
+                    padding: "3px 8px",
+                    fontSize: 12,
+                    border: "1px solid #cbd5e1",
+                    borderRadius: 3,
+                    background: "#fff",
+                    color: "#0f172a",
+                    fontWeight: 500,
+                    cursor: "pointer",
+                    outline: "none",
+                  }}
+                >
+                  <option value="Time">Time</option>
+                  <option value="Token">Token</option>
+                  <option value="Status">Status</option>
+                  <option value="Resource">Resource</option>
+                  <option value="Provider">Provider</option>
+                </select>
               </div>
             </div>
 
@@ -2025,7 +2214,7 @@ function Schedule() {
                   transition: "all 0.15s ease",
                 }}
               >
-                <span style={{ fontSize: 15, fontWeight: 700, lineHeight: 1.1 }}>{filtered.length}</span>
+                <span style={{ fontSize: 15, fontWeight: 700, lineHeight: 1.1 }}>{scopedAppts.length}</span>
                 <span style={{ fontSize: 9.5, fontWeight: 700, letterSpacing: "0.5px", marginTop: 2 }}>ALL</span>
               </div>
               {Object.entries(statusCounts).map(([sName, count]) => {
@@ -2102,7 +2291,7 @@ function Schedule() {
                         {Array.from({ length: 7 }, (_, dayIdx) => {
                           const d = new Date(selectedDate.getTime() + dayIdx * 86400000);
                           const key = localInput(d.toISOString()).slice(0, 10);
-                          const slotAppts = filtered.filter((a) => {
+                          const slotAppts = searchAndStatusFiltered.filter((a) => {
                             const localStart = localInput(a.start_at);
                             if (!localStart.startsWith(key)) return false;
                             const timePart = localStart.slice(11, 16);
@@ -2286,7 +2475,7 @@ function Schedule() {
                     const hourNum = 8 + Math.floor(hIdx / 2);
                     const isHalf = hIdx % 2 === 1;
                     const timeKey = `${date}T${String(hourNum).padStart(2, "0")}:${isHalf ? "30" : "00"}`;
-                    const slotAppts = filtered.filter((a) => {
+                    const slotAppts = searchAndStatusFiltered.filter((a) => {
                       const localStart = localInput(a.start_at);
                       if (!localStart.startsWith(date)) return false;
                       const timePart = localStart.slice(11, 16);
@@ -2461,12 +2650,8 @@ function Schedule() {
                 {/* 7-column Calendar Month Grid */}
                 <div className="charm-cal-month-cells-grid">
                   {monthCells.map((cell) => {
-                    const dayAppts = (appts.data || [])
-                      .filter((a) => {
-                        if (provider && a.provider_id !== provider) return false;
-                        const localDate = localInput(a.start_at).slice(0, 10);
-                        return localDate === cell.dateStr;
-                      })
+                    const dayAppts = scopedAppts
+                      .filter((a) => localInput(a.start_at).slice(0, 10) === cell.dateStr)
                       .sort((a, b) => a.start_at.localeCompare(b.start_at));
 
                     return (
@@ -2578,18 +2763,26 @@ function Schedule() {
 
                       {/* Right Column of Card (Frame 072) */}
                       <div className="charm-list-card-right">
-                        <div className="charm-right-top-meta">
-                          <input type="checkbox" style={{ marginRight: 4 }} />
-                          <span style={{ fontWeight: 600, color: "#0f172a" }}>
-                            {formatDoctorName(prv?.name || "Vijayalakshmi K")}
-                          </span>
-                          <span>|</span>
-                          <span style={{ color: "#475569" }}>Heal Your Heart Royapettah</span>
-                          <span>|</span>
-                          <span style={{ fontWeight: 600, color: "#0f4c81" }}>
-                            {startStr} - {endStr}
-                          </span>
-                        </div>
+                        {(() => {
+                          const prvIdx = clinicalProviders.findIndex((p: any) => p.id === a.provider_id);
+                          const colors = ["#00bcd4", "#4caf50", "#2196f3", "#9c27b0", "#ff9800", "#e91e63"];
+                          const swatchColor = prvIdx >= 0 ? colors[prvIdx % colors.length] : "#8b5cf6";
+                          return (
+                            <div className="charm-right-top-meta" style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                              <input type="checkbox" />
+                              <span style={{ display: "inline-block", width: 8, height: 8, backgroundColor: swatchColor, borderRadius: 1, flexShrink: 0 }} />
+                              <span style={{ fontWeight: 600, color: "#0f172a" }}>
+                                {formatDoctorName(prv?.name || "Dr. Ramasamy S")}
+                              </span>
+                              <span style={{ color: "#cbd5e1" }}>|</span>
+                              <span style={{ color: "#475569" }}>Heal Your Heart Neelankarai</span>
+                              <span style={{ color: "#cbd5e1" }}>|</span>
+                              <span style={{ fontWeight: 600, color: "#0f4c81" }}>
+                                {startStr} - {endStr}
+                              </span>
+                            </div>
+                          );
+                        })()}
 
                         <div className="charm-right-details-grid">
                           <div>
