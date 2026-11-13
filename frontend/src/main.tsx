@@ -672,28 +672,70 @@ function Workspace() {
                 </div>
               </div>
 
-              {/* Right Controls */}
-              <div className="charm-header-right-controls">
-                {!isFullWidthPage && (
-                  <div className="charm-header-search-compact">
-                    <Search size={14} color="#64748b" />
+              {/* Center: Prominent Centered Patient Search (fills empty space) */}
+              <div className="charm-header-center-search">
+                {page !== "home" && (
+                  <div className="charm-header-search-box">
+                    <Search size={15} color="#64748b" className="charm-header-search-icon" />
                     <input
                       aria-label="Find a patient"
                       placeholder="Search Patient by Name / ID"
                       value={search}
                       onChange={(e) => setSearch(e.target.value)}
                     />
+                    {search.length > 0 && (
+                      <button
+                        type="button"
+                        className="charm-search-clear-mini"
+                        title="Clear search"
+                        onClick={() => setSearch("")}
+                      >
+                        <X size={12} />
+                      </button>
+                    )}
                     <button
                       type="button"
                       className="charm-add-pat-mini"
                       title="Add Patient"
                       onClick={() => setModal("patient")}
                     >
-                      <Plus size={12} />
+                      <Plus size={13} />
                     </button>
+
+                    {/* Anchored search dropdown strictly beneath search box */}
+                    {search.length > 1 && (
+                      <div className="charm-search-dropdown-anchored">
+                        {searchResults.data?.items.map((p: Row) => (
+                          <button
+                            key={p.id}
+                            type="button"
+                            className="charm-search-result-item"
+                            onClick={() => {
+                              navigate("/patients/" + p.id);
+                              setSearch("");
+                            }}
+                          >
+                            <div className="charm-search-item-info">
+                              <strong>{p.name}</strong>
+                              <small>
+                                MRN: {p.mrn} · {p.phone || "No phone"}
+                              </small>
+                            </div>
+                          </button>
+                        ))}
+                        {searchResults.data?.items.length === 0 && (
+                          <p className="charm-search-no-results">
+                            No matching patients found.
+                          </p>
+                        )}
+                      </div>
+                    )}
                   </div>
                 )}
+              </div>
 
+              {/* Right Controls */}
+              <div className="charm-header-right-controls">
                 <button
                   type="button"
                   className="charm-btn-telehealth"
@@ -851,7 +893,7 @@ function Workspace() {
             {/* Signature CharmHealth Teal Search Banner when on Home */}
             {page === "home" && (
               <div className="charm-home-teal-banner">
-                <div className="charm-teal-search-pill">
+                <div className="charm-teal-search-pill" style={{ position: "relative" }}>
                   <Search size={18} color="#64748b" />
                   <input
                     aria-label="Find a patient"
@@ -859,6 +901,16 @@ function Workspace() {
                     value={search}
                     onChange={(e) => setSearch(e.target.value)}
                   />
+                  {search.length > 0 && (
+                    <button
+                      type="button"
+                      className="charm-search-clear-mini"
+                      title="Clear search"
+                      onClick={() => setSearch("")}
+                    >
+                      <X size={14} />
+                    </button>
+                  )}
                   <button
                     type="button"
                     className="charm-pill-add-pat"
@@ -867,32 +919,36 @@ function Workspace() {
                   >
                     <Plus size={16} />
                   </button>
-                </div>
-              </div>
-            )}
 
-            {/* Search Dropdown Results */}
-            {search.length > 1 && (
-              <div className="search-results" style={{ position: "absolute", top: page === "home" ? 115 : 48, left: page === "home" ? "calc(50% - 360px)" : undefined, right: page === "home" ? undefined : 330, width: page === "home" ? 720 : 380, zIndex: 999 }}>
-                {searchResults.data?.items.map((p: Row) => (
-                  <button
-                    key={p.id}
-                    onClick={() => {
-                      navigate("/patients/" + p.id);
-                      setSearch("");
-                    }}
-                  >
-                    <strong>{p.name}</strong>
-                    <small>
-                      MRN: {p.mrn} · {p.phone || "No phone"}
-                    </small>
-                  </button>
-                ))}
-                {searchResults.data?.items.length === 0 && (
-                  <p style={{ padding: 12, margin: 0, color: "#64748b", fontSize: 12 }}>
-                    No matching patients found.
-                  </p>
-                )}
+                  {/* Search Dropdown Anchored directly under teal search pill on home */}
+                  {search.length > 1 && (
+                    <div className="charm-search-dropdown-anchored">
+                      {searchResults.data?.items.map((p: Row) => (
+                        <button
+                          key={p.id}
+                          type="button"
+                          className="charm-search-result-item"
+                          onClick={() => {
+                            navigate("/patients/" + p.id);
+                            setSearch("");
+                          }}
+                        >
+                          <div className="charm-search-item-info">
+                            <strong>{p.name}</strong>
+                            <small>
+                              MRN: {p.mrn} · {p.phone || "No phone"}
+                            </small>
+                          </div>
+                        </button>
+                      ))}
+                      {searchResults.data?.items.length === 0 && (
+                        <p className="charm-search-no-results">
+                          No matching patients found.
+                        </p>
+                      )}
+                    </div>
+                  )}
+                </div>
               </div>
             )}
           </header>

@@ -5103,6 +5103,140 @@ main.main-patient-chart {
   transition: border-color 0.15s ease, box-shadow 0.15s ease;
 }
 
+/* Centered Top Global Search Bar (Prominent & Anchored) */
+.charm-header-center-search {
+  flex: 1;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  max-width: 580px;
+  margin: 0 24px;
+  position: relative;
+}
+
+.charm-header-search-box {
+  position: relative;
+  width: 100%;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
+  border-radius: 20px;
+  padding: 0 12px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+  transition: all 0.15s ease-in-out;
+}
+
+.charm-header-search-box:focus-within {
+  border-color: #0d9488;
+  box-shadow: 0 0 0 3px rgba(13, 148, 136, 0.15);
+  background: #ffffff;
+}
+
+.charm-header-search-box input {
+  border: none;
+  outline: none;
+  font-size: 13px;
+  width: 100%;
+  color: #0f172a;
+  background: transparent;
+  padding: 0;
+}
+
+.charm-header-search-box input:focus {
+  box-shadow: none;
+}
+
+.charm-header-search-box input::placeholder {
+  color: #64748b;
+  font-size: 13px;
+}
+
+.charm-header-search-icon {
+  flex-shrink: 0;
+}
+
+.charm-search-clear-mini {
+  background: none;
+  border: none;
+  color: #94a3b8;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.charm-search-clear-mini:hover {
+  color: #475569;
+  background: #e2e8f0;
+}
+
+.charm-search-dropdown-anchored {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  right: 0;
+  width: 100%;
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.15), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+  max-height: 380px;
+  overflow-y: auto;
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
+}
+
+.charm-search-result-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: 10px 14px;
+  border: none;
+  border-bottom: 1px solid #f1f5f9;
+  background: #ffffff;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.12s ease;
+}
+
+.charm-search-result-item:last-child {
+  border-bottom: none;
+}
+
+.charm-search-result-item:hover {
+  background: #f0fdfa;
+}
+
+.charm-search-item-info strong {
+  display: block;
+  font-size: 13px;
+  color: #0f172a;
+  font-weight: 600;
+}
+
+.charm-search-item-info small {
+  display: block;
+  font-size: 11.5px;
+  color: #64748b;
+  margin-top: 2px;
+}
+
+.charm-search-no-results {
+  padding: 14px;
+  margin: 0;
+  color: #64748b;
+  font-size: 12.5px;
+  text-align: center;
+}
+
 .charm-header-search-compact:focus-within {
   border-color: var(--brand-teal-primary);
   box-shadow: 0 0 0 2px rgba(22, 140, 137, 0.15);
@@ -9926,19 +10060,62 @@ textarea.charm-input {
 /* New Encounter Modal (Frame 001, 002) */
 .charm-new-enc-modal {
   background: #ffffff;
-  border-radius: 6px;
+  border-radius: 8px;
   width: 95%;
-  max-width: 540px;
+  max-width: 560px;
   box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.2);
   overflow: hidden;
   border: 1px solid #cbd5e1;
 }
 
 .charm-new-enc-body {
-  padding: 18px 24px;
+  padding: 20px 28px;
   display: flex;
   flex-direction: column;
   gap: 14px;
+}
+
+.charm-new-enc-modal .charm-form-row {
+  display: grid;
+  grid-template-columns: 150px 1fr;
+  align-items: flex-start;
+  gap: 14px;
+}
+
+.charm-new-enc-modal .charm-form-row > label {
+  font-size: 13px;
+  color: #334155;
+  text-align: right;
+  font-weight: 500;
+  padding-top: 6px;
+}
+
+.charm-new-enc-modal .charm-radio-group {
+  display: flex;
+  flex-direction: column !important;
+  gap: 8px;
+  align-items: flex-start;
+  padding-top: 5px;
+}
+
+.charm-new-enc-modal .charm-radio-group label {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  text-align: left;
+  cursor: pointer;
+  white-space: nowrap;
+  font-weight: 400;
+  color: #1e293b;
+}
+
+.charm-new-enc-modal .charm-radio-group label input[type="radio"] {
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  accent-color: #0284c7;
+  cursor: pointer;
 }
 
 .charm-form-row {
