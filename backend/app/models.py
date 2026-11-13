@@ -441,6 +441,7 @@ class Appointment(PatientRecord, Base):
     status_label = Column(String(80))
     reason = Column(Text, default='')
     checked_in_at = Column(DateTime)
+    token_number = Column(Integer)
     __table_args__ = (CheckConstraint('end_at > start_at'), UniqueConstraint('plan_id', 'session_number'))
 
 

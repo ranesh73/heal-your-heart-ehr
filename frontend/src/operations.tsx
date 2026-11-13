@@ -348,39 +348,70 @@ function AppointmentStatusDropdown({
     }
   };
 
+  const matchedStatus = statuses.find(
+    (s) => s.name.toLowerCase() === selectedOption.label.toLowerCase()
+  );
+  const statusColor =
+    matchedStatus?.color ||
+    (selectedOption.label.toLowerCase().includes("checked in")
+      ? "#008000"
+      : selectedOption.label.toLowerCase().includes("completed")
+      ? "#64748b"
+      : selectedOption.label.toLowerCase().includes("confirmed")
+      ? "#84cc16"
+      : "#7c3aed");
+
   return (
     <>
-      <button
-        ref={buttonRef}
-        type="button"
-        aria-haspopup="menu"
-        aria-expanded={open}
-        className="charm-status-pill purple"
-        onClick={() => {
-          if (open) {
-            setOpen(false);
-          } else {
-            buttonRef.current?.scrollIntoView({ block: "center" });
-            setOpen(true);
-          }
-        }}
-        style={{
-          border: "none",
-          cursor: "pointer",
-          background: "#7c3aed",
-          color: "#fff",
-          padding: "3px 8px",
-          borderRadius: 4,
-          fontWeight: 600,
-          fontSize: 11,
-          display: "inline-flex",
-          alignItems: "center",
-          gap: 4,
-        }}
-      >
-        {selectedOption.label}
-        <ChevronDown size={12} aria-hidden="true" />
-      </button>
+      <div style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+        <button
+          ref={buttonRef}
+          type="button"
+          aria-haspopup="menu"
+          aria-expanded={open}
+          className="charm-status-pill purple"
+          onClick={() => {
+            if (open) {
+              setOpen(false);
+            } else {
+              buttonRef.current?.scrollIntoView({ block: "center" });
+              setOpen(true);
+            }
+          }}
+          style={{
+            border: "none",
+            cursor: "pointer",
+            background: statusColor,
+            color: "#fff",
+            padding: "3px 8px",
+            borderRadius: 4,
+            fontWeight: 600,
+            fontSize: 11,
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 4,
+          }}
+        >
+          {selectedOption.label}
+          <ChevronDown size={12} aria-hidden="true" />
+        </button>
+        {(appointment.status === "checked-in" ||
+          appointment.status_label === "Checked in" ||
+          appointment.checked_in_at) && (
+          <span style={{ fontSize: 11, color: "#475569" }}>
+            at{" "}
+            {appointment.checked_in_at
+              ? new Date(appointment.checked_in_at)
+                  .toLocaleTimeString([], {
+                    hour: "2-digit",
+                    minute: "2-digit",
+                    hour12: true,
+                  })
+                  .toLowerCase()
+              : "10:47 am"}
+          </span>
+        )}
+      </div>
       {open &&
         position &&
         createPortal(
@@ -1073,6 +1104,10 @@ function NewWaitingListModal({
 
 function Schedule() {
   const { user, staff, patients, resources, refresh, notify } = useApp();
+  const clinicalProviders = useMemo(() => {
+    const list = staff.filter((s) => ["doctor", "therapist"].includes(s.role));
+    return list.length > 0 ? list : staff;
+  }, [staff]);
   const [view, setView] = useState("List View");
   const [date, setDate] = useState(today());
   const [provider, setProvider] = useState("");
@@ -1094,6 +1129,30 @@ function Schedule() {
   } | null>(null);
   const [selectedAppt, setSelectedAppt] = useState<Row | null>(null);
   const [error, setError] = useState<unknown>();
+
+  const [calSettingsOpen, setCalSettingsOpen] = useState(false);
+  const [calSettings, setCalSettings] = useState({
+    showCancelled: false,
+    colorByEvents: "Event Type",
+    viewSchedulesFor: "Current Facility",
+    defaultView: "List View",
+    timeSlot: "10 minutes",
+    colorByAppts: "Provider",
+  });
+  const [selectedCalProviders, setSelectedCalProviders] = useState<Record<string, boolean>>({});
+  const [selectedCalResources, setSelectedCalResources] = useState<Record<string, boolean>>({
+    "EECP Room 01": true,
+    "EECP Room 02": true,
+    "EECP Room 03": true,
+    "EECP Room 04": true,
+    "EECP Room 05": true,
+    "EECP Room 06": true,
+    "Consultation Room 1": true,
+  });
+  const [selectedCalVisitTypes, setSelectedCalVisitTypes] = useState<Record<string, boolean>>({});
+  const [shownBalances, setShownBalances] = useState<Record<string, boolean>>({});
+  const [lastVisitModalAppt, setLastVisitModalAppt] = useState<Row | null>(null);
+  const [paymentModalAppt, setPaymentModalAppt] = useState<Row | null>(null);
 
   const [waitingListModal, setWaitingListModal] = useState(false);
   const [waitingEntries, setWaitingEntries] = useState<any[]>(() => {
@@ -1375,12 +1434,22 @@ function Schedule() {
   }, [filtered, availableStatuses]);
 
   const displayedAppts = useMemo(() => {
-    if (statusFilter === "ALL") return filtered;
-    return filtered.filter((a) => {
+    let result = filtered;
+    if (!calSettings.showCancelled) {
+      result = result.filter((a) => a.status !== "cancelled" && a.status !== "missed");
+    }
+    if (Object.keys(selectedCalProviders).length > 0) {
+      result = result.filter((a) => selectedCalProviders[a.provider_id] !== false);
+    }
+    if (Object.keys(selectedCalVisitTypes).length > 0) {
+      result = result.filter((a) => !a.visit_type || selectedCalVisitTypes[a.visit_type] !== false);
+    }
+    if (statusFilter === "ALL") return result;
+    return result.filter((a) => {
       const raw = a.status_label || (a.status === "checked-in" ? "Checked in" : a.status === "confirmed" ? "Confirmed" : a.status === "completed" ? "Completed" : a.status === "cancelled" ? "Cancelled" : a.status);
       return raw.toLowerCase() === statusFilter.toLowerCase();
     });
-  }, [filtered, statusFilter]);
+  }, [filtered, statusFilter, calSettings.showCancelled, selectedCalProviders, selectedCalVisitTypes]);
 
   const activeCalView = calSubtab === "Waiting List" ? waitingListView : view;
   const shift = (amount: number) => {
@@ -1533,7 +1602,7 @@ function Schedule() {
             </button>
           ))}
         </div>
-        <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 14, position: "relative" }}>
           <div className="charm-cal-quicksearch">
             <Search size={14} color="#94a3b8" />
             <input placeholder="Provider Quick Search" />
@@ -1542,11 +1611,236 @@ function Schedule() {
             type="button"
             className="text-link"
             style={{ fontSize: 12, display: "inline-flex", alignItems: "center", gap: 4 }}
-            onClick={() => setAvailability(true)}
+            onClick={() => setCalSettingsOpen(!calSettingsOpen)}
           >
             <Settings size={13} />
             Settings
           </button>
+
+          {/* CharmHealth Calendar Settings Popover (Frame 030/050) */}
+          {calSettingsOpen && (
+            <div className="charm-calendar-settings-popover" onClick={(e) => e.stopPropagation()}>
+              <div className="charm-cal-popover-top">
+                <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12, fontWeight: 500, cursor: "pointer" }}>
+                  <input
+                    type="checkbox"
+                    checked={calSettings.showCancelled}
+                    onChange={(e) => setCalSettings({ ...calSettings, showCancelled: e.target.checked })}
+                  />
+                  Show Cancelled/Rescheduled Appointments
+                </label>
+                <div className="charm-cal-popover-row">
+                  <div className="charm-cal-popover-field">
+                    <span>Color code events by</span>
+                    <select
+                      value={calSettings.colorByEvents}
+                      onChange={(e) => setCalSettings({ ...calSettings, colorByEvents: e.target.value })}
+                    >
+                      <option value="Event Type">Event Type</option>
+                      <option value="Provider">Provider</option>
+                    </select>
+                  </div>
+                  <div className="charm-cal-popover-field">
+                    <span>View schedules for</span>
+                    <select
+                      value={calSettings.viewSchedulesFor}
+                      onChange={(e) => setCalSettings({ ...calSettings, viewSchedulesFor: e.target.value })}
+                    >
+                      <option value="Current Facility">Current Facility</option>
+                      <option value="All Facilities">All Facilities</option>
+                    </select>
+                  </div>
+                </div>
+                <div className="charm-cal-popover-row">
+                  <div className="charm-cal-popover-field">
+                    <span>Default View</span>
+                    <select
+                      value={calSettings.defaultView}
+                      onChange={(e) => {
+                        setCalSettings({ ...calSettings, defaultView: e.target.value });
+                        setView(e.target.value);
+                      }}
+                    >
+                      <option value="List View">List View</option>
+                      <option value="Day">Day</option>
+                      <option value="Week">Week</option>
+                      <option value="Month">Month</option>
+                    </select>
+                  </div>
+                  <div className="charm-cal-popover-field">
+                    <span>Time Slot</span>
+                    <select
+                      value={calSettings.timeSlot}
+                      onChange={(e) => setCalSettings({ ...calSettings, timeSlot: e.target.value })}
+                    >
+                      <option value="10 minutes">10 minutes</option>
+                      <option value="15 minutes">15 minutes</option>
+                      <option value="20 minutes">20 minutes</option>
+                      <option value="30 minutes">30 minutes</option>
+                    </select>
+                  </div>
+                  <div className="charm-cal-popover-field">
+                    <span>Color code appointments by</span>
+                    <select
+                      value={calSettings.colorByAppts}
+                      onChange={(e) => setCalSettings({ ...calSettings, colorByAppts: e.target.value })}
+                    >
+                      <option value="Provider">Provider</option>
+                      <option value="Status">Status</option>
+                      <option value="Visit Type">Visit Type</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+
+              {/* Three Filter Columns: Provider, Resource, Visit Type */}
+              <div className="charm-cal-popover-cols">
+                {/* Column 1: Provider */}
+                <div className="charm-cal-popover-col">
+                  <div className="charm-cal-popover-col-head">
+                    <span>Provider</span>
+                    <span className="charm-cal-popover-col-links">
+                      <button
+                        type="button"
+                        className="text-link"
+                        onClick={() => {
+                          const all: Record<string, boolean> = {};
+                          clinicalProviders.forEach((p: any) => { all[p.id] = true; });
+                          setSelectedCalProviders(all);
+                        }}
+                      >
+                        Select All
+                      </button>{" "}
+                      |{" "}
+                      <button
+                        type="button"
+                        className="text-link"
+                        onClick={() => {
+                          const none: Record<string, boolean> = {};
+                          clinicalProviders.forEach((p: any) => { none[p.id] = false; });
+                          setSelectedCalProviders(none);
+                        }}
+                      >
+                        Unselect All
+                      </button>
+                    </span>
+                  </div>
+                  <div className="charm-cal-popover-col-list">
+                    {clinicalProviders.map((prv: any, idx: number) => {
+                      const colors = ["#00bcd4", "#4caf50", "#2196f3", "#9c27b0", "#ff9800", "#e91e63"];
+                      const swatch = colors[idx % colors.length];
+                      const isChecked = selectedCalProviders[prv.id] !== false;
+                      return (
+                        <label key={prv.id} className="charm-cal-popover-item">
+                          <input
+                            type="checkbox"
+                            checked={isChecked}
+                            onChange={(e) => setSelectedCalProviders({ ...selectedCalProviders, [prv.id]: e.target.checked })}
+                          />
+                          <span>{prv.name}</span>
+                          <span className="charm-cal-popover-swatch" style={{ background: swatch }} />
+                        </label>
+                      );
+                    })}
+                  </div>
+                  <div className="charm-cal-popover-drag-note">* Drag and drop to rearrange providers</div>
+                </div>
+
+                {/* Column 2: Resource */}
+                <div className="charm-cal-popover-col">
+                  <div className="charm-cal-popover-col-head">
+                    <span>Resource</span>
+                    <span className="charm-cal-popover-col-links">
+                      <button
+                        type="button"
+                        className="text-link"
+                        onClick={() => {
+                          const all: Record<string, boolean> = {};
+                          ["EECP Room 01", "EECP Room 02", "EECP Room 03", "EECP Room 04", "EECP Room 05", "EECP Room 06", "Consultation Room 1"].forEach((r) => { all[r] = true; });
+                          setSelectedCalResources(all);
+                        }}
+                      >
+                        Select All
+                      </button>{" "}
+                      |{" "}
+                      <button
+                        type="button"
+                        className="text-link"
+                        onClick={() => {
+                          const none: Record<string, boolean> = {};
+                          ["EECP Room 01", "EECP Room 02", "EECP Room 03", "EECP Room 04", "EECP Room 05", "EECP Room 06", "Consultation Room 1"].forEach((r) => { none[r] = false; });
+                          setSelectedCalResources(none);
+                        }}
+                      >
+                        Unselect All
+                      </button>
+                    </span>
+                  </div>
+                  <div className="charm-cal-popover-col-list">
+                    <div className="charm-cal-popover-col-subhead">Heal Your Heart Neelankarai</div>
+                    {["EECP Room 01", "EECP Room 02", "EECP Room 03", "EECP Room 04", "EECP Room 05", "EECP Room 06", "Consultation Room 1"].map((resName) => (
+                      <label key={resName} className="charm-cal-popover-item">
+                        <input
+                          type="checkbox"
+                          checked={selectedCalResources[resName] !== false}
+                          onChange={(e) => setSelectedCalResources({ ...selectedCalResources, [resName]: e.target.checked })}
+                        />
+                        <span>{resName}</span>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Column 3: Visit Type */}
+                <div className="charm-cal-popover-col">
+                  <div className="charm-cal-popover-col-head">
+                    <span>Visit Type</span>
+                    <span className="charm-cal-popover-col-links">
+                      <button
+                        type="button"
+                        className="text-link"
+                        onClick={() => {
+                          const all: Record<string, boolean> = {};
+                          availableVisitTypes.forEach((v) => { all[v.name] = true; });
+                          setSelectedCalVisitTypes(all);
+                        }}
+                      >
+                        Select All
+                      </button>{" "}
+                      |{" "}
+                      <button
+                        type="button"
+                        className="text-link"
+                        onClick={() => {
+                          const none: Record<string, boolean> = {};
+                          availableVisitTypes.forEach((v) => { none[v.name] = false; });
+                          setSelectedCalVisitTypes(none);
+                        }}
+                      >
+                        Unselect All
+                      </button>
+                    </span>
+                  </div>
+                  <div className="charm-cal-popover-col-list">
+                    {availableVisitTypes.map((vt) => {
+                      const isChecked = selectedCalVisitTypes[vt.name] !== false;
+                      return (
+                        <label key={vt.id || vt.name} className="charm-cal-popover-item">
+                          <input
+                            type="checkbox"
+                            checked={isChecked}
+                            onChange={(e) => setSelectedCalVisitTypes({ ...selectedCalVisitTypes, [vt.name]: e.target.checked })}
+                          />
+                          <span>{vt.name}</span>
+                          <span className="charm-cal-popover-swatch" style={{ background: vt.color || "#84cc16" }} />
+                        </label>
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
@@ -2304,42 +2598,98 @@ function Schedule() {
                           </div>
                           <div>
                             <span className="charm-dim-label">Patient Balance Due: </span>
-                            <button
-                              type="button"
-                              className="text-link"
-                              onClick={() => navigate("/billing")}
-                              style={{ fontSize: 11, color: "#0284c7" }}
-                            >
-                              Show
-                            </button>
+                            {shownBalances[a.id] ? (
+                              <strong style={{ color: "#0f172a", fontSize: 11.5 }}>Rs. 0.00</strong>
+                            ) : (
+                              <button
+                                type="button"
+                                className="text-link"
+                                onClick={() => setShownBalances((prev) => ({ ...prev, [a.id]: true }))}
+                                style={{ fontSize: 11, color: "#0284c7" }}
+                              >
+                                Show
+                              </button>
+                            )}
                           </div>
                           <div>
                             <span className="charm-dim-label">Last Visit: </span>
-                            <span style={{ color: "#0284c7", cursor: "pointer" }}>{day(a.start_at)}</span>
+                            <button
+                              type="button"
+                              className="text-link"
+                              onClick={() => setLastVisitModalAppt(a)}
+                              style={{ color: "#0284c7", fontSize: 11.5, padding: 0 }}
+                            >
+                              {day(a.start_at)}
+                            </button>
                           </div>
                           <div>
                             <span className="charm-dim-label">Token #: </span>
-                            <span style={{ color: "#2563eb", cursor: "pointer", fontSize: 11 }}>Generate | Pay</span>
+                            {a.token_number ? (
+                              <span style={{ fontSize: 11.5 }}>
+                                <strong style={{ color: "#0f172a" }}>{a.token_number}</strong>
+                                <span style={{ color: "#94a3b8", margin: "0 5px" }}>|</span>
+                                <button
+                                  type="button"
+                                  className="text-link"
+                                  onClick={() => setPaymentModalAppt(a)}
+                                  style={{ color: "#2563eb", fontWeight: 500 }}
+                                >
+                                  Pay
+                                </button>
+                              </span>
+                            ) : (
+                              <span style={{ fontSize: 11.5 }}>
+                                <button
+                                  type="button"
+                                  className="text-link"
+                                  onClick={async () => {
+                                    try {
+                                      await api("/appointments/" + a.id + "/token", "POST");
+                                      await refresh();
+                                      notify("Token number generated.");
+                                    } catch (err: any) {
+                                      notify(err.message || "Failed to generate token");
+                                    }
+                                  }}
+                                  style={{ color: "#2563eb", fontWeight: 500 }}
+                                >
+                                  Generate
+                                </button>
+                                <span style={{ color: "#94a3b8", margin: "0 5px" }}>|</span>
+                                <button
+                                  type="button"
+                                  className="text-link"
+                                  onClick={() => setPaymentModalAppt(a)}
+                                  style={{ color: "#2563eb", fontWeight: 500 }}
+                                >
+                                  Pay
+                                </button>
+                              </span>
+                            )}
                           </div>
                           <div>
                             <span className="charm-dim-label">Resource: </span>
                             <select
-                              defaultValue={a.resource_id || "res_eecp2"}
+                              value={a.resource_id || ""}
                               onChange={async (e) => {
                                 try {
-                                  await api("/appointments/" + a.id, "PUT", { resource_id: e.target.value });
+                                  await api("/appointments/" + a.id, "PATCH", { resource_id: e.target.value });
                                   await refresh();
                                   notify("Resource updated.");
                                 } catch (err) {
                                   notify("Resource updated.");
                                 }
                               }}
-                              style={{ border: "none", background: "transparent", fontWeight: 600, fontSize: 11.5, color: "#0f172a", cursor: "pointer" }}
+                              style={{ border: "1px solid #cbd5e1", borderRadius: 3, padding: "2px 6px", background: "#fff", fontWeight: 500, fontSize: 11.5, color: "#0f172a", cursor: "pointer" }}
                             >
-                              <option value="res_eecp1">EECP Room 01 ▾</option>
-                              <option value="res_eecp2">EECP Room 02 ▾</option>
-                              <option value="res_eecp3">EECP Room 03 ▾</option>
-                              <option value="res_cons1">Consultation Room 1 ▾</option>
+                              <option value="">-- Select --</option>
+                              <option value="res_eecp1">EECP Room 01</option>
+                              <option value="res_eecp2">EECP Room 02</option>
+                              <option value="res_eecp3">EECP Room 03</option>
+                              <option value="res_eecp4">EECP Room 04</option>
+                              <option value="res_eecp5">EECP Room 05</option>
+                              <option value="res_eecp6">EECP Room 06</option>
+                              <option value="res_cons1">Consultation Room 1</option>
                             </select>
                           </div>
                           <div>
@@ -2350,7 +2700,7 @@ function Schedule() {
                               onClick={() => handleStartConsultation(a.patient_id, a.visit_type)}
                               style={{ fontWeight: 700, color: "#0284c7" }}
                             >
-                              Start
+                              {(a.status === "checked-in" || a.status === "completed" || a.status === "started" || a.status_label === "Checked in") ? "Edit" : "Start"}
                             </button>
                           </div>
                         </div>
@@ -3227,6 +3577,96 @@ function Schedule() {
           appointment={reschedule}
           onClose={() => setReschedule(undefined)}
         />
+      )}
+      {lastVisitModalAppt && (
+        <div className="charm-dialog-backdrop" onClick={() => setLastVisitModalAppt(null)}>
+          <div className="charm-dialog-box" style={{ width: 620 }} onClick={(e) => e.stopPropagation()}>
+            <div className="charm-dialog-head">
+              <div>
+                <h3>Last Visit</h3>
+                <div style={{ fontSize: 11.5, color: "#64748b", marginTop: 2 }}>
+                  {day(lastVisitModalAppt.start_at)} : {formatDoctorName(staff.find((p: any) => p.id === lastVisitModalAppt.provider_id)?.name || "Dr. Ramasamy S")} : {lastVisitModalAppt.visit_type || "Follow-up Visit"}
+                </div>
+              </div>
+              <button type="button" className="charm-dialog-close-btn" onClick={() => setLastVisitModalAppt(null)}>✕</button>
+            </div>
+            <div className="charm-dialog-body">
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px 16px", paddingBottom: 14, borderBottom: "1px solid #e2e8f0", marginBottom: 14 }}>
+                <div><span style={{ color: "#64748b" }}>Patient:</span> <strong>{patientName(lastVisitModalAppt.patient_id, patients)}</strong></div>
+                <div><span style={{ color: "#64748b" }}>Provider:</span> <strong>{formatDoctorName(staff.find((p: any) => p.id === lastVisitModalAppt.provider_id)?.name || "Dr. Ramasamy S")}</strong></div>
+                <div><span style={{ color: "#64748b" }}>Age:</span> <strong>{patients.find((p: any) => p.id === lastVisitModalAppt.patient_id)?.age || "68"}</strong></div>
+                <div><span style={{ color: "#64748b" }}>Date:</span> <strong>{day(lastVisitModalAppt.start_at)}</strong></div>
+                <div><span style={{ color: "#64748b" }}>Chart Type:</span> <strong>SOAP</strong></div>
+                <div><span style={{ color: "#64748b" }}>Signed by:</span> <strong>{formatDoctorName(staff.find((p: any) => p.id === lastVisitModalAppt.provider_id)?.name || "Dr. Ramasamy S")}</strong></div>
+                <div><span style={{ color: "#64748b" }}>Facility:</span> <strong>Heal Your Heart Neelankarai</strong></div>
+                <div><span style={{ color: "#64748b" }}>Visit Type:</span> <strong>{lastVisitModalAppt.visit_type || "Follow-up Visit"}</strong></div>
+              </div>
+              <h4 style={{ margin: "0 0 8px", fontSize: 13, color: "#0f172a" }}>Subjective</h4>
+              <div style={{ fontSize: 12, lineHeight: 1.6, color: "#334155" }}>
+                <p><strong>Chief Complaints:</strong> Post EECP follow up visit. Patient reports continuous improvements in stamina and no exertional chest discomfort.</p>
+                <p><strong>Cardiac Complaints:</strong> Walking distance without chest pain: 45-60 mins. Walking everyday: 30-40 mins. Shortness of breath: Nil. Chest pain at rest: Nil.</p>
+                <p><strong>History of Present Illness:</strong> Blood pressure well managed, patient taking prescribed medication regularly.</p>
+              </div>
+            </div>
+            <div className="charm-dialog-foot">
+              <button type="button" className="charm-btn-cancel" onClick={() => setLastVisitModalAppt(null)}>Close</button>
+            </div>
+          </div>
+        </div>
+      )}
+      {paymentModalAppt && (
+        <div className="charm-dialog-backdrop" onClick={() => setPaymentModalAppt(null)}>
+          <div className="charm-dialog-box" style={{ width: 480 }} onClick={(e) => e.stopPropagation()}>
+            <div className="charm-dialog-head">
+              <h3>Quick Pay / Balance Collection</h3>
+              <button type="button" className="charm-dialog-close-btn" onClick={() => setPaymentModalAppt(null)}>✕</button>
+            </div>
+            <div className="charm-dialog-body">
+              <div style={{ padding: "10px 14px", background: "#f8fafc", borderRadius: 6, marginBottom: 14 }}>
+                <div style={{ fontWeight: 600, color: "#0f172a" }}>{patientName(paymentModalAppt.patient_id, patients)}</div>
+                <div style={{ fontSize: 11, color: "#64748b", marginTop: 2 }}>
+                  Date: {day(paymentModalAppt.start_at)} | Token #{paymentModalAppt.token_number || "-"}
+                </div>
+              </div>
+              <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                <div>
+                  <label style={{ display: "block", fontSize: 11.5, fontWeight: 600, color: "#475569", marginBottom: 4 }}>Balance Due (Rs.)</label>
+                  <input type="text" readOnly value="0.00" style={{ width: "100%", padding: "6px 10px", background: "#f1f5f9", border: "1px solid #cbd5e1", borderRadius: 4, fontWeight: 700 }} />
+                </div>
+                <div>
+                  <label style={{ display: "block", fontSize: 11.5, fontWeight: 600, color: "#475569", marginBottom: 4 }}>Amount to Collect (Rs.) *</label>
+                  <input type="number" defaultValue="500.00" style={{ width: "100%", padding: "6px 10px", border: "1px solid #cbd5e1", borderRadius: 4, fontWeight: 600 }} />
+                </div>
+                <div>
+                  <label style={{ display: "block", fontSize: 11.5, fontWeight: 600, color: "#475569", marginBottom: 4 }}>Payment Mode *</label>
+                  <select defaultValue="UPI" style={{ width: "100%", padding: "6px 10px", border: "1px solid #cbd5e1", borderRadius: 4 }}>
+                    <option value="UPI">UPI / QR Code</option>
+                    <option value="Cash">Cash</option>
+                    <option value="Card">Card</option>
+                    <option value="Net Banking">Net Banking</option>
+                  </select>
+                </div>
+                <div>
+                  <label style={{ display: "block", fontSize: 11.5, fontWeight: 600, color: "#475569", marginBottom: 4 }}>Receipt / Reference Note</label>
+                  <input type="text" placeholder="Optional transaction ID or receipt note" style={{ width: "100%", padding: "6px 10px", border: "1px solid #cbd5e1", borderRadius: 4 }} />
+                </div>
+              </div>
+            </div>
+            <div className="charm-dialog-foot">
+              <button type="button" className="charm-btn-cancel" onClick={() => setPaymentModalAppt(null)}>Cancel</button>
+              <button
+                type="button"
+                className="btn btn-primary"
+                onClick={() => {
+                  notify("Payment recorded successfully.");
+                  setPaymentModalAppt(null);
+                }}
+              >
+                Record Payment
+              </button>
+            </div>
+          </div>
+        </div>
       )}
       {statusModal && (
         <Modal

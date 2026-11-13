@@ -88,6 +88,14 @@ class StatusChange(Version):
     reason: str = Field(default='', max_length=2000)
 
 
+class AppointmentPatch(BaseModel):
+    resource_id: str | None = None
+    token_number: int | None = None
+    status: str | None = None
+    status_label: str | None = None
+    checked_in_at: datetime | None = None
+
+
 class AppointmentLabelChange(Version):
     label: str = Field(min_length=1, max_length=80)
 

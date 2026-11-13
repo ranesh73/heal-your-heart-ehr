@@ -58,6 +58,15 @@ def startup_sync():
         settings_router.load_store()
     except Exception as e:
         logging.getLogger('ehr').warning('Startup settings sync failed: %s', e)
+    try:
+        from .db import engine
+        from sqlalchemy import text
+        with engine.begin() as conn:
+            cols = [r[1] for r in conn.execute(text("PRAGMA table_info(appointments)")).fetchall()]
+            if 'token_number' not in cols:
+                conn.execute(text("ALTER TABLE appointments ADD COLUMN token_number INTEGER"))
+    except Exception as e:
+        logging.getLogger('ehr').warning('Startup migration failed: %s', e)
 
 
 @app.get('/api/health')
