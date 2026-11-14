@@ -6574,6 +6574,268 @@ main.main-patient-chart {
   font-size: 9.5px;
 }
 
+/* Authentic CharmHealth Multi-Column Day Matrix (frame_001.png & frame_015.png) */
+.charm-day-matrix-container {
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
+  border-radius: 4px;
+  overflow: hidden;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+}
+
+.charm-day-matrix-scroll-wrapper {
+  overflow-x: auto;
+  overflow-y: auto;
+  max-height: 760px;
+  position: relative;
+}
+
+.charm-day-matrix-grid {
+  display: flex;
+  flex-direction: column;
+  min-width: max-content;
+}
+
+.charm-day-matrix-header-row {
+  display: flex;
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  background: #ffffff;
+  border-bottom: 2px solid #cbd5e1;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+}
+
+.charm-day-matrix-corner-cell {
+  width: 72px;
+  min-width: 72px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-right: 1px solid #cbd5e1;
+  background: #fafafa;
+  position: sticky;
+  left: 0;
+  z-index: 25;
+}
+
+.charm-day-matrix-col-header {
+  width: 124px;
+  min-width: 124px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 6px;
+  border-right: 1px solid #e2e8f0;
+  font-size: 11.5px;
+  font-weight: 700;
+  color: #1e293b;
+  text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  background: #ffffff;
+}
+
+.charm-day-matrix-body {
+  display: flex;
+  position: relative;
+}
+
+.charm-day-matrix-time-gutter {
+  width: 72px;
+  min-width: 72px;
+  position: sticky;
+  left: 0;
+  z-index: 15;
+  background: #fafafa;
+  border-right: 1px solid #cbd5e1;
+}
+
+.charm-day-matrix-time-slot {
+  height: 22px;
+  padding: 0 6px;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  font-size: 9.5px;
+  color: #94a3b8;
+  font-weight: 500;
+  border-bottom: 1px solid #f8fafc;
+  box-sizing: border-box;
+}
+
+.charm-day-matrix-time-slot.is-hour {
+  font-weight: 700;
+  color: #334155;
+  border-bottom: 1px solid #cbd5e1;
+  font-size: 10.5px;
+}
+
+.charm-day-matrix-columns-area {
+  display: flex;
+  flex: 1;
+}
+
+.charm-day-matrix-column {
+  width: 124px;
+  min-width: 124px;
+  position: relative;
+  border-right: 1px solid #e2e8f0;
+  box-sizing: border-box;
+}
+
+.charm-day-matrix-slot-cell {
+  height: 22px;
+  border-bottom: 1px solid #f1f5f9;
+  box-sizing: border-box;
+  transition: background-color 0.12s ease;
+  cursor: pointer;
+}
+
+.charm-day-matrix-slot-cell.working-hour {
+  background-color: #fffde7; /* Authentic CharmHealth light yellow working hours */
+}
+
+.charm-day-matrix-slot-cell.off-hour {
+  background-color: #ffffff;
+}
+
+.charm-day-matrix-slot-cell.hour-border {
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.charm-day-matrix-slot-cell:hover {
+  background-color: #e0f2fe !important;
+}
+
+.charm-matrix-appt-card {
+  position: absolute;
+  border-radius: 3px;
+  padding: 3px 5px;
+  border-width: 1px;
+  border-style: solid;
+  cursor: pointer;
+  overflow: hidden;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
+  z-index: 10;
+  transition: transform 0.12s ease, box-shadow 0.12s ease;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+}
+
+.charm-matrix-appt-card:hover {
+  transform: scale(1.02);
+  z-index: 30;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.22);
+}
+
+.charm-card-plus-btn {
+  background: rgba(255, 255, 255, 0.4);
+  border: 1px solid rgba(255, 255, 255, 0.6);
+  border-radius: 2px;
+  color: inherit;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1;
+  width: 14px;
+  height: 14px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  padding: 0;
+  flex-shrink: 0;
+  transition: background 0.12s ease;
+}
+
+.charm-card-plus-btn:hover {
+  background: rgba(255, 255, 255, 0.85);
+  color: #0f172a;
+}
+
+.charm-slot-hover-add {
+  display: none;
+  font-size: 11px;
+  color: #0284c7;
+  font-weight: 700;
+  text-align: right;
+  padding-right: 6px;
+  line-height: 22px;
+}
+
+.charm-day-matrix-slot-cell:hover .charm-slot-hover-add {
+  display: block;
+}
+
+.charm-week-slot {
+  position: relative;
+  cursor: pointer;
+}
+
+.charm-week-slot:hover {
+  background-color: #f0fdf4 !important;
+}
+
+.charm-week-slot-add-btn {
+  display: none;
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  background: #0d9488;
+  color: #ffffff;
+  border: none;
+  border-radius: 50%;
+  width: 16px;
+  height: 16px;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 16px;
+  text-align: center;
+  cursor: pointer;
+  z-index: 5;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+}
+
+.charm-week-slot:hover .charm-week-slot-add-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.charm-matrix-card-time {
+  font-size: 9.5px;
+  font-weight: 700;
+  line-height: 1.15;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  opacity: 0.95;
+}
+
+.charm-matrix-card-pat {
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1.2;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin: 1px 0;
+}
+
+.charm-matrix-card-sub {
+  font-size: 9.5px;
+  line-height: 1.15;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  opacity: 0.92;
+}
+
 /* Day View Timeline */
 .charm-day-schedule-view {
   background: #ffffff;
