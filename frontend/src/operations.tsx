@@ -59,6 +59,9 @@ import {
 import {
   readWaitingListEntries,
   saveWaitingListEntries,
+  fetchWaitingListEntries,
+  addWaitingListEntry,
+  deleteWaitingListEntry,
   WAITING_LIST_STORAGE_KEY,
   WAITING_LIST_UPDATED_EVENT,
 } from "./waitingList";
@@ -80,10 +83,11 @@ const APPOINTMENT_LABEL_OPTIONS = [
 ] as const;
 
 const APPOINTMENT_WORKFLOW_OPTIONS = [
-  { value: "eecp-started", label: "EECP Treatment Started" },
+  { value: "confirmed", label: "Confirmed" },
   { value: "checked-in", label: "Checked In" },
   { value: "completed", label: "Completed" },
   { value: "cancelled", label: "Cancelled" },
+  { value: "eecp-started", label: "EECP Treatment Started" },
 ] as const;
 
 function waitingListStartAt(entry: any, fallbackDate: string) {
@@ -339,10 +343,16 @@ function AppointmentStatusDropdown({
         ? "checked-in"
         : appointment.status === "cancelled"
           ? "cancelled"
-          : "eecp-started";
+          : appointment.status === "confirmed"
+            ? "confirmed"
+            : appointment.status === "eecp-started"
+              ? "eecp-started"
+              : appointment.status || "confirmed";
   const selectedValue = appointment.status_label || workflowValue;
   const selectedOption =
-    options.find((option) => option.value === selectedValue) || options[0];
+    options.find((option) => option.value === selectedValue) ||
+    options.find((option) => option.label.toLowerCase() === (appointment.status_label || appointment.status || "").toLowerCase()) ||
+    options[0];
 
   useEffect(() => {
     if (!open) return;
@@ -391,16 +401,20 @@ function AppointmentStatusDropdown({
   const chooseOption = async (value: string) => {
     setSaving(true);
     try {
-      if (statusLabels.some((option) => option === value)) {
+      if (value === "confirmed") {
         await api("/appointments/" + appointment.id + "/label", "POST", {
           version: appointment.version,
-          label: value,
+          label: null,
         });
-      } else {
-        const status = value === "eecp-started" ? "checked-in" : value;
+      } else if (value === "checked-in" || value === "completed" || value === "cancelled") {
         await api("/appointments/" + appointment.id + "/status", "POST", {
           version: appointment.version,
-          status,
+          status: value,
+        });
+      } else {
+        await api("/appointments/" + appointment.id + "/label", "POST", {
+          version: appointment.version,
+          label: value === "eecp-started" ? "EECP Treatment Started" : value,
         });
       }
       await refresh();
@@ -424,6 +438,10 @@ function AppointmentStatusDropdown({
       ? "#64748b"
       : selectedOption.label.toLowerCase().includes("confirmed")
       ? "#84cc16"
+      : selectedOption.label.toLowerCase().includes("eecp")
+      ? "#78350f"
+      : selectedOption.label.toLowerCase().includes("cancelled")
+      ? "#ef4444"
       : "#7c3aed");
 
   return (
@@ -1327,6 +1345,11 @@ function Schedule() {
   const [waitingEntries, setWaitingEntries] = useState<any[]>(readWaitingListEntries);
 
   useEffect(() => {
+    fetchWaitingListEntries().then((entries) => {
+      if (Array.isArray(entries)) {
+        setWaitingEntries(entries);
+      }
+    });
     const onWaitingListUpdate = (event: Event) => {
       const entries = (event as CustomEvent<any[]>).detail;
       setWaitingEntries(Array.isArray(entries) ? entries : readWaitingListEntries());
@@ -1356,21 +1379,21 @@ function Schedule() {
   };
 
   const addWaitingEntry = (entry: any) => {
-    const next = [entry, ...waitingEntries.filter((current) => current.id !== entry.id)];
-    saveWaitingListEntries(next);
-    setWaitingEntries(next);
+    addWaitingListEntry(entry).then((next) => {
+      setWaitingEntries(next);
+    });
   };
 
   const removeWaitingEntry = (id: string) => {
-    const next = waitingEntries.filter((entry) => entry.id !== id);
-    saveWaitingListEntries(next);
-    setWaitingEntries(next);
+    deleteWaitingListEntry(id).then((next) => {
+      setWaitingEntries(next);
+    });
   };
 
   const updateWaitingEntry = (entry: any) => {
-    const next = waitingEntries.map((current) => current.id === entry.id ? entry : current);
-    saveWaitingListEntries(next);
-    setWaitingEntries(next);
+    addWaitingListEntry(entry).then((next) => {
+      setWaitingEntries(next);
+    });
   };
 
   const openWaitingEntryConfirmation = (entry: any) => {
@@ -1593,6 +1616,9 @@ function Schedule() {
   };
 
   const formatSessionDay = (appt: Row) => {
+    if (appt.visit_type) {
+      return appt.visit_type;
+    }
     if (appt.session_number) {
       const n = appt.session_number;
       const s = ["th", "st", "nd", "rd"];
@@ -1600,12 +1626,7 @@ function Schedule() {
       const suffix = s[(v - 20) % 10] || s[v] || s[0];
       return `EECP ${n}${suffix} Day`;
     }
-    const idx = (appts.data || []).findIndex((x) => x.id === appt.id);
-    const dayNum = idx >= 0 ? (idx % 30) + 1 : 26;
-    const s = ["th", "st", "nd", "rd"];
-    const v = dayNum % 100;
-    const suffix = s[(v - 20) % 10] || s[v] || s[0];
-    return `EECP ${dayNum}${suffix} Day`;
+    return "Cardiology Consultation";
   };
 
   const appts = useQuery({
@@ -1769,33 +1790,54 @@ function Schedule() {
   };
 
   const isProviderSelected = (provId?: string) => {
-    const hasAnySelected = Object.values(selectedCalProviders).some((v) => v === true);
-    const hasAnyUnselected = Object.values(selectedCalProviders).some((v) => v === false);
-    if (hasAnyUnselected && !hasAnySelected) return false;
-    if (!provId) return true;
-    if (selectedCalProviders[provId] === false) return false;
-    return true;
+    const checked = Object.entries(selectedCalProviders)
+      .filter(([_, v]) => v === true)
+      .map(([id]) => id);
+    const unchecked = Object.entries(selectedCalProviders)
+      .filter(([_, v]) => v === false)
+      .map(([id]) => id);
+    if (unchecked.length === 0) return true;
+    if (checked.length === 0) return false;
+    if (!provId) return false;
+    return checked.includes(provId);
   };
 
   const isResourceSelected = (resId?: string) => {
-    const hasAnySelected = Object.values(selectedCalResources).some((v) => v === true);
-    const hasAnyUnselected = Object.values(selectedCalResources).some((v) => v === false);
-    if (hasAnyUnselected && !hasAnySelected) return false;
-    const resName = getApptResourceName(resId);
-    if (resName === "-- Select --") return true;
-    if (selectedCalResources[resName] === false) return false;
-    return true;
+    const checked = Object.entries(selectedCalResources)
+      .filter(([_, v]) => v === true)
+      .map(([name]) => name.toLowerCase());
+    const unchecked = Object.entries(selectedCalResources)
+      .filter(([_, v]) => v === false)
+      .map(([name]) => name.toLowerCase());
+    if (unchecked.length === 0) return true;
+    if (checked.length === 0) return false;
+    const resName = getApptResourceName(resId).toLowerCase();
+    if (resName === "-- select --") return true;
+    return checked.includes(resName);
   };
 
   const isVisitTypeSelected = (vt?: string) => {
-    const hasAnySelected = Object.values(selectedCalVisitTypes).some((v) => v === true);
-    const hasAnyUnselected = Object.values(selectedCalVisitTypes).some((v) => v === false);
-    if (hasAnyUnselected && !hasAnySelected) return false;
-    if (!vt) return true;
-    if (selectedCalVisitTypes[vt] === false) return false;
-    const norm = normalizeVisitType(vt);
-    if (selectedCalVisitTypes[norm] === false) return false;
-    return true;
+    const checked = Object.entries(selectedCalVisitTypes)
+      .filter(([_, v]) => v === true)
+      .map(([name]) => name.toLowerCase().trim());
+    const unchecked = Object.entries(selectedCalVisitTypes)
+      .filter(([_, v]) => v === false)
+      .map(([name]) => name.toLowerCase().trim());
+    if (unchecked.length === 0) return true;
+    if (checked.length === 0) return false;
+    const raw = (vt || "").toLowerCase().trim();
+    const norm = normalizeVisitType(vt).toLowerCase().trim();
+    return checked.some((c) => {
+      if (raw === c || norm === c) return true;
+      if (c.includes("eecp") && (raw.includes("eecp") || norm.includes("eecp"))) return true;
+      if (c.includes("diabet") && (raw.includes("diabet") || norm.includes("diabet"))) return true;
+      if (c.includes("consult") && (raw.includes("consult") || norm.includes("consult"))) return true;
+      if (c.includes("follow") && (raw.includes("follow") || norm.includes("follow"))) return true;
+      if (c.includes("admiss") && (raw.includes("admiss") || norm.includes("admiss"))) return true;
+      if (c.includes("absent") && (raw.includes("absent") || norm.includes("absent"))) return true;
+      if (c.includes("walk") && (raw.includes("walk") || norm.includes("walk"))) return true;
+      return false;
+    });
   };
 
   // 1. Date & Facility filtering
@@ -1936,12 +1978,12 @@ function Schedule() {
   };
 
   const formattedDate =
-    view === "Month"
+    activeCalView === "Month"
       ? new Intl.DateTimeFormat("en-US", {
         month: "long",
         year: "numeric",
       }).format(new Date(viewYear, viewMonth - 1, 1, 12, 0, 0))
-      : view === "Week"
+      : activeCalView === "Week"
       ? (() => {
           const dObj = new Date(date + "T12:00:00Z");
           const sWeek = new Date(dObj);
@@ -1999,7 +2041,7 @@ function Schedule() {
       isToday: boolean;
     }[]
   >(() => {
-    if (view !== "Month") return [];
+    if (activeCalView !== "Month") return [];
     const firstDayOfWeek = new Date(viewYear, viewMonth - 1, 1).getDay(); // 0 is Sunday
     const daysInCurrentMonth = new Date(viewYear, viewMonth, 0).getDate();
     const daysInPrevMonth = new Date(viewYear, viewMonth - 1, 0).getDate();
@@ -2058,7 +2100,7 @@ function Schedule() {
     }
 
     return cells;
-  }, [view, viewYear, viewMonth]);
+  }, [activeCalView, viewYear, viewMonth]);
 
   return (
     <div className="charm-calendar-page">
@@ -3093,7 +3135,7 @@ function Schedule() {
                         <div className="charm-right-details-grid">
                           <div>
                             <span className="charm-dim-label">Visit Type: </span>
-                            <strong style={{ display: "block", color: "#0f172a", marginTop: 2 }}>{formatSessionDay(a)}</strong>
+                            <strong style={{ display: "block", color: "#0f172a", marginTop: 2 }}>{a.visit_type || formatSessionDay(a)}</strong>
                           </div>
                           <div>
                             <span className="charm-dim-label">Patient Balance Due: </span>
