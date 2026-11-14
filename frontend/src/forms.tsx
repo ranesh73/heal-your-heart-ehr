@@ -518,7 +518,7 @@ export function AppointmentForm({
   initialResourceId?: string;
   initialDuration?: number;
   waitingListEntry?: Row;
-  onBooked?: () => void;
+  onBooked?: (date?: string) => void;
 }) {
   const { staff, patients, resources, facilities, refresh, notify } = useApp();
   const qc = useQueryClient();
@@ -689,7 +689,7 @@ export function AppointmentForm({
   const [intervalDays, setIntervalDays] = useState<number>(1);
   const [skipSundays, setSkipSundays] = useState(true);
   const [allowOverlap, setAllowOverlap] = useState(true);
-  const [allowOutsideHours, setAllowOutsideHours] = useState(false);
+  const [allowOutsideHours, setAllowOutsideHours] = useState(true);
   const [reason, setReason] = useState(appointment?.reason || waitingListEntry?.reason || "");
   const [message, setMessage] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -877,9 +877,9 @@ export function AppointmentForm({
       } else {
         payload.visit_type = visitType;
         payload.mode = mode;
-        payload.repeat_count = periodType === "period" ? Number(repeatCount) : Number(repeatCount) || 1;
-        payload.interval_days = Number(intervalDays);
-        payload.skip_sundays = skipSundays;
+        payload.repeat_count = periodType === "period" ? Number(repeatCount) || 1 : 1;
+        payload.interval_days = periodType === "period" ? Number(intervalDays) || 1 : 1;
+        payload.skip_sundays = periodType === "period" ? skipSundays : false;
         payload.plan_id = plan?.id || null;
         await api("/appointments", "POST", payload);
       }
@@ -887,7 +887,8 @@ export function AppointmentForm({
       await refresh();
       await qc.refetchQueries({ queryKey: ["chart"] });
       notify(appointment ? "Appointment rescheduled." : "Appointment booking confirmed.");
-      if (waitingListEntry) onBooked?.();
+      console.log("AppointmentForm submitted successfully, calling onBooked with selDate:", selDate);
+      onBooked?.(selDate);
       onClose();
     } catch (ex: any) {
       setErr(ex?.detail || ex?.message || "Failed to schedule appointment");

@@ -84,7 +84,7 @@ def book(data:s.AppointmentInput,c=Depends(context)):
     start=utc(data.start_at); series=str(uuid4()) if data.repeat_count>1 else None
     created=[]
     for index in range(data.repeat_count):
-        if data.skip_sundays:
+        if data.repeat_count > 1 and data.skip_sundays:
             while start.replace(tzinfo=timezone.utc).astimezone(KOLKATA).weekday()==6: start+=timedelta(days=1)
         end=start+timedelta(minutes=data.duration_minutes)
         check_slot(c,data.patient_id,data.provider_id,data.resource_id,start,end,plan=plan,allow_overlap=data.allow_overlap,allow_outside_hours=data.allow_outside_hours)

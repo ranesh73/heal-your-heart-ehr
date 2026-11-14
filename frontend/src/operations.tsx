@@ -4178,10 +4178,17 @@ function Schedule() {
       {(add || bookingSlot) && (
         <AppointmentForm
           patientId={bookingSlot?.patientId}
-          initialStart={bookingSlot?.startAt}
+          initialStart={bookingSlot?.startAt || `${date}T09:00:00`}
           initialProviderId={bookingSlot?.providerId}
           initialResourceId={bookingSlot?.resourceId}
           initialDuration={bookingSlot?.duration}
+          onBooked={(bookedDate) => {
+            console.log("operations.tsx onBooked callback received:", bookedDate);
+            if (bookedDate) {
+              console.log("Setting calendar date to:", bookedDate);
+              setDate(bookedDate);
+            }
+          }}
           onClose={() => {
             setAdd(false);
             setBookingSlot(null);
