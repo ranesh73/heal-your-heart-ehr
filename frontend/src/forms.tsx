@@ -81,7 +81,7 @@ export function PatientForm({
           if (!allowed.provider_id) allowed.provider_id = null;
           const data = await api(
             "/patients" +
-              (patient ? "/" + patient.id + "?version=" + patient.version : ""),
+            (patient ? "/" + patient.id + "?version=" + patient.version : ""),
             patient ? "PUT" : "POST",
             { ...allowed, facility_ids: selected },
           );
@@ -554,7 +554,7 @@ export function AppointmentForm({
     try {
       const saved = localStorage.getItem("hyh_appointment_statuses");
       if (saved) return JSON.parse(saved);
-    } catch {}
+    } catch { }
     return [
       { id: "1", name: "Confirmed", color: "#10b981" },
       { id: "2", name: "Checked in", color: "#3b82f6" },
@@ -579,7 +579,7 @@ export function AppointmentForm({
     try {
       const saved = localStorage.getItem("hyh_visit_types");
       if (saved) return JSON.parse(saved);
-    } catch {}
+    } catch { }
     return [
       { id: "vt1", name: "Cardiology Consultation", duration: 30 },
       { id: "vt2", name: "EECP session", duration: 60 },
@@ -600,7 +600,7 @@ export function AppointmentForm({
           localStorage.setItem("hyh_appointment_statuses", JSON.stringify(data));
         }
       })
-      .catch(() => {});
+      .catch(() => { });
 
     api<any[]>("/calendar/visit-types")
       .then((data) => {
@@ -609,19 +609,19 @@ export function AppointmentForm({
           localStorage.setItem("hyh_visit_types", JSON.stringify(data));
         }
       })
-      .catch(() => {});
+      .catch(() => { });
 
     const onStatusUpdate = () => {
       try {
         const saved = localStorage.getItem("hyh_appointment_statuses");
         if (saved) setAvailableStatuses(JSON.parse(saved));
-      } catch {}
+      } catch { }
     };
     const onVisitTypeUpdate = () => {
       try {
         const saved = localStorage.getItem("hyh_visit_types");
         if (saved) setAvailableVisitTypes(JSON.parse(saved));
-      } catch {}
+      } catch { }
     };
 
     window.addEventListener("hyh_appointment_statuses_updated", onStatusUpdate);
@@ -901,10 +901,10 @@ export function AppointmentForm({
         showQuickNewPatient
           ? "New Appointment"
           : waitingListEntry
-          ? "Confirm Waiting List"
-          : appointment
-          ? "Reschedule Appointment"
-          : "New Appointment"
+            ? "Confirm Waiting List"
+            : appointment
+              ? "Reschedule Appointment"
+              : "New Appointment"
       }
       onClose={onClose}
       wide
@@ -1199,66 +1199,66 @@ export function AppointmentForm({
             </div>
 
             {!waitingListEntry && <>
-            {/* APPOINTMENT MODE (Horizontal Radio Group - CharmHealth Frame 055 & 070) */}
-            <div className="charm-form-row">
-              <label className="charm-field-label">Appointment Mode</label>
-              <div className="charm-radio-group">
-                <label>
-                  <input
-                    type="radio"
-                    name="mode"
-                    checked={mode === "In person"}
-                    onChange={() => setMode("In person")}
-                  />{" "}
-                  In Person
-                </label>
-                <label>
-                  <input
-                    type="radio"
-                    name="mode"
-                    checked={mode === "Phone"}
-                    onChange={() => setMode("Phone")}
-                  />{" "}
-                  Phone Call
-                </label>
-                <label>
-                  <input
-                    type="radio"
-                    name="mode"
-                    checked={mode === "Video"}
-                    onChange={() => setMode("Video")}
-                  />{" "}
-                  Video Consult
-                </label>
+              {/* APPOINTMENT MODE (Horizontal Radio Group - CharmHealth Frame 055 & 070) */}
+              <div className="charm-form-row">
+                <label className="charm-field-label">Appointment Mode</label>
+                <div className="charm-radio-group">
+                  <label>
+                    <input
+                      type="radio"
+                      name="mode"
+                      checked={mode === "In person"}
+                      onChange={() => setMode("In person")}
+                    />{" "}
+                    In Person
+                  </label>
+                  <label>
+                    <input
+                      type="radio"
+                      name="mode"
+                      checked={mode === "Phone"}
+                      onChange={() => setMode("Phone")}
+                    />{" "}
+                    Phone Call
+                  </label>
+                  <label>
+                    <input
+                      type="radio"
+                      name="mode"
+                      checked={mode === "Video"}
+                      onChange={() => setMode("Video")}
+                    />{" "}
+                    Video Consult
+                  </label>
+                </div>
               </div>
-            </div>
             </>}
 
             {!waitingListEntry && <>
-            {/* APPOINTMENT FOR (Horizontal Radio Group - CharmHealth Frame 055 & 070) */}
-            <div className="charm-form-row">
-              <label className="charm-field-label">Appointment For</label>
-              <div className="charm-radio-group">
-                <label>
-                  <input
-                    type="radio"
-                    name="period"
-                    checked={periodType === "single"}
-                    onChange={() => setPeriodType("single")}
-                  />{" "}
-                  Single Date
-                </label>
-                <label>
-                  <input
-                    type="radio"
-                    name="period"
-                    checked={periodType === "period"}
-                    onChange={() => setPeriodType("period")}
-                  />{" "}
-                  Period
-                </label>
+              {/* APPOINTMENT FOR (Horizontal Radio Group - CharmHealth Frame 055 & 070) */}
+              <div className="charm-form-row">
+                <label className="charm-field-label">Appointment For</label>
+                <div className="charm-radio-group">
+                  <label>
+                    <input
+                      type="radio"
+                      name="period"
+                      checked={periodType === "single"}
+                      onChange={() => setPeriodType("single")}
+                    />{" "}
+                    Single Date
+                  </label>
+                  <label>
+                    <input
+                      type="radio"
+                      name="period"
+                      checked={periodType === "period"}
+                      onChange={() => setPeriodType("period")}
+                    />{" "}
+                    Period
+                  </label>
+                </div>
               </div>
-            </div>
             </>}
 
             {/* Date Selection (Authentic CharmHealth Formatted Date & Picker) */}
@@ -1304,7 +1304,7 @@ export function AppointmentForm({
                             setSelDate(`${parts[0]}-${e.target.value}-${parts[2] || "01"}`);
                           }}
                         >
-                          {["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"].map((mn, idx) => (
+                          {["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"].map((mn, idx) => (
                             <option key={mn} value={String(idx + 1).padStart(2, "0")}>{mn}</option>
                           ))}
                         </select>
@@ -1395,7 +1395,7 @@ export function AppointmentForm({
                   value={startHour}
                   onChange={(e) => setStartHour(e.target.value)}
                 >
-                  {["01","02","03","04","05","06","07","08","09","10","11","12"].map((h) => (
+                  {["01", "02", "03", "04", "05", "06", "07", "08", "09", "10", "11", "12"].map((h) => (
                     <option key={h} value={h}>{h}</option>
                   ))}
                 </select>
@@ -1406,7 +1406,7 @@ export function AppointmentForm({
                   value={startMin}
                   onChange={(e) => setStartMin(e.target.value)}
                 >
-                  {["00","05","10","15","20","25","30","35","40","45","50","55"].map((m) => (
+                  {["00", "05", "10", "15", "20", "25", "30", "35", "40", "45", "50", "55"].map((m) => (
                     <option key={m} value={m}>{m}</option>
                   ))}
                 </select>
@@ -1679,13 +1679,13 @@ export function RecordForm({
   const fields: Field[] = [
     ...(!patientId
       ? [
-          {
-            name: "patient_id",
-            label: "Patient",
-            type: "patient",
-            required: true,
-          },
-        ]
+        {
+          name: "patient_id",
+          label: "Patient",
+          type: "patient",
+          required: true,
+        },
+      ]
       : []),
     ...(metadata.record_fields?.[kind] || []),
   ];
