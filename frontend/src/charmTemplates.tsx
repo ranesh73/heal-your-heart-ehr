@@ -2,6 +2,7 @@ import { useState } from "react";
 import { X, Plus, Trash2, Check } from "lucide-react";
 import { Row } from "./api";
 import { formatDoctorName } from "./clinicalWorkflows";
+import { CatalogAutocomplete } from "./CatalogAutocomplete";
 
 // ==========================================
 // 1. DIAGNOSIS TEMPLATES MODAL (Frame 008, 012)
@@ -1138,11 +1139,18 @@ export function AddPrescriptionModal({
               {idx > 0 && <hr className="charm-divider" />}
               <div className="charm-add-rx-top-line">
                 <div style={{ flex: 2 }}>
-                  <label>Trade Name</label>
-                  <input
-                    placeholder="Enter Trade Name"
+                  <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: "#334155", marginBottom: 4 }}>
+                    Medicine / Trade Name *
+                  </label>
+                  <CatalogAutocomplete
                     value={row.tradeName}
-                    onChange={(e) => updateRow(row.id, "tradeName", e.target.value)}
+                    type="medicine"
+                    placeholder="Search master formulary (e.g. Atorva, Telma, Metoprolol)..."
+                    onChangeText={(text) => updateRow(row.id, "tradeName", text)}
+                    onSelect={(cat) => {
+                      updateRow(row.id, "tradeName", cat.trade_name || cat.name);
+                      updateRow(row.id, "genericName", cat.generic_name || cat.name);
+                    }}
                   />
                 </div>
 

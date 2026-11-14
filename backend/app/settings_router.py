@@ -407,6 +407,126 @@ def save_provider_timings(data: dict, c=Depends(context)):
     return timings[key]
 
 
+# ============================================================================
+# User Scoped Preferences (Message, Task, Clinical Signatures)
+# ============================================================================
+
+@router.get('/user-preferences/{section}')
+@router.get('/settings/user-preferences/{section}')
+def get_user_preference(section: str, c=Depends(context)):
+    """Fetch user-scoped preference for the authenticated user from SQLite DB with fallback."""
+    # 1. Query SQLite UserPreference table
+    pref = c.db.scalar(
+        select(m.UserPreference).where(
+            m.UserPreference.user_id == c.user.id,
+            m.UserPreference.section == section
+        )
+    )
+    if pref and pref.data:
+        try:
+            return json.loads(pref.data)
+        except Exception:
+            pass
+
+    # 2. Check JSON store fallback
+    store = load_store()
+    key = f"user:{c.user.id}:{section}"
+    val = store.get("custom_settings", {}).get(key)
+    if val is not None:
+        return val
+
+    # Default fallbacks
+    if section == "message:signature":
+        return {
+            "enabled": False,
+            "signature_html": f"Warm regards,<br><strong>{c.user.name}</strong><br>Heal Your Heart · Non-Invasive Cardiology & EECP Center<br>Chennai, Tamil Nadu"
+        }
+    if section == "message:vacation":
+        return {
+            "enabled": False,
+            "send_to_members": True,
+            "send_to_patients": True,
+            "subject": "Out of Office: Dr. Ananya",
+            "start_date": "",
+            "end_date": "",
+            "mark_non_working": False,
+            "message_html": "<p>Thank you for reaching out. I am currently out of office. For emergency assistance, please contact clinic reception.</p>"
+        }
+    if section == "message:preferences":
+        return {
+            "notification_email": "Required",
+            "receive_from_patients": "Yes",
+            "questionnaire_notification": "Required",
+            "feedback_notification": "Required",
+            "shared_member_ids": []
+        }
+    if section == "task:preferences":
+        return {
+            "reminder_email": True,
+            "reminder_charm_message": True,
+            "assigned_charm_message": True,
+            "completed_charm_message": True,
+            "sort_by": "Created Date"
+        }
+    return {}
+
+
+@router.put('/user-preferences/{section}')
+@router.put('/settings/user-preferences/{section}')
+def save_user_preference(section: str, data: dict, c=Depends(context)):
+    """Persist user-scoped preference to both SQLite UserPreference table and settings store."""
+    payload_str = json.dumps(data)
+    
+    # 1. Persist to SQLite UserPreference
+    pref = c.db.scalar(
+        select(m.UserPreference).where(
+            m.UserPreference.user_id == c.user.id,
+            m.UserPreference.section == section
+        )
+    )
+    if pref:
+        pref.data = payload_str
+        pref.facility_id = c.facility_id
+    else:
+        import uuid
+        pref = m.UserPreference(
+            id=str(uuid.uuid4()),
+            user_id=c.user.id,
+            facility_id=c.facility_id,
+            section=section,
+            data=payload_str
+        )
+        c.db.add(pref)
+    c.db.commit()
+
+    # 2. Dual-write to settings store for master database sync compatibility
+    store = load_store()
+    custom = store.setdefault("custom_settings", {})
+    custom[f"user:{c.user.id}:{section}"] = data
+    save_store(store)
+
+    return {"success": True, "section": section, "data": data}
+
+
+@router.get('/practice-members')
+@router.get('/settings/practice-members')
+def list_practice_members(c=Depends(context)):
+    """Return all active practice clinicians and staff for member selection."""
+    users = c.db.scalars(
+        select(m.User).where(m.User.active == True).order_by(m.User.name.asc())
+    ).all()
+
+    return [
+        {
+            "id": u.id,
+            "name": u.name,
+            "role": u.role,
+            "email": u.email
+        }
+        for u in users
+    ]
+
+
 @router.get('/settings/{category}/{option}')
 def get_setting_option(category: str, option: str, c=Depends(context)):
     store = load_store()
@@ -682,4 +802,3 @@ def save_facility_timezone(facility_id: str, data: dict, c=Depends(context)):
     save_store(store)
     c.audit('update_facility_timezone', fac)
     return {"ok": True, "facility_id": facility_id, "timezone": tz}
-

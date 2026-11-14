@@ -1220,7 +1220,7 @@ export const SETTINGS_CATEGORIES: SettingCategory[] = [
         categoryId: "charm-telehealth",
         categoryName: "Heal Your Heart TeleHealth",
         description: "Configure video consultations, virtual waiting rooms, recording policies and camera tests.",
-        keywords: ["telehealth", "video call", "virtual visit", "camera", "microphone"],
+        keywords: ["telehealth", "heal your heart telehealth", "video call", "virtual visit", "camera", "microphone"],
         fields: [
           { key: "telehealthActive", label: "Enable Virtual Cardiology TeleHealth Visits", type: "toggle", defaultValue: true },
           { key: "waitingRoomMessage", label: "Virtual Waiting Room Greeting", type: "text", defaultValue: "Please hold on; Dr. Ananya will join your video consultation momentarily." },
@@ -1290,6 +1290,18 @@ export const SETTINGS_CATEGORIES: SettingCategory[] = [
         fields: [
           { key: "mfaEnabled", label: "Enforce Two-Factor Authentication (2FA) on Login", type: "toggle", defaultValue: true },
           { key: "mfaMethod", label: "Primary Authentication Method", type: "select", options: ["Authenticator App (TOTP)", "SMS OTP to Mobile"], defaultValue: "Authenticator App (TOTP)" },
+        ],
+      },
+      {
+        id: "change-profile-password",
+        name: "Change Profile Password",
+        categoryId: "account",
+        categoryName: "Account",
+        description: "Update dedicated clinician chart profile authorization PIN and password.",
+        keywords: ["profile password", "chart pin", "sign password", "security"],
+        fields: [
+          { key: "currentProfilePassword", label: "Current Profile PIN / Password", type: "text", defaultValue: "••••" },
+          { key: "newProfilePassword", label: "New Profile PIN / Password", type: "text", defaultValue: "" },
         ],
       },
       {

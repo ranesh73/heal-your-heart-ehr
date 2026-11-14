@@ -175,7 +175,7 @@ export function InventorySettingsPage({ activeOptionId }: InventorySettingsPageP
       : "Inventory and Vaccine Settings";
 
   return (
-    <div className="charm-settings-tab-inner" style={{ padding: "16px 20px" }}>
+    <div className="charm-settings-tab-inner" style={{ maxWidth: 1180, margin: "0 auto", padding: "20px 24px" }}>
       {/* Subhead Strip with Breadcrumb & Save Changes */}
       <div className="charm-settings-subhead-strip" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "1px solid #e2e8f0", paddingBottom: 12, marginBottom: 20 }}>
         <div>

@@ -22,6 +22,7 @@ from sqlalchemy import select, text
 from app.main import app
 from app.db import SessionLocal, engine, lock_writes
 from app.models import User, Facility, UserFacility, Patient, Encounter
+from app import models as m
 from app.seed import seed
 from app.security import password_hash
 from app.worker import run_once
@@ -34,6 +35,16 @@ def setup():
     command.upgrade(Config('alembic.ini'),'head')
     with SessionLocal() as db:
         lock_writes(db); seed(db,PASSWORD); db.commit()
+    try:
+        from scripts.seed_medicine_catalogs import seed as seed_meds
+        seed_meds()
+    except Exception:
+        pass
+    try:
+        from scripts.seed_rx_catalogs import seed_rx
+        seed_rx()
+    except Exception:
+        pass
     yield
 
 
@@ -308,3 +319,589 @@ def test_persistence_uses_database_and_session_revocation():
     ok(other.get('/api/auth/me'))
     ok(c.post('/api/admin/users/'+user['id']+'/deactivate',json={}))
     ok(other.get('/api/auth/me'),401)
+
+
+def test_complete_inventory_module_endpoints():
+    admin = client('admin')
+    # 1. Categories CRUD
+    cat = ok(admin.post('/api/inventory/categories', json={
+        'name': 'Test Tablets',
+        'group_name': 'Drug',
+        'description': 'Oral solid medications'
+    }))
+    assert cat['name'] == 'Test Tablets'
+    categories = ok(admin.get('/api/inventory/categories'))
+    assert any(c['name'] == 'Test Tablets' for c in categories)
+
+    # 2. Suppliers CRUD
+    sup = ok(admin.post('/api/inventory/suppliers', json={
+        'name': 'Apex Pharma Dist',
+        'contact_person': 'Ravi Kumar',
+        'mobile_phone': '9876543210',
+        'email': 'ravi@apexpharma.invalid',
+        'city': 'Chennai'
+    }))
+    assert sup['name'] == 'Apex Pharma Dist'
+    suppliers = ok(admin.get('/api/inventory/suppliers'))
+    assert any(s['name'] == 'Apex Pharma Dist' for s in suppliers)
+
+    # 3. Create Product with initial batch
+    product = ok(admin.post('/api/inventory', json={
+        'name': 'Atorvastatin 20mg',
+        'trade_name': 'Atorva',
+        'category': 'Test Tablets',
+        'reorder_level': 10,
+        'unit': 'Strips',
+        'group_name': 'Drug',
+        'dose_form': 'Tablet',
+        'cost_price': 85.0,
+        'retail_price': 120.0,
+        'batch_number': 'AT-991',
+        'expiry_date': '2028-12-31',
+        'quantity': 50,
+        'supplier': 'Apex Pharma Dist'
+    }))
+    assert product['name'] == 'Atorvastatin 20mg'
+    assert product['balance'] == 50
+    assert product['status'] == 'In Stock'
+
+    # 4. Add another batch
+    batch2 = ok(admin.post('/api/inventory/batches', json={
+        'item_id': product['id'],
+        'batch_number': 'AT-992',
+        'expiry_date': '2029-06-30',
+        'quantity': 30,
+        'cost_price': 80.0,
+        'retail_price': 115.0,
+        'supplier_name': 'Apex Pharma Dist'
+    }))
+    assert batch2['balance'] == 80
+
+    # 5. Inventory search & filter
+    inv_list = ok(admin.get('/api/inventory?q=Atorva'))
+    assert len(inv_list) >= 1
+    assert inv_list[0]['id'] == product['id']
+
+    # 6. Bulk inventory intake
+    bulk_res = ok(admin.post('/api/inventory/bulk', json={
+        'group_name': 'Drug',
+        'category': 'Test Tablets',
+        'supplier': 'Apex Pharma Dist',
+        'rows': [
+            {
+                'product_name': 'Metoprolol 25mg',
+                'trade_name': 'Betaloc',
+                'category': 'Test Tablets',
+                'quantity': 100,
+                'batch_number': 'MET-101',
+                'expiry_date': '2027-10-15',
+                'cost_price': 45.0,
+                'retail_price': 65.0
+            }
+        ]
+    }))
+    assert bulk_res['success'] is True
+    assert bulk_res['count'] == 1
+
+    # 7. Reports
+    rec_list = ok(admin.get('/api/inventory/reports/received-list'))
+    assert rec_list['count'] >= 2
+
+    by_prod = ok(admin.get('/api/inventory/reports/by-product'))
+    assert any(p['name'] == 'Atorvastatin 20mg' for p in by_prod['rows'])
+
+    by_bth = ok(admin.get('/api/inventory/reports/by-batch'))
+    assert any(b['batch_number'] == 'AT-991' for b in by_bth['rows'])
+
+    exp_rep = ok(admin.get('/api/inventory/reports/expiry'))
+    assert 'rows' in exp_rep
+
+    # 8. Export history
+    export_rec = ok(admin.post('/api/inventory/reports/export-history', json={
+        'report_name': 'Inventory by Product',
+        'date_range': 'Past 3 Months',
+        'status': 'Ready',
+        'record_count': by_prod['count']
+    }))
+    assert export_rec['report_name'] == 'Inventory by Product'
+    history = ok(admin.get('/api/inventory/reports/export-history'))
+    assert any(h['id'] == export_rec['id'] for h in history)
+
+
+def test_centralized_catalogue_search():
+    admin = client('admin')
+    doctor = client('doctor')
+    p = patient(doctor)
+
+    # 1. Add injection to master injection catalogue
+    inj_cat = ok(admin.post('/api/admin/injections/catalog', json={
+        'name': 'Deform 20ml Test'
+    }))
+    assert inj_cat['name'] == 'Deform 20ml Test'
+    assert inj_cat['id']
+
+    # 2. Central search by type='injection'
+    res = ok(doctor.get('/api/catalogue/search?type=injection&q=Deform'))
+    assert len(res) >= 1
+    matched = next((x for x in res if 'deform' in x['name'].lower()), None)
+    assert matched is not None
+    assert matched['catalogue_id'] == inj_cat['id']
+    assert matched['kind'] == 'injection'
+
+    # 3. Legacy /api/catalogs?kind=injection enrichment
+    cat_inj = ok(doctor.get('/api/catalogs?kind=injection&q=Deform'))
+    assert any(x['id'] == inj_cat['id'] for x in cat_inj)
+
+    # 4. Central search by type='medicine'
+    res_med = ok(doctor.get('/api/catalogue/search?type=medicine&q=Atorva'))
+    assert len(res_med) >= 1
+    assert any('atorva' in x['name'].lower() or 'atorva' in (x.get('trade_name') or '').lower() for x in res_med)
+
+    # 5. Global search by type='all'
+    res_all = ok(doctor.get('/api/catalogue/search?type=all&q=Deform'))
+    assert len(res_all) >= 1
+    assert res_all[0]['badge'] == 'Injection'
+
+    # 6. Create injection order linking catalogue_id
+    order = ok(doctor.post('/api/injections/orders', json={
+        'patient_id': p['id'],
+        'catalogue_id': inj_cat['id'],
+        'medication_name_snapshot': inj_cat['name'],
+        'dosage': '20ml',
+        'route': 'Intravenous',
+        'status': 'ordered'
+    }))
+    assert order['catalogue_id'] == inj_cat['id']
+    assert order['medication_name_snapshot'] == 'Deform 20ml Test'
+
+    # 7. Record patient injection administration with catalogue_id
+    rec_inj = ok(doctor.post('/api/records/injections', json={
+        'patient_id': p['id'],
+        'catalogue_id': inj_cat['id'],
+        'order_id': order['id'],
+        'name': inj_cat['name'],
+        'dose': '20ml',
+        'route': 'Intravenous',
+        'site': 'Right Deltoid',
+        'status': 'administered'
+    }))
+    assert rec_inj['catalogue_id'] == inj_cat['id']
+
+
+def test_rx_module_workflows():
+    admin = client('admin')
+    doctor = client('doctor')
+    p = patient(doctor)
+
+    # 1. Create drugs via API
+    d1 = ok(admin.post('/api/rx/drugs', json={
+        'product_name': 'Atorvastatin 20mg Test',
+        'trade_name': 'Atorva-20 Test',
+        'dosage_form': 'Tablet'
+    }))
+    d2 = ok(admin.post('/api/rx/drugs', json={
+        'product_name': 'Telmisartan 40mg Test',
+        'trade_name': 'Telma-40 Test',
+        'dosage_form': 'Tablet'
+    }))
+    d3 = ok(admin.post('/api/rx/drugs', json={
+        'product_name': 'Deletable Drug 10mg Test',
+        'trade_name': 'DelDrug-10 Test',
+        'dosage_form': 'Capsule'
+    }))
+
+    # 2. List Drugs with genuine server pagination
+    drugs_res = ok(doctor.get('/api/rx/drugs?page=1&limit=2'))
+    assert 'items' in drugs_res
+    assert drugs_res['total'] >= 3
+    assert len(drugs_res['items']) == 2
+    assert drugs_res['page'] == 1
+    assert drugs_res['total_pages'] >= 2
+
+    # 3. Search Drugs case-insensitively
+    search_res = ok(doctor.get('/api/rx/drugs?q=atorva'))
+    assert search_res['total'] >= 1
+    assert any('atorva' in (d['product_name'] + d['trade_name']).lower() for d in search_res['items'])
+
+    # 4. Create supplements via API
+    s1 = ok(admin.post('/api/rx/supplements', json={
+        'name': 'CoQ10 Ubiquinol 100mg Capsule Test',
+        'dosage_form': 'Capsule',
+        'strength': '100mg'
+    }))
+    s2 = ok(admin.post('/api/rx/supplements', json={
+        'name': 'L-Arginine 1000mg Sachet Test',
+        'dosage_form': 'Sachet',
+        'strength': '1000mg'
+    }))
+    s3 = ok(admin.post('/api/rx/supplements', json={
+        'name': 'Deletable Organic Herb 50mg Test',
+        'dosage_form': 'Tablet',
+        'strength': '50mg'
+    }))
+
+    # 5. List Supplements with server pagination
+    supp_res = ok(doctor.get('/api/rx/supplements?page=1&limit=2'))
+    assert 'items' in supp_res
+    assert supp_res['total'] >= 3
+    assert len(supp_res['items']) == 2
+
+    # 6. Search Supplements
+    search_supp = ok(doctor.get('/api/rx/supplements?q=arginine'))
+    assert search_supp['total'] >= 1
+    assert any('arginine' in s['name'].lower() for s in search_supp['items'])
+
+    # 7. Add inventory item linked to d1 and s1
+    inv_d1 = ok(admin.post('/api/inventory', json={
+        'name': d1['product_name'],
+        'trade_name': d1['trade_name'],
+        'category': 'Drug',
+        'group_name': 'Drug',
+        'unit': 'Tablet',
+        'reorder_level': 10,
+        'order_quantity': 50,
+        'catalogue_id': d1['id']
+    }))
+
+    inv_s1 = ok(admin.post('/api/inventory', json={
+        'name': s1['name'],
+        'category': 'Supplement',
+        'group_name': 'Supplement',
+        'unit': 'Capsule',
+        'reorder_level': 10,
+        'order_quantity': 50,
+        'catalogue_id': s1['id']
+    }))
+
+    # 8. Add template linked to d2 and s2
+    with SessionLocal() as db:
+        pt = m.PrescriptionTemplate(
+            template_name='CAD Protocol Test',
+            catalogue_id=d2['id'],
+            drug_name=d2['product_name'],
+            dosage='1 Tab',
+            route='Oral',
+            is_active=True
+        )
+        st = m.SupplementTemplate(
+            template_name='Wellness Protocol Test',
+            catalogue_id=s2['id'],
+            supplement_name=s2['name'],
+            dosage='1 Sachet',
+            route='Oral',
+            is_active=True
+        )
+        db.add(pt)
+        db.add(st)
+        db.commit()
+
+    # 9. Verify inventory and template statuses in lists
+    d_check = ok(doctor.get(f"/api/rx/drugs?q={d1['product_name']}"))['items'][0]
+    assert d_check['is_in_inventory'] is True
+    assert d_check['inventory_status'] == 'Yes'
+
+    d2_check = ok(doctor.get(f"/api/rx/drugs?q={d2['product_name']}"))['items'][0]
+    assert d2_check['template_count'] >= 1
+
+    s_check = ok(doctor.get(f"/api/rx/supplements?q={s1['name']}"))['items'][0]
+    assert s_check['is_in_inventory'] is True
+    assert s_check['inventory_status'] == 'Yes'
+
+    s2_check = ok(doctor.get(f"/api/rx/supplements?q={s2['name']}"))['items'][0]
+    assert s2_check['template_count'] >= 1
+
+    # 10. Deletion restriction: Inventory-linked items cannot be deleted
+    d1_del_fail = doctor.delete(f"/api/rx/drugs/{d1['id']}")
+    assert d1_del_fail.status_code == 400
+    assert 'inventory' in d1_del_fail.json()['detail'].lower()
+
+    s1_del_fail = doctor.delete(f"/api/rx/supplements/{s1['id']}")
+    assert s1_del_fail.status_code == 400
+    assert 'inventory' in s1_del_fail.json()['detail'].lower()
+
+    # 11. Deletion restriction: Template-referenced items cannot be deleted
+    d2_del_fail = doctor.delete(f"/api/rx/drugs/{d2['id']}")
+    assert d2_del_fail.status_code == 400
+    assert 'templates' in d2_del_fail.json()['detail'].lower()
+
+    s2_del_fail = doctor.delete(f"/api/rx/supplements/{s2['id']}")
+    assert s2_del_fail.status_code == 400
+    assert 'templates' in s2_del_fail.json()['detail'].lower()
+
+    # 12. Deletion on unlinked items succeeds
+    d3_del_ok = ok(doctor.delete(f"/api/rx/drugs/{d3['id']}"))
+    assert d3_del_ok['ok'] is True
+
+    s3_del_ok = ok(doctor.delete(f"/api/rx/supplements/{s3['id']}"))
+    assert s3_del_ok['ok'] is True
+
+    # 13. Bulk delete independent validation
+    bulk_res = ok(doctor.post('/api/rx/drugs/bulk-delete', json={
+        'ids': [d1['id']]
+    }))
+    assert len(bulk_res['blocked']) == 1
+    assert bulk_res['blocked'][0]['id'] == d1['id']
+
+    # 14. Prescribe medication retaining catalogue_id
+    med_order = ok(doctor.post('/api/records/medications', json={
+        'patient_id': p['id'],
+        'catalogue_id': d1['id'],
+        'trade_name': d1['trade_name'],
+        'generic_name': d1['product_name'],
+        'dose': '20mg',
+        'route': 'Oral',
+        'frequency': 'Once daily',
+        'maen': '0-0-0-1',
+        'duration_days': 30,
+        'quantity': 30,
+        'substitution_allowed': True
+    }))
+    assert med_order['catalogue_id'] == d1['id']
+    assert med_order['trade_name'] == d1['trade_name']
+
+
+def test_immunization_message_task_workflows():
+    admin = client('admin')
+    doctor = client('doctor')
+
+    # 1. List Vaccines - default CDC seed or catalog query
+    v_list = ok(doctor.get('/api/settings/immunization/vaccines?page=1&limit=25'))
+    assert 'items' in v_list
+    assert 'total' in v_list
+    assert 'page' in v_list
+
+    # 2. Add Vaccine
+    new_v = ok(admin.post('/api/settings/immunization/vaccines', json={
+        'vaccine_name': 'Hepatitis A Adult Test Vaccine',
+        'description': 'Inactivated Hepatitis A vaccine for cardiovascular risk travel prophylaxis',
+        'dose': '1.0',
+        'dose_unit': 'mL',
+        'duration_of_protection': '20 Years',
+        'diagnosis_code': 'Z23',
+        'cvx_code': 'CVX-83',
+        'route': 'Intramuscular (IM)',
+        'doses_count': 2,
+        'schedule': '0, 6 Months',
+        'billing_code': '90632',
+        'emergency': False
+    }))
+    assert new_v['success'] is True
+    assert 'id' in new_v
+
+    # 3. Search Vaccine
+    search_res = ok(doctor.get('/api/settings/immunization/vaccines?search=Hepatitis%20A%20Adult%20Test'))
+    assert search_res['total'] >= 1
+    found = [x for x in search_res['items'] if x['id'] == new_v['id']]
+    assert len(found) == 1
+    assert found[0]['is_added_in_inventory'] in ('Yes', 'No')
+
+    # 4. Delete Single Vaccine
+    del_res = ok(admin.delete(f"/api/settings/immunization/vaccines/{new_v['id']}"))
+    assert del_res['success'] is True
+
+    # 5. List VIS Statements
+    vis_res = ok(doctor.get('/api/settings/immunization/vis'))
+    assert isinstance(vis_res, list)
+    assert len(vis_res) >= 10
+    assert any('Influenza' in item['name'] for item in vis_res)
+
+    # 6. Vaccine Charts
+    charts = ok(doctor.get('/api/settings/immunization/charts'))
+    assert isinstance(charts, list)
+    assert len(charts) >= 1
+
+    # Create new Chart
+    chart_res = ok(admin.post('/api/settings/immunization/charts', json={
+        'name': 'Custom Cardiology Prophylaxis Chart',
+        'description': 'Tailored schedule for post-coronary stenting',
+        'entries': [
+            {'vaccine_name': 'Influenza seasonal', 'milestone': 'Annual', 'doses': 1, 'route': 'Intramuscular (IM)'}
+        ]
+    }))
+    assert chart_res['success'] is True
+    chart_id = chart_res['id']
+
+    # Delete chart
+    del_chart = ok(admin.delete(f'/api/settings/immunization/charts/{chart_id}'))
+    assert del_chart['success'] is True
+
+    # 7. User Preferences - Message Signature
+    sig_saved = ok(doctor.put('/api/settings/user-preferences/message:signature', json={
+        'enabled': True,
+        'signature_html': '<p>Best,<br><strong>Dr. Prem</strong></p>'
+    }))
+    assert sig_saved['success'] is True
+    sig_fetched = ok(doctor.get('/api/settings/user-preferences/message:signature'))
+    assert sig_fetched['enabled'] is True
+    assert 'Dr. Prem' in sig_fetched['signature_html']
+
+    # 8. User Preferences - Vacation Reply
+    vac_saved = ok(doctor.put('/api/settings/user-preferences/message:vacation', json={
+        'enabled': True,
+        'send_to_members': True,
+        'send_to_patients': False,
+        'subject': 'Attending Cardiology Summit',
+        'start_date': '2026-12-01',
+        'end_date': '2026-12-05',
+        'mark_non_working': True,
+        'message_html': '<p>Away at summit.</p>'
+    }))
+    assert vac_saved['success'] is True
+    vac_fetched = ok(doctor.get('/api/settings/user-preferences/message:vacation'))
+    assert vac_fetched['subject'] == 'Attending Cardiology Summit'
+    assert vac_fetched['mark_non_working'] is True
+
+    # 9. User Preferences - Message Preferences
+    msg_pref = ok(doctor.put('/api/settings/user-preferences/message:preferences', json={
+        'notification_email': 'Not Required',
+        'receive_from_patients': 'Yes',
+        'questionnaire_notification': 'Required',
+        'feedback_notification': 'Not Required',
+        'shared_member_ids': []
+    }))
+    assert msg_pref['success'] is True
+    msg_pref_fetched = ok(doctor.get('/api/settings/user-preferences/message:preferences'))
+    assert msg_pref_fetched['notification_email'] == 'Not Required'
+    assert msg_pref_fetched['feedback_notification'] == 'Not Required'
+
+    # 10. User Preferences - Task Preferences
+    task_pref = ok(doctor.put('/api/settings/user-preferences/task:preferences', json={
+        'reminder_email': False,
+        'reminder_charm_message': True,
+        'assigned_charm_message': True,
+        'completed_charm_message': False,
+        'sort_by': 'Due Date'
+    }))
+    assert task_pref['success'] is True
+    task_pref_fetched = ok(doctor.get('/api/settings/user-preferences/task:preferences'))
+    assert task_pref_fetched['reminder_email'] is False
+    assert task_pref_fetched['sort_by'] == 'Due Date'
+
+    # 11. Practice Members List
+    members = ok(doctor.get('/api/settings/practice-members'))
+    assert isinstance(members, list)
+    assert len(members) >= 2
+    assert any(m['role'] == 'doctor' for m in members)
+
+
+def test_settings_modules_workflows():
+    admin = client('admin')
+    doctor = client('doctor')
+
+    # Recall types & statuses
+    types = ok(admin.get('/api/settings/recall/types'))
+    assert len(types) >= 5
+    new_type = ok(admin.post('/api/settings/recall/types', json={'name': 'Cardiology Annual Follow-up'}))
+    assert 'id' in new_type
+
+    statuses = ok(admin.get('/api/settings/recall/statuses'))
+    assert any(s['name'] == 'Pending' and s['is_default'] for s in statuses)
+
+    # Quick text
+    qt = ok(doctor.post('/api/settings/quick-text', json={
+        'keyword': '.eecp35',
+        'content': 'Patient advised for 35 sessions of EECP treatment daily.',
+        'description': 'EECP 35 course advice'
+    }))
+    assert 'id' in qt
+    qts = ok(doctor.get('/api/settings/quick-text'))
+    assert any(q['keyword'] == '.eecp35' for q in qts)
+
+    # Directory
+    prov = ok(admin.post('/api/settings/directory/providers', json={
+        'first_name': 'Ramanathan',
+        'last_name': 'Sundaram',
+        'specialty': 'Interventional Cardiology',
+        'practice_name': 'Heal Your Heart Specialty Centre',
+        'email': 'ramanathan@healyourheart.in',
+        'phone': '9840123456'
+    }))
+    assert 'id' in prov
+    provs = ok(admin.get('/api/settings/directory/providers'))
+    assert any('Ramanathan' in p['name'] for p in provs)
+
+
+def test_billing_settings_workflows():
+    admin = client('admin')
+    doctor = client('doctor')
+
+    # 1. Procedure Codes
+    procs = ok(admin.get('/api/settings/billing/procedure-codes'))
+    assert len(procs) >= 20
+    assert any(p['code'] == '86300' and 'CA 15-3' in p['description'] for p in procs)
+    assert any(p['code'] == '92971' and 'EECP' in p['description'] for p in procs)
+
+    # Create new procedure code
+    new_proc = ok(admin.post('/api/settings/billing/procedure-codes', json={
+        'code': '93000-TEST',
+        'description': '12-Lead Electrocardiogram Rhythm Analysis',
+        'sac_code': '999312',
+        'charge': 750.0,
+        'category': 'Diagnostics',
+        'is_lab_code': False
+    }))
+    assert 'id' in new_proc
+    searched = ok(admin.get('/api/settings/billing/procedure-codes?q=93000-TEST'))
+    assert len(searched) == 1
+    assert searched[0]['charge'] == 750.0
+
+    # 2. Fee Schedules
+    fs_list = ok(admin.get('/api/settings/billing/fee-schedules'))
+    assert len(fs_list) >= 2
+    assert any(fs['name'] == 'Master Fee Schedule' and fs['is_default'] for fs in fs_list)
+
+    new_fs = ok(admin.post('/api/settings/billing/fee-schedules', json={
+        'name': 'Corporate Partner Tier',
+        'description': 'Discounted tariff for corporate tie-ups',
+        'schedule_type': 'Payer Specific',
+        'differential_prices': {
+            '93000-TEST': {'charge': 600.0, 'discount': '20%'}
+        }
+    }))
+    assert 'id' in new_fs
+
+    # 3. Billing Account Settings
+    acc_settings = ok(admin.get('/api/settings/billing/account-settings'))
+    assert 'allow_inter_facility_receipts' in acc_settings
+    assert acc_settings['enable_invoice_round_off'] is True
+
+    updated_acc = ok(admin.put('/api/settings/billing/account-settings', json={
+        **acc_settings,
+        'round_off_label': 'Rounding Adj'
+    }))
+    assert updated_acc['message'] == 'Billing settings saved'
+
+    # 4. Payment Methods & Write-offs & Taxes
+    pms = ok(admin.get('/api/settings/billing/payment-methods'))
+    assert any(pm['name'] == 'Cash' for pm in pms)
+    assert any(pm['name'] == 'UPI' for pm in pms)
+
+    wos = ok(admin.get('/api/settings/billing/write-off-types'))
+    assert any(wo['name'] == 'Contractual' for wo in wos)
+
+    taxes = ok(admin.get('/api/settings/billing/taxes'))
+    assert any(t['percentage'] == 0.0 for t in taxes)
+
+    # 5. Patient Billing Automation
+    p_auto = ok(admin.get('/api/settings/billing/patient-automation'))
+    assert p_auto['reminder_days_interval'] == 30
+    assert '$FACILITY_NAME' in p_auto['invoice_sms_template']
+
+    # 6. Lab Mappings
+    lab_maps = ok(admin.get('/api/settings/billing/lab-mappings'))
+    assert len(lab_maps) >= 3
+    assert any('Cardiac Panel' in lm['test_name'] for lm in lab_maps)
+
+    # 7. Billing Packages
+    pkgs = ok(admin.get('/api/settings/billing/packages'))
+    assert len(pkgs) >= 3
+    assert any('EECP Complete Treatment' in pkg['name'] for pkg in pkgs)
+
+    # 8. Invoice Templates
+    inv_tmpls = ok(admin.get('/api/settings/billing/invoice-templates'))
+    assert len(inv_tmpls) >= 3
+    assert any(t['is_default'] for t in inv_tmpls)
+
+
+
+

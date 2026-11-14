@@ -9,3 +9,8 @@ export * from "./KeyboardShortcutsModal";
 export * from "./useKeyboardShortcuts";
 export * from "./SettingsLayout";
 export * from "./IndividualSettingPage";
+export * from "./rx/ManageSupplementsDrugsPage";
+export * from "./immunization/ImmunizationSettingsPage";
+export * from "./message/MessageSettingsPage";
+export * from "./task/TaskPreferencesPage";
+export * from "./billing/BillingSettingsPage";

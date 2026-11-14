@@ -44,6 +44,8 @@ import {
   Layers,
   HelpCircle,
   PhoneCall,
+  Video,
+  ChevronDown,
   Building2,
   Gift,
   Puzzle,
@@ -92,11 +94,11 @@ import {
   OperationsPage,
   CalendarPage,
   BillingPage,
-  InventoryPage,
   AnalyticsPage,
   CommunicationPage,
   AdministrationPage,
 } from "./operations";
+import { InventoryPage } from "./inventory/InventoryPage";
 import {
   LabsPage,
   ImagesPage,
@@ -113,6 +115,7 @@ import {
   FloatingToolbar,
   useKeyboardShortcuts,
 } from "./settings";
+import { DASHBOARD_ICONS, HealYourHeartLogo } from "./DashboardIcons";
 import "./styles.css";
 
 const launcherModules = [
@@ -350,11 +353,10 @@ function Home({
 }) {
   return (
     <div className="charm-home-wrap">
-      {/* 14-Module Authentic CharmHealth Launcher Grid */}
+      {/* 15-Module Premium Vector Launcher Grid */}
       <div className="charm-home-launcher-container">
         <div className="charm-home-grid-3x5">
           {launcherModules.map((m) => {
-            const Icon = m.icon;
             return (
               <div
                 key={m.id}
@@ -362,7 +364,14 @@ function Home({
                 onClick={() => navigate(m.route)}
               >
                 <div className="charm-grid-icon-box">
-                  <Icon size={28} />
+                  <img
+                    src={`/assets/dashboard/tile_${m.id}_clean.png`}
+                    alt={m.title}
+                    className="charm-grid-tile-img"
+                    width={96}
+                    height={96}
+                    loading="eager"
+                  />
                 </div>
                 <div className="charm-grid-card-label">{m.title}</div>
               </div>
@@ -552,7 +561,23 @@ function Workspace() {
               title="Heal Your Heart EHR · Home"
               aria-label="Home"
             >
-              <HeartPulse size={24} className="charm-sidebar-brand-icon" />
+              <svg width="26" height="26" viewBox="0 0 32 32" fill="none" className="charm-sidebar-brand-svg">
+                <defs>
+                  <linearGradient id="sidebarHeartGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                    <stop offset="0%" stopColor="#ffffff" />
+                    <stop offset="60%" stopColor="#2dd4bf" />
+                    <stop offset="100%" stopColor="#0d9488" />
+                  </linearGradient>
+                </defs>
+                <path
+                  d="M16 26C16 26 4 18.5 4 11C4 7 7.5 4 11.5 4C13.8 4 15.2 5 16 6C16.8 5 18.2 4 20.5 4C24.5 4 28 7 28 11C28 18.5 16 26 16 26Z"
+                  stroke="url(#sidebarHeartGrad)"
+                  strokeWidth="2.5"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+                <line x1="5" y1="29.5" x2="27" y2="29.5" stroke="#00d2b4" strokeWidth="2" strokeLinecap="round" />
+              </svg>
             </button>
 
             <div className="charm-sidebar-nav-list">
@@ -666,9 +691,12 @@ function Workspace() {
                   onClick={() => navigate("/home")}
                   title="Heal Your Heart EHR"
                 >
-                  <HeartPulse size={22} className="brand-logo-icon" />
-                  <span className="charm-logo-text-teal">Heal Your Heart</span>
-                  <span className="charm-logo-badge">EHR</span>
+                  <img
+                    src="/assets/dashboard/heal_your_heart_logo_transparent.png"
+                    alt="Heal Your Heart EHR"
+                    className="charm-header-brand-img"
+                    height={26}
+                  />
                 </div>
               </div>
 
@@ -741,12 +769,12 @@ function Workspace() {
                   className="charm-btn-telehealth"
                   onClick={() => notify("TeleHealth session initialized.")}
                 >
-                  <PhoneCall size={13} />
+                  <Video size={14} />
                   <span>Enable TeleHealth</span>
                 </button>
 
                 <div className="charm-branch-selector-wrap">
-                  <Building2 size={14} color="#475569" />
+                  <Building2 size={15} color="#0f766e" />
                   <select
                     aria-label="Active branch"
                     className="charm-branch-dropdown"
@@ -769,6 +797,7 @@ function Workspace() {
                       </option>
                     ))}
                   </select>
+                  <ChevronDown size={14} color="#64748b" className="charm-branch-chevron" />
                 </div>
 
                 <button
@@ -777,7 +806,7 @@ function Workspace() {
                   onClick={() => notify("No new notifications.")}
                   title="Notifications"
                 >
-                  <Bell size={15} />
+                  <Bell size={16} />
                   <span className="charm-bell-dot" />
                 </button>
 
@@ -787,7 +816,7 @@ function Workspace() {
                   onClick={() => navigate("/settings")}
                   title="Settings"
                 >
-                  <Settings size={15} />
+                  <Settings size={16} />
                 </button>
 
                 <div style={{ position: "relative" }}>
@@ -852,8 +881,8 @@ function Workspace() {
                   )}
                 </div>
 
-                <div className="charm-avatar-badge-circle" title={user.name}>
-                  <User size={15} color="#0f4c81" />
+                <div className="charm-avatar-badge-circle" title="Account" onClick={() => navigate("/settings")}>
+                  <User size={18} color="#0f766e" />
                 </div>
               </div>
             </div>
@@ -869,7 +898,6 @@ function Workspace() {
                 </div>
                 <div className="charm-waffle-grid">
                   {launcherModules.map((m) => {
-                    const Icon = m.icon;
                     return (
                       <div
                         key={m.id}
@@ -880,7 +908,14 @@ function Workspace() {
                         }}
                       >
                         <div className="charm-waffle-icon-box">
-                          <Icon size={20} />
+                          <img
+                            src={`/assets/dashboard/tile_${m.id}_clean.png`}
+                            alt={m.title}
+                            className="charm-waffle-tile-img"
+                            width={28}
+                            height={28}
+                            loading="lazy"
+                          />
                         </div>
                         <span>{m.title}</span>
                       </div>
