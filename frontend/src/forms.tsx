@@ -605,8 +605,9 @@ export function AppointmentForm({
     api<any[]>("/calendar/visit-types")
       .then((data) => {
         if (data && data.length > 0) {
-          setAvailableVisitTypes(data);
-          localStorage.setItem("hyh_visit_types", JSON.stringify(data));
+          const clean = data.filter((d: any) => !["Absent", "Admission", "EECP Treatment Started", "EECP Treatment Completed", "Patient Discontinued"].includes(d.name));
+          setAvailableVisitTypes(clean);
+          localStorage.setItem("hyh_visit_types", JSON.stringify(clean));
         }
       })
       .catch(() => { });

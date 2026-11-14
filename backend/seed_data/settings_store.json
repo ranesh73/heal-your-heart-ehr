@@ -414,150 +414,73 @@
   "visit_types": [
     {
       "id": "vt-1",
-      "name": "Absent",
+      "name": "Cardiology Consultation",
       "mode": "In Person",
-      "duration": 0,
-      "color": "#84cc16"
+      "duration": 30,
+      "color": "#2563eb"
     },
     {
       "id": "vt-2",
-      "name": "Admission",
+      "name": "EECP Treatment",
       "mode": "In Person",
-      "duration": 1440,
-      "color": "#7f1d1d"
+      "duration": 60,
+      "color": "#ea580c"
     },
     {
       "id": "vt-3",
-      "name": "Diabetes/HT Management",
-      "mode": "In Person",
-      "duration": 15,
-      "color": "#f87171"
-    },
-    {
-      "id": "vt-4",
-      "name": "EECP 10th Day",
-      "mode": "In Person",
-      "duration": 60,
-      "color": "#a855f7"
-    },
-    {
-      "id": "vt-5",
-      "name": "EECP 11th Day",
-      "mode": "In Person",
-      "duration": 60,
-      "color": "#c2410c"
-    },
-    {
-      "id": "vt-6",
-      "name": "EECP 12th Day",
-      "mode": "In Person",
-      "duration": 60,
-      "color": "#c2410c"
-    },
-    {
-      "id": "vt-7",
-      "name": "EECP 13th Day",
-      "mode": "In Person",
-      "duration": 60,
-      "color": "#c2410c"
-    },
-    {
-      "id": "vt-8",
-      "name": "EECP 14th Day",
-      "mode": "In Person",
-      "duration": 60,
-      "color": "#c2410c"
-    },
-    {
-      "id": "vt-9",
-      "name": "EECP 15th Day",
-      "mode": "In Person",
-      "duration": 60,
-      "color": "#c2410c"
-    },
-    {
-      "id": "vt-10",
-      "name": "EECP 16th Day",
-      "mode": "In Person",
-      "duration": 60,
-      "color": "#ec4899"
-    },
-    {
-      "id": "vt-11",
-      "name": "EECP 17th Day",
-      "mode": "In Person",
-      "duration": 60,
-      "color": "#ec4899"
-    },
-    {
-      "id": "vt-12",
-      "name": "EECP 18th Day",
-      "mode": "In Person",
-      "duration": 60,
-      "color": "#ec4899"
-    },
-    {
-      "id": "vt-13",
       "name": "EECP 1st Day",
       "mode": "In Person",
       "duration": 60,
-      "color": "#ea580c"
+      "color": "#f97316"
     },
     {
-      "id": "vt-14",
-      "name": "EECP Treatment Started",
+      "id": "vt-4",
+      "name": "EECP 15th Day Review",
+      "mode": "In Person",
+      "duration": 30,
+      "color": "#c2410c"
+    },
+    {
+      "id": "vt-5",
+      "name": "EECP session",
       "mode": "In Person",
       "duration": 60,
-      "color": "#ea580c"
+      "color": "#e11d48"
     },
     {
-      "id": "vt-15",
-      "name": "EECP Treatment Completed",
-      "mode": "In Person",
-      "duration": 60,
-      "color": "#10b981"
-    },
-    {
-      "id": "vt-16",
+      "id": "vt-6",
       "name": "Follow-up Visit",
       "mode": "In Person",
       "duration": 20,
-      "color": "#3b82f6"
+      "color": "#0284c7"
     },
     {
-      "id": "vt-17",
+      "id": "vt-7",
       "name": "New Patient Visit",
       "mode": "In Person",
-      "duration": 30,
-      "color": "#166eb8"
+      "duration": 45,
+      "color": "#059669"
     },
     {
-      "id": "vt-18",
-      "name": "Patient Discontinued",
+      "id": "vt-8",
+      "name": "Diabetes/HT Management",
       "mode": "In Person",
-      "duration": 0,
-      "color": "#9ca3af"
+      "duration": 30,
+      "color": "#d97706"
     },
     {
-      "id": "vt-19",
-      "name": "Telehealth",
+      "id": "vt-9",
+      "name": "Telehealth Video Consult",
       "mode": "Video Consult",
       "duration": 30,
-      "color": "#8b5cf6"
+      "color": "#7c3aed"
     },
     {
-      "id": "vt-20",
-      "name": "Walk-in (Follow-up Visit)",
+      "id": "vt-10",
+      "name": "Walk-in visits",
       "mode": "In Person",
       "duration": 20,
-      "color": "#0ea5e9"
-    },
-    {
-      "id": "vt-21",
-      "name": "Walk-in (New Patient Visit)",
-      "mode": "In Person",
-      "duration": 30,
-      "color": "#0284c7"
+      "color": "#0891b2"
     }
   ],
   "event_types": [

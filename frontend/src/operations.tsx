@@ -1461,18 +1461,24 @@ function Schedule() {
   const [availableVisitTypes, setAvailableVisitTypes] = useState<{ id: string; name: string; mode?: string; duration?: number; color?: string }[]>(() => {
     try {
       const saved = localStorage.getItem("hyh_visit_types");
-      if (saved) return JSON.parse(saved);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.some((p: any) => p.name === "Cardiology Consultation") && !parsed.some((p: any) => p.name === "Absent")) {
+          return parsed;
+        }
+      }
     } catch {}
     return [
-      { id: "vt1", name: "Absent", duration: 30 },
-      { id: "vt2", name: "Admission", duration: 45 },
-      { id: "vt3", name: "Diabetes/HT Management", duration: 30 },
-      { id: "vt4", name: "EECP Treatment", duration: 60 },
-      { id: "vt5", name: "EECP Demo", duration: 45 },
-      { id: "vt6", name: "Follow-up Visit", duration: 20 },
-      { id: "vt7", name: "New Patient Visit", duration: 45 },
-      { id: "vt8", name: "Telehealth Video Consult", duration: 30 },
-      { id: "vt9", name: "Walk-in visits", duration: 20 },
+      { id: "vt1", name: "Cardiology Consultation", duration: 30, color: "#2563eb", mode: "In Person" },
+      { id: "vt2", name: "EECP Treatment", duration: 60, color: "#ea580c", mode: "In Person" },
+      { id: "vt3", name: "EECP 1st Day", duration: 60, color: "#f97316", mode: "In Person" },
+      { id: "vt4", name: "EECP 15th Day Review", duration: 30, color: "#c2410c", mode: "In Person" },
+      { id: "vt5", name: "EECP session", duration: 60, color: "#e11d48", mode: "In Person" },
+      { id: "vt6", name: "Follow-up Visit", duration: 20, color: "#0284c7", mode: "In Person" },
+      { id: "vt7", name: "New Patient Visit", duration: 45, color: "#059669", mode: "In Person" },
+      { id: "vt8", name: "Diabetes/HT Management", duration: 30, color: "#d97706", mode: "In Person" },
+      { id: "vt9", name: "Telehealth Video Consult", duration: 30, color: "#7c3aed", mode: "Video Consult" },
+      { id: "vt10", name: "Walk-in visits", duration: 20, color: "#0891b2", mode: "In Person" },
     ];
   });
 
@@ -1502,8 +1508,9 @@ function Schedule() {
     api<any[]>("/calendar/visit-types")
       .then((data) => {
         if (data && data.length > 0) {
-          setAvailableVisitTypes(data);
-          localStorage.setItem("hyh_visit_types", JSON.stringify(data));
+          const clean = data.filter((d: any) => !["Absent", "Admission", "EECP Treatment Started", "EECP Treatment Completed", "Patient Discontinued"].includes(d.name));
+          setAvailableVisitTypes(clean);
+          localStorage.setItem("hyh_visit_types", JSON.stringify(clean));
         }
       })
       .catch(() => {});
@@ -1526,7 +1533,13 @@ function Schedule() {
     const onVisitTypeUpdate = () => {
       try {
         const saved = localStorage.getItem("hyh_visit_types");
-        if (saved) setAvailableVisitTypes(JSON.parse(saved));
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          if (Array.isArray(parsed)) {
+            const clean = parsed.filter((d: any) => !["Absent", "Admission", "EECP Treatment Started", "EECP Treatment Completed", "Patient Discontinued"].includes(d.name));
+            setAvailableVisitTypes(clean);
+          }
+        }
       } catch {}
     };
 
@@ -1694,7 +1707,7 @@ function Schedule() {
     const fromDb = Array.from(new Set(resources.map((r) => r.name))).filter(Boolean);
     const all = Array.from(new Set([...defaults, ...fromDb]));
     all.sort((a, b) => a.localeCompare(b, undefined, { numeric: true, sensitivity: "base" }));
-    return [...all, "Unassigned"];
+    return ["Unassigned", ...all];
   }, [resources]);
 
   const dayProviderColumns = useMemo(() => {
@@ -1769,24 +1782,20 @@ function Schedule() {
     return map[resId] || resId;
   };
 
-  const normalizeVisitType = (vt?: string) => {
-    if (!vt) return "General Visit";
+  const normalizeVisitType = (vt?: string): string => {
+    if (!vt) return "Cardiology Consultation";
     const lower = vt.toLowerCase().trim();
-    if (lower.includes("eecp")) {
-      if (lower.includes("1st day") || lower.includes("first")) return "EECP 1st Day";
-      if (lower.includes("demo")) return "EECP Demo";
-      const dayMatch = lower.match(/eecp\s+(\d+)(?:st|nd|rd|th)?\s*day/);
-      if (dayMatch) return `EECP ${dayMatch[1]}th Day`;
-      return "EECP Treatment";
-    }
+    if (lower.includes("cardiology") || lower === "consultation") return "Cardiology Consultation";
+    if (lower.includes("review") || lower.includes("15th day")) return "EECP 15th Day Review";
+    if (lower.includes("1st day") || lower.includes("first")) return "EECP 1st Day";
+    if (lower.includes("eecp session")) return "EECP session";
+    if (lower.includes("eecp")) return "EECP Treatment";
     if (lower.includes("follow")) return "Follow-up Visit";
-    if (lower.includes("new") || lower.includes("consult")) return "New Patient Visit";
+    if (lower.includes("new patient") || lower === "new") return "New Patient Visit";
     if (lower.includes("diabet") || lower.includes("ht")) return "Diabetes/HT Management";
-    if (lower.includes("admiss")) return "Admission";
     if (lower.includes("telehealth") || lower.includes("video")) return "Telehealth Video Consult";
     if (lower.includes("walk")) return "Walk-in visits";
-    if (lower.includes("absent")) return "Absent";
-    return vt;
+    return vt.trim();
   };
 
   const isProviderSelected = (provId?: string) => {
@@ -1827,17 +1836,7 @@ function Schedule() {
     if (checked.length === 0) return false;
     const raw = (vt || "").toLowerCase().trim();
     const norm = normalizeVisitType(vt).toLowerCase().trim();
-    return checked.some((c) => {
-      if (raw === c || norm === c) return true;
-      if (c.includes("eecp") && (raw.includes("eecp") || norm.includes("eecp"))) return true;
-      if (c.includes("diabet") && (raw.includes("diabet") || norm.includes("diabet"))) return true;
-      if (c.includes("consult") && (raw.includes("consult") || norm.includes("consult"))) return true;
-      if (c.includes("follow") && (raw.includes("follow") || norm.includes("follow"))) return true;
-      if (c.includes("admiss") && (raw.includes("admiss") || norm.includes("admiss"))) return true;
-      if (c.includes("absent") && (raw.includes("absent") || norm.includes("absent"))) return true;
-      if (c.includes("walk") && (raw.includes("walk") || norm.includes("walk"))) return true;
-      return false;
-    });
+    return checked.some((c) => raw === c || norm === c);
   };
 
   // 1. Date & Facility filtering
@@ -2862,7 +2861,7 @@ function Schedule() {
                                   !a.resource_id ||
                                   rName === "-- Select --" ||
                                   rName === "" ||
-                                  !dayResourceColumns.slice(0, -1).some((c) => c.toLowerCase() === rName.toLowerCase())
+                                  !dayResourceColumns.slice(1).some((c) => c.toLowerCase() === rName.toLowerCase())
                                 );
                               }
                               return rName.toLowerCase() === colTitle.toLowerCase();
@@ -3213,24 +3212,25 @@ function Schedule() {
                             <select
                               value={a.resource_id || ""}
                               onChange={async (e) => {
+                                const newResId = e.target.value || null;
                                 try {
-                                  await api("/appointments/" + a.id, "PATCH", { resource_id: e.target.value });
+                                  await api("/appointments/" + a.id, "PATCH", { resource_id: newResId });
                                   await refresh();
                                   notify("Resource updated.");
-                                } catch (err) {
-                                  notify("Resource updated.");
+                                } catch (err: any) {
+                                  notify(err?.message || "Failed to update resource");
                                 }
                               }}
                               style={{ border: "1px solid #cbd5e1", borderRadius: 3, padding: "2px 6px", background: "#fff", fontWeight: 500, fontSize: 11.5, color: "#0f172a", cursor: "pointer" }}
                             >
                               <option value="">-- Select --</option>
-                              <option value="res_eecp1">EECP Room 01</option>
-                              <option value="res_eecp2">EECP Room 02</option>
-                              <option value="res_eecp3">EECP Room 03</option>
-                              <option value="res_eecp4">EECP Room 04</option>
-                              <option value="res_eecp5">EECP Room 05</option>
-                              <option value="res_eecp6">EECP Room 06</option>
-                              <option value="res_cons1">Consultation Room 1</option>
+                              {resources
+                                .filter((r) => !r.facility_id || r.facility_id === (a.facility_id || branch))
+                                .map((r) => (
+                                  <option key={r.id} value={r.id}>
+                                    {r.name}
+                                  </option>
+                                ))}
                             </select>
                           </div>
                           <div>
