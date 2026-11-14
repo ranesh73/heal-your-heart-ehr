@@ -2598,156 +2598,169 @@ function Schedule() {
             {appts.isLoading ? (
               <Loading />
             ) : view === "Week" ? (
-              /* 3. Authentic CharmHealth Week Grid (frame_022.png, frame_030.png) */
+              /* 3. Authentic CharmHealth Week Grid (10-minute continuous multi-lane matrix matching frame_022.png) */
               (() => {
                 const dObj = new Date(date + "T12:00:00Z");
                 const weekStart = new Date(dObj);
                 weekStart.setUTCDate(dObj.getUTCDate() - dObj.getUTCDay());
                 weekStart.setUTCHours(0, 0, 0, 0);
 
+                const weekDays = Array.from({ length: 7 }, (_, i) => {
+                  const d = new Date(weekStart.getTime() + i * 86400000);
+                  const dayDateStr = localInput(d.toISOString()).slice(0, 10);
+                  const dayName = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"][d.getUTCDay()];
+                  const isCurrent = dayDateStr === date;
+                  const dayMonth = d.getUTCMonth() + 1;
+                  const dayDate = d.getUTCDate();
+                  return { d, dayDateStr, dayName, dayMonth, dayDate, isCurrent };
+                });
+
+                const activeProvId = weekWorkingHoursProvider || staff[0]?.id;
+
+                const isWeekSlotWorkingHour = (d: Date, hour: number, minute: number): boolean => {
+                  const slotMin = hour * 60 + minute;
+                  const dayIdx = d.getUTCDay(); // 0 is Sunday
+                  const pyDay = (dayIdx + 6) % 7; // 0 is Monday
+                  if (avail.data && activeProvId) {
+                    const provAvail = (avail.data as any[]).find(
+                      (a) =>
+                        (a.user_id === activeProvId || a.provider_id === activeProvId) &&
+                        (a.day_of_week === pyDay || a.day_of_week === dayIdx)
+                    );
+                    if (provAvail) {
+                      return slotMin >= provAvail.start_minute && slotMin < provAvail.end_minute;
+                    }
+                  }
+                  if (dayIdx === 0) return false; // Sunday off
+                  return slotMin >= 480 && slotMin < 1200; // 8:00 AM - 8:00 PM
+                };
+
                 return (
-                  <div className="charm-week-grid-wrap">
-                    <div className="charm-week-header-row">
-                      <div className="charm-week-time-col">Time</div>
-                      {Array.from({ length: 7 }, (_, i) => {
-                        const d = new Date(weekStart.getTime() + i * 86400000);
-                        const dayDateStr = d.toISOString().slice(0, 10);
-                        const isCurrent = dayDateStr === date;
-                        return (
-                          <div
-                            key={i}
-                            className={`charm-week-day-col ${isCurrent ? "active-day" : ""}`}
-                          >
-                            <strong>
-                              {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"][d.getDay()]}{" "}
-                              {d.getMonth() + 1}/{d.getDate()}
-                            </strong>
-                            <WaitingListDateBadge
-                              date={dayDateStr}
-                              count={waitingEntriesForDate(dayDateStr).length}
-                              onClick={() => openWaitingDetails(dayDateStr)}
-                            />
+                  <div className="charm-day-matrix-container">
+                    <div className="charm-day-matrix-scroll-wrapper">
+                      <div className="charm-day-matrix-grid" style={{ width: "100%" }}>
+                        {/* Sticky Week Days Header */}
+                        <div className="charm-day-matrix-header-row">
+                          <div className="charm-day-matrix-corner-cell" style={{ height: 44 }}>
+                            <Clock3 size={15} color="#64748b" />
                           </div>
-                        );
-                      })}
-                    </div>
+                          {weekDays.map((day) => (
+                            <div
+                              key={day.dayDateStr}
+                              className={`charm-week-matrix-col-header ${day.isCurrent ? "is-today" : ""}`}
+                            >
+                              <span>
+                                {day.dayName} {day.dayMonth}/{day.dayDate}
+                              </span>
+                              <WaitingListDateBadge
+                                date={day.dayDateStr}
+                                count={waitingEntriesForDate(day.dayDateStr).length}
+                                onClick={() => openWaitingDetails(day.dayDateStr)}
+                              />
+                            </div>
+                          ))}
+                        </div>
 
-                    <div className="charm-week-body">
-                      {["7am", "7:30am", "8am", "8:30am", "9am", "9:30am", "10am", "10:30am", "11am", "11:30am", "12pm", "12:30pm", "1pm", "1:30pm", "2pm", "2:30pm", "3pm", "3:30pm", "4pm", "4:30pm", "5pm", "5:30pm", "6pm", "6:30pm", "7pm", "7:30pm", "8pm", "8:30pm"].map((hour, hIdx) => {
-                        const hourNum = 7 + Math.floor(hIdx / 2);
-                        const isHalf = hIdx % 2 === 1;
-                        const isWorkingHour = hourNum >= 8 && hourNum < 20;
+                        {/* Matrix Body with Sticky Time Gutter */}
+                        <div className="charm-day-matrix-body">
+                          {/* Left Time Gutter */}
+                          <div className="charm-day-matrix-time-gutter">
+                            {matrixTimeSlots.map((slot) => (
+                              <div
+                                key={slot.timeKey}
+                                className={`charm-day-matrix-time-slot ${slot.isHour ? "is-hour" : ""}`}
+                              >
+                                <span>{slot.label}</span>
+                              </div>
+                            ))}
+                          </div>
 
-                        return (
-                          <div className="charm-week-row" key={hour}>
-                            <div className="charm-week-time-label">{hour}</div>
-                            {Array.from({ length: 7 }, (_, dayIdx) => {
-                              const d = new Date(weekStart.getTime() + dayIdx * 86400000);
-                              const key = localInput(d.toISOString()).slice(0, 10);
-                              const slotAppts = scopedAppts.filter((a) => {
+                          {/* 7 Day Columns Area */}
+                          <div className="charm-day-matrix-columns-area" style={{ width: "100%" }}>
+                            {weekDays.map((day) => {
+                              const dayAppts = scopedAppts.filter((a) => {
                                 const localStart = localInput(a.start_at);
-                                if (!localStart.startsWith(key)) return false;
-                                const timePart = localStart.slice(11, 16);
-                                const [h, m] = timePart.split(":").map(Number);
-                                return h === hourNum && (isHalf ? m >= 30 : m < 30);
+                                return localStart.startsWith(day.dayDateStr);
                               });
-                              const isSlotEmpty = slotAppts.length === 0;
-                              const slotDateStr = `${key}T${String(hourNum).padStart(2, "0")}:${isHalf ? "30" : "00"}`;
+
+                              const placedLayouts = computeColumnLayout(dayAppts, 7);
 
                               return (
-                                <div
-                                  key={dayIdx}
-                                  className={`charm-week-slot ${isWorkingHour ? "working-hour" : "off-hour"} ${isSlotEmpty ? "charm-week-slot-empty" : "has-appts"}`}
-                                  onClick={() => {
-                                    if (["reception", "doctor", "therapist", "admin"].includes(user.role)) {
-                                      setBookingSlot({
-                                        startAt: slotDateStr,
-                                        providerId: weekWorkingHoursProvider || provider || undefined,
-                                        duration: 30,
-                                      });
-                                    }
-                                  }}
-                                  title={`Click to book appointment on ${key} at ${hour}`}
-                                >
-                                  {["reception", "doctor", "therapist", "admin"].includes(user.role) && (
-                                    <button
-                                      type="button"
-                                      className="charm-week-slot-add-btn"
-                                      title={`Book another appointment on ${key} at ${hour}`}
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        setBookingSlot({
-                                          startAt: slotDateStr,
-                                          providerId: weekWorkingHoursProvider || provider || undefined,
-                                          duration: 30,
-                                        });
-                                      }}
-                                    >
-                                      +
-                                    </button>
-                                  )}
-                                  {isSlotEmpty && (
-                                    <div className="charm-empty-slot-action">
-                                      <span className="charm-slot-plus">+</span>
-                                    </div>
-                                  )}
-                                  {slotAppts.length > 0 && (
-                                    <div className="charm-stacked-file-group" style={{ display: "flex", flexDirection: "column", gap: 3, width: "100%" }}>
-                                      {slotAppts.map((currentSlotAppt) => {
-                                        const cStyle = getCharmCardStyle(currentSlotAppt);
-                                        const pName = patientName(currentSlotAppt.patient_id, patients);
-                                        const prvName = staff.find((s) => s.id === currentSlotAppt.provider_id)?.name || "";
-                                        const rName = getApptResourceName(currentSlotAppt.resource_id);
-                                        const startTime = localInput(currentSlotAppt.start_at).slice(11, 16);
-                                        const endTime = localInput(currentSlotAppt.end_at).slice(11, 16);
+                                <div key={day.dayDateStr} className="charm-week-matrix-column">
+                                  {/* 10-minute slot cells */}
+                                  {matrixTimeSlots.map((slot) => {
+                                    const isWorking = isWeekSlotWorkingHour(day.d, slot.hour, slot.minute);
+                                    return (
+                                      <div
+                                        key={slot.timeKey}
+                                        className={`charm-day-matrix-slot-cell ${isWorking ? "working-hour" : "off-hour"} ${slot.isHour ? "hour-border" : ""}`}
+                                        onClick={() => {
+                                          if (["reception", "doctor", "therapist", "admin"].includes(user.role)) {
+                                            const slotTime = `${day.dayDateStr}T${String(slot.hour).padStart(2, "0")}:${String(slot.minute).padStart(2, "0")}`;
+                                            setBookingSlot({
+                                              startAt: slotTime,
+                                              providerId: activeProvId || undefined,
+                                              duration: 30,
+                                            });
+                                          }
+                                        }}
+                                        title={`Click to book appointment on ${day.dayDateStr} at ${slot.label}`}
+                                      >
+                                        <span className="charm-slot-hover-add">+</span>
+                                      </div>
+                                    );
+                                  })}
 
-                                        return (
-                                          <div
-                                            key={currentSlotAppt.id}
-                                            className="charm-week-appt-strip"
-                                            onClick={(e) => {
-                                              e.stopPropagation();
-                                              setSelectedAppt(currentSlotAppt);
-                                            }}
-                                            title={`${startTime} - ${endTime} | ${pName}, ${prvName}, ${rName}`}
-                                            style={{
-                                              display: "flex",
-                                              alignItems: "center",
-                                              gap: 6,
-                                              background: cStyle.bg,
-                                              color: cStyle.color,
-                                              border: `1px solid ${cStyle.border}`,
-                                              borderRadius: 3,
-                                              padding: "3px 6px",
-                                              fontSize: 10.5,
-                                              cursor: "pointer",
-                                              boxShadow: "0 1px 2px rgba(0,0,0,0.08)",
-                                              overflow: "hidden",
-                                              whiteSpace: "nowrap",
-                                              textOverflow: "ellipsis",
-                                              transition: "all 0.15s ease",
-                                            }}
-                                          >
-                                            <span style={{ fontWeight: 700, fontSize: 9.5, flexShrink: 0 }}>
-                                              {startTime}
-                                            </span>
-                                            <span style={{ fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", flex: 1 }}>
-                                              {pName}
-                                            </span>
-                                            <span style={{ fontSize: 9, opacity: 0.9, flexShrink: 0 }}>
-                                              {rName}
-                                            </span>
-                                          </div>
-                                        );
-                                      })}
-                                    </div>
-                                  )}
+                                  {/* Placed Appointment Cards for this day */}
+                                  {placedLayouts.map(({ appt, top, height, leftPct, widthPct }) => {
+                                    const pat = patients.find((p) => p.id === appt.patient_id);
+                                    const prv = staff.find((s) => s.id === appt.provider_id);
+                                    const res = resources.find((r) => r.id === appt.resource_id);
+                                    const localStart = localInput(appt.start_at);
+                                    const localEnd = localInput(appt.end_at);
+                                    const cStyle = getCharmCardStyle(appt);
+                                    const patName = pat?.name || patientName(appt.patient_id, patients);
+                                    const prvName = prv?.name || "Staff";
+                                    const rName = getApptResourceName(appt.resource_id);
+                                    const sTime = localStart.slice(11, 16);
+                                    const eTime = localEnd.length >= 16 ? localEnd.slice(11, 16) : "";
+
+                                    return (
+                                      <div
+                                        key={appt.id}
+                                        className="charm-matrix-appt-card"
+                                        style={{
+                                          top: `${top}px`,
+                                          height: `${height}px`,
+                                          left: `calc(${leftPct}% + 1px)`,
+                                          width: `calc(${widthPct}% - 2px)`,
+                                          background: cStyle.bg,
+                                          color: cStyle.color,
+                                          borderColor: cStyle.border,
+                                        }}
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          setSelectedAppt(appt);
+                                        }}
+                                        title={`${sTime} - ${eTime} | ${patName} | ${prvName} | ${rName || "Consultation"} | ${appt.visit_type || "Visit"}`}
+                                      >
+                                        <div className="charm-matrix-card-time">
+                                          {sTime} - {eTime}
+                                        </div>
+                                        <div className="charm-matrix-card-pat">{patName}</div>
+                                        <div className="charm-matrix-card-sub">
+                                          {prvName}
+                                          {rName && rName !== "-- Select --" ? ` · ${rName}` : ""}
+                                        </div>
+                                      </div>
+                                    );
+                                  })}
                                 </div>
                               );
                             })}
                           </div>
-                        );
-                      })}
+                        </div>
+                      </div>
                     </div>
                   </div>
                 );
