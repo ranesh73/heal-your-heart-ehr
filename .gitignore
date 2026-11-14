@@ -55,3 +55,4 @@ charm_*
 scripts/extracted_frames/
 scripts/test_*.png
 frontend/current_settings.png
+backend/backups/
