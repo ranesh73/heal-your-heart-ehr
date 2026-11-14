@@ -304,7 +304,36 @@
       }
     ]
   },
-  "custom_settings": {},
+  "custom_settings": {
+    "user:fc03d744-0035-4831-b46d-1cc84321489c:message:signature": {
+      "enabled": true,
+      "signature_html": "<p>Best,<br><strong>Dr. Prem</strong></p>"
+    },
+    "user:fc03d744-0035-4831-b46d-1cc84321489c:message:vacation": {
+      "enabled": true,
+      "send_to_members": true,
+      "send_to_patients": false,
+      "subject": "Attending Cardiology Summit",
+      "start_date": "2026-12-01",
+      "end_date": "2026-12-05",
+      "mark_non_working": true,
+      "message_html": "<p>Away at summit.</p>"
+    },
+    "user:fc03d744-0035-4831-b46d-1cc84321489c:message:preferences": {
+      "notification_email": "Not Required",
+      "receive_from_patients": "Yes",
+      "questionnaire_notification": "Required",
+      "feedback_notification": "Not Required",
+      "shared_member_ids": []
+    },
+    "user:fc03d744-0035-4831-b46d-1cc84321489c:task:preferences": {
+      "reminder_email": false,
+      "reminder_charm_message": true,
+      "assigned_charm_message": true,
+      "completed_charm_message": false,
+      "sort_by": "Due Date"
+    }
+  },
   "appointment_statuses": [
     {
       "id": "status-1",
@@ -839,5 +868,40 @@
         }
       }
     }
+  },
+  "billing_account_settings": {
+    "order_invoices_by": "Invoice Added Date",
+    "order_receipts_by": "Receipt Added Date",
+    "print_layouts": [
+      "A4 / US Letter"
+    ],
+    "include_inactive_providers": false,
+    "enable_invoice_consult_lab_product": true,
+    "included_invoice_groups": [
+      "Consultation",
+      "Lab"
+    ],
+    "create_lab_order_for_lab_invoice": false,
+    "allow_inter_facility_receipts": true,
+    "enable_hard_close": false,
+    "hard_close_basis": "Invoice/Payment/Refund Date",
+    "item_table_titles": [
+      "Consultation / Procedures",
+      "Labs",
+      "Medications / Drugs"
+    ],
+    "alternate_provider_names": [
+      "Consultant",
+      "Doctor",
+      "Doctor",
+      "Doctor"
+    ],
+    "show_provider_degree": false,
+    "exclude_non_covered_superbill": false,
+    "superbill_payment_mode": "Show Payments",
+    "enable_invoice_round_off": true,
+    "round_off_mode": "Round to nearest number",
+    "round_off_label": "Rounding Adj",
+    "enable_associate_products": true
   }
 }
