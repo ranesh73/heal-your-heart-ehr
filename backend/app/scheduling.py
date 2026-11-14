@@ -16,7 +16,7 @@ def utc(value):
     return value.astimezone(timezone.utc).replace(tzinfo=None)
 
 
-def check_slot(c,patient_id,provider_id,resource_id,start,end,exclude=None,plan=None,allow_overlap=False):
+def check_slot(c,patient_id,provider_id,resource_id,start,end,exclude=None,plan=None,allow_overlap=False,allow_outside_hours=False):
     c.patient(patient_id); c.staff(provider_id,{'doctor','therapist'})
     if resource_id:
         resource=c.record(m.Resource,resource_id)
@@ -33,9 +33,10 @@ def check_slot(c,patient_id,provider_id,resource_id,start,end,exclude=None,plan=
     local_end=end.replace(tzinfo=timezone.utc).astimezone(KOLKATA)
     start_min=local.hour*60+local.minute
     end_min=local_end.hour*60+local_end.minute
-    avail=c.db.scalars(select(m.Availability).where(m.Availability.user_id==provider_id,m.Availability.facility_id==c.facility_id,m.Availability.weekday==local.weekday())).all()
-    if local.date()!=local_end.date() or not any(a.start_minute<=start_min and a.end_minute>=end_min for a in avail):
-        raise HTTPException(409,'Provider is unavailable at this time')
+    if not allow_outside_hours:
+        avail=c.db.scalars(select(m.Availability).where(m.Availability.user_id==provider_id,m.Availability.facility_id==c.facility_id,m.Availability.weekday==local.weekday())).all()
+        if local.date()!=local_end.date() or not any(a.start_minute<=start_min and a.end_minute>=end_min for a in avail):
+            raise HTTPException(409,'Provider is unavailable at this time')
     if allow_overlap:
         conflict_clauses = [m.Appointment.patient_id == patient_id]
         if resource_id:
@@ -86,7 +87,7 @@ def book(data:s.AppointmentInput,c=Depends(context)):
         if data.skip_sundays:
             while start.replace(tzinfo=timezone.utc).astimezone(KOLKATA).weekday()==6: start+=timedelta(days=1)
         end=start+timedelta(minutes=data.duration_minutes)
-        check_slot(c,data.patient_id,data.provider_id,data.resource_id,start,end,plan=plan,allow_overlap=data.allow_overlap)
+        check_slot(c,data.patient_id,data.provider_id,data.resource_id,start,end,plan=plan,allow_overlap=data.allow_overlap,allow_outside_hours=data.allow_outside_hours)
         row=m.Appointment(patient_id=data.patient_id,facility_id=c.facility_id,author_id=c.user.id,provider_id=data.provider_id,
             resource_id=data.resource_id,plan_id=data.plan_id,session_number=used+index+1 if plan else None,
             series_id=series,start_at=start,end_at=end,visit_type=data.visit_type,mode=data.mode,reason=data.reason)
@@ -163,7 +164,7 @@ def reschedule(identifier:str,data:s.Reschedule,c=Depends(context)):
     if row.status in ('started','completed'): raise HTTPException(409,'Started or completed treatment cannot be rescheduled')
     start=utc(data.start_at); end=start+timedelta(minutes=data.duration_minutes)
     plan=c.record(m.Plan,row.plan_id) if row.plan_id else None
-    check_slot(c,row.patient_id,data.provider_id,data.resource_id,start,end,row.id,plan,allow_overlap=data.allow_overlap)
+    check_slot(c,row.patient_id,data.provider_id,data.resource_id,start,end,row.id,plan,allow_overlap=data.allow_overlap,allow_outside_hours=data.allow_outside_hours)
     old=row.start_at.isoformat()+'Z'
     row.start_at=start; row.end_at=end; row.provider_id=data.provider_id; row.resource_id=data.resource_id
     row.status='confirmed'; row.status_label=None; row.reason=data.reason; row.version+=1; row.checked_in_at=None

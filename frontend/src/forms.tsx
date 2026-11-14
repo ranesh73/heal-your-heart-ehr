@@ -688,6 +688,7 @@ export function AppointmentForm({
   const [intervalDays, setIntervalDays] = useState<number>(1);
   const [skipSundays, setSkipSundays] = useState(true);
   const [allowOverlap, setAllowOverlap] = useState(true);
+  const [allowOutsideHours, setAllowOutsideHours] = useState(false);
   const [reason, setReason] = useState(appointment?.reason || waitingListEntry?.reason || "");
   const [message, setMessage] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -866,6 +867,7 @@ export function AppointmentForm({
         duration_minutes: Number(duration),
         reason: reason || undefined,
         allow_overlap: allowOverlap,
+        allow_outside_hours: allowOutsideHours,
       };
 
       if (appointment) {
@@ -1613,7 +1615,20 @@ export function AppointmentForm({
           <div className="charm-appt-footer" style={{ display: "flex", flexDirection: "column", alignItems: "flex-start", gap: 10 }}>
             {err && (
               <div className="error-box" style={{ width: "100%", margin: 0 }}>
-                {err}
+                <div>{err}</div>
+                {err.toLowerCase().includes("unavailable") && (
+                  <label style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 8, cursor: "pointer", fontWeight: 600, color: "#b45309", fontSize: 12 }}>
+                    <input
+                      type="checkbox"
+                      checked={allowOutsideHours}
+                      onChange={(e) => {
+                        setAllowOutsideHours(e.target.checked);
+                        setErr("");
+                      }}
+                    />
+                    Book outside scheduled provider working hours (override)
+                  </label>
+                )}
               </div>
             )}
             <div style={{ display: "flex", gap: 8 }}>

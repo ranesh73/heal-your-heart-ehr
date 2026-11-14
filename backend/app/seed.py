@@ -25,7 +25,7 @@ def seed(db,password):
         for branch in branches if role in ('admin','doctor','billing') else branches[:2]:
             db.add(m.UserFacility(user_id=user.id,facility_id=branch.id))
             if role in ('doctor','therapist'):
-                for weekday in range(6): db.add(m.Availability(facility_id=branch.id,user_id=user.id,weekday=weekday,start_minute=8*60,end_minute=20*60))
+                for weekday in range(6): db.add(m.Availability(facility_id=branch.id,user_id=user.id,weekday=weekday,start_minute=7*60,end_minute=20*60+30))
     branch=branches[0]
     def common(p): return dict(patient_id=p.id,facility_id=branch.id,author_id=users['doctor'].id)
     patients=[]
