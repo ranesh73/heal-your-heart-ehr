@@ -497,6 +497,62 @@ export function QuickNewPatientView({
   );
 }
 
+export function computeDefaultToDate(startDateStr: string): string {
+  if (!startDateStr) return "";
+  const d = new Date(`${startDateStr}T12:00:00`);
+  const day = d.getDay(); // 0 is Sun, 6 is Sat
+  const daysUntilSat = day === 6 ? 7 : (6 - day);
+  d.setDate(d.getDate() + (daysUntilSat === 0 ? 6 : daysUntilSat));
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
+export function countAppointmentsBetween(startStr: string, endStr: string, interval: number, skipSun: boolean): number {
+  if (!startStr || !endStr) return 1;
+  const startD = new Date(`${startStr}T12:00:00`);
+  const endD = new Date(`${endStr}T12:00:00`);
+  if (endD < startD) return 1;
+  let count = 0;
+  const cur = new Date(startD);
+  while (cur <= endD && count < 100) {
+    if (skipSun && cur.getDay() === 0) {
+      cur.setDate(cur.getDate() + 1);
+      continue;
+    }
+    count++;
+    cur.setDate(cur.getDate() + Math.max(1, interval));
+  }
+  return Math.max(1, count);
+}
+
+export function computeEndDateFromCount(startStr: string, count: number, interval: number, skipSun: boolean): string {
+  if (!startStr || count <= 0) return startStr;
+  const cur = new Date(`${startStr}T12:00:00`);
+  let matched = 0;
+  let lastValid = cur;
+  while (matched < count && matched < 100) {
+    if (skipSun && cur.getDay() === 0) {
+      cur.setDate(cur.getDate() + 1);
+      continue;
+    }
+    matched++;
+    lastValid = new Date(cur);
+    if (matched < count) {
+      cur.setDate(cur.getDate() + Math.max(1, interval));
+    }
+  }
+  return `${lastValid.getFullYear()}-${String(lastValid.getMonth() + 1).padStart(2, "0")}-${String(lastValid.getDate()).padStart(2, "0")}`;
+}
+
+export function formatShortDatePreview(val: string): string {
+  if (!val) return "";
+  const [y, m, d] = val.split("-").map(Number);
+  if (!y || !m || !d) return val;
+  const dt = new Date(y, m - 1, d);
+  const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+  const days = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+  return `${days[dt.getDay()]} ${months[dt.getMonth()]} ${dt.getDate()}`;
+}
+
 export function AppointmentForm({
   patientId,
   plan,
@@ -683,11 +739,39 @@ export function AppointmentForm({
   });
   const [apptStatus, setApptStatus] = useState(appointment?.status || "confirmed");
   const [periodType, setPeriodType] = useState<"single" | "period">(plan ? "period" : "single");
-  const [repeatCount, setRepeatCount] = useState<number>(
-    plan ? Math.max(1, plan.session_count - plan.scheduled) : 1
-  );
   const [intervalDays, setIntervalDays] = useState<number>(1);
   const [skipSundays, setSkipSundays] = useState(true);
+  const [toDate, setToDate] = useState(() => {
+    return computeDefaultToDate(selDate);
+  });
+  const [repeatCount, setRepeatCount] = useState<number>(() => {
+    if (plan) return Math.max(1, plan.session_count - plan.scheduled);
+    return countAppointmentsBetween(selDate, computeDefaultToDate(selDate), 1, true);
+  });
+
+  const effectiveFirstDate = useMemo(() => {
+    if (!selDate) return "";
+    if (periodType === "period" && skipSundays) {
+      const d = new Date(`${selDate}T12:00:00`);
+      if (d.getDay() === 0) {
+        d.setDate(d.getDate() + 1);
+        return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+      }
+    }
+    return selDate;
+  }, [selDate, periodType, skipSundays]);
+
+  useEffect(() => {
+    if (periodType === "period") {
+      if (!toDate || toDate < selDate) {
+        const defTo = computeDefaultToDate(selDate);
+        setToDate(defTo);
+        setRepeatCount(countAppointmentsBetween(selDate, defTo, intervalDays, skipSundays));
+      } else {
+        setRepeatCount(countAppointmentsBetween(selDate, toDate, intervalDays, skipSundays));
+      }
+    }
+  }, [selDate, periodType]);
   const [allowOverlap, setAllowOverlap] = useState(true);
   const [allowOutsideHours, setAllowOutsideHours] = useState(true);
   const [reason, setReason] = useState(appointment?.reason || waitingListEntry?.reason || "");
@@ -887,8 +971,9 @@ export function AppointmentForm({
       await refresh();
       await qc.refetchQueries({ queryKey: ["chart"] });
       notify(appointment ? "Appointment rescheduled." : "Appointment booking confirmed.");
-      console.log("AppointmentForm submitted successfully, calling onBooked with selDate:", selDate);
-      onBooked?.(selDate);
+      const targetNavDate = periodType === "period" ? (effectiveFirstDate || selDate) : selDate;
+      console.log("AppointmentForm submitted successfully, calling onBooked with:", targetNavDate);
+      onBooked?.(targetNavDate);
       onClose();
     } catch (ex: any) {
       setErr(ex?.detail || ex?.message || "Failed to schedule appointment");
@@ -1255,7 +1340,12 @@ export function AppointmentForm({
                       type="radio"
                       name="period"
                       checked={periodType === "period"}
-                      onChange={() => setPeriodType("period")}
+                      onChange={() => {
+                        setPeriodType("period");
+                        const defTo = computeDefaultToDate(selDate);
+                        setToDate(defTo);
+                        setRepeatCount(countAppointmentsBetween(selDate, defTo, intervalDays, skipSundays));
+                      }}
                     />{" "}
                     Period
                   </label>
@@ -1265,7 +1355,7 @@ export function AppointmentForm({
 
             {/* Date Selection (Authentic CharmHealth Formatted Date & Picker) */}
             <div className="charm-form-row">
-              <label className="charm-field-label">Date</label>
+              <label className="charm-field-label">{periodType === "period" ? "From Date *" : "Date *"}</label>
               <div className="charm-date-input-wrap" ref={datePickerRef}>
                 <input
                   type="text"
@@ -1445,6 +1535,74 @@ export function AppointmentForm({
 
             {periodType === "period" && (
               <>
+                {/* To Date / End Date */}
+                <div className="charm-form-row">
+                  <label className="charm-field-label">To Date (End Date) *</label>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 6, flex: 1 }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                      <input
+                        aria-label="To Date"
+                        type="date"
+                        className="charm-field-input"
+                        style={{ width: 160 }}
+                        value={toDate}
+                        min={selDate}
+                        onChange={(e) => {
+                          const newTo = e.target.value;
+                          setToDate(newTo);
+                          if (newTo) {
+                            setRepeatCount(countAppointmentsBetween(selDate, newTo, intervalDays, skipSundays));
+                          }
+                        }}
+                        required
+                      />
+                      {toDate && (
+                        <span style={{ fontSize: 13, color: "#475569", fontWeight: 500 }}>
+                          {formatShortDatePreview(toDate)}
+                        </span>
+                      )}
+                    </div>
+                    {/* Quick selection chips */}
+                    <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 2 }}>
+                      <button
+                        type="button"
+                        className="charm-quick-chip"
+                        onClick={() => {
+                          const targetSat = computeDefaultToDate(selDate);
+                          setToDate(targetSat);
+                          setRepeatCount(countAppointmentsBetween(selDate, targetSat, intervalDays, skipSundays));
+                        }}
+                      >
+                        📅 Till Saturday
+                      </button>
+                      <button
+                        type="button"
+                        className="charm-quick-chip"
+                        onClick={() => {
+                          const targetCount = 6;
+                          setRepeatCount(targetCount);
+                          const targetEnd = computeEndDateFromCount(selDate, targetCount, intervalDays, skipSundays);
+                          setToDate(targetEnd);
+                        }}
+                      >
+                        6 Days (1 Week)
+                      </button>
+                      <button
+                        type="button"
+                        className="charm-quick-chip"
+                        onClick={() => {
+                          const targetCount = 35;
+                          setRepeatCount(targetCount);
+                          const targetEnd = computeEndDateFromCount(selDate, targetCount, intervalDays, skipSundays);
+                          setToDate(targetEnd);
+                        }}
+                      >
+                        EECP Course (35 days)
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
                 <div className="charm-form-row">
                   <label className="charm-field-label">Number of appointments *</label>
                   <input
@@ -1455,7 +1613,12 @@ export function AppointmentForm({
                     className="charm-field-input"
                     style={{ width: 100 }}
                     value={repeatCount}
-                    onChange={(e) => setRepeatCount(Number(e.target.value))}
+                    onChange={(e) => {
+                      const count = Math.max(1, Number(e.target.value) || 1);
+                      setRepeatCount(count);
+                      const newEnd = computeEndDateFromCount(selDate, count, intervalDays, skipSundays);
+                      setToDate(newEnd);
+                    }}
                     required
                   />
                 </div>
@@ -1470,22 +1633,55 @@ export function AppointmentForm({
                     className="charm-field-input"
                     style={{ width: 100 }}
                     value={intervalDays}
-                    onChange={(e) => setIntervalDays(Number(e.target.value))}
+                    onChange={(e) => {
+                      const val = Math.max(1, Number(e.target.value) || 1);
+                      setIntervalDays(val);
+                      setRepeatCount(countAppointmentsBetween(selDate, toDate, val, skipSundays));
+                    }}
                     required
                   />
                 </div>
 
                 <div className="charm-form-row">
                   <label className="charm-field-label">Skip Sundays</label>
-                  <label style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 13 }}>
+                  <label style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 13, cursor: "pointer" }}>
                     <input
                       aria-label="Skip Sundays"
                       type="checkbox"
                       checked={skipSundays}
-                      onChange={(e) => setSkipSundays(e.target.checked)}
+                      onChange={(e) => {
+                        const checked = e.target.checked;
+                        setSkipSundays(checked);
+                        setRepeatCount(countAppointmentsBetween(selDate, toDate, intervalDays, checked));
+                      }}
                     />{" "}
                     Exclude Sundays from schedule
                   </label>
+                </div>
+
+                {/* Live Schedule Summary Banner */}
+                <div
+                  style={{
+                    margin: "8px 0 16px 0",
+                    padding: "10px 14px",
+                    background: "#f0fdf4",
+                    border: "1px solid #86efac",
+                    borderRadius: 6,
+                    color: "#166534",
+                    fontSize: 13,
+                    display: "flex",
+                    alignItems: "flex-start",
+                    gap: 8,
+                  }}
+                >
+                  <span style={{ fontSize: 16 }}>🗓️</span>
+                  <div>
+                    <strong>Schedule Summary:</strong> Will book <strong>{repeatCount}</strong> appointment{repeatCount > 1 ? "s" : ""} at{" "}
+                    <strong>{startHour}:{startMin} {startAmpm}</strong> from{" "}
+                    <strong>{formatShortDatePreview(effectiveFirstDate || selDate)}</strong> to{" "}
+                    <strong>{formatShortDatePreview(toDate)}</strong>
+                    {skipSundays ? " (Sundays excluded)" : ""}.
+                  </div>
                 </div>
               </>
             )}
