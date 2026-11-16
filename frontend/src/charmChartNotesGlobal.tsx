@@ -129,7 +129,7 @@ export function CharmChartNotesGlobal() {
       notify("Please select a patient.");
       return;
     }
-    const provId = consultProviderId || staff.find((s) => s.role === "doctor")?.id || user.id;
+    const provId = consultProviderId || (user.role === "doctor" ? user.id : staff.find((s) => s.role === "doctor")?.id || user.id);
     setCreatingNote(true);
     try {
       const created = await api<any>("/encounters", "POST", {

@@ -114,8 +114,12 @@ export function QuickChartNotesCanvas({
 }) {
   const prescriptions = (chart.medications || []).filter((m: Row) => !m.is_supplement);
   const supplements = (chart.medications || []).filter((m: Row) => m.is_supplement);
-  const vaccines = chart.vaccines || [];
-  const injections = chart.injections || [];
+  const vaccines = (chart.vaccines || []).filter((v: Row, idx: number, arr: Row[]) => {
+    return arr.findIndex((x) => (x.id && x.id === v.id) || (x.name === v.name && x.dose === v.dose)) === idx;
+  });
+  const injections = (chart.injections || []).filter((i: Row, idx: number, arr: Row[]) => {
+    return arr.findIndex((x) => (x.id && x.id === i.id) || (x.name === i.name && x.dose === i.dose && x.route === i.route)) === idx;
+  });
   const labs = (chart.orders || []).filter((o: Row) => o.kind === "lab");
   const images = (chart.orders || []).filter((o: Row) => o.kind === "imaging");
   const diagnoses = chart.diagnoses || [];
@@ -1043,8 +1047,12 @@ export function ComprehensiveChartNotesCanvas({
   editable: boolean;
 }) {
   const diagnoses = chart.diagnoses || [];
-  const vaccines = chart.vaccines || [];
-  const injections = chart.injections || [];
+  const vaccines = (chart.vaccines || []).filter((v: Row, idx: number, arr: Row[]) => {
+    return arr.findIndex((x) => (x.id && x.id === v.id) || (x.name === v.name && x.dose === v.dose)) === idx;
+  });
+  const injections = (chart.injections || []).filter((i: Row, idx: number, arr: Row[]) => {
+    return arr.findIndex((x) => (x.id && x.id === i.id) || (x.name === i.name && x.dose === i.dose && x.route === i.route)) === idx;
+  });
 
   return (
     <div className="charm-comp-canvas" style={{ padding: "16px 20px" }}>

@@ -1641,7 +1641,7 @@ function Schedule() {
       } else {
         const created = await api<any>("/encounters", "POST", {
           patient_id: patientId,
-          provider_id: provider || staff.find((s) => s.role === "doctor")?.id || user.id,
+          provider_id: user.role === "doctor" ? user.id : (provider || staff.find((s) => s.role === "doctor")?.id || user.id),
           visit_type: visitType || "EECP On-going Visit",
         });
         await refresh();
