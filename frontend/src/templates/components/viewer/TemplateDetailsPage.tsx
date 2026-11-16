@@ -29,7 +29,32 @@ export const TemplateDetailsPage: React.FC<TemplateDetailsPageProps> = ({
   onBack,
   onEdit
 }) => {
-  const allComponents = useMemo(() => allComponentsOf(template), [template]);
+  const [currentTemplate, setCurrentTemplate] = useState<ClinicalTemplate>(template);
+  const [loadingTemplate, setLoadingTemplate] = useState(false);
+
+  useEffect(() => {
+    let isCancelled = false;
+    if (!template.sections || template.sections.length === 0) {
+      setLoadingTemplate(true);
+      api.getTemplate(template.id)
+        .then((full) => {
+          if (!isCancelled && full) {
+            setCurrentTemplate(full);
+          }
+        })
+        .catch(console.error)
+        .finally(() => {
+          if (!isCancelled) setLoadingTemplate(false);
+        });
+    } else {
+      setCurrentTemplate(template);
+    }
+    return () => {
+      isCancelled = true;
+    };
+  }, [template]);
+
+  const allComponents = useMemo(() => allComponentsOf(currentTemplate), [currentTemplate]);
 
   // Patient state
   const [patients, setPatients] = useState<Patient[]>([]);
@@ -56,7 +81,7 @@ export const TemplateDetailsPage: React.FC<TemplateDetailsPageProps> = ({
       try {
         const [patientsData, consultationsData] = await Promise.all([
           api.getPatients().catch(() => [] as Patient[]),
-          api.getConsultations({ template_id: template.id }).catch(() => [])
+          api.getConsultations({ template_id: currentTemplate.id }).catch(() => [])
         ]);
 
         if (isCancelled) return;
@@ -112,13 +137,13 @@ export const TemplateDetailsPage: React.FC<TemplateDetailsPageProps> = ({
     return () => {
       isCancelled = true;
     };
-  }, [template.id, allComponents]);
+  }, [currentTemplate.id, allComponents]);
 
   // Load medications when medication reference is expanded
   useEffect(() => {
     if (showMeds && medications.length === 0) {
       setMedLoading(true);
-      api.getMedications({ category: template.category })
+      api.getMedications({ category: currentTemplate.category })
         .then((data) => setMedications(data))
         .catch(() => {
           // Fallback to all medications
@@ -126,25 +151,25 @@ export const TemplateDetailsPage: React.FC<TemplateDetailsPageProps> = ({
         })
         .finally(() => setMedLoading(false));
     }
-  }, [showMeds, medications.length, template.category]);
+  }, [showMeds, medications.length, currentTemplate.category]);
 
   // Handle interactive answer change with automatic branch pruning
   const handleAnswerChange = useCallback(
     (componentId: number, value: string) => {
       setAnswers((prev) => {
         const updated = { ...prev, [componentId]: value };
-        const { hidden } = computeVisibility(allComponents, template.relationships || [], updated);
+        const { hidden } = computeVisibility(allComponents, currentTemplate.relationships || [], updated);
         return pruneHiddenAnswers(updated, hidden);
       });
       if (validationError) setValidationError(null);
       if (saveSuccess) setSaveSuccess(false);
     },
-    [allComponents, template.relationships, validationError, saveSuccess]
+    [allComponents, currentTemplate.relationships, validationError, saveSuccess]
   );
 
   // Validate and Save Answers to Database
   const handleSave = async (exitAfterSave = false) => {
-    const { visible } = computeVisibility(allComponents, template.relationships || [], answers);
+    const { visible } = computeVisibility(allComponents, currentTemplate.relationships || [], answers);
     const missingRequired = allComponents.filter(
       (c) => c.id && visible.has(c.id) && (c.is_mandatory || (c as any).is_required) && !answers[c.id]?.trim()
     );
@@ -175,16 +200,16 @@ export const TemplateDetailsPage: React.FC<TemplateDetailsPageProps> = ({
         // Update existing saved consultation
         await api.updateConsultation(savedConsultationId, {
           patient_id: patientId,
-          notes: `Updated clinical assessment for ${template.name}. ${responsesPayload.length} fields recorded.`,
+          notes: `Updated clinical assessment for ${currentTemplate.name}. ${responsesPayload.length} fields recorded.`,
           responses: responsesPayload
         });
       } else {
         // Create new consultation response
         const res = await api.saveConsultation({
           patient_id: patientId,
-          template_id: template.id,
+          template_id: currentTemplate.id,
           doctor_name: currentUser?.full_name || 'Dr. Sanjana K',
-          notes: `Clinical assessment completed for ${template.name}. ${responsesPayload.length} questions recorded.`,
+          notes: `Clinical assessment completed for ${currentTemplate.name}. ${responsesPayload.length} questions recorded.`,
           responses: responsesPayload
         });
         setSavedConsultationId(res.consultation_id);
@@ -221,8 +246,8 @@ export const TemplateDetailsPage: React.FC<TemplateDetailsPageProps> = ({
   };
 
   const { visible } = useMemo(
-    () => computeVisibility(allComponents, template.relationships || [], answers),
-    [allComponents, template.relationships, answers]
+    () => computeVisibility(allComponents, currentTemplate.relationships || [], answers),
+    [allComponents, currentTemplate.relationships, answers]
   );
 
   const visibleQuestions = allComponents.filter(
@@ -275,7 +300,7 @@ export const TemplateDetailsPage: React.FC<TemplateDetailsPageProps> = ({
           <button
             type="button"
             className="btn-secondary"
-            onClick={() => onEdit(template)}
+            onClick={() => onEdit(currentTemplate)}
             style={{
               display: 'flex',
               alignItems: 'center',
@@ -356,7 +381,7 @@ export const TemplateDetailsPage: React.FC<TemplateDetailsPageProps> = ({
             Template Name:
           </span>
           <span style={{ fontSize: '15px', fontWeight: 600, color: '#111827' }}>
-            {template.name}
+            {currentTemplate.name}
           </span>
         </div>
 
@@ -365,7 +390,7 @@ export const TemplateDetailsPage: React.FC<TemplateDetailsPageProps> = ({
             Template Type:
           </span>
           <span style={{ fontSize: '14px', fontWeight: 500, color: '#374151' }}>
-            {template.template_type}
+            {currentTemplate.template_type}
           </span>
         </div>
       </div>
@@ -474,7 +499,7 @@ export const TemplateDetailsPage: React.FC<TemplateDetailsPageProps> = ({
         {/* Live Form Renderer */}
         <div style={{ padding: '24px' }}>
           <ClinicalFormRenderer
-            template={template}
+            template={currentTemplate}
             answers={answers}
             onAnswer={handleAnswerChange}
             disabled={saving}

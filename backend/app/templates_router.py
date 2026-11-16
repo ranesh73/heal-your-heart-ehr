@@ -195,6 +195,9 @@ def get_template_details(template_id: int):
     sections = []
     for s_row in section_rows:
         sec = dict(s_row)
+        sec_title = sec.get("title") or sec.get("name") or "Section"
+        sec["title"] = sec_title
+        sec["name"] = sec_title
         cursor.execute("SELECT * FROM template_components WHERE section_id = ? ORDER BY order_index ASC;", (sec["id"],))
         comp_rows = cursor.fetchall()
 
@@ -202,6 +205,8 @@ def get_template_details(template_id: int):
         for c_row in comp_rows:
             comp = dict(c_row)
             comp["column_count"] = comp.get("column_count") or 3
+            comp["is_mandatory"] = bool(comp.get("is_required") or comp.get("is_mandatory"))
+            comp["is_required"] = comp["is_mandatory"]
             if comp.get("config"):
                 try:
                     comp["config"] = json.loads(comp["config"])
@@ -241,6 +246,110 @@ def get_template_details(template_id: int):
     return template
 
 
+def _clean_text(val: Any, max_len: int = 300, default: str = "") -> str:
+    if val is None:
+        return default
+    text = str(val).strip()
+    return text[:max_len] if text else default
+
+
+def _write_options(cursor, comp_id, options, parent_option_id=None):
+    for o_idx, opt in enumerate(options or []):
+        if isinstance(opt, dict):
+            label = opt.get("option_label") or opt.get("label") or ""
+            value = opt.get("option_value") or opt.get("value") or label
+            selected = 1 if opt.get("is_selected") else 0
+            children = opt.get("children") or []
+            expandable = 1 if (opt.get("is_expandable") or children) else 0
+        else:
+            label = str(opt)
+            value = label
+            selected = 0
+            children = []
+            expandable = 0
+
+        cursor.execute("""
+            INSERT INTO template_options (component_id, option_label, option_value, order_index,
+                                          parent_option_id, is_selected, is_expandable)
+            VALUES (?, ?, ?, ?, ?, ?, ?);
+        """, (
+            comp_id,
+            _clean_text(label, 300),
+            _clean_text(value, 300),
+            o_idx,
+            parent_option_id,
+            selected,
+            expandable,
+        ))
+        new_option_id = cursor.lastrowid
+
+        if children:
+            _write_options(cursor, comp_id, children, new_option_id)
+
+
+def _write_sections(cursor, template_id, sections, relationships):
+    tag_to_id = {}
+    for s_idx, sec in enumerate(sections or []):
+        title = sec.get("title") or sec.get("name") or f"Section {s_idx + 1}"
+        category = sec.get("category") or "Subjective"
+        column_layout = sec.get("column_layout", 1)
+
+        cursor.execute("""
+            INSERT INTO template_sections (template_id, title, category, order_index, column_layout)
+            VALUES (?, ?, ?, ?, ?);
+        """, (template_id, _clean_text(title, 120), _clean_text(category, 40), s_idx, column_layout))
+        sec_id = cursor.lastrowid
+
+        for c_idx, comp in enumerate(sec.get("components", [])):
+            columns = comp.get("column_count") or 3
+            try:
+                columns = max(1, min(int(columns), 4))
+            except Exception:
+                columns = 3
+
+            config_val = comp.get("config")
+            if isinstance(config_val, (dict, list)):
+                config_val = json.dumps(config_val)
+            elif config_val is not None:
+                config_val = str(config_val)
+
+            is_req = 1 if (comp.get("is_required") or comp.get("is_mandatory")) else 0
+            ctype = comp.get("component_type") or comp.get("type") or "Text Field"
+
+            cursor.execute("""
+                INSERT INTO template_components (section_id, component_type, label, placeholder,
+                                                 is_required, default_value, order_index,
+                                                 column_count, help_text, config)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+            """, (
+                sec_id,
+                _clean_text(ctype, 40, "Text Field"),
+                _clean_text(comp.get("label"), 300, "Question"),
+                _clean_text(comp.get("placeholder"), 300),
+                is_req,
+                comp.get("default_value"),
+                c_idx,
+                columns,
+                _clean_text(comp.get("help_text"), 300),
+                config_val,
+            ))
+            comp_id = cursor.lastrowid
+            if comp.get("id"):
+                tag_to_id[str(comp["id"])] = comp_id
+
+            _write_options(cursor, comp_id, comp.get("options", []))
+
+    for rel in (relationships or []):
+        p_id = tag_to_id.get(str(rel.get("parent_component_id")), rel.get("parent_component_id"))
+        c_id = tag_to_id.get(str(rel.get("child_component_id")), rel.get("child_component_id"))
+        trig = rel.get("trigger_value") or rel.get("trigger") or ""
+        if p_id and c_id:
+            cursor.execute("""
+                INSERT INTO template_relationships (template_id, parent_component_id, trigger_value, child_component_id)
+                VALUES (?, ?, ?, ?);
+            """, (template_id, p_id, _clean_text(trig, 300), c_id))
+
+
 # --- Template Create / Edit / Delete ---
 @router.post("/templates")
 def create_template(data: dict):
@@ -255,6 +364,7 @@ def create_template(data: dict):
     specialty = data.get("specialty", "General Medicine")
     category = data.get("category", specialty)
     desc = data.get("description", "")
+    content = data.get("content", "")
     tags = data.get("tags", "")
     is_active = 1 if data.get("is_active", True) else 0
     is_practice = 1 if data.get("is_practice", True) else 0
@@ -262,10 +372,20 @@ def create_template(data: dict):
     owner = data.get("owner_email", DEFAULT_OWNER_EMAIL)
 
     cursor.execute("""
-        INSERT INTO templates (name, template_type, specialty, category, description, tags, is_active, is_practice, is_library, created_by, owner_email, created_at, updated_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'))
-    """, (name, ttype, specialty, category, desc, tags, is_active, is_practice, is_library, "Admin", owner))
+        INSERT INTO templates (name, template_type, specialty, category, description, content, tags, is_active, is_practice, is_library, created_by, owner_email, created_at, updated_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'))
+    """, (name, ttype, specialty, category, desc, content, tags, is_active, is_practice, is_library, "Admin", owner))
     template_id = cursor.lastrowid
+
+    # Roles / Permissions
+    roles = data.get("roles") or ["Physician", "Physician Assistant"]
+    for r_name in roles:
+        cursor.execute("INSERT INTO template_permissions (template_id, role_name) VALUES (?, ?);", (template_id, _clean_text(r_name, 60)))
+
+    # Sections & Components
+    if data.get("sections"):
+        _write_sections(cursor, template_id, data["sections"], data.get("relationships"))
+
     conn.commit()
     conn.close()
     return {"id": template_id, "name": name, "success": True}
@@ -280,13 +400,35 @@ def update_template(template_id: int, data: dict):
         conn.close()
         raise HTTPException(422, "Template name is required")
 
+    desc = data.get("description")
+    content = data.get("content")
+    tags = data.get("tags")
+    is_active = 1 if data.get("is_active", True) else 0
+
     cursor.execute("""
         UPDATE templates
-        SET name = ?, template_type = ?, specialty = ?, category = ?, description = ?, tags = ?, is_active = ?, updated_at = datetime('now')
+        SET name = ?, template_type = ?, specialty = ?, category = ?, description = COALESCE(?, description),
+            content = COALESCE(?, content), tags = COALESCE(?, tags), is_active = ?, updated_at = datetime('now')
         WHERE id = ?
     """, (name, data.get("template_type", "SOAP"), data.get("specialty", "General Medicine"),
-          data.get("category", "General Medicine"), data.get("description", ""), data.get("tags", ""),
-          1 if data.get("is_active", True) else 0, template_id))
+          data.get("category", "General Medicine"), desc, content, tags, is_active, template_id))
+
+    if "roles" in data and data["roles"] is not None:
+        cursor.execute("DELETE FROM template_permissions WHERE template_id = ?", (template_id,))
+        for r_name in data["roles"]:
+            cursor.execute("INSERT INTO template_permissions (template_id, role_name) VALUES (?, ?)", (template_id, _clean_text(r_name, 60)))
+
+    if "sections" in data and data["sections"] is not None:
+        cursor.execute("DELETE FROM template_relationships WHERE template_id = ?", (template_id,))
+        cursor.execute("SELECT id FROM template_sections WHERE template_id = ?", (template_id,))
+        for (sid,) in cursor.fetchall():
+            cursor.execute("SELECT id FROM template_components WHERE section_id = ?", (sid,))
+            for (cid,) in cursor.fetchall():
+                cursor.execute("DELETE FROM template_options WHERE component_id = ?", (cid,))
+            cursor.execute("DELETE FROM template_components WHERE section_id = ?", (sid,))
+        cursor.execute("DELETE FROM template_sections WHERE template_id = ?", (template_id,))
+        _write_sections(cursor, template_id, data["sections"], data.get("relationships"))
+
     conn.commit()
     conn.close()
     return {"id": template_id, "success": True}
@@ -297,6 +439,12 @@ def delete_template(template_id: int):
     conn = get_con()
     cursor = conn.cursor()
     cursor.execute("DELETE FROM templates WHERE id = ?", (template_id,))
+    cursor.execute("SELECT id FROM template_sections WHERE template_id = ?", (template_id,))
+    for (sid,) in cursor.fetchall():
+        cursor.execute("SELECT id FROM template_components WHERE section_id = ?", (sid,))
+        for (cid,) in cursor.fetchall():
+            cursor.execute("DELETE FROM template_options WHERE component_id = ?", (cid,))
+        cursor.execute("DELETE FROM template_components WHERE section_id = ?", (sid,))
     cursor.execute("DELETE FROM template_sections WHERE template_id = ?", (template_id,))
     cursor.execute("DELETE FROM template_relationships WHERE template_id = ?", (template_id,))
     cursor.execute("DELETE FROM template_permissions WHERE template_id = ?", (template_id,))
@@ -310,43 +458,87 @@ def duplicate_template(template_id: int):
     conn = get_con()
     cursor = conn.cursor()
     cursor.execute("SELECT * FROM templates WHERE id = ?", (template_id,))
-    t = cursor.fetchone()
-    if not t:
+    raw_t = cursor.fetchone()
+    if not raw_t:
         conn.close()
         raise HTTPException(404, "Template not found")
+    t = dict(raw_t)
 
     new_name = f"{t['name']} (Copy)"
     cursor.execute("""
-        INSERT INTO templates (name, template_type, specialty, category, description, tags, is_active, is_practice, is_library, created_by, owner_email, created_at, updated_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'))
-    """, (new_name, t['template_type'], t['specialty'], t['category'], t['description'], t['tags'], t['is_active'], 1, 0, t['created_by'], t['owner_email']))
+        INSERT INTO templates (name, template_type, specialty, category, description, content, tags, is_active, is_practice, is_library, created_by, owner_email, created_at, updated_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1, 0, ?, ?, datetime('now'), datetime('now'))
+    """, (new_name, t.get('template_type', 'SOAP'), t.get('specialty', 'General Medicine'), t.get('category', 'General Medicine'), t.get('description', ''), t.get('content', ''), t.get('tags', ''), t.get('is_active', 1), t.get('created_by', 'Admin'), t.get('owner_email', DEFAULT_OWNER_EMAIL)))
     new_id = cursor.lastrowid
 
-    # Copy sections & components
-    cursor.execute("SELECT * FROM template_sections WHERE template_id = ?", (template_id,))
+    # Copy permissions
+    cursor.execute("SELECT role_name FROM template_permissions WHERE template_id = ?", (template_id,))
+    for p in cursor.fetchall():
+        cursor.execute("INSERT INTO template_permissions (template_id, role_name) VALUES (?, ?)", (new_id, p['role_name']))
+
+    # Copy sections, components, options & relationships
+    comp_map = {}
+    opt_map = {}
+
+    cursor.execute("SELECT id, title, category, order_index, column_layout FROM template_sections WHERE template_id = ? ORDER BY order_index ASC", (template_id,))
     sections = cursor.fetchall()
-    for sec in sections:
-        cursor.execute("INSERT INTO template_sections (template_id, name, order_index) VALUES (?, ?, ?)",
-                       (new_id, sec['name'], sec['order_index']))
+    for raw_sec in sections:
+        sec = dict(raw_sec)
+        cursor.execute("INSERT INTO template_sections (template_id, title, category, order_index, column_layout) VALUES (?, ?, ?, ?, ?)",
+                       (new_id, sec['title'], sec['category'], sec['order_index'], sec.get('column_layout', 1)))
         new_sec_id = cursor.lastrowid
-        cursor.execute("SELECT * FROM template_components WHERE section_id = ?", (sec['id'],))
+        cursor.execute("SELECT * FROM template_components WHERE section_id = ? ORDER BY order_index ASC", (sec['id'],))
         comps = cursor.fetchall()
-        for comp in comps:
+        for raw_comp in comps:
+            comp = dict(raw_comp)
             cursor.execute("""
-                INSERT INTO template_components (template_id, section_id, label, component_type, order_index, config, is_mandatory, column_count)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-            """, (new_id, new_sec_id, comp['label'], comp['component_type'], comp['order_index'], comp['config'], comp['is_mandatory'], comp['column_count']))
+                INSERT INTO template_components (section_id, component_type, label, placeholder, is_required, default_value, order_index, column_count, help_text, config)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """, (new_sec_id, comp['component_type'], comp['label'], comp.get('placeholder'), comp.get('is_required', 0), comp.get('default_value'), comp.get('order_index', 0), comp.get('column_count', 3), comp.get('help_text'), comp.get('config')))
             new_comp_id = cursor.lastrowid
-            cursor.execute("SELECT * FROM template_options WHERE component_id = ?", (comp['id'],))
-            for opt in cursor.fetchall():
+            comp_map[comp['id']] = new_comp_id
+
+            cursor.execute("SELECT * FROM template_options WHERE component_id = ? ORDER BY order_index ASC", (comp['id'],))
+            for raw_opt in cursor.fetchall():
+                opt = dict(raw_opt)
+                new_p_opt = opt_map.get(opt['parent_option_id']) if opt.get('parent_option_id') else None
                 cursor.execute("""
                     INSERT INTO template_options (component_id, option_label, option_value, order_index, parent_option_id, is_selected, is_expandable)
                     VALUES (?, ?, ?, ?, ?, ?, ?)
-                """, (new_comp_id, opt['option_label'], opt['option_value'], opt['order_index'], opt['parent_option_id'], opt['is_selected'], opt['is_expandable']))
+                """, (new_comp_id, opt['option_label'], opt['option_value'], opt['order_index'], new_p_opt, opt.get('is_selected', 0), opt.get('is_expandable', 0)))
+                opt_map[opt['id']] = cursor.lastrowid
+
+    # Copy relationships
+    cursor.execute("SELECT parent_component_id, trigger_value, child_component_id FROM template_relationships WHERE template_id = ?", (template_id,))
+    for raw_rel in cursor.fetchall():
+        rel = dict(raw_rel)
+        new_p = comp_map.get(rel['parent_component_id'])
+        new_c = comp_map.get(rel['child_component_id'])
+        if new_p and new_c:
+            cursor.execute("""
+                INSERT INTO template_relationships (template_id, parent_component_id, trigger_value, child_component_id)
+                VALUES (?, ?, ?, ?)
+            """, (new_id, new_p, rel['trigger_value'], new_c))
 
     conn.commit()
     conn.close()
     return {"success": True, "id": new_id, "name": new_name}
+
+
+@router.put("/templates/{template_id}/status")
+def set_template_status(template_id: int, data: dict):
+    is_active = 1 if data.get("is_active", True) else 0
+    conn = get_con()
+    cursor = conn.cursor()
+    cursor.execute("SELECT name FROM templates WHERE id = ?", (template_id,))
+    row = cursor.fetchone()
+    if not row:
+        conn.close()
+        raise HTTPException(404, "Template not found")
+    cursor.execute("UPDATE templates SET is_active = ?, updated_at = datetime('now') WHERE id = ?", (is_active, template_id))
+    conn.commit()
+    conn.close()
+    return {"success": True, "is_active": bool(is_active)}
 
 
 @router.post("/templates/{template_id}/share")
@@ -389,6 +581,7 @@ def update_defaults(template_id: int, data: dict):
 
 # --- Search Templates ---
 @router.get("/search/templates")
+@router.get("/templates/search")
 def search_templates(q: str = ""):
     conn = get_con()
     cursor = conn.cursor()
@@ -406,14 +599,15 @@ def search_templates(q: str = ""):
 
 # --- Medications Reference Catalog ---
 @router.get("/medications")
-def get_medications(condition_key: str = "", category: str = "", search: str = ""):
+def get_medications(condition: str = "", condition_key: str = "", category: str = "", search: str = ""):
+    cond = (condition or condition_key or "").strip().lower()
     conn = get_con()
     cursor = conn.cursor()
     query = "SELECT * FROM medication_references WHERE 1=1"
     params = []
-    if condition_key and condition_key != "all":
+    if cond and cond != "all":
         query += " AND (LOWER(condition_key) = ? OR LOWER(condition_name) LIKE ?)"
-        params.extend([condition_key.lower(), f"%{condition_key.lower()}%"])
+        params.extend([cond, f"%{cond}%"])
     if category and category != "All":
         query += " AND category = ?"
         params.append(category)
@@ -428,8 +622,112 @@ def get_medications(condition_key: str = "", category: str = "", search: str = "
     return [dict(r) for r in rows]
 
 
+@router.get("/medications/{med_id}")
+def get_medication_by_id(med_id: int):
+    conn = get_con()
+    cursor = conn.cursor()
+    cursor.execute("SELECT * FROM medication_references WHERE id = ?", (med_id,))
+    row = cursor.fetchone()
+    conn.close()
+    if not row:
+        raise HTTPException(404, "Medication not found")
+    return dict(row)
+
+
+@router.post("/medications")
+def create_medication(data: dict):
+    conn = get_con()
+    cursor = conn.cursor()
+    cursor.execute("""
+        INSERT INTO medication_references (
+            condition_key, condition_name, medication_name, generic_name,
+            dosage_form, strength, standard_dosage, frequency, instructions, notes, category
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    """, (
+        data.get("condition_key", "general"),
+        data.get("condition_name", "General Medicine"),
+        data.get("medication_name", ""),
+        data.get("generic_name", ""),
+        data.get("dosage_form", "Tablet"),
+        data.get("strength", ""),
+        data.get("standard_dosage", ""),
+        data.get("frequency", "OD"),
+        data.get("instructions", ""),
+        data.get("notes", ""),
+        data.get("category", "General")
+    ))
+    new_id = cursor.lastrowid
+    conn.commit()
+    cursor.execute("SELECT * FROM medication_references WHERE id = ?", (new_id,))
+    row = cursor.fetchone()
+    conn.close()
+    return dict(row)
+
+
+@router.put("/medications/{med_id}")
+def update_medication(med_id: int, data: dict):
+    conn = get_con()
+    cursor = conn.cursor()
+    cursor.execute("""
+        UPDATE medication_references SET
+            condition_key = ?, condition_name = ?, medication_name = ?, generic_name = ?,
+            dosage_form = ?, strength = ?, standard_dosage = ?, frequency = ?,
+            instructions = ?, notes = ?, category = ?
+        WHERE id = ?
+    """, (
+        data.get("condition_key", "general"),
+        data.get("condition_name", "General Medicine"),
+        data.get("medication_name", ""),
+        data.get("generic_name", ""),
+        data.get("dosage_form", "Tablet"),
+        data.get("strength", ""),
+        data.get("standard_dosage", ""),
+        data.get("frequency", "OD"),
+        data.get("instructions", ""),
+        data.get("notes", ""),
+        data.get("category", "General"),
+        med_id
+    ))
+    conn.commit()
+    cursor.execute("SELECT * FROM medication_references WHERE id = ?", (med_id,))
+    row = cursor.fetchone()
+    conn.close()
+    if not row:
+        raise HTTPException(404, "Medication not found")
+    return dict(row)
+
+
+@router.delete("/medications/{med_id}")
+def delete_medication(med_id: int):
+    conn = get_con()
+    cursor = conn.cursor()
+    cursor.execute("DELETE FROM medication_references WHERE id = ?", (med_id,))
+    conn.commit()
+    conn.close()
+    return {"success": True, "message": "Medication deleted"}
+
+
 # --- Consultation Form Responses ---
+@router.get("/consultations")
+@router.get("/template-responses")
+def list_consultations():
+    conn = get_con()
+    cursor = conn.cursor()
+    cursor.execute("SELECT * FROM consultations ORDER BY id DESC LIMIT 50")
+    rows = cursor.fetchall()
+    results = []
+    for r in rows:
+        d = dict(r)
+        cursor.execute("SELECT * FROM template_responses WHERE consultation_id = ?", (d["id"],))
+        d["responses"] = [dict(x) for x in cursor.fetchall()]
+        results.append(d)
+    conn.close()
+    return results
+
+
 @router.post("/responses")
+@router.post("/consultations")
+@router.post("/template-responses")
 def save_consultation_responses(data: dict):
     conn = get_con()
     cursor = conn.cursor()
@@ -461,6 +759,8 @@ def save_consultation_responses(data: dict):
 
 
 @router.get("/responses/{consultation_id}")
+@router.get("/consultations/{consultation_id}")
+@router.get("/template-responses/{consultation_id}")
 def get_consultation_responses(consultation_id: int):
     conn = get_con()
     cursor = conn.cursor()

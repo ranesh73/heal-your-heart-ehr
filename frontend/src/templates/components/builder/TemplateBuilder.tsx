@@ -95,6 +95,24 @@ export const TemplateBuilder: React.FC<TemplateBuilderProps> = ({
   const [saving, setSaving] = useState(false);
   const [banner, setBanner] = useState<{ kind: 'ok' | 'err'; text: string } | null>(null);
 
+  // If initialTemplate has an id but sections were not loaded, fetch them from the API
+  React.useEffect(() => {
+    if (initialTemplate?.id && (!initialTemplate.sections || initialTemplate.sections.length === 0)) {
+      api.getTemplate(initialTemplate.id)
+        .then((full) => {
+          if (full && full.sections && full.sections.length > 0) {
+            setSections(full.sections);
+            if (full.relationships) setRelationships(full.relationships);
+            if (full.name) setTemplateName(full.name);
+            if (full.template_type) setTemplateType(full.template_type);
+            if (full.category) setCategory(full.category);
+            if (full.tags) setTags(full.tags);
+          }
+        })
+        .catch(console.error);
+    }
+  }, [initialTemplate]);
+
   // Post-save modal states
   const [showPostSaveModal, setShowPostSaveModal] = useState(false);
   const [savedTemplateObj, setSavedTemplateObj] = useState<ClinicalTemplate | null>(null);

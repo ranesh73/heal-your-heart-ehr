@@ -114,14 +114,30 @@ export function TemplatesModule({
     }
   };
 
-  const handleTemplateClick = (t: ClinicalTemplate) => {
-    setSelectedTemplate(t);
+  const loadFullTemplate = async (t: ClinicalTemplate): Promise<ClinicalTemplate> => {
+    try {
+      const full = await api.getTemplate(t.id);
+      return full || t;
+    } catch (err) {
+      console.error('Failed to load full template:', err);
+      return t;
+    }
+  };
+
+  const handleTemplateClick = async (t: ClinicalTemplate) => {
+    const full = await loadFullTemplate(t);
+    setSelectedTemplate(full);
     setViewMode('viewer');
   };
 
   const handleAction = async (action: ActionOption, t: ClinicalTemplate) => {
-    if (action === 'edit') {
-      setSelectedTemplate(t);
+    if (action === 'view') {
+      const full = await loadFullTemplate(t);
+      setSelectedTemplate(full);
+      setViewMode('viewer');
+    } else if (action === 'edit') {
+      const full = await loadFullTemplate(t);
+      setSelectedTemplate(full);
       setViewMode('builder');
     } else if (action === 'duplicate') {
       try {
@@ -190,14 +206,16 @@ export function TemplatesModule({
       {/* Main Filter & Action Bar */}
       {activeTab !== 'common_medication' && (
         <div className="charm-templates-controls-bar">
-          <div className="charm-templates-search-box">
-            <Search size={16} className="text-slate-400" />
+          <div className="template-search-input-wrap" style={{ minWidth: '340px', maxWidth: '480px' }}>
+            <Search size={15} className="template-search-icon" aria-hidden="true" />
             <input
-              type="text"
+              id="template-name-search"
+              type="search"
               placeholder="Search templates by name, condition, or section..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               className="charm-templates-search-input"
+              style={{ width: '100%', height: '32px', paddingLeft: '32px' }}
             />
           </div>
 
