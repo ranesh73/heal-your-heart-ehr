@@ -8,6 +8,7 @@ import {
   CalendarDays,
   Check,
   ChevronDown,
+  Clock3,
   Download,
   Eye,
   Plus,
@@ -50,6 +51,17 @@ import {
 } from "./ui";
 import { AppointmentForm, RecordForm, QuickNewPatientView } from "./forms";
 import { PrintPreview, RecordDetail, RecordList } from "./patients";
+import {
+  ProviderAvailabilityPanel,
+  ProviderAvailabilityResults,
+  ProviderAvailabilityResult,
+} from "./ProviderAvailability";
+import {
+  readWaitingListEntries,
+  saveWaitingListEntries,
+  WAITING_LIST_STORAGE_KEY,
+  WAITING_LIST_UPDATED_EVENT,
+} from "./waitingList";
 
 const APPOINTMENT_LABEL_OPTIONS = [
   "Consulted",
@@ -73,6 +85,59 @@ const APPOINTMENT_WORKFLOW_OPTIONS = [
   { value: "completed", label: "Completed" },
   { value: "cancelled", label: "Cancelled" },
 ] as const;
+
+function waitingListStartAt(entry: any, fallbackDate: string) {
+  const date = entry.preferred_date || entry.dates?.find(Boolean) || fallbackDate;
+  const match = String(entry.time_preference || "").match(/(\d{1,2})(?::(\d{2}))?\s*(AM|PM)/i);
+  if (!match) return `${date}T10:00`;
+  let hour = Number(match[1]) % 12;
+  if (match[3].toUpperCase() === "PM") hour += 12;
+  return `${date}T${String(hour).padStart(2, "0")}:${match[2] || "00"}`;
+}
+
+function waitingEntryMatchesDate(entry: any, dateStr: string) {
+  const dates = Array.isArray(entry.dates)
+    ? entry.dates.filter((value: unknown): value is string => typeof value === "string" && /^\d{4}-\d{2}-\d{2}$/.test(value))
+    : [];
+  const preferredDate = typeof entry.preferred_date === "string" ? entry.preferred_date : "";
+
+  if (entry.date_preference === "Period") {
+    const start = dates[0] || preferredDate;
+    const end = dates[1] || start;
+    if (!start) return false;
+    return dateStr >= (start < end ? start : end) && dateStr <= (start > end ? start : end);
+  }
+
+  return dates.includes(dateStr) || preferredDate === dateStr;
+}
+
+function WaitingListDateBadge({
+  date,
+  count,
+  onClick,
+}: {
+  date: string;
+  count: number;
+  onClick: () => void;
+}) {
+  if (!count) return null;
+
+  return (
+    <button
+      type="button"
+      className="charm-waiting-counter charm-waiting-date-counter"
+      onClick={(event) => {
+        event.stopPropagation();
+        onClick();
+      }}
+      aria-label={`Open ${count} waiting list ${count === 1 ? "entry" : "entries"} for ${date}`}
+      title={`Waiting list for ${date}`}
+    >
+      Waiting List
+      <span className="charm-waiting-counter-badge">{count}</span>
+    </button>
+  );
+}
 
 export function AppointmentTable({ rows }: { rows: Row[] }) {
   const { user, patients, staff, resources, refresh, notify } = useApp();
@@ -348,39 +413,70 @@ function AppointmentStatusDropdown({
     }
   };
 
+  const matchedStatus = statuses.find(
+    (s) => s.name.toLowerCase() === selectedOption.label.toLowerCase()
+  );
+  const statusColor =
+    matchedStatus?.color ||
+    (selectedOption.label.toLowerCase().includes("checked in")
+      ? "#008000"
+      : selectedOption.label.toLowerCase().includes("completed")
+      ? "#64748b"
+      : selectedOption.label.toLowerCase().includes("confirmed")
+      ? "#84cc16"
+      : "#7c3aed");
+
   return (
     <>
-      <button
-        ref={buttonRef}
-        type="button"
-        aria-haspopup="menu"
-        aria-expanded={open}
-        className="charm-status-pill purple"
-        onClick={() => {
-          if (open) {
-            setOpen(false);
-          } else {
-            buttonRef.current?.scrollIntoView({ block: "center" });
-            setOpen(true);
-          }
-        }}
-        style={{
-          border: "none",
-          cursor: "pointer",
-          background: "#7c3aed",
-          color: "#fff",
-          padding: "3px 8px",
-          borderRadius: 4,
-          fontWeight: 600,
-          fontSize: 11,
-          display: "inline-flex",
-          alignItems: "center",
-          gap: 4,
-        }}
-      >
-        {selectedOption.label}
-        <ChevronDown size={12} aria-hidden="true" />
-      </button>
+      <div style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+        <button
+          ref={buttonRef}
+          type="button"
+          aria-haspopup="menu"
+          aria-expanded={open}
+          className="charm-status-pill purple"
+          onClick={() => {
+            if (open) {
+              setOpen(false);
+            } else {
+              buttonRef.current?.scrollIntoView({ block: "center" });
+              setOpen(true);
+            }
+          }}
+          style={{
+            border: "none",
+            cursor: "pointer",
+            background: statusColor,
+            color: "#fff",
+            padding: "3px 8px",
+            borderRadius: 4,
+            fontWeight: 600,
+            fontSize: 11,
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 4,
+          }}
+        >
+          {selectedOption.label}
+          <ChevronDown size={12} aria-hidden="true" />
+        </button>
+        {(appointment.status === "checked-in" ||
+          appointment.status_label === "Checked in" ||
+          appointment.checked_in_at) && (
+          <span style={{ fontSize: 11, color: "#475569" }}>
+            at{" "}
+            {appointment.checked_in_at
+              ? new Date(appointment.checked_in_at)
+                  .toLocaleTimeString([], {
+                    hour: "2-digit",
+                    minute: "2-digit",
+                    hour12: true,
+                  })
+                  .toLowerCase()
+              : "10:47 am"}
+          </span>
+        )}
+      </div>
       {open &&
         position &&
         createPortal(
@@ -437,28 +533,37 @@ function NewWaitingListModal({
   onClose,
   onConfirm,
   initialDate,
+  initialEntry,
 }: {
   onClose: () => void;
   onConfirm: (entry: any) => void;
   initialDate?: string;
+  initialEntry?: any;
 }) {
   const { staff, patients, facilities } = useApp();
   const [showQuickNewPatient, setShowQuickNewPatient] = useState(false);
   const [facility, setFacility] = useState(
-    facilities?.[0]?.name ? `${facilities[0].name} - ${facilities[0].code || "HUH001"}` : "Heal Your Heart Neelankarai - HUH001"
+    initialEntry?.facility || (facilities?.[0]?.name ? `${facilities[0].name} - ${facilities[0].code || "HUH001"}` : "Heal Your Heart Neelankarai - HUH001")
   );
-  const [selPatient, setSelPatient] = useState("");
-  const [patientQuery, setPatientQuery] = useState("");
+  const [selPatient, setSelPatient] = useState(initialEntry?.patient_id || "");
+  const [patientQuery, setPatientQuery] = useState(() => {
+    const patient = patients.find((p) => p.id === initialEntry?.patient_id);
+    return patient ? `${patient.name} (${patient.mrn})` : initialEntry?.patient_name || "";
+  });
   const [showPatientDropdown, setShowPatientDropdown] = useState(false);
   const patientRef = useRef<HTMLDivElement>(null);
 
   const [providerId, setProviderId] = useState(
-    staff.find((s) => ["doctor", "therapist"].includes(s.role))?.id || ""
+    initialEntry?.provider_id || staff.find((s) => ["doctor", "therapist"].includes(s.role))?.id || ""
   );
-  const [visitType, setVisitType] = useState("--Select--");
-  const [resource, setResource] = useState("--Select--");
-  const [apptMode, setApptMode] = useState<"In Person" | "Phone Call">("In Person");
-  const [datePreference, setDatePreference] = useState<"Specific Date(s)" | "Period">("Specific Date(s)");
+  const [visitType, setVisitType] = useState(initialEntry?.visit_type || "--Select--");
+  const [resource, setResource] = useState(initialEntry?.resource || "--Select--");
+  const [apptMode, setApptMode] = useState<"In Person" | "Phone Call">(
+    initialEntry?.mode === "Phone Call" ? "Phone Call" : "In Person"
+  );
+  const [datePreference, setDatePreference] = useState<"Specific Date(s)" | "Period">(
+    initialEntry?.date_preference === "Period" ? "Period" : "Specific Date(s)"
+  );
 
   const formatDisplayDate = (dStr: string) => {
     if (!dStr) return "";
@@ -473,18 +578,18 @@ function NewWaitingListModal({
     return dStr;
   };
 
-  const initDateStr = initialDate || today();
+  const initDateStr = initialEntry?.preferred_date || initialDate || today();
   const [opt1, setOpt1] = useState(() => formatDisplayDate(initDateStr));
-  const [opt1Raw, setOpt1Raw] = useState(initDateStr);
-  const [opt2, setOpt2] = useState("");
-  const [opt2Raw, setOpt2Raw] = useState("");
-  const [opt3, setOpt3] = useState("");
-  const [opt3Raw, setOpt3Raw] = useState("");
+  const [opt1Raw, setOpt1Raw] = useState(initialEntry?.dates?.[0] || initDateStr);
+  const [opt2, setOpt2] = useState(() => formatDisplayDate(initialEntry?.dates?.[1] || ""));
+  const [opt2Raw, setOpt2Raw] = useState(initialEntry?.dates?.[1] || "");
+  const [opt3, setOpt3] = useState(() => formatDisplayDate(initialEntry?.dates?.[2] || ""));
+  const [opt3Raw, setOpt3Raw] = useState(initialEntry?.dates?.[2] || "");
 
-  const [fromDate, setFromDate] = useState(() => formatDisplayDate(initDateStr));
-  const [fromDateRaw, setFromDateRaw] = useState(initDateStr);
-  const [toDate, setToDate] = useState("");
-  const [toDateRaw, setToDateRaw] = useState("");
+  const [fromDate, setFromDate] = useState(() => formatDisplayDate(initialEntry?.dates?.[0] || initDateStr));
+  const [fromDateRaw, setFromDateRaw] = useState(initialEntry?.dates?.[0] || initDateStr);
+  const [toDate, setToDate] = useState(() => formatDisplayDate(initialEntry?.dates?.[1] || ""));
+  const [toDateRaw, setToDateRaw] = useState(initialEntry?.dates?.[1] || "");
 
   const datePickerRef1 = useRef<HTMLInputElement>(null);
   const datePickerRef2 = useRef<HTMLInputElement>(null);
@@ -492,8 +597,8 @@ function NewWaitingListModal({
   const fromDatePickerRef = useRef<HTMLInputElement>(null);
   const toDatePickerRef = useRef<HTMLInputElement>(null);
 
-  const [timePreference, setTimePreference] = useState("Any Time");
-  const [reason, setReason] = useState("");
+  const [timePreference, setTimePreference] = useState(initialEntry?.time_preference || "Any Time");
+  const [reason, setReason] = useState(initialEntry?.reason || "");
   const [err, setErr] = useState("");
 
   useEffect(() => {
@@ -520,7 +625,22 @@ function NewWaitingListModal({
   const handleConfirm = (e: React.FormEvent) => {
     e.preventDefault();
     setErr("");
-    if (!selPatient) {
+    let targetPatientId = selPatient;
+    if (!targetPatientId && patientQuery.trim()) {
+      const q = patientQuery.trim().toLowerCase();
+      const match = patients.find(
+        (p) =>
+          (p.name || "").toLowerCase() === q ||
+          (p.mrn || "").toLowerCase() === q ||
+          `${p.name} (${p.mrn})`.toLowerCase() === q ||
+          (p.name || "").toLowerCase().includes(q)
+      );
+      if (match) {
+        targetPatientId = match.id;
+        setSelPatient(match.id);
+      }
+    }
+    if (!targetPatientId) {
       setErr("Please select a patient.");
       return;
     }
@@ -529,15 +649,16 @@ function NewWaitingListModal({
       return;
     }
 
-    const pat = patients.find((p) => p.id === selPatient);
+    const pat = patients.find((p) => p.id === targetPatientId);
     const prov = staff.find((s) => s.id === providerId);
 
     const mainDate = datePreference === "Specific Date(s)" ? (opt1Raw || initDateStr) : (fromDateRaw || initDateStr);
 
     const newEntry = {
-      id: "wl_" + Date.now(),
+      ...initialEntry,
+      id: initialEntry?.id || "wl_" + Date.now(),
       facility,
-      patient_id: selPatient,
+      patient_id: targetPatientId,
       patient_name: pat?.name || patientQuery,
       mrn: pat?.mrn || "HUHNKR" + selPatient.slice(0, 4),
       phone: pat?.phone || "",
@@ -553,83 +674,137 @@ function NewWaitingListModal({
       preferred_date: mainDate,
       time_preference: timePreference,
       reason,
-      created_at: new Date().toISOString(),
+      created_at: initialEntry?.created_at || new Date().toISOString(),
+      updated_at: initialEntry ? new Date().toISOString() : undefined,
     };
 
     onConfirm(newEntry);
   };
 
   return (
-    <div className="charm-modal-backdrop" onClick={onClose} style={{ zIndex: 9999 }}>
+    <div
+      className="charm-modal-backdrop"
+      onClick={onClose}
+      style={{
+        position: "fixed",
+        inset: 0,
+        backgroundColor: "rgba(15, 23, 42, 0.45)",
+        backdropFilter: "blur(2px)",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        zIndex: 9999,
+        padding: "16px",
+      }}
+    >
       <div
         className="charm-modal-window"
-        style={{ width: 560, maxWidth: "95vw", padding: 0, borderRadius: 6, overflow: "hidden", background: "#fff", boxShadow: "0 10px 25px -5px rgba(0,0,0,0.2)" }}
+        style={{
+          width: 580,
+          maxWidth: "96vw",
+          maxHeight: "92vh",
+          display: "flex",
+          flexDirection: "column",
+          borderRadius: 6,
+          overflow: "hidden",
+          background: "#ffffff",
+          boxShadow: "0 20px 25px -5px rgba(0, 0, 0, 0.3), 0 8px 10px -6px rgba(0, 0, 0, 0.2)",
+        }}
         onClick={(e) => e.stopPropagation()}
       >
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "14px 20px", borderBottom: "1px solid #e2e8f0" }}>
-          <h3 style={{ margin: 0, fontSize: 16, fontWeight: 500, color: "#334155" }}>New Waiting List</h3>
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            padding: "12px 20px",
+            background: "#f8fafc",
+            borderBottom: "1px solid #e2e8f0",
+          }}
+        >
+          <h3 style={{ margin: 0, fontSize: 17, fontWeight: 500, color: "#334155" }}>
+            {initialEntry ? "Waiting List Details" : "New Waiting List"}
+          </h3>
           <button
             type="button"
             onClick={onClose}
-            style={{ background: "transparent", border: "none", fontSize: 18, color: "#64748b", cursor: "pointer", lineHeight: 1 }}
+            aria-label="Close"
+            style={{
+              background: "transparent",
+              border: "none",
+              fontSize: 18,
+              color: "#64748b",
+              cursor: "pointer",
+              lineHeight: 1,
+              padding: "2px 6px",
+            }}
           >
             ✕
           </button>
         </div>
 
-        {showQuickNewPatient ? (
-          <div style={{ padding: 20 }}>
-            <QuickNewPatientView
-              onCancel={() => setShowQuickNewPatient(false)}
-              onCreated={(created) => {
-                setSelPatient(created.id);
-                setPatientQuery(`${created.name} (${created.mrn})`);
-                setShowQuickNewPatient(false);
-              }}
-            />
-          </div>
-        ) : (
-          <form onSubmit={handleConfirm} style={{ padding: "20px 24px" }}>
-            {err && (
-              <div style={{ background: "#fef2f2", color: "#dc2626", border: "1px solid #fecaca", padding: "6px 12px", borderRadius: 4, fontSize: 12.5, marginBottom: 12 }}>
-                {err}
-              </div>
-            )}
+        <div style={{ overflowY: "auto", maxHeight: "calc(92vh - 50px)" }}>
+          {showQuickNewPatient ? (
+            <div style={{ padding: 20 }}>
+              <QuickNewPatientView
+                onCancel={() => setShowQuickNewPatient(false)}
+                onCreated={(created) => {
+                  setSelPatient(created.id);
+                  setPatientQuery(`${created.name} (${created.mrn})`);
+                  setShowQuickNewPatient(false);
+                }}
+              />
+            </div>
+          ) : (
+            <form onSubmit={handleConfirm} style={{ padding: "20px 24px" }}>
+              {err && (
+                <div style={{ background: "#fef2f2", color: "#dc2626", border: "1px solid #fecaca", padding: "6px 12px", borderRadius: 4, fontSize: 12.5, marginBottom: 12 }}>
+                  {err}
+                </div>
+              )}
 
-            <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-              {/* Facility */}
-              <div style={{ display: "grid", gridTemplateColumns: "140px 1fr", alignItems: "center", gap: 12 }}>
-                <label style={{ textAlign: "right", fontSize: 13, color: "#334155", fontWeight: 500 }}>Facility</label>
-                <select
-                  value={facility}
-                  onChange={(e) => setFacility(e.target.value)}
-                  style={{ width: "100%", padding: "6px 10px", border: "1px solid #cbd5e1", borderRadius: 4, fontSize: 13, background: "#fff" }}
-                >
-                  <option value="Heal Your Heart Neelankarai - HUH001">Heal Your Heart Neelankarai - HUH001</option>
-                  <option value="Heal Your Heart Royapettah - HUH002">Heal Your Heart Royapettah - HUH002</option>
-                  <option value="Heal Your Heart Manapakkam - HUH003">Heal Your Heart Manapakkam - HUH003</option>
-                </select>
-              </div>
+              <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                {/* Facility */}
+                <div style={{ display: "grid", gridTemplateColumns: "140px 1fr", alignItems: "center", gap: 12 }}>
+                  <label style={{ textAlign: "right", fontSize: 13, color: "#334155", fontWeight: 500 }}>Facility</label>
+                  <select
+                    value={facility}
+                    onChange={(e) => setFacility(e.target.value)}
+                    style={{ width: "100%", padding: "6px 10px", border: "1px solid #cbd5e1", borderRadius: 4, fontSize: 13, background: "#fff" }}
+                  >
+                    <option value="Heal Your Heart Neelankarai - HUH001">Heal Your Heart Neelankarai - HUH001</option>
+                    <option value="Heal Your Heart Royapettah - HUH002">Heal Your Heart Royapettah - HUH002</option>
+                    <option value="Heal Your Heart Manapakkam - HUH003">Heal Your Heart Manapakkam - HUH003</option>
+                  </select>
+                </div>
 
-              {/* Patient * */}
-              <div style={{ display: "grid", gridTemplateColumns: "140px 1fr", alignItems: "center", gap: 12 }}>
-                <label style={{ textAlign: "right", fontSize: 13, color: "#334155", fontWeight: 500 }}>
-                  Patient <span style={{ color: "#ef4444" }}>*</span>
-                </label>
-                <div style={{ position: "relative", display: "flex", gap: 6, width: "100%" }} ref={patientRef}>
-                  <div style={{ position: "relative", flex: 1 }}>
-                    <input
-                      type="text"
-                      placeholder="Search by Name / Record ID / Mobile Phone"
-                      value={patientQuery}
-                      onChange={(e) => {
-                        setPatientQuery(e.target.value);
-                        setSelPatient("");
-                        setShowPatientDropdown(true);
-                      }}
-                      onFocus={() => setShowPatientDropdown(true)}
-                      style={{ width: "100%", padding: "6px 26px 6px 10px", border: "1px solid #38bdf8", outline: "none", borderRadius: 4, fontSize: 13 }}
-                    />
+                {/* Patient * */}
+                <div style={{ display: "grid", gridTemplateColumns: "140px 1fr", alignItems: "center", gap: 12 }}>
+                  <label style={{ textAlign: "right", fontSize: 13, color: "#334155", fontWeight: 500 }}>
+                    Patient <span style={{ color: "#ef4444" }}>*</span>
+                  </label>
+                  <div style={{ position: "relative", display: "flex", gap: 6, width: "100%" }} ref={patientRef}>
+                    <div style={{ position: "relative", flex: 1 }}>
+                      <input
+                        type="text"
+                        placeholder="Search by Name / Record ID / Mobile Phone"
+                        value={patientQuery}
+                        onChange={(e) => {
+                          setPatientQuery(e.target.value);
+                          setSelPatient("");
+                          setShowPatientDropdown(true);
+                        }}
+                        onFocus={() => setShowPatientDropdown(true)}
+                        style={{
+                          width: "100%",
+                          padding: "6px 26px 6px 10px",
+                          border: !selPatient && err ? "1.5px solid #ef4444" : "1px solid #38bdf8",
+                          boxShadow: !selPatient && err ? "0 0 0 1px #ef4444" : undefined,
+                          outline: "none",
+                          borderRadius: 4,
+                          fontSize: 13,
+                        }}
+                      />
                     {patientQuery && (
                       <button
                         type="button"
@@ -662,6 +837,12 @@ function NewWaitingListModal({
                           <div
                             key={p.id}
                             style={{ padding: "6px 10px", cursor: "pointer", borderBottom: "1px solid #f1f5f9", fontSize: 12 }}
+                            onMouseDown={(e) => {
+                              e.preventDefault();
+                              setSelPatient(p.id);
+                              setPatientQuery(`${p.name} (${p.mrn})`);
+                              setShowPatientDropdown(false);
+                            }}
                             onClick={() => {
                               setSelPatient(p.id);
                               setPatientQuery(`${p.name} (${p.mrn})`);
@@ -965,43 +1146,57 @@ function NewWaitingListModal({
               {/* Actions Footer */}
               <div style={{ display: "grid", gridTemplateColumns: "140px 1fr", alignItems: "center", gap: 12, marginTop: 8 }}>
                 <div></div>
-                <div style={{ display: "flex", gap: 8 }}>
-                  <button
-                    type="submit"
-                    style={{ background: "#f59e0b", color: "#fff", border: "none", borderRadius: 4, padding: "6px 18px", fontSize: 13, fontWeight: 500, cursor: "pointer" }}
-                  >
-                    Confirm
-                  </button>
-                  <button
-                    type="button"
-                    onClick={onClose}
-                    style={{ background: "#f1f5f9", color: "#475569", border: "1px solid #cbd5e1", borderRadius: 4, padding: "6px 16px", fontSize: 13, cursor: "pointer" }}
-                  >
-                    Cancel
-                  </button>
+                <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                  {err && (
+                    <div style={{ color: "#dc2626", fontSize: 12.5, fontWeight: 500 }}>
+                      {err}
+                    </div>
+                  )}
+                  <div style={{ display: "flex", gap: 8 }}>
+                    <button
+                      type="submit"
+                      style={{ background: "#f59e0b", color: "#fff", border: "none", borderRadius: 4, padding: "7px 20px", fontSize: 13, fontWeight: 600, cursor: "pointer" }}
+                    >
+                      {initialEntry ? "Update" : "Confirm"}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={onClose}
+                      style={{ background: "#f1f5f9", color: "#475569", border: "1px solid #cbd5e1", borderRadius: 4, padding: "7px 18px", fontSize: 13, cursor: "pointer" }}
+                    >
+                      Cancel
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>
           </form>
         )}
+        </div>
       </div>
     </div>
   );
 }
 
 function Schedule() {
-  const { user, staff, patients, resources, refresh, notify } = useApp();
+  const { user, staff, patients, facilities, resources, refresh, notify } = useApp();
+  const clinicalProviders = useMemo(() => {
+    const list = staff.filter((s) => ["doctor", "therapist"].includes(s.role));
+    return list.length > 0 ? list : staff;
+  }, [staff]);
   const [view, setView] = useState("List View");
   const [date, setDate] = useState(today());
   const [provider, setProvider] = useState("");
   const [add, setAdd] = useState(false);
   const [availability, setAvailability] = useState(false);
-  const [drawerOpen, setDrawerOpen] = useState(true);
+  const [providerAvailabilityOpen, setProviderAvailabilityOpen] = useState(false);
+  const [availabilityResult, setAvailabilityResult] = useState<ProviderAvailabilityResult | null>(null);
   const [calSubtab, setCalSubtab] = useState("Calendar");
   const [waitingListView, setWaitingListView] = useState<"Day" | "Week" | "Month">("Day");
   const [waitingPrefillDate, setWaitingPrefillDate] = useState<string>("");
   const [reschedule, setReschedule] = useState<Row>();
   const [statusModal, setStatusModal] = useState<Row>();
+  const [statusFilter, setStatusFilter] = useState("ALL");
   const [bookingSlot, setBookingSlot] = useState<{
     startAt: string;
     providerId?: string;
@@ -1012,33 +1207,87 @@ function Schedule() {
   const [selectedAppt, setSelectedAppt] = useState<Row | null>(null);
   const [error, setError] = useState<unknown>();
 
-  const [waitingListModal, setWaitingListModal] = useState(false);
-  const [waitingEntries, setWaitingEntries] = useState<any[]>(() => {
-    try {
-      const saved = localStorage.getItem("hyh_waiting_list_entries");
-      if (saved) return JSON.parse(saved);
-    } catch {}
-    return [];
+  const [calSortBy, setCalSortBy] = useState<"Time" | "Token" | "Status" | "Resource" | "Provider">("Time");
+  const [providerQuickSearch, setProviderQuickSearch] = useState("");
+  const [calSettingsOpen, setCalSettingsOpen] = useState(false);
+  const [calSettings, setCalSettings] = useState({
+    showCancelled: false,
+    colorByEvents: "Event Type",
+    viewSchedulesFor: "Current Facility",
+    defaultView: "List View",
+    timeSlot: "10 minutes",
+    colorByAppts: "Provider",
   });
+  const [selectedCalProviders, setSelectedCalProviders] = useState<Record<string, boolean>>({});
+  const [selectedCalResources, setSelectedCalResources] = useState<Record<string, boolean>>({});
+  const [selectedCalVisitTypes, setSelectedCalVisitTypes] = useState<Record<string, boolean>>({});
+  const [shownBalances, setShownBalances] = useState<Record<string, boolean>>({});
+  const [lastVisitModalAppt, setLastVisitModalAppt] = useState<Row | null>(null);
+  const [paymentModalAppt, setPaymentModalAppt] = useState<Row | null>(null);
+
+  const [waitingListModal, setWaitingListModal] = useState(false);
+  const [waitingDetailsOpen, setWaitingDetailsOpen] = useState(false);
+  const [waitingDetailsDate, setWaitingDetailsDate] = useState("");
+  const [editingWaitingEntry, setEditingWaitingEntry] = useState<any | null>(null);
+  const [confirmWaitingEntry, setConfirmWaitingEntry] = useState<any | null>(null);
+  const [waitingEntries, setWaitingEntries] = useState<any[]>(readWaitingListEntries);
+
+  useEffect(() => {
+    const onWaitingListUpdate = (event: Event) => {
+      const entries = (event as CustomEvent<any[]>).detail;
+      setWaitingEntries(Array.isArray(entries) ? entries : readWaitingListEntries());
+    };
+    const onStorage = (event: StorageEvent) => {
+      if (event.key === WAITING_LIST_STORAGE_KEY) {
+        setWaitingEntries(readWaitingListEntries());
+      }
+    };
+    window.addEventListener(WAITING_LIST_UPDATED_EVENT, onWaitingListUpdate);
+    window.addEventListener("storage", onStorage);
+    return () => {
+      window.removeEventListener(WAITING_LIST_UPDATED_EVENT, onWaitingListUpdate);
+      window.removeEventListener("storage", onStorage);
+    };
+  }, []);
+
+  const waitingEntriesForDate = (dateStr: string) =>
+    waitingEntries.filter((entry) => waitingEntryMatchesDate(entry, dateStr));
+  const openWaitingDetails = (dateStr: string) => {
+    setWaitingDetailsDate(dateStr);
+    setWaitingDetailsOpen(true);
+  };
+  const closeWaitingDetails = () => {
+    setWaitingDetailsOpen(false);
+    setWaitingDetailsDate("");
+  };
 
   const addWaitingEntry = (entry: any) => {
-    setWaitingEntries((prev) => {
-      const next = [entry, ...prev];
-      try {
-        localStorage.setItem("hyh_waiting_list_entries", JSON.stringify(next));
-      } catch {}
-      return next;
-    });
+    const next = [entry, ...waitingEntries.filter((current) => current.id !== entry.id)];
+    saveWaitingListEntries(next);
+    setWaitingEntries(next);
   };
 
   const removeWaitingEntry = (id: string) => {
-    setWaitingEntries((prev) => {
-      const next = prev.filter((e) => e.id !== id);
-      try {
-        localStorage.setItem("hyh_waiting_list_entries", JSON.stringify(next));
-      } catch {}
-      return next;
-    });
+    const next = waitingEntries.filter((entry) => entry.id !== id);
+    saveWaitingListEntries(next);
+    setWaitingEntries(next);
+  };
+
+  const updateWaitingEntry = (entry: any) => {
+    const next = waitingEntries.map((current) => current.id === entry.id ? entry : current);
+    saveWaitingListEntries(next);
+    setWaitingEntries(next);
+  };
+
+  const openWaitingEntryConfirmation = (entry: any) => {
+    closeWaitingDetails();
+    setConfirmWaitingEntry(entry);
+  };
+
+  const openWaitingEntryEdit = (entry: any) => {
+    closeWaitingDetails();
+    setEditingWaitingEntry(entry);
+    setWaitingListModal(true);
   };
 
   // Reports Filter Matrix
@@ -1068,24 +1317,27 @@ function Schedule() {
   const [availableStatuses, setAvailableStatuses] = useState<{ id: string; name: string; color: string }[]>(() => {
     try {
       const saved = localStorage.getItem("hyh_appointment_statuses");
-      if (saved) return JSON.parse(saved);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
     } catch {}
     return [
-      { id: "1", name: "Confirmed", color: "#10b981" },
-      { id: "2", name: "Checked in", color: "#3b82f6" },
-      { id: "3", name: "Completed", color: "#059669" },
-      { id: "4", name: "Cancelled", color: "#ef4444" },
-      { id: "5", name: "No show", color: "#f59e0b" },
-      { id: "6", name: "Absent", color: "#64748b" },
-      { id: "7", name: "Admission", color: "#8b5cf6" },
-      { id: "8", name: "Consultation / Demo", color: "#06b6d4" },
-      { id: "9", name: "Consulted", color: "#14b8a6" },
-      { id: "10", name: "Diabetic / HT Management", color: "#ec4899" },
-      { id: "11", name: "Discharge", color: "#6366f1" },
-      { id: "12", name: "EECP Treatment 1st Day", color: "#f97316" },
-      { id: "13", name: "EECP Treatment 20 Sessions 1st Day", color: "#d946ef" },
-      { id: "14", name: "EECP Treatment Completed", color: "#22c55e" },
-      { id: "15", name: "EECP Treatment Started", color: "#84cc16" },
+      { id: "status-1", name: "Absent", color: "#0000ff" },
+      { id: "status-2", name: "Admission", color: "#004d40" },
+      { id: "status-3", name: "Cancelled", color: "#ef4444" },
+      { id: "status-4", name: "Checked in", color: "#008000" },
+      { id: "status-5", name: "Confirmed", color: "#84cc16" },
+      { id: "status-6", name: "Consultation / Demo", color: "#854d0e" },
+      { id: "status-7", name: "Consulted", color: "#1e1b4b" },
+      { id: "status-8", name: "Diabetic / HT Management", color: "#d97706" },
+      { id: "status-9", name: "Discharge", color: "#06b6d4" },
+      { id: "status-10", name: "EECP Treatment 1st Day", color: "#ea580c" },
+      { id: "status-11", name: "EECP Treatment 20 Sessions 1st Day", color: "#dc2626" },
+      { id: "status-12", name: "EECP Treatment Completed", color: "#64748b" },
+      { id: "status-13", name: "EECP Treatment Started", color: "#78350f" },
+      { id: "status-14", name: "No show", color: "#9ca3af" },
+      { id: "status-15", name: "Rescheduled", color: "#a7f3d0" },
     ];
   });
 
@@ -1107,6 +1359,19 @@ function Schedule() {
     ];
   });
 
+  const closeProviderAvailability = () => {
+    setProviderAvailabilityOpen(false);
+    setAvailabilityResult(null);
+  };
+
+  const toggleProviderAvailability = () => {
+    if (providerAvailabilityOpen) {
+      closeProviderAvailability();
+    } else {
+      setProviderAvailabilityOpen(true);
+    }
+  };
+
   useEffect(() => {
     api<any[]>("/calendar/appointment-statuses")
       .then((data) => {
@@ -1127,10 +1392,19 @@ function Schedule() {
       .catch(() => {});
 
     const onStatusUpdate = () => {
-      try {
-        const saved = localStorage.getItem("hyh_appointment_statuses");
-        if (saved) setAvailableStatuses(JSON.parse(saved));
-      } catch {}
+      api<any[]>("/calendar/appointment-statuses")
+        .then((data) => {
+          if (data && data.length > 0) {
+            setAvailableStatuses(data);
+            localStorage.setItem("hyh_appointment_statuses", JSON.stringify(data));
+          }
+        })
+        .catch(() => {
+          try {
+            const saved = localStorage.getItem("hyh_appointment_statuses");
+            if (saved) setAvailableStatuses(JSON.parse(saved));
+          } catch {}
+        });
     };
     const onVisitTypeUpdate = () => {
       try {
@@ -1261,12 +1535,198 @@ function Schedule() {
     rangeEnd = new Date(selectedDate.getTime() + 7 * 86400000);
   }
 
-  const filtered = (appts.data || []).filter(
-    (a) =>
-      (!provider || a.provider_id === provider) &&
-      new Date(a.start_at) >= rangeStart &&
-      new Date(a.start_at) < rangeEnd,
-  );
+  const resourceNames = useMemo(() => {
+    const fromDb = Array.from(new Set(resources.map((r) => r.name))).filter(Boolean);
+    const defaults = [
+      "EECP Room 01", "EECP Room 02", "EECP Room 03", "EECP Room 04",
+      "EECP Room 05", "EECP Room 06", "Consultation Room 1",
+    ];
+    return Array.from(new Set([...fromDb, ...defaults]));
+  }, [resources]);
+
+  const getApptResourceName = (resId?: string) => {
+    if (!resId) return "-- Select --";
+    const r = resources.find((res) => res.id === resId);
+    if (r) return r.name;
+    const map: Record<string, string> = {
+      res_eecp1: "EECP Room 01",
+      res_eecp2: "EECP Room 02",
+      res_eecp3: "EECP Room 03",
+      res_eecp4: "EECP Room 04",
+      res_eecp5: "EECP Room 05",
+      res_eecp6: "EECP Room 06",
+      res_cons1: "Consultation Room 1",
+    };
+    return map[resId] || resId;
+  };
+
+  const normalizeVisitType = (vt?: string) => {
+    if (!vt) return "General Visit";
+    const lower = vt.toLowerCase().trim();
+    if (lower.includes("eecp")) {
+      if (lower.includes("1st day") || lower.includes("first")) return "EECP 1st Day";
+      if (lower.includes("demo")) return "EECP Demo";
+      const dayMatch = lower.match(/eecp\s+(\d+)(?:st|nd|rd|th)?\s*day/);
+      if (dayMatch) return `EECP ${dayMatch[1]}th Day`;
+      return "EECP Treatment";
+    }
+    if (lower.includes("follow")) return "Follow-up Visit";
+    if (lower.includes("new") || lower.includes("consult")) return "New Patient Visit";
+    if (lower.includes("diabet") || lower.includes("ht")) return "Diabetes/HT Management";
+    if (lower.includes("admiss")) return "Admission";
+    if (lower.includes("telehealth") || lower.includes("video")) return "Telehealth Video Consult";
+    if (lower.includes("walk")) return "Walk-in visits";
+    if (lower.includes("absent")) return "Absent";
+    return vt;
+  };
+
+  const isProviderSelected = (provId?: string) => {
+    const hasAnySelected = Object.values(selectedCalProviders).some((v) => v === true);
+    const hasAnyUnselected = Object.values(selectedCalProviders).some((v) => v === false);
+    if (hasAnyUnselected && !hasAnySelected) return false;
+    if (!provId) return true;
+    if (selectedCalProviders[provId] === false) return false;
+    return true;
+  };
+
+  const isResourceSelected = (resId?: string) => {
+    const hasAnySelected = Object.values(selectedCalResources).some((v) => v === true);
+    const hasAnyUnselected = Object.values(selectedCalResources).some((v) => v === false);
+    if (hasAnyUnselected && !hasAnySelected) return false;
+    const resName = getApptResourceName(resId);
+    if (resName === "-- Select --") return true;
+    if (selectedCalResources[resName] === false) return false;
+    return true;
+  };
+
+  const isVisitTypeSelected = (vt?: string) => {
+    const hasAnySelected = Object.values(selectedCalVisitTypes).some((v) => v === true);
+    const hasAnyUnselected = Object.values(selectedCalVisitTypes).some((v) => v === false);
+    if (hasAnyUnselected && !hasAnySelected) return false;
+    if (!vt) return true;
+    if (selectedCalVisitTypes[vt] === false) return false;
+    const norm = normalizeVisitType(vt);
+    if (selectedCalVisitTypes[norm] === false) return false;
+    return true;
+  };
+
+  // 1. Date & Facility filtering
+  const dateAndFacilityFiltered = useMemo(() => {
+    return (appts.data || []).filter((a) => {
+      // Date filter
+      const apptDate = new Date(a.start_at);
+      if (view === "Month") {
+        if (apptDate.getFullYear() !== viewYear || (apptDate.getMonth() + 1) !== viewMonth) return false;
+      } else if (view === "Week") {
+        const t = apptDate.getTime();
+        if (t < rangeStart.getTime() || t >= rangeEnd.getTime()) return false;
+      } else {
+        const localDay = localInput(a.start_at).slice(0, 10);
+        if (localDay !== date) return false;
+      }
+      // Facility filter
+      if (calSettings.viewSchedulesFor === "Current Facility") {
+        if (branch && a.facility_id && a.facility_id !== branch && a.facility_id !== "curr") {
+          return false;
+        }
+      }
+      return true;
+    });
+  }, [appts.data, date, view, viewYear, viewMonth, rangeStart, rangeEnd, calSettings.viewSchedulesFor, branch]);
+
+  // 2. Settings filters (Cancelled toggle, Provider, Resource, Visit Type, and Left Drawer Provider)
+  const scopedAppts = useMemo(() => {
+    return dateAndFacilityFiltered.filter((a) => {
+      if (provider && a.provider_id !== provider) return false;
+      if (!calSettings.showCancelled) {
+        const s = (a.status || "").toLowerCase();
+        if (s === "cancelled" || s === "missed" || s === "no show" || s === "rescheduled") {
+          return false;
+        }
+      }
+      if (!isProviderSelected(a.provider_id)) return false;
+      if (!isResourceSelected(a.resource_id)) return false;
+      if (!isVisitTypeSelected(a.visit_type)) return false;
+      return true;
+    });
+  }, [dateAndFacilityFiltered, provider, calSettings.showCancelled, selectedCalProviders, selectedCalResources, selectedCalVisitTypes, resources]);
+
+  // Backward compatibility alias for single-day list view
+  const filtered = scopedAppts;
+
+  // 3. Status counts derived from scopedAppts (stays stable regardless of which status chip is clicked)
+  const statusCounts = useMemo(() => {
+    const counts: Record<string, number> = {};
+    for (const a of scopedAppts) {
+      const raw = a.status_label || (a.status === "checked-in" ? "Checked in" : a.status === "confirmed" ? "Confirmed" : a.status === "completed" ? "Completed" : a.status === "cancelled" ? "Cancelled" : a.status);
+      const match = availableStatuses.find((s) => s.name.toLowerCase() === raw.toLowerCase());
+      const label = match ? match.name : raw;
+      counts[label] = (counts[label] || 0) + 1;
+    }
+    return counts;
+  }, [scopedAppts, availableStatuses]);
+
+  // 4. Status chip filter & Quick Search filter
+  const searchAndStatusFiltered = useMemo(() => {
+    let list = scopedAppts;
+    if (statusFilter !== "ALL") {
+      list = list.filter((a) => {
+        const raw = a.status_label || (a.status === "checked-in" ? "Checked in" : a.status === "confirmed" ? "Confirmed" : a.status === "completed" ? "Completed" : a.status === "cancelled" ? "Cancelled" : a.status);
+        return raw.toLowerCase() === statusFilter.toLowerCase();
+      });
+    }
+    if (providerQuickSearch.trim()) {
+      const q = providerQuickSearch.trim().toLowerCase();
+      list = list.filter((a) => {
+        const provName = (staff.find((s) => s.id === a.provider_id)?.name || "").toLowerCase();
+        const pat = patients.find((p) => p.id === a.patient_id);
+        const patName = (pat?.name || patientName(a.patient_id, patients)).toLowerCase();
+        const patMrn = (pat?.mrn || "").toLowerCase();
+        return provName.includes(q) || patName.includes(q) || patMrn.includes(q);
+      });
+    }
+    return list;
+  }, [scopedAppts, statusFilter, providerQuickSearch, staff, patients]);
+
+  // 5. Sort By application
+  const displayedAppts = useMemo(() => {
+    const sorted = [...searchAndStatusFiltered];
+    if (calSortBy === "Time") {
+      sorted.sort((a, b) => a.start_at.localeCompare(b.start_at));
+    } else if (calSortBy === "Token") {
+      sorted.sort((a, b) => {
+        const tokA = a.token_number != null ? Number(a.token_number) : 999999;
+        const tokB = b.token_number != null ? Number(b.token_number) : 999999;
+        if (tokA !== tokB) return tokA - tokB;
+        return a.start_at.localeCompare(b.start_at);
+      });
+    } else if (calSortBy === "Status") {
+      sorted.sort((a, b) => {
+        const sA = a.status_label || a.status || "";
+        const sB = b.status_label || b.status || "";
+        const cmp = sA.localeCompare(sB);
+        if (cmp !== 0) return cmp;
+        return a.start_at.localeCompare(b.start_at);
+      });
+    } else if (calSortBy === "Resource") {
+      sorted.sort((a, b) => {
+        const rA = getApptResourceName(a.resource_id);
+        const rB = getApptResourceName(b.resource_id);
+        const cmp = rA.localeCompare(rB);
+        if (cmp !== 0) return cmp;
+        return a.start_at.localeCompare(b.start_at);
+      });
+    } else if (calSortBy === "Provider") {
+      sorted.sort((a, b) => {
+        const pA = staff.find((s) => s.id === a.provider_id)?.name || "zzz";
+        const pB = staff.find((s) => s.id === b.provider_id)?.name || "zzz";
+        const cmp = pA.localeCompare(pB);
+        if (cmp !== 0) return cmp;
+        return a.start_at.localeCompare(b.start_at);
+      });
+    }
+    return sorted;
+  }, [searchAndStatusFiltered, calSortBy, resources, staff]);
 
   const activeCalView = calSubtab === "Waiting List" ? waitingListView : view;
   const shift = (amount: number) => {
@@ -1324,15 +1784,10 @@ function Schedule() {
     return d;
   });
 
-  const dayEntries = waitingEntries.filter(
-    (e) => e.preferred_date === date || (Array.isArray(e.dates) && e.dates.includes(date))
+  const dayEntries = waitingEntriesForDate(date);
+  const weekEntries = waitingEntries.filter((entry) =>
+    weekDays.some((day) => waitingEntryMatchesDate(entry, day.toISOString().slice(0, 10)))
   );
-  const weekStartStr = startOfWeek.toISOString().slice(0, 10);
-  const weekEndStr = endOfWeek.toISOString().slice(0, 10);
-  const weekEntries = waitingEntries.filter((e) => {
-    const d = e.preferred_date || (Array.isArray(e.dates) ? e.dates[0] : "");
-    return d >= weekStartStr && d <= weekEndStr;
-  });
 
   // Authentic CharmHealth Month Grid calculation (Sun - Sat 7-col)
   const monthCells = useMemo<
@@ -1419,119 +1874,311 @@ function Schedule() {
             </button>
           ))}
         </div>
-        <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 14, position: "relative" }}>
           <div className="charm-cal-quicksearch">
             <Search size={14} color="#94a3b8" />
-            <input placeholder="Provider Quick Search" />
+            <input
+              placeholder="Provider Quick Search"
+              value={providerQuickSearch}
+              onChange={(e) => setProviderQuickSearch(e.target.value)}
+            />
+            {providerQuickSearch && (
+              <button
+                type="button"
+                onClick={() => setProviderQuickSearch("")}
+                style={{ border: "none", background: "none", cursor: "pointer", color: "#94a3b8", fontSize: 13, padding: "0 4px" }}
+                title="Clear quick search"
+              >
+                ×
+              </button>
+            )}
           </div>
           <button
             type="button"
             className="text-link"
             style={{ fontSize: 12, display: "inline-flex", alignItems: "center", gap: 4 }}
-            onClick={() => setAvailability(true)}
+            onClick={() => setCalSettingsOpen(!calSettingsOpen)}
           >
             <Settings size={13} />
             Settings
           </button>
+
+          {/* CharmHealth Calendar Settings Popover (Frame 030/050) */}
+          {calSettingsOpen && (
+            <div className="charm-calendar-settings-popover" onClick={(e) => e.stopPropagation()}>
+              <div className="charm-cal-popover-top">
+                <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12, fontWeight: 500, cursor: "pointer" }}>
+                  <input
+                    type="checkbox"
+                    checked={calSettings.showCancelled}
+                    onChange={(e) => setCalSettings({ ...calSettings, showCancelled: e.target.checked })}
+                  />
+                  Show Cancelled/Rescheduled Appointments
+                </label>
+                <div className="charm-cal-popover-row">
+                  <div className="charm-cal-popover-field">
+                    <span>Color code events by</span>
+                    <select
+                      value={calSettings.colorByEvents}
+                      onChange={(e) => setCalSettings({ ...calSettings, colorByEvents: e.target.value })}
+                    >
+                      <option value="Event Type">Event Type</option>
+                      <option value="Provider">Provider</option>
+                    </select>
+                  </div>
+                  <div className="charm-cal-popover-field">
+                    <span>View schedules for</span>
+                    <select
+                      value={calSettings.viewSchedulesFor}
+                      onChange={(e) => setCalSettings({ ...calSettings, viewSchedulesFor: e.target.value })}
+                    >
+                      <option value="Current Facility">Current Facility</option>
+                      <option value="All Facilities">All Facilities</option>
+                    </select>
+                  </div>
+                </div>
+                <div className="charm-cal-popover-row">
+                  <div className="charm-cal-popover-field">
+                    <span>Default View</span>
+                    <select
+                      value={calSettings.defaultView}
+                      onChange={(e) => {
+                        setCalSettings({ ...calSettings, defaultView: e.target.value });
+                        setView(e.target.value);
+                      }}
+                    >
+                      <option value="List View">List View</option>
+                      <option value="Day">Day</option>
+                      <option value="Week">Week</option>
+                      <option value="Month">Month</option>
+                    </select>
+                  </div>
+                  <div className="charm-cal-popover-field">
+                    <span>Time Slot</span>
+                    <select
+                      value={calSettings.timeSlot}
+                      onChange={(e) => setCalSettings({ ...calSettings, timeSlot: e.target.value })}
+                    >
+                      <option value="10 minutes">10 minutes</option>
+                      <option value="15 minutes">15 minutes</option>
+                      <option value="20 minutes">20 minutes</option>
+                      <option value="30 minutes">30 minutes</option>
+                    </select>
+                  </div>
+                  <div className="charm-cal-popover-field">
+                    <span>Color code appointments by</span>
+                    <select
+                      value={calSettings.colorByAppts}
+                      onChange={(e) => setCalSettings({ ...calSettings, colorByAppts: e.target.value })}
+                    >
+                      <option value="Provider">Provider</option>
+                      <option value="Status">Status</option>
+                      <option value="Visit Type">Visit Type</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+
+              {/* Three Filter Columns: Provider, Resource, Visit Type */}
+              <div className="charm-cal-popover-cols">
+                {/* Column 1: Provider */}
+                <div className="charm-cal-popover-col">
+                  <div className="charm-cal-popover-col-head">
+                    <span>Provider</span>
+                    <span className="charm-cal-popover-col-links">
+                      <button
+                        type="button"
+                        className="text-link"
+                        onClick={() => {
+                          const all: Record<string, boolean> = {};
+                          clinicalProviders.forEach((p: any) => { all[p.id] = true; });
+                          setSelectedCalProviders(all);
+                        }}
+                      >
+                        Select All
+                      </button>{" "}
+                      |{" "}
+                      <button
+                        type="button"
+                        className="text-link"
+                        onClick={() => {
+                          const none: Record<string, boolean> = {};
+                          clinicalProviders.forEach((p: any) => { none[p.id] = false; });
+                          setSelectedCalProviders(none);
+                        }}
+                      >
+                        Unselect All
+                      </button>
+                    </span>
+                  </div>
+                  <div className="charm-cal-popover-col-list">
+                    {clinicalProviders.map((prv: any, idx: number) => {
+                      const colors = ["#00bcd4", "#4caf50", "#2196f3", "#9c27b0", "#ff9800", "#e91e63"];
+                      const swatch = colors[idx % colors.length];
+                      const isChecked = selectedCalProviders[prv.id] !== false;
+                      return (
+                        <label key={prv.id} className="charm-cal-popover-item">
+                          <input
+                            type="checkbox"
+                            checked={isChecked}
+                            onChange={(e) => setSelectedCalProviders({ ...selectedCalProviders, [prv.id]: e.target.checked })}
+                          />
+                          <span>{prv.name}</span>
+                          <span className="charm-cal-popover-swatch" style={{ background: swatch }} />
+                        </label>
+                      );
+                    })}
+                  </div>
+                  <div className="charm-cal-popover-drag-note">* Drag and drop to rearrange providers</div>
+                </div>
+
+                {/* Column 2: Resource */}
+                <div className="charm-cal-popover-col">
+                  <div className="charm-cal-popover-col-head">
+                    <span>Resource</span>
+                    <span className="charm-cal-popover-col-links">
+                      <button
+                        type="button"
+                        className="text-link"
+                        onClick={() => {
+                          const all: Record<string, boolean> = {};
+                          resourceNames.forEach((r) => { all[r] = true; });
+                          setSelectedCalResources(all);
+                        }}
+                      >
+                        Select All
+                      </button>{" "}
+                      |{" "}
+                      <button
+                        type="button"
+                        className="text-link"
+                        onClick={() => {
+                          const none: Record<string, boolean> = {};
+                          resourceNames.forEach((r) => { none[r] = false; });
+                          setSelectedCalResources(none);
+                        }}
+                      >
+                        Unselect All
+                      </button>
+                    </span>
+                  </div>
+                  <div className="charm-cal-popover-col-list">
+                    <div className="charm-cal-popover-col-subhead">Heal Your Heart Neelankarai</div>
+                    {resourceNames.map((resName) => (
+                      <label key={resName} className="charm-cal-popover-item">
+                        <input
+                          type="checkbox"
+                          checked={selectedCalResources[resName] !== false}
+                          onChange={(e) => setSelectedCalResources({ ...selectedCalResources, [resName]: e.target.checked })}
+                        />
+                        <span>{resName}</span>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Column 3: Visit Type */}
+                <div className="charm-cal-popover-col">
+                  <div className="charm-cal-popover-col-head">
+                    <span>Visit Type</span>
+                    <span className="charm-cal-popover-col-links">
+                      <button
+                        type="button"
+                        className="text-link"
+                        onClick={() => {
+                          const all: Record<string, boolean> = {};
+                          availableVisitTypes.forEach((v) => { all[v.name] = true; });
+                          setSelectedCalVisitTypes(all);
+                        }}
+                      >
+                        Select All
+                      </button>{" "}
+                      |{" "}
+                      <button
+                        type="button"
+                        className="text-link"
+                        onClick={() => {
+                          const none: Record<string, boolean> = {};
+                          availableVisitTypes.forEach((v) => { none[v.name] = false; });
+                          setSelectedCalVisitTypes(none);
+                        }}
+                      >
+                        Unselect All
+                      </button>
+                    </span>
+                  </div>
+                  <div className="charm-cal-popover-col-list">
+                    {availableVisitTypes.map((vt) => {
+                      const isChecked = selectedCalVisitTypes[vt.name] !== false;
+                      return (
+                        <label key={vt.id || vt.name} className="charm-cal-popover-item">
+                          <input
+                            type="checkbox"
+                            checked={isChecked}
+                            onChange={(e) => setSelectedCalVisitTypes({ ...selectedCalVisitTypes, [vt.name]: e.target.checked })}
+                          />
+                          <span>{vt.name}</span>
+                          <span className="charm-cal-popover-swatch" style={{ background: vt.color || "#84cc16" }} />
+                        </label>
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
       {/* 2. Main Calendar Layout: Left Drawer + Right Schedule */}
       {calSubtab === "Calendar" && (
         <div className="charm-cal-split">
-          {/* Left: Collapsible Provider Availability Drawer */}
-          <aside className={`charm-cal-drawer ${drawerOpen ? "open" : "collapsed"}`}>
-            <div className="charm-drawer-head">
-              <span style={{ display: "flex", alignItems: "center", gap: 6, fontWeight: 600, fontSize: 13 }}>
-                Provider Availability
-              </span>
-              <button
-                type="button"
-                className="charm-drawer-toggle"
-                onClick={() => setDrawerOpen(!drawerOpen)}
-                title="Toggle Drawer"
-              >
-                {drawerOpen ? "◀" : "▶"}
-              </button>
-            </div>
-
-            {drawerOpen && (
-              <div className="charm-drawer-body">
-                <div className="charm-drawer-field">
-                  <label>Facility *</label>
-                  <select defaultValue="curr">
-                    <option value="curr">Heal Your Heart Neelankarai - HUH001</option>
-                    <option value="roy">Heal Your Heart Royapettah - HUH002</option>
-                    <option value="man">Heal Your Heart Manapakkam - HUH003</option>
-                  </select>
-                </div>
-
-                <div className="charm-drawer-field">
-                  <label>Provider *</label>
-                  <select
-                    aria-label="Filter provider"
-                    value={provider}
-                    onChange={(e) => setProvider(e.target.value)}
-                  >
-                    <option value="">All providers</option>
-                    {staff
-                      .filter((s) => ["doctor", "therapist"].includes(s.role))
-                      .map((s) => (
-                        <option key={s.id} value={s.id}>
-                          {s.name} ({s.role})
-                        </option>
-                      ))}
-                  </select>
-                </div>
-
-                <div className="charm-drawer-field">
-                  <label>Visit Type</label>
-                  <select>
-                    <option value="">--Select--</option>
-                    <option value="eecp">EECP Treatment</option>
-                    <option value="consult">Cardiology Consultation</option>
-                    <option value="echo">2D Echo & Doppler</option>
-                  </select>
-                </div>
-
-                <div className="charm-drawer-field">
-                  <label>Duration *</label>
-                  <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                    <input type="number" defaultValue={10} style={{ width: 60 }} />
-                    <span style={{ fontSize: 11, color: "#64748b" }}>minutes</span>
-                  </div>
-                </div>
-
-                <div className="charm-drawer-alert">
-                  Provider Timings not configured for this member.{" "}
-                  <button
-                    type="button"
-                    className="text-link"
-                    onClick={() => setAvailability(true)}
-                    style={{ fontSize: 11 }}
-                  >
-                    Configure
-                  </button>
-                </div>
-              </div>
-            )}
-          </aside>
+          {providerAvailabilityOpen && (
+            <ProviderAvailabilityPanel
+              providers={staff.filter((member) => ["doctor", "therapist"].includes(member.role))}
+              facilities={facilities}
+              visitTypes={availableVisitTypes}
+              schedules={avail.data || []}
+              appointments={appts.data || []}
+              onClose={closeProviderAvailability}
+              onSearch={setAvailabilityResult}
+            />
+          )}
 
           {/* Right: Main Appointments Workspace */}
           <section className="charm-cal-content">
+            {availabilityResult ? (
+              <ProviderAvailabilityResults
+                result={availabilityResult}
+                onClose={() => setAvailabilityResult(null)}
+              />
+            ) : (
+              <>
             {/* Controls Header */}
             <div className="charm-cal-controls">
               {/* View switcher buttons */}
-              <div className="charm-view-pills">
-                {["List View", "Day", "Week", "Month"].map((v) => (
-                  <button
-                    key={v}
-                    className={`charm-view-btn ${view === v ? "active" : ""}`}
-                    onClick={() => setView(v)}
-                  >
-                    {v}
-                  </button>
-                ))}
+              <div className="charm-calendar-view-switcher">
+                <button
+                  type="button"
+                  className={`charm-provider-availability-toggle ${providerAvailabilityOpen ? "active" : ""}`}
+                  onClick={toggleProviderAvailability}
+                  aria-label={providerAvailabilityOpen ? "Close Provider Availability" : "Open Provider Availability"}
+                  aria-expanded={providerAvailabilityOpen}
+                  title="Provider Availability"
+                >
+                  <Clock3 size={18} />
+                </button>
+                <div className="charm-view-pills">
+                  {["List View", "Day", "Week", "Month"].map((v) => (
+                    <button
+                      key={v}
+                      className={`charm-view-btn ${view === v ? "active" : ""}`}
+                      onClick={() => setView(v)}
+                    >
+                      {v}
+                    </button>
+                  ))}
+                </div>
               </div>
 
               {/* Date Display and Nav */}
@@ -1584,24 +2231,109 @@ function Schedule() {
               </div>
             </div>
 
-            {/* Yellow Timezone Banner */}
-            <div className="charm-cal-yellow-banner">
-              <div>
-                <span>Appointments are shown in <strong>Asia/Kolkata</strong> time zone</span>
+            {/* Yellow Timezone Banner with Functional Sort by Selector */}
+            <div className="charm-cal-yellow-banner" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "6px 14px", background: "#fef9c3", border: "1px solid #fef08a", borderRadius: 4, marginBottom: 12 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                <span style={{ fontSize: 12, color: "#854d0e" }}>
+                  Appointments are shown in <strong>Asia/Kolkata (IST)</strong> time zone
+                </span>
+                {view === "List View" && (
+                  <WaitingListDateBadge
+                    date={date}
+                    count={waitingEntriesForDate(date).length}
+                    onClick={() => openWaitingDetails(date)}
+                  />
+                )}
               </div>
-              <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                <span style={{ fontSize: 11, color: "#64748b" }}>Sort by <strong>Time ▼</strong></span>
+              <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: "#475569" }}>
+                <span style={{ fontWeight: 500 }}>Sort by</span>
+                <select
+                  value={calSortBy}
+                  onChange={(e) => setCalSortBy(e.target.value as any)}
+                  aria-label="Sort appointments by"
+                  style={{
+                    padding: "3px 8px",
+                    fontSize: 12,
+                    border: "1px solid #cbd5e1",
+                    borderRadius: 3,
+                    background: "#fff",
+                    color: "#0f172a",
+                    fontWeight: 500,
+                    cursor: "pointer",
+                    outline: "none",
+                  }}
+                >
+                  <option value="Time">Time</option>
+                  <option value="Token">Token</option>
+                  <option value="Status">Status</option>
+                  <option value="Resource">Resource</option>
+                  <option value="Provider">Provider</option>
+                </select>
               </div>
             </div>
 
-            {/* Stat summary pills */}
-            <div className="charm-stat-pills">
-              <div className="charm-stat-chip orange">
-                <strong>{filtered.length}</strong> ALL
+            {/* Dynamic CharmHealth Stat Summary Pills */}
+            <div className="charm-stat-pills" style={{ display: "flex", flexWrap: "wrap", gap: 8, alignItems: "center", marginBottom: 12 }}>
+              <div
+                className={`charm-stat-chip ${statusFilter === "ALL" ? "orange" : ""}`}
+                onClick={() => setStatusFilter("ALL")}
+                style={{
+                  cursor: "pointer",
+                  display: "flex",
+                  flexDirection: "column",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  minWidth: 54,
+                  padding: "4px 10px",
+                  background: statusFilter === "ALL" ? "#ea580c" : "#fff",
+                  color: statusFilter === "ALL" ? "#fff" : "#ea580c",
+                  borderColor: "#ea580c",
+                  borderWidth: 1,
+                  borderStyle: "solid",
+                  borderRadius: 4,
+                  boxShadow: "0 1px 2px rgba(0,0,0,0.04)",
+                  transition: "all 0.15s ease",
+                }}
+              >
+                <span style={{ fontSize: 15, fontWeight: 700, lineHeight: 1.1 }}>{scopedAppts.length}</span>
+                <span style={{ fontSize: 9.5, fontWeight: 700, letterSpacing: "0.5px", marginTop: 2 }}>ALL</span>
               </div>
-              <div className="charm-stat-chip purple">
-                <strong>{filtered.filter((a) => a.status === "checked-in" || a.status === "confirmed").length || 6}</strong> EECP TREATMENT STARTED
-              </div>
+              {Object.entries(statusCounts).map(([sName, count]) => {
+                const conf = availableStatuses.find((s) => s.name.toLowerCase() === sName.toLowerCase());
+                const chipColor = conf?.color || "#7c3aed";
+                const isSelected = statusFilter.toLowerCase() === sName.toLowerCase();
+                return (
+                  <div
+                    key={sName}
+                    className="charm-stat-chip"
+                    onClick={() => setStatusFilter(isSelected ? "ALL" : sName)}
+                    style={{
+                      cursor: "pointer",
+                      display: "flex",
+                      flexDirection: "column",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      minWidth: 70,
+                      padding: "4px 12px",
+                      background: isSelected ? chipColor : "#fff",
+                      color: isSelected ? "#fff" : chipColor,
+                      borderColor: chipColor,
+                      borderWidth: 1,
+                      borderStyle: "solid",
+                      borderRadius: 4,
+                      boxShadow: "0 1px 2px rgba(0,0,0,0.04)",
+                      transition: "all 0.15s ease",
+                      textAlign: "center",
+                    }}
+                    title={`Click to filter by ${sName}`}
+                  >
+                    <span style={{ fontSize: 15, fontWeight: 700, lineHeight: 1.1 }}>{count}</span>
+                    <span style={{ fontSize: 9.5, fontWeight: 700, letterSpacing: "0.5px", marginTop: 2, maxWidth: 140, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                      {sName.toUpperCase()}
+                    </span>
+                  </div>
+                );
+              })}
             </div>
 
             <ErrorBox error={appts.error || error} />
@@ -1615,7 +2347,8 @@ function Schedule() {
                   <div className="charm-week-time-col">Time</div>
                   {Array.from({ length: 7 }, (_, i) => {
                     const d = new Date(selectedDate.getTime() + i * 86400000);
-                    const isCurrent = d.toISOString().slice(0, 10) === date;
+                    const dayDateStr = d.toISOString().slice(0, 10);
+                    const isCurrent = dayDateStr === date;
                     return (
                       <div
                         key={i}
@@ -1625,6 +2358,11 @@ function Schedule() {
                           {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"][d.getDay()]}{" "}
                           {d.getMonth() + 1}/{d.getDate()}
                         </strong>
+                        <WaitingListDateBadge
+                          date={dayDateStr}
+                          count={waitingEntriesForDate(dayDateStr).length}
+                          onClick={() => openWaitingDetails(dayDateStr)}
+                        />
                       </div>
                     );
                   })}
@@ -1640,7 +2378,7 @@ function Schedule() {
                         {Array.from({ length: 7 }, (_, dayIdx) => {
                           const d = new Date(selectedDate.getTime() + dayIdx * 86400000);
                           const key = localInput(d.toISOString()).slice(0, 10);
-                          const slotAppts = filtered.filter((a) => {
+                          const slotAppts = searchAndStatusFiltered.filter((a) => {
                             const localStart = localInput(a.start_at);
                             if (!localStart.startsWith(key)) return false;
                             const timePart = localStart.slice(11, 16);
@@ -1669,38 +2407,99 @@ function Schedule() {
                                   <span className="charm-slot-plus">+</span>
                                 </div>
                               )}
-                              {slotAppts.map((currentSlotAppt) => {
-                                const isEECP = currentSlotAppt.visit_type?.toLowerCase().includes("eecp");
-                                return (
-                                  <div
-                                    key={currentSlotAppt.id}
-                                    className={`charm-week-appt-card ${isEECP ? "eecp-appt" : "consult-appt"} status-${currentSlotAppt.status}`}
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      setSelectedAppt(currentSlotAppt);
-                                    }}
-                                    title="Click to view appointment details & actions"
-                                  >
-                                    <div className="appt-header-line">
-                                      <span className="appt-time">
-                                        {localInput(currentSlotAppt.start_at).slice(11, 16)} - {localInput(currentSlotAppt.end_at).slice(11, 16)}
-                                      </span>
-                                      <span className={`status-badge-mini ${currentSlotAppt.status}`}>
-                                        {currentSlotAppt.status}
-                                      </span>
+                              {slotAppts.length > 1 ? (
+                                <div className="charm-stacked-file-group" style={{ display: "flex", flexDirection: "column", gap: 3, width: "100%" }}>
+                                  {slotAppts.map((currentSlotAppt) => {
+                                    const isEECP = currentSlotAppt.visit_type?.toLowerCase().includes("eecp");
+                                    const stConfig = availableStatuses.find(
+                                      (s) => s.name.toLowerCase() === (currentSlotAppt.status_label || currentSlotAppt.status).toLowerCase()
+                                    );
+                                    const accentColor = stConfig?.color || (isEECP ? "#8b5cf6" : "#0284c7");
+                                    return (
+                                      <div
+                                        key={currentSlotAppt.id}
+                                        className="charm-week-appt-strip"
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          setSelectedAppt(currentSlotAppt);
+                                        }}
+                                        title={`${patientName(currentSlotAppt.patient_id, patients)} · ${localInput(currentSlotAppt.start_at).slice(11, 16)} - ${localInput(currentSlotAppt.end_at).slice(11, 16)} · ${currentSlotAppt.status_label || currentSlotAppt.status}`}
+                                        style={{
+                                          display: "flex",
+                                          alignItems: "center",
+                                          gap: 6,
+                                          background: "#f8fafc",
+                                          border: "1px solid #cbd5e1",
+                                          borderLeft: `4px solid ${accentColor}`,
+                                          borderRadius: 3,
+                                          padding: "3px 6px",
+                                          fontSize: 11,
+                                          cursor: "pointer",
+                                          boxShadow: "0 1px 2px rgba(0,0,0,0.05)",
+                                          overflow: "hidden",
+                                          whiteSpace: "nowrap",
+                                          textOverflow: "ellipsis",
+                                          transition: "all 0.15s ease",
+                                        }}
+                                      >
+                                        <span style={{ fontWeight: 700, color: "#1e293b", fontSize: 10, flexShrink: 0 }}>
+                                          {localInput(currentSlotAppt.start_at).slice(11, 16)}
+                                        </span>
+                                        <span style={{ fontWeight: 600, color: "#0f172a", overflow: "hidden", textOverflow: "ellipsis", flex: 1 }}>
+                                          {patientName(currentSlotAppt.patient_id, patients)}
+                                        </span>
+                                        <span
+                                          style={{
+                                            fontSize: 9,
+                                            fontWeight: 700,
+                                            padding: "1px 5px",
+                                            borderRadius: 2,
+                                            background: accentColor + "20",
+                                            color: accentColor,
+                                            textTransform: "uppercase",
+                                            flexShrink: 0,
+                                          }}
+                                        >
+                                          {currentSlotAppt.status_label || currentSlotAppt.status}
+                                        </span>
+                                      </div>
+                                    );
+                                  })}
+                                </div>
+                              ) : (
+                                slotAppts.map((currentSlotAppt) => {
+                                  const isEECP = currentSlotAppt.visit_type?.toLowerCase().includes("eecp");
+                                  return (
+                                    <div
+                                      key={currentSlotAppt.id}
+                                      className={`charm-week-appt-card ${isEECP ? "eecp-appt" : "consult-appt"} status-${currentSlotAppt.status}`}
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        setSelectedAppt(currentSlotAppt);
+                                      }}
+                                      title="Click to view appointment details & actions"
+                                    >
+                                      <div className="appt-header-line">
+                                        <span className="appt-time">
+                                          {localInput(currentSlotAppt.start_at).slice(11, 16)} - {localInput(currentSlotAppt.end_at).slice(11, 16)}
+                                        </span>
+                                        <span className={`status-badge-mini ${currentSlotAppt.status}`}>
+                                          {currentSlotAppt.status}
+                                        </span>
+                                      </div>
+                                      <div className="appt-patient">
+                                        {patientName(currentSlotAppt.patient_id, patients)}
+                                      </div>
+                                      <div className="appt-provider">
+                                        {staff.find((s) => s.id === currentSlotAppt.provider_id)?.name}
+                                      </div>
+                                      <div className="appt-room">
+                                        {resources.find((r) => r.id === currentSlotAppt.resource_id)?.name || (isEECP ? "EECP Bed" : "Consult Room")}
+                                      </div>
                                     </div>
-                                    <div className="appt-patient">
-                                      {patientName(currentSlotAppt.patient_id, patients)}
-                                    </div>
-                                    <div className="appt-provider">
-                                      {staff.find((s) => s.id === currentSlotAppt.provider_id)?.name}
-                                    </div>
-                                    <div className="appt-room">
-                                      {resources.find((r) => r.id === currentSlotAppt.resource_id)?.name || (isEECP ? "EECP Bed" : "Consult Room")}
-                                    </div>
-                                  </div>
-                                );
-                              })}
+                                  );
+                                })
+                              )}
                               {!isSlotEmpty && ["reception", "doctor", "therapist", "admin"].includes(user.role) && (
                                 <button
                                   type="button"
@@ -1747,6 +2546,11 @@ function Schedule() {
                     <small style={{ color: "#64748b" }}>
                       {filtered.length} appointment{filtered.length === 1 ? "" : "s"} scheduled today
                     </small>
+                    <WaitingListDateBadge
+                      date={date}
+                      count={waitingEntriesForDate(date).length}
+                      onClick={() => openWaitingDetails(date)}
+                    />
                   </div>
                   {["reception", "doctor", "therapist", "admin"].includes(user.role) && (
                     <Button
@@ -1763,7 +2567,7 @@ function Schedule() {
                     const hourNum = 8 + Math.floor(hIdx / 2);
                     const isHalf = hIdx % 2 === 1;
                     const timeKey = `${date}T${String(hourNum).padStart(2, "0")}:${isHalf ? "30" : "00"}`;
-                    const slotAppts = filtered.filter((a) => {
+                    const slotAppts = searchAndStatusFiltered.filter((a) => {
                       const localStart = localInput(a.start_at);
                       if (!localStart.startsWith(date)) return false;
                       const timePart = localStart.slice(11, 16);
@@ -1793,35 +2597,99 @@ function Schedule() {
                               <span className="slot-plus-text">+ Click to book at {hour}</span>
                             </div>
                           ) : (
-                            <div className="charm-day-appt-cards">
-                              {slotAppts.map((currentSlotAppt) => {
-                                const isEECP = currentSlotAppt.visit_type?.toLowerCase().includes("eecp");
-                                const pat = patients.find((p) => p.id === currentSlotAppt.patient_id);
-                                return (
-                                  <div
-                                    key={currentSlotAppt.id}
-                                    className={`charm-day-appt-card ${isEECP ? "eecp-theme" : "consult-theme"} status-${currentSlotAppt.status}`}
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      setSelectedAppt(currentSlotAppt);
-                                    }}
-                                    title="Click to view appointment details & actions"
-                                  >
-                                    <div className="charm-day-card-header">
-                                      <span className="day-card-patient">
-                                        {pat?.name || patientName(currentSlotAppt.patient_id, patients)} [{pat?.mrn || "HUHNKR" + currentSlotAppt.id.slice(0, 4)}]
+                            <div className="charm-day-appt-cards" style={{ display: "flex", flexDirection: "column", gap: 3, width: "100%" }}>
+                              {slotAppts.length > 1 ? (
+                                slotAppts.map((currentSlotAppt) => {
+                                  const isEECP = currentSlotAppt.visit_type?.toLowerCase().includes("eecp");
+                                  const pat = patients.find((p) => p.id === currentSlotAppt.patient_id);
+                                  const pName = pat?.name || patientName(currentSlotAppt.patient_id, patients);
+                                  const startTime = localInput(currentSlotAppt.start_at).slice(11, 16);
+                                  const endTime = localInput(currentSlotAppt.end_at).slice(11, 16);
+                                  const displayStatus = currentSlotAppt.status_label || (currentSlotAppt.status === "checked-in" ? "Checked in" : currentSlotAppt.status === "confirmed" ? "Confirmed" : currentSlotAppt.status === "completed" ? "Completed" : currentSlotAppt.status === "cancelled" ? "Cancelled" : currentSlotAppt.status);
+                                  const stConfig = availableStatuses.find(
+                                    (s) => s.name.toLowerCase() === displayStatus.toLowerCase()
+                                  );
+                                  const accentColor = stConfig?.color || (isEECP ? "#10b981" : "#0284c7");
+                                  return (
+                                    <div
+                                      key={currentSlotAppt.id}
+                                      className="charm-week-appt-strip"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        setSelectedAppt(currentSlotAppt);
+                                      }}
+                                      title={`${pName} (${startTime} - ${endTime}) · ${displayStatus} · ${staff.find((s) => s.id === currentSlotAppt.provider_id)?.name || ""}`}
+                                      style={{
+                                        display: "flex",
+                                        alignItems: "center",
+                                        gap: 6,
+                                        background: "#f8fafc",
+                                        border: "1px solid #cbd5e1",
+                                        borderLeft: `4px solid ${accentColor}`,
+                                        borderRadius: 3,
+                                        padding: "4px 8px",
+                                        fontSize: 11,
+                                        cursor: "pointer",
+                                        boxShadow: "0 1px 2px rgba(0,0,0,0.05)",
+                                        overflow: "hidden",
+                                        whiteSpace: "nowrap",
+                                        textOverflow: "ellipsis",
+                                        transition: "all 0.15s ease",
+                                      }}
+                                    >
+                                      <span style={{ fontWeight: 700, color: "#1e293b", fontSize: 10.5, flexShrink: 0 }}>
+                                        {startTime} - {endTime}
                                       </span>
-                                      <Badge value={currentSlotAppt.status} />
+                                      <span style={{ fontWeight: 600, color: "#0f172a", overflow: "hidden", textOverflow: "ellipsis", flex: 1 }}>
+                                        {pName} [{pat?.mrn || "HUHNKR" + currentSlotAppt.id.slice(0, 4)}]
+                                      </span>
+                                      <span
+                                        style={{
+                                          fontSize: 9,
+                                          fontWeight: 700,
+                                          padding: "1px 5px",
+                                          borderRadius: 2,
+                                          background: accentColor + "20",
+                                          color: accentColor,
+                                          textTransform: "uppercase",
+                                          flexShrink: 0,
+                                        }}
+                                      >
+                                        {displayStatus}
+                                      </span>
                                     </div>
-                                    <div className="charm-day-card-meta">
-                                      <span>🕒 {localInput(currentSlotAppt.start_at).slice(11, 16)} - {localInput(currentSlotAppt.end_at).slice(11, 16)}</span>
-                                      <span>🩺 {staff.find((s) => s.id === currentSlotAppt.provider_id)?.name}</span>
-                                      <span>🏥 {resources.find((r) => r.id === currentSlotAppt.resource_id)?.name || (isEECP ? "EECP Bed" : "Consult Room")}</span>
-                                      <span>🏷️ {currentSlotAppt.visit_type}</span>
+                                  );
+                                })
+                              ) : (
+                                slotAppts.map((currentSlotAppt) => {
+                                  const isEECP = currentSlotAppt.visit_type?.toLowerCase().includes("eecp");
+                                  const pat = patients.find((p) => p.id === currentSlotAppt.patient_id);
+                                  return (
+                                    <div
+                                      key={currentSlotAppt.id}
+                                      className={`charm-day-appt-card ${isEECP ? "eecp-theme" : "consult-theme"} status-${currentSlotAppt.status}`}
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        setSelectedAppt(currentSlotAppt);
+                                      }}
+                                      title="Click to view appointment details & actions"
+                                    >
+                                      <div className="charm-day-card-header">
+                                        <span className="day-card-patient">
+                                          {pat?.name || patientName(currentSlotAppt.patient_id, patients)} [{pat?.mrn || "HUHNKR" + currentSlotAppt.id.slice(0, 4)}]
+                                        </span>
+                                        <Badge value={currentSlotAppt.status} />
+                                      </div>
+                                      <div className="charm-day-card-meta">
+                                        <span>🕒 {localInput(currentSlotAppt.start_at).slice(11, 16)} - {localInput(currentSlotAppt.end_at).slice(11, 16)}</span>
+                                        <span>🩺 {staff.find((s) => s.id === currentSlotAppt.provider_id)?.name}</span>
+                                        <span>🏥 {resources.find((r) => r.id === currentSlotAppt.resource_id)?.name || (isEECP ? "EECP Bed" : "Consult Room")}</span>
+                                        <span>🏷️ {currentSlotAppt.visit_type}</span>
+                                      </div>
                                     </div>
-                                  </div>
-                                );
-                              })}
+                                  );
+                                })
+                              )}
                               {["reception", "doctor", "therapist", "admin"].includes(user.role) && (
                                 <button
                                   type="button"
@@ -1874,13 +2742,10 @@ function Schedule() {
                 {/* 7-column Calendar Month Grid */}
                 <div className="charm-cal-month-cells-grid">
                   {monthCells.map((cell) => {
-                    const dayAppts = (appts.data || [])
-                      .filter((a) => {
-                        if (provider && a.provider_id !== provider) return false;
-                        const localDate = localInput(a.start_at).slice(0, 10);
-                        return localDate === cell.dateStr;
-                      })
+                    const dayAppts = scopedAppts
+                      .filter((a) => localInput(a.start_at).slice(0, 10) === cell.dateStr)
                       .sort((a, b) => a.start_at.localeCompare(b.start_at));
+                    const waitingCount = waitingEntriesForDate(cell.dateStr).length;
 
                     return (
                       <div
@@ -1907,6 +2772,12 @@ function Schedule() {
                             </span>
                           )}
                         </div>
+
+                        <WaitingListDateBadge
+                          date={cell.dateStr}
+                          count={waitingCount}
+                          onClick={() => openWaitingDetails(cell.dateStr)}
+                        />
 
                         <div className="charm-cal-month-chips-container">
                           {dayAppts.map((appt) => {
@@ -1939,7 +2810,7 @@ function Schedule() {
             ) : (
               /* 4. Authentic CharmHealth List View (Image 3) */
               <div className="charm-appt-card-list">
-                {filtered.map((a) => {
+                {displayedAppts.map((a) => {
                   const pat = patients.find((p) => p.id === a.patient_id);
                   const prv = staff.find((s) => s.id === a.provider_id);
                   const res = resources.find((r) => r.id === a.resource_id);
@@ -1991,18 +2862,26 @@ function Schedule() {
 
                       {/* Right Column of Card (Frame 072) */}
                       <div className="charm-list-card-right">
-                        <div className="charm-right-top-meta">
-                          <input type="checkbox" style={{ marginRight: 4 }} />
-                          <span style={{ fontWeight: 600, color: "#0f172a" }}>
-                            {formatDoctorName(prv?.name || "Vijayalakshmi K")}
-                          </span>
-                          <span>|</span>
-                          <span style={{ color: "#475569" }}>Heal Your Heart Royapettah</span>
-                          <span>|</span>
-                          <span style={{ fontWeight: 600, color: "#0f4c81" }}>
-                            {startStr} - {endStr}
-                          </span>
-                        </div>
+                        {(() => {
+                          const prvIdx = clinicalProviders.findIndex((p: any) => p.id === a.provider_id);
+                          const colors = ["#00bcd4", "#4caf50", "#2196f3", "#9c27b0", "#ff9800", "#e91e63"];
+                          const swatchColor = prvIdx >= 0 ? colors[prvIdx % colors.length] : "#8b5cf6";
+                          return (
+                            <div className="charm-right-top-meta" style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                              <input type="checkbox" />
+                              <span style={{ display: "inline-block", width: 8, height: 8, backgroundColor: swatchColor, borderRadius: 1, flexShrink: 0 }} />
+                              <span style={{ fontWeight: 600, color: "#0f172a" }}>
+                                {formatDoctorName(prv?.name || "Dr. Ramasamy S")}
+                              </span>
+                              <span style={{ color: "#cbd5e1" }}>|</span>
+                              <span style={{ color: "#475569" }}>Heal Your Heart Neelankarai</span>
+                              <span style={{ color: "#cbd5e1" }}>|</span>
+                              <span style={{ fontWeight: 600, color: "#0f4c81" }}>
+                                {startStr} - {endStr}
+                              </span>
+                            </div>
+                          );
+                        })()}
 
                         <div className="charm-right-details-grid">
                           <div>
@@ -2011,42 +2890,98 @@ function Schedule() {
                           </div>
                           <div>
                             <span className="charm-dim-label">Patient Balance Due: </span>
-                            <button
-                              type="button"
-                              className="text-link"
-                              onClick={() => navigate("/billing")}
-                              style={{ fontSize: 11, color: "#0284c7" }}
-                            >
-                              Show
-                            </button>
+                            {shownBalances[a.id] ? (
+                              <strong style={{ color: "#0f172a", fontSize: 11.5 }}>Rs. 0.00</strong>
+                            ) : (
+                              <button
+                                type="button"
+                                className="text-link"
+                                onClick={() => setShownBalances((prev) => ({ ...prev, [a.id]: true }))}
+                                style={{ fontSize: 11, color: "#0284c7" }}
+                              >
+                                Show
+                              </button>
+                            )}
                           </div>
                           <div>
                             <span className="charm-dim-label">Last Visit: </span>
-                            <span style={{ color: "#0284c7", cursor: "pointer" }}>{day(a.start_at)}</span>
+                            <button
+                              type="button"
+                              className="text-link"
+                              onClick={() => setLastVisitModalAppt(a)}
+                              style={{ color: "#0284c7", fontSize: 11.5, padding: 0 }}
+                            >
+                              {day(a.start_at)}
+                            </button>
                           </div>
                           <div>
                             <span className="charm-dim-label">Token #: </span>
-                            <span style={{ color: "#2563eb", cursor: "pointer", fontSize: 11 }}>Generate | Pay</span>
+                            {a.token_number ? (
+                              <span style={{ fontSize: 11.5 }}>
+                                <strong style={{ color: "#0f172a" }}>{a.token_number}</strong>
+                                <span style={{ color: "#94a3b8", margin: "0 5px" }}>|</span>
+                                <button
+                                  type="button"
+                                  className="text-link"
+                                  onClick={() => setPaymentModalAppt(a)}
+                                  style={{ color: "#2563eb", fontWeight: 500 }}
+                                >
+                                  Pay
+                                </button>
+                              </span>
+                            ) : (
+                              <span style={{ fontSize: 11.5 }}>
+                                <button
+                                  type="button"
+                                  className="text-link"
+                                  onClick={async () => {
+                                    try {
+                                      await api("/appointments/" + a.id + "/token", "POST");
+                                      await refresh();
+                                      notify("Token number generated.");
+                                    } catch (err: any) {
+                                      notify(err.message || "Failed to generate token");
+                                    }
+                                  }}
+                                  style={{ color: "#2563eb", fontWeight: 500 }}
+                                >
+                                  Generate
+                                </button>
+                                <span style={{ color: "#94a3b8", margin: "0 5px" }}>|</span>
+                                <button
+                                  type="button"
+                                  className="text-link"
+                                  onClick={() => setPaymentModalAppt(a)}
+                                  style={{ color: "#2563eb", fontWeight: 500 }}
+                                >
+                                  Pay
+                                </button>
+                              </span>
+                            )}
                           </div>
                           <div>
                             <span className="charm-dim-label">Resource: </span>
                             <select
-                              defaultValue={a.resource_id || "res_eecp2"}
+                              value={a.resource_id || ""}
                               onChange={async (e) => {
                                 try {
-                                  await api("/appointments/" + a.id, "PUT", { resource_id: e.target.value });
+                                  await api("/appointments/" + a.id, "PATCH", { resource_id: e.target.value });
                                   await refresh();
                                   notify("Resource updated.");
                                 } catch (err) {
                                   notify("Resource updated.");
                                 }
                               }}
-                              style={{ border: "none", background: "transparent", fontWeight: 600, fontSize: 11.5, color: "#0f172a", cursor: "pointer" }}
+                              style={{ border: "1px solid #cbd5e1", borderRadius: 3, padding: "2px 6px", background: "#fff", fontWeight: 500, fontSize: 11.5, color: "#0f172a", cursor: "pointer" }}
                             >
-                              <option value="res_eecp1">EECP Room 01 ▾</option>
-                              <option value="res_eecp2">EECP Room 02 ▾</option>
-                              <option value="res_eecp3">EECP Room 03 ▾</option>
-                              <option value="res_cons1">Consultation Room 1 ▾</option>
+                              <option value="">-- Select --</option>
+                              <option value="res_eecp1">EECP Room 01</option>
+                              <option value="res_eecp2">EECP Room 02</option>
+                              <option value="res_eecp3">EECP Room 03</option>
+                              <option value="res_eecp4">EECP Room 04</option>
+                              <option value="res_eecp5">EECP Room 05</option>
+                              <option value="res_eecp6">EECP Room 06</option>
+                              <option value="res_cons1">Consultation Room 1</option>
                             </select>
                           </div>
                           <div>
@@ -2057,7 +2992,7 @@ function Schedule() {
                               onClick={() => handleStartConsultation(a.patient_id, a.visit_type)}
                               style={{ fontWeight: 700, color: "#0284c7" }}
                             >
-                              Start
+                              {(a.status === "checked-in" || a.status === "completed" || a.status === "started" || a.status_label === "Checked in") ? "Edit" : "Start"}
                             </button>
                           </div>
                         </div>
@@ -2119,12 +3054,26 @@ function Schedule() {
                   );
                 })}
 
-                {filtered.length === 0 && (
+                {filtered.length === 0 ? (
                   <div style={{ padding: 32, textAlign: "center", color: "#64748b", background: "#fff", border: "1px solid #e2e8f0", borderRadius: 6 }}>
                     No appointments scheduled for this date.
                   </div>
-                )}
+                ) : displayedAppts.length === 0 ? (
+                  <div style={{ padding: 32, textAlign: "center", color: "#64748b", background: "#fff", border: "1px solid #e2e8f0", borderRadius: 6 }}>
+                    No appointments found matching status "<strong>{statusFilter}</strong>".{" "}
+                    <button
+                      type="button"
+                      className="text-link"
+                      onClick={() => setStatusFilter("ALL")}
+                      style={{ marginLeft: 6, fontWeight: 600 }}
+                    >
+                      Show all ({filtered.length})
+                    </button>
+                  </div>
+                ) : null}
               </div>
+            )}
+              </>
             )}
           </section>
         </div>
@@ -2251,10 +3200,6 @@ function Schedule() {
             </div>
           </div>
 
-          <div style={{ fontSize: 13.5, fontWeight: 700, color: "#1e293b", margin: "4px 0 6px" }}>
-            Waiting List
-          </div>
-
           {/* DAY VIEW */}
           {waitingListView === "Day" && (
             <div
@@ -2262,19 +3207,31 @@ function Schedule() {
                 background: "#ffffff",
                 border: "1px solid #e2e8f0",
                 borderRadius: 4,
-                minHeight: 440,
+                minHeight: 460,
                 width: "100%",
-                padding: dayEntries.length === 0 ? 0 : 16,
-                display: dayEntries.length === 0 ? "flex" : "block",
-                alignItems: "center",
-                justifyContent: "center",
+                display: "flex",
+                flexDirection: "column",
+                boxShadow: "0 1px 3px rgba(0,0,0,0.02)",
               }}
             >
-              {dayEntries.length === 0 ? (
-                <div style={{ color: "#334155", fontSize: 13, textAlign: "center" }}>
-                  Waiting List not available
-                </div>
-              ) : (
+              <div style={{ padding: "12px 18px", borderBottom: "1px solid #f1f5f9", fontSize: 13.5, fontWeight: 700, color: "#1e293b" }}>
+                Waiting List
+              </div>
+              <div
+                style={{
+                  flex: 1,
+                  display: dayEntries.length === 0 ? "flex" : "block",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  padding: dayEntries.length === 0 ? 0 : 16,
+                  minHeight: 380,
+                }}
+              >
+                {dayEntries.length === 0 ? (
+                  <div style={{ color: "#334155", fontSize: 13, textAlign: "center" }}>
+                    Waiting List not available
+                  </div>
+                ) : (
                 <table className="charm-reports-table" style={{ width: "100%" }}>
                   <thead>
                     <tr>
@@ -2305,30 +3262,24 @@ function Schedule() {
                           {entry.reason || "—"}
                         </td>
                         <td style={{ textAlign: "right" }}>
-                          <div style={{ display: "inline-flex", gap: 6, alignItems: "center" }}>
+                          <div className="charm-waiting-actions">
                             <button
                               type="button"
-                              className="charm-btn-default"
-                              style={{ fontSize: 11, padding: "3px 8px", background: "#f0fdf4", color: "#166534", borderColor: "#bbf7d0" }}
-                              onClick={() => {
-                                setBookingSlot({
-                                  startAt: date + "T10:00",
-                                  providerId: entry.provider_id,
-                                  patientId: entry.patient_id,
-                                  duration: 30,
-                                });
-                              }}
-                              title="Convert to appointment"
+                              onClick={() => openWaitingEntryConfirmation(entry)}
                             >
-                              Book Appt
+                              Confirm
                             </button>
                             <button
                               type="button"
-                              style={{ background: "transparent", border: "none", color: "#94a3b8", cursor: "pointer", fontSize: 14 }}
-                              onClick={() => removeWaitingEntry(entry.id)}
-                              title="Remove from waiting list"
+                              onClick={() => openWaitingEntryEdit(entry)}
                             >
-                              ✕
+                              Edit
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => removeWaitingEntry(entry.id)}
+                            >
+                              Cancel
                             </button>
                           </div>
                         </td>
@@ -2337,6 +3288,7 @@ function Schedule() {
                   </tbody>
                 </table>
               )}
+              </div>
             </div>
           )}
 
@@ -2360,9 +3312,7 @@ function Schedule() {
                 <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 10 }}>
                   {weekDays.map((wd) => {
                     const dateStr = wd.toISOString().slice(0, 10);
-                    const entriesForDay = weekEntries.filter(
-                      (e) => e.preferred_date === dateStr || (Array.isArray(e.dates) && e.dates.includes(dateStr))
-                    );
+                    const entriesForDay = waitingEntriesForDate(dateStr);
                     const isToday = dateStr === today();
                     return (
                       <div
@@ -2457,9 +3407,7 @@ function Schedule() {
               ))}
 
               {monthCells.map((cell, idx) => {
-                const cellEntries = waitingEntries.filter(
-                  (e) => e.preferred_date === cell.dateStr || (Array.isArray(e.dates) && e.dates.includes(cell.dateStr))
-                );
+                const cellEntries = waitingEntriesForDate(cell.dateStr);
 
                 return (
                   <div
@@ -2879,19 +3827,102 @@ function Schedule() {
       )}
 
       {/* Authentic CharmHealth New Waiting List Modal (Frame 078 / User Uploaded Screenshot) */}
+      {waitingDetailsOpen && (
+        <Modal
+          title={`Waiting List Details · ${new Intl.DateTimeFormat("en-US", {
+            month: "short",
+            day: "numeric",
+            year: "numeric",
+            timeZone: "UTC",
+          }).format(new Date(`${waitingDetailsDate}T12:00:00Z`))}`}
+          onClose={closeWaitingDetails}
+          wide
+        >
+          <div className="charm-waiting-details-content">
+            <table className="charm-reports-table charm-waiting-details-table">
+              <thead>
+                <tr>
+                  <th>Patient</th>
+                  <th>Provider</th>
+                  <th>Time Preference</th>
+                  <th>Mobile Phone</th>
+                  <th>Reason</th>
+                  <th aria-label="Actions" />
+                </tr>
+              </thead>
+              <tbody>
+                {waitingEntriesForDate(waitingDetailsDate).map((entry) => (
+                  <tr key={entry.id}>
+                    <td>
+                      <strong>{entry.patient_name}</strong>
+                      {entry.mrn && <span className="charm-waiting-details-mrn">[{entry.mrn}]</span>}
+                    </td>
+                    <td>{entry.provider_name || "—"}</td>
+                    <td>{entry.time_preference || "Any Time"}</td>
+                    <td>{entry.phone || "—"}</td>
+                    <td>{entry.reason || "—"}</td>
+                    <td>
+                      <div className="charm-waiting-actions">
+                        <button type="button" onClick={() => openWaitingEntryConfirmation(entry)}>
+                          Confirm
+                        </button>
+                        <button type="button" onClick={() => openWaitingEntryEdit(entry)}>
+                          Edit
+                        </button>
+                        <button type="button" onClick={() => removeWaitingEntry(entry.id)}>
+                          Cancel
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+                {waitingEntriesForDate(waitingDetailsDate).length === 0 && (
+                  <tr>
+                    <td colSpan={6} className="charm-waiting-details-empty">
+                      No people are currently on the waiting list.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </Modal>
+      )}
+
       {waitingListModal && (
         <NewWaitingListModal
           initialDate={waitingPrefillDate || date}
+          initialEntry={editingWaitingEntry || undefined}
           onClose={() => {
             setWaitingListModal(false);
             setWaitingPrefillDate("");
+            setEditingWaitingEntry(null);
           }}
           onConfirm={(entry) => {
-            addWaitingEntry(entry);
+            if (editingWaitingEntry) {
+              updateWaitingEntry(entry);
+              notify("Waiting list entry updated.");
+            } else {
+              addWaitingEntry(entry);
+              notify("Patient added to Waiting List.");
+            }
             setWaitingListModal(false);
             setWaitingPrefillDate("");
-            notify("Patient added to Waiting List.");
+            setEditingWaitingEntry(null);
           }}
+        />
+      )}
+
+      {confirmWaitingEntry && (
+        <AppointmentForm
+          patientId={confirmWaitingEntry.patient_id}
+          initialStart={waitingListStartAt(confirmWaitingEntry, date)}
+          initialProviderId={confirmWaitingEntry.provider_id}
+          initialResourceId={resources.find((resource) => resource.name === confirmWaitingEntry.resource)?.id}
+          initialDuration={10}
+          waitingListEntry={confirmWaitingEntry}
+          onBooked={() => removeWaitingEntry(confirmWaitingEntry.id)}
+          onClose={() => setConfirmWaitingEntry(null)}
         />
       )}
 
@@ -2913,6 +3944,96 @@ function Schedule() {
           appointment={reschedule}
           onClose={() => setReschedule(undefined)}
         />
+      )}
+      {lastVisitModalAppt && (
+        <div className="charm-dialog-backdrop" onClick={() => setLastVisitModalAppt(null)}>
+          <div className="charm-dialog-box" style={{ width: 620 }} onClick={(e) => e.stopPropagation()}>
+            <div className="charm-dialog-head">
+              <div>
+                <h3>Last Visit</h3>
+                <div style={{ fontSize: 11.5, color: "#64748b", marginTop: 2 }}>
+                  {day(lastVisitModalAppt.start_at)} : {formatDoctorName(staff.find((p: any) => p.id === lastVisitModalAppt.provider_id)?.name || "Dr. Ramasamy S")} : {lastVisitModalAppt.visit_type || "Follow-up Visit"}
+                </div>
+              </div>
+              <button type="button" className="charm-dialog-close-btn" onClick={() => setLastVisitModalAppt(null)}>✕</button>
+            </div>
+            <div className="charm-dialog-body">
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px 16px", paddingBottom: 14, borderBottom: "1px solid #e2e8f0", marginBottom: 14 }}>
+                <div><span style={{ color: "#64748b" }}>Patient:</span> <strong>{patientName(lastVisitModalAppt.patient_id, patients)}</strong></div>
+                <div><span style={{ color: "#64748b" }}>Provider:</span> <strong>{formatDoctorName(staff.find((p: any) => p.id === lastVisitModalAppt.provider_id)?.name || "Dr. Ramasamy S")}</strong></div>
+                <div><span style={{ color: "#64748b" }}>Age:</span> <strong>{patients.find((p: any) => p.id === lastVisitModalAppt.patient_id)?.age || "68"}</strong></div>
+                <div><span style={{ color: "#64748b" }}>Date:</span> <strong>{day(lastVisitModalAppt.start_at)}</strong></div>
+                <div><span style={{ color: "#64748b" }}>Chart Type:</span> <strong>SOAP</strong></div>
+                <div><span style={{ color: "#64748b" }}>Signed by:</span> <strong>{formatDoctorName(staff.find((p: any) => p.id === lastVisitModalAppt.provider_id)?.name || "Dr. Ramasamy S")}</strong></div>
+                <div><span style={{ color: "#64748b" }}>Facility:</span> <strong>Heal Your Heart Neelankarai</strong></div>
+                <div><span style={{ color: "#64748b" }}>Visit Type:</span> <strong>{lastVisitModalAppt.visit_type || "Follow-up Visit"}</strong></div>
+              </div>
+              <h4 style={{ margin: "0 0 8px", fontSize: 13, color: "#0f172a" }}>Subjective</h4>
+              <div style={{ fontSize: 12, lineHeight: 1.6, color: "#334155" }}>
+                <p><strong>Chief Complaints:</strong> Post EECP follow up visit. Patient reports continuous improvements in stamina and no exertional chest discomfort.</p>
+                <p><strong>Cardiac Complaints:</strong> Walking distance without chest pain: 45-60 mins. Walking everyday: 30-40 mins. Shortness of breath: Nil. Chest pain at rest: Nil.</p>
+                <p><strong>History of Present Illness:</strong> Blood pressure well managed, patient taking prescribed medication regularly.</p>
+              </div>
+            </div>
+            <div className="charm-dialog-foot">
+              <button type="button" className="charm-btn-cancel" onClick={() => setLastVisitModalAppt(null)}>Close</button>
+            </div>
+          </div>
+        </div>
+      )}
+      {paymentModalAppt && (
+        <div className="charm-dialog-backdrop" onClick={() => setPaymentModalAppt(null)}>
+          <div className="charm-dialog-box" style={{ width: 480 }} onClick={(e) => e.stopPropagation()}>
+            <div className="charm-dialog-head">
+              <h3>Quick Pay / Balance Collection</h3>
+              <button type="button" className="charm-dialog-close-btn" onClick={() => setPaymentModalAppt(null)}>✕</button>
+            </div>
+            <div className="charm-dialog-body">
+              <div style={{ padding: "10px 14px", background: "#f8fafc", borderRadius: 6, marginBottom: 14 }}>
+                <div style={{ fontWeight: 600, color: "#0f172a" }}>{patientName(paymentModalAppt.patient_id, patients)}</div>
+                <div style={{ fontSize: 11, color: "#64748b", marginTop: 2 }}>
+                  Date: {day(paymentModalAppt.start_at)} | Token #{paymentModalAppt.token_number || "-"}
+                </div>
+              </div>
+              <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                <div>
+                  <label style={{ display: "block", fontSize: 11.5, fontWeight: 600, color: "#475569", marginBottom: 4 }}>Balance Due (Rs.)</label>
+                  <input type="text" readOnly value="0.00" style={{ width: "100%", padding: "6px 10px", background: "#f1f5f9", border: "1px solid #cbd5e1", borderRadius: 4, fontWeight: 700 }} />
+                </div>
+                <div>
+                  <label style={{ display: "block", fontSize: 11.5, fontWeight: 600, color: "#475569", marginBottom: 4 }}>Amount to Collect (Rs.) *</label>
+                  <input type="number" defaultValue="500.00" style={{ width: "100%", padding: "6px 10px", border: "1px solid #cbd5e1", borderRadius: 4, fontWeight: 600 }} />
+                </div>
+                <div>
+                  <label style={{ display: "block", fontSize: 11.5, fontWeight: 600, color: "#475569", marginBottom: 4 }}>Payment Mode *</label>
+                  <select defaultValue="UPI" style={{ width: "100%", padding: "6px 10px", border: "1px solid #cbd5e1", borderRadius: 4 }}>
+                    <option value="UPI">UPI / QR Code</option>
+                    <option value="Cash">Cash</option>
+                    <option value="Card">Card</option>
+                    <option value="Net Banking">Net Banking</option>
+                  </select>
+                </div>
+                <div>
+                  <label style={{ display: "block", fontSize: 11.5, fontWeight: 600, color: "#475569", marginBottom: 4 }}>Receipt / Reference Note</label>
+                  <input type="text" placeholder="Optional transaction ID or receipt note" style={{ width: "100%", padding: "6px 10px", border: "1px solid #cbd5e1", borderRadius: 4 }} />
+                </div>
+              </div>
+            </div>
+            <div className="charm-dialog-foot">
+              <button type="button" className="charm-btn-cancel" onClick={() => setPaymentModalAppt(null)}>Cancel</button>
+              <button
+                type="button"
+                className="btn btn-primary"
+                onClick={() => {
+                  notify("Payment recorded successfully.");
+                  setPaymentModalAppt(null);
+                }}
+              >
+                Record Payment
+              </button>
+            </div>
+          </div>
+        </div>
       )}
       {statusModal && (
         <Modal

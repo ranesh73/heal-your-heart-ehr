@@ -210,13 +210,23 @@ export function CharmInjectionsGlobal() {
         }
       }
 
-      // Patient search filter
+      // Patient & Injection / Drug Search Filter
       if (patientSearch.trim()) {
         const query = patientSearch.toLowerCase().trim();
         const pName = (inj.patient_name || "").toLowerCase();
         const pMrn = (inj.patient_mrn || "").toLowerCase();
-        const drug = (inj.name || "").toLowerCase();
-        if (!pName.includes(query) && !pMrn.includes(query) && !drug.includes(query)) {
+        const drug = (inj.medication_name_snapshot || inj.name || inj.drug_name || "").toLowerCase();
+        const lot = (inj.lot_number || "").toLowerCase();
+        const site = (inj.site || "").toLowerCase();
+        const doc = (inj.ordered_by_name || "").toLowerCase();
+        if (
+          !pName.includes(query) &&
+          !pMrn.includes(query) &&
+          !drug.includes(query) &&
+          !lot.includes(query) &&
+          !site.includes(query) &&
+          !doc.includes(query)
+        ) {
           return false;
         }
       }
@@ -442,7 +452,7 @@ export function CharmInjectionsGlobal() {
               />
               <input
                 type="text"
-                placeholder="Search Patient by Name / ID"
+                placeholder="Search Patient, Drug, Injection..."
                 value={patientSearch}
                 onChange={(e) => setPatientSearch(e.target.value)}
                 style={{

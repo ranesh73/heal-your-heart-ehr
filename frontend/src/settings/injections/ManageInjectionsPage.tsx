@@ -138,7 +138,7 @@ export function ManageInjectionsPage() {
   };
 
   return (
-    <div className="charm-settings-tab-inner" style={{ padding: "16px 20px" }}>
+    <div className="charm-settings-tab-inner" style={{ maxWidth: 1180, margin: "0 auto", padding: "20px 24px" }}>
       {/* Subhead Strip with Breadcrumb & Save Changes */}
       <div
         className="charm-settings-subhead-strip"

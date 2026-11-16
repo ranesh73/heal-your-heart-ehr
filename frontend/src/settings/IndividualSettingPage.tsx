@@ -15,6 +15,11 @@ import { FacilityTimingsPage } from "./calendar/FacilityTimingsPage";
 import { WebEmbedPage } from "./calendar/WebEmbedPage";
 import { InventorySettingsPage } from "./inventory/InventorySettingsPage";
 import { ManageInjectionsPage } from "./injections/ManageInjectionsPage";
+import { ManageSupplementsDrugsPage } from "./rx/ManageSupplementsDrugsPage";
+import { ImmunizationSettingsPage } from "./immunization/ImmunizationSettingsPage";
+import { MessageSettingsPage } from "./message/MessageSettingsPage";
+import { TaskPreferencesPage } from "./task/TaskPreferencesPage";
+import { BillingSettingsPage } from "./billing/BillingSettingsPage";
 import { SettingContentView } from "./SettingContentView";
 import { SETTINGS_CATEGORIES, ALL_SETTING_OPTIONS } from "./settingsData";
 import { TemplatesModule } from "../templates/TemplatesModule";
@@ -126,7 +131,7 @@ export function IndividualSettingPage({
         onTabChange={handleTabChange}
         tabs={calendarTabs}
       >
-        <div style={{ padding: "16px 20px" }}>
+        <div style={{ maxWidth: 1180, margin: "0 auto", padding: "20px 24px" }}>
           {content}
         </div>
       </SettingsLayout>
@@ -182,6 +187,117 @@ export function IndividualSettingPage({
     );
   }
 
+  // Specialized Rx Subpages (Manage Supplements and Drugs)
+  if (categoryId === "rx") {
+    const rxTabs = category.options.map((opt) => ({
+      id: opt.id,
+      label: opt.name,
+      badge: opt.badge,
+    }));
+
+    return (
+      <SettingsLayout
+        activeTab={activeOptionId}
+        onTabChange={handleTabChange}
+        tabs={rxTabs}
+      >
+        <div style={{ maxWidth: 1180, margin: "0 auto", padding: "20px 24px" }}>
+          {activeOptionId === "manage-supplements-drugs" ? (
+            <ManageSupplementsDrugsPage />
+          ) : (
+            <SettingContentView
+              category={category}
+              option={category.options.find((o) => o.id === activeOptionId) || category.options[0]}
+              onSelectOption={(o) => navigate(`/settings/${categoryId}/${o.id}`)}
+              onBack={() => navigate("/settings")}
+            />
+          )}
+        </div>
+      </SettingsLayout>
+    );
+  }
+
+  // Specialized Immunization Subpages (Vaccines, VIS, Vaccine Chart)
+  if (categoryId === "immunization") {
+    const immunizationTabs = category.options.map((opt) => ({
+      id: opt.id,
+      label: opt.name,
+      badge: opt.badge,
+    }));
+
+    return (
+      <SettingsLayout
+        activeTab={activeOptionId}
+        onTabChange={handleTabChange}
+        tabs={immunizationTabs}
+      >
+        <ImmunizationSettingsPage activeOptionId={activeOptionId} />
+      </SettingsLayout>
+    );
+  }
+
+  // Specialized Message Subpages (Signature, Vacation Reply, My Preferences)
+  if (categoryId === "message") {
+    const messageTabs = category.options.map((opt) => ({
+      id: opt.id,
+      label: opt.name,
+      badge: opt.badge,
+    }));
+
+    return (
+      <SettingsLayout
+        activeTab={activeOptionId}
+        onTabChange={handleTabChange}
+        tabs={messageTabs}
+      >
+        <MessageSettingsPage activeOptionId={activeOptionId} />
+      </SettingsLayout>
+    );
+  }
+
+  // Specialized Task Subpages (My Preferences)
+  if (categoryId === "task") {
+    const taskTabs = category.options.map((opt) => ({
+      id: opt.id,
+      label: opt.name,
+      badge: opt.badge,
+    }));
+
+    return (
+      <SettingsLayout
+        activeTab={activeOptionId}
+        onTabChange={handleTabChange}
+        tabs={taskTabs}
+      >
+        <TaskPreferencesPage />
+      </SettingsLayout>
+    );
+  }
+
+  // Specialized Billing Subpages (All 9 CharmHealth Tabs)
+  if (categoryId === "billing") {
+    const billingTabs = category.options.map((opt) => ({
+      id: opt.id,
+      label: opt.name,
+      badge: opt.badge,
+    }));
+
+    return (
+      <SettingsLayout
+        activeTab={activeOptionId}
+        onTabChange={handleTabChange}
+        tabs={billingTabs}
+      >
+        <div style={{ maxWidth: 1180, margin: "0 auto", padding: "20px 24px" }}>
+          <BillingSettingsPage
+            activeOptionId={activeOptionId}
+            onTabChange={handleTabChange}
+          />
+        </div>
+      </SettingsLayout>
+    );
+  }
+
   // Other Categories: Render Dedicated Individual Subpage
   const currentOption = category.options.find((o) => o.id === activeOptionId) || category.options[0];
 
@@ -197,7 +313,7 @@ export function IndividualSettingPage({
       onTabChange={handleTabChange}
       tabs={categoryTabs}
     >
-      <div className="charm-settings-tab-content">
+      <div className="charm-settings-inner-container">
         {currentOption ? (
           <SettingContentView
             category={category}

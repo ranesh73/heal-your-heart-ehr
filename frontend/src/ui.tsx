@@ -1,4 +1,4 @@
-import { ReactNode, useState } from "react";
+import { ReactNode, useState, useRef, useEffect } from "react";
 import * as Dialog from "@radix-ui/react-dialog";
 import { useForm } from "react-hook-form";
 import { X, Plus, LoaderCircle, Inbox, ChevronRight } from "lucide-react";
@@ -148,6 +148,13 @@ export function Modal({
   onClose: () => void;
   wide?: boolean;
 }) {
+  const contentRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (contentRef.current) {
+      contentRef.current.scrollTop = 0;
+    }
+  }, []);
+
   return (
     <Dialog.Root
       open
@@ -158,8 +165,13 @@ export function Modal({
       <Dialog.Portal>
         <Dialog.Overlay className="overlay" />
         <Dialog.Content
+          ref={contentRef}
           className={cn("modal", wide && "wide")}
           onPointerDownOutside={(e) => e.preventDefault()}
+          onOpenAutoFocus={(e) => {
+            e.preventDefault();
+            if (contentRef.current) contentRef.current.scrollTop = 0;
+          }}
         >
           <div className="modal-head">
             <div>

@@ -49,6 +49,7 @@ import {
   MessagesSquare,
   Clock,
   Sliders,
+  Trash2,
 } from "lucide-react";
 import {
   api,
@@ -98,7 +99,6 @@ import {
   SymptomsTemplatesModal,
   AssessmentNotesTemplatesModal,
   AddPrescriptionModal as CharmAddPrescriptionModal,
-  NewEncounterModal,
 } from "./charmTemplates";
 import { EECPPatient } from "./eecp";
 import { BillingTable, AppointmentTable } from "./operations";
@@ -612,7 +612,11 @@ export function PatientChart({ id }: { id: string }) {
   const [activeSection, setActiveSection] = useState("Dashboard");
   const [subTab, setSubTab] = useState("Face Sheet");
   const [moreOpen, setMoreOpen] = useState(false);
-  const [showNewEncounterModal, setShowNewEncounterModal] = useState(false);
+  const [showUnfinishedPrompt, setShowUnfinishedPrompt] = useState(false);
+  const [selectedConsultationId, setSelectedConsultationId] = useState<string | null>(null);
+  const [consultationSubfilter, setConsultationSubfilter] = useState<string>("All");
+  const [deleteConfirmEncounter, setDeleteConfirmEncounter] = useState<Row | null>(null);
+  const [consultationSearchQuery, setConsultationSearchQuery] = useState("");
   const {
     data: chart,
     isLoading,
@@ -642,8 +646,32 @@ export function PatientChart({ id }: { id: string }) {
     ...(billingRoles.includes(user.role) ? ["Billing"] : []),
     "More",
   ];
+  const handleCreateNewConsultation = async () => {
+    try {
+      const providerId = staff.find((s) => s.role === "doctor")?.id || user.id;
+      const r = await api<Row>("/encounters", "POST", {
+        patient_id: id,
+        provider_id: providerId,
+        chart_type: "SOAP Template",
+        mode: "In Person",
+        visit_type: "EECP On-going Visit",
+      });
+      await refresh();
+      navigate("/encounter/" + r.id + "/" + id);
+    } catch (err) {
+      notify("Failed to create consultation: " + String(err));
+    }
+  };
+  const handleConsultationClick = async () => {
+    const unfinished = (chart.encounters || []).filter((e: Row) => e.status !== "signed");
+    if (unfinished.length > 0) {
+      setShowUnfinishedPrompt(true);
+    } else {
+      await handleCreateNewConsultation();
+    }
+  };
   const createEncounter = () => {
-    setShowNewEncounterModal(true);
+    handleConsultationClick();
   };
   const assistantEncounter = (chart.encounters || []).find(
     (e: Row) => e.status === "draft" && e.assistant_id === user.id,
@@ -1137,45 +1165,325 @@ export function PatientChart({ id }: { id: string }) {
             }
 
             if (resolvedSection === "Consultations") {
+              const encounters: Row[] = chart.encounters || [];
+              const unsignedCount = encounters.filter((e) => e.status !== "signed").length;
+
+              if (selectedConsultationId) {
+                const selectedEnc = encounters.find((e) => e.id === selectedConsultationId) || encounters[0];
+                const encIdx = encounters.findIndex((e) => e.id === selectedEnc?.id);
+                const provName = staff.find((s) => s.id === selectedEnc?.provider_id)?.name || "Dr. Ananya Demo";
+
+                return (
+                  <div className="charm-consultation-view-pane">
+                    <div className="charm-consult-view-topbar">
+                      <div className="charm-consult-view-title-group">
+                        <button
+                          type="button"
+                          className="charm-btn-back"
+                          onClick={() => setSelectedConsultationId(null)}
+                          title="Back to Consultations"
+                        >
+                          <ArrowLeft size={14} style={{ marginRight: 4 }} /> Back
+                        </button>
+                        <span className="charm-consult-view-title">
+                          Consultation on {selectedEnc?.created_at ? day(selectedEnc.created_at) : "Nov 12, 2026"}
+                        </span>
+                      </div>
+                      <div className="charm-consult-view-actions">
+                        <div className="charm-search-notes-wrap" style={{ marginRight: 6 }}>
+                          <Search size={13} color="#94a3b8" />
+                          <input placeholder="Search Notes" />
+                        </div>
+                        <button
+                          type="button"
+                          className="charm-btn-subtle"
+                          onClick={() => navigate("/encounter/" + selectedEnc.id + "/" + id)}
+                          style={{ fontWeight: 600, color: "#0284c7" }}
+                        >
+                          <Edit2 size={13} style={{ marginRight: 4 }} /> Edit
+                        </button>
+                        <button type="button" className="charm-btn-subtle">Export <ChevronDown size={12} /></button>
+                        <button type="button" className="charm-btn-subtle">Print <ChevronDown size={12} /></button>
+                        <button type="button" className="charm-btn-subtle">Reports <ChevronDown size={12} /></button>
+                        <button type="button" className="charm-btn-subtle">Rx <ChevronDown size={12} /></button>
+                        <span style={{ fontSize: 12, color: "#64748b", margin: "0 4px" }}>
+                          {encIdx + 1} of {encounters.length}
+                        </span>
+                        <button
+                          type="button"
+                          className="charm-btn-icon-subtle"
+                          disabled={encIdx <= 0}
+                          onClick={() => setSelectedConsultationId(encounters[encIdx - 1]?.id)}
+                        >
+                          &lt;
+                        </button>
+                        <button
+                          type="button"
+                          className="charm-btn-icon-subtle"
+                          disabled={encIdx >= encounters.length - 1}
+                          onClick={() => setSelectedConsultationId(encounters[encIdx + 1]?.id)}
+                        >
+                          &gt;
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Metadata Summary Box matching frame_027 */}
+                    <div className="charm-consult-metadata-box">
+                      <div className="charm-meta-box-row">
+                        <span className="charm-meta-box-label">Consultation Date:</span>
+                        <span className="charm-meta-box-val">{selectedEnc?.created_at ? day(selectedEnc.created_at) : "Nov 12, 2026"}</span>
+                      </div>
+                      <div className="charm-meta-box-row">
+                        <span className="charm-meta-box-label">Encounter ID:</span>
+                        <span className="charm-meta-box-val">{selectedEnc?.id || "10000000004523"}</span>
+                      </div>
+                      <div className="charm-meta-box-row">
+                        <span className="charm-meta-box-label">Provider:</span>
+                        <span className="charm-meta-box-val">{provName}</span>
+                      </div>
+                      <div className="charm-meta-box-row">
+                        <span className="charm-meta-box-label">Facility:</span>
+                        <span className="charm-meta-box-val">Heal Your Heart Neelankarai</span>
+                      </div>
+                      <div className="charm-meta-box-row">
+                        <span className="charm-meta-box-label">Visit Type:</span>
+                        <span className="charm-meta-box-val">{selectedEnc?.visit_type || "--"}</span>
+                      </div>
+                      <div className="charm-meta-box-row">
+                        <span className="charm-meta-box-label">Session Duration:</span>
+                        <span className="charm-meta-box-val">30 mins</span>
+                      </div>
+                      <div className="charm-meta-box-row">
+                        <span className="charm-meta-box-label">Mode:</span>
+                        <span className="charm-meta-box-val">{selectedEnc?.mode || "In Person"}</span>
+                      </div>
+                      <div className="charm-meta-box-row">
+                        <span className="charm-meta-box-label">Status:</span>
+                        <span className="charm-meta-box-val">
+                          <Badge value={selectedEnc?.status || "draft"} />
+                        </span>
+                      </div>
+                      <div className="charm-meta-box-row">
+                        <span className="charm-meta-box-label">Chart Type:</span>
+                        <span className="charm-meta-box-val">{selectedEnc?.chart_type || "SOAP Template"}</span>
+                      </div>
+                    </div>
+
+                    {/* Clinical Note Rendered Sections */}
+                    <div className="charm-consult-note-document" style={{ border: "1px solid #e2e8f0", borderRadius: 4, padding: 18, background: "#fafafa" }}>
+                      <div style={{ marginBottom: 16 }}>
+                        <h4 style={{ fontSize: 13, fontWeight: 700, color: "#1e293b", margin: "0 0 6px 0", borderBottom: "1px solid #e2e8f0", paddingBottom: 4 }}>
+                          Chief Complaints
+                        </h4>
+                        <p style={{ margin: 0, fontSize: 13, color: "#334155", whiteSpace: "pre-wrap" }}>
+                          {selectedEnc?.chief_complaint || "Patient attended consultation for EECP therapy review."}
+                        </p>
+                      </div>
+
+                      <div style={{ marginBottom: 16 }}>
+                        <h4 style={{ fontSize: 13, fontWeight: 700, color: "#1e293b", margin: "0 0 6px 0", borderBottom: "1px solid #e2e8f0", paddingBottom: 4 }}>
+                          Symptoms / Post-EECP Assessment
+                        </h4>
+                        <p style={{ margin: 0, fontSize: 13, color: "#334155" }}>
+                          ✓ The patient maintains the benefits of EECP counterpulsation.
+                        </p>
+                      </div>
+
+                      <div style={{ marginBottom: 16 }}>
+                        <h4 style={{ fontSize: 13, fontWeight: 700, color: "#1e293b", margin: "0 0 6px 0", borderBottom: "1px solid #e2e8f0", paddingBottom: 4 }}>
+                          History of Present Illness (HPI)
+                        </h4>
+                        <div style={{ fontSize: 12.5, color: "#334155" }}>
+                          <div><strong>Chest Pain:</strong> Frequency: j/week | Nitroglycerin: nil | Walking Time: —</div>
+                          <div><strong>NYHA Class:</strong> Class I | <strong>Edema:</strong> Stable</div>
+                          <div><strong>Orthopnea:</strong> No | <strong>PND:</strong> No | <strong>Palpitations:</strong> No</div>
+                        </div>
+                      </div>
+
+                      <div style={{ marginBottom: 16 }}>
+                        <h4 style={{ fontSize: 13, fontWeight: 700, color: "#1e293b", margin: "0 0 6px 0", borderBottom: "1px solid #e2e8f0", paddingBottom: 4 }}>
+                          Assessment
+                        </h4>
+                        <p style={{ margin: 0, fontSize: 13, color: "#334155", whiteSpace: "pre-wrap" }}>
+                          {selectedEnc?.assessment || "Coronary Artery Disease - Angina Pectoris. Patient undergoing EECP counterpulsation therapy. Hemodynamically stable."}
+                        </p>
+                      </div>
+
+                      <div style={{ marginBottom: 16 }}>
+                        <h4 style={{ fontSize: 13, fontWeight: 700, color: "#1e293b", margin: "0 0 6px 0", borderBottom: "1px solid #e2e8f0", paddingBottom: 4 }}>
+                          Plan & Recommendations
+                        </h4>
+                        <p style={{ margin: 0, fontSize: 13, color: "#334155", whiteSpace: "pre-wrap" }}>
+                          {selectedEnc?.plan || "1. Continue daily 1-hour EECP therapy.\n2. Cardioprotective medications as prescribed.\n3. Low salt, low saturated fat diet. Avoid high potassium foods.\n4. Follow up review after completion of sessions."}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                );
+              }
+
+              // Filter encounters based on left sub-filter and search
+              const filteredEncounters = encounters.filter((e) => {
+                const provName = staff.find((s) => s.id === e.provider_id)?.name || "";
+                if (consultationSubfilter === "Unsigned" && e.status === "signed") return false;
+                if (consultationSubfilter === "To be Co-Signed") return false;
+                if (consultationSubfilter === "Past Reports") return false;
+                if (consultationSubfilter === "Last Visit") {
+                  if (encounters.length > 0 && e.id !== encounters[0]?.id) return false;
+                }
+                if (consultationSearchQuery) {
+                  const q = consultationSearchQuery.toLowerCase();
+                  const matchTitle = (e.visit_type || "").toLowerCase().includes(q) ||
+                    provName.toLowerCase().includes(q) ||
+                    (e.chief_complaint || "").toLowerCase().includes(q);
+                  if (!matchTitle) return false;
+                }
+                return true;
+              });
+
               return (
-                <Panel
-                  title="Consultation History"
-                  actions={
+                <div className="charm-consultations-container">
+                  {/* Left Filters Sidebar matching frame_020 */}
+                  <div className="charm-consult-left-filters">
                     <button
                       type="button"
-                      className="charm-btn-consultation"
-                      onClick={() => setShowNewEncounterModal(true)}
+                      className={`charm-filter-item ${consultationSubfilter === "Last Visit" ? "active" : ""}`}
+                      onClick={() => setConsultationSubfilter("Last Visit")}
                     >
-                      <Plus size={14} /> Consultation
+                      Last Visit
                     </button>
-                  }
-                >
-                  <Table
-                    rows={chart.encounters}
-                    onRow={(e) => navigate("/encounter/" + e.id + "/" + id)}
-                    columns={[
-                      {
-                        title: "Encounter",
-                        render: (e) => (
-                          <>
-                            <strong>{e.visit_type}</strong>
-                            <small className="cell-sub">{e.created_at ? dateTime(e.created_at) : "—"}</small>
-                          </>
-                        ),
-                      },
-                      {
-                        title: "Clinician",
-                        render: (e) => staff.find((s) => s.id === e.provider_id)?.name || "—",
-                      },
-                      {
-                        title: "Chief complaint",
-                        render: (e) => e.chief_complaint || "Draft not yet documented",
-                      },
-                      { title: "Status", render: (e) => <Badge value={e.status} /> },
-                    ]}
-                    empty="No consultation encounters recorded for this patient."
-                  />
-                </Panel>
+                    <button
+                      type="button"
+                      className={`charm-filter-item ${consultationSubfilter === "Unsigned" ? "active" : ""}`}
+                      onClick={() => setConsultationSubfilter("Unsigned")}
+                    >
+                      <span>Unsigned</span>
+                      {unsignedCount > 0 && (
+                        <span className="charm-filter-badge">{unsignedCount}</span>
+                      )}
+                    </button>
+                    <button
+                      type="button"
+                      className={`charm-filter-item ${consultationSubfilter === "To be Co-Signed" ? "active" : ""}`}
+                      onClick={() => setConsultationSubfilter("To be Co-Signed")}
+                    >
+                      To be Co-Signed
+                    </button>
+                    <button
+                      type="button"
+                      className={`charm-filter-item ${consultationSubfilter === "Past 6 Months" ? "active" : ""}`}
+                      onClick={() => setConsultationSubfilter("Past 6 Months")}
+                    >
+                      Past 6 Months
+                    </button>
+                    <button
+                      type="button"
+                      className={`charm-filter-item ${consultationSubfilter === "Past 1 Year" ? "active" : ""}`}
+                      onClick={() => setConsultationSubfilter("Past 1 Year")}
+                    >
+                      Past 1 Year
+                    </button>
+                    <button
+                      type="button"
+                      className={`charm-filter-item ${consultationSubfilter === "All" ? "active" : ""}`}
+                      onClick={() => setConsultationSubfilter("All")}
+                    >
+                      All
+                    </button>
+                    <button
+                      type="button"
+                      className={`charm-filter-item ${consultationSubfilter === "Past Reports" ? "active" : ""}`}
+                      onClick={() => setConsultationSubfilter("Past Reports")}
+                    >
+                      Past Reports
+                    </button>
+                  </div>
+
+                  {/* Right Main Table Area matching frame_020 */}
+                  <div className="charm-consult-main-area">
+                    <div className="charm-consult-toolbar">
+                      <div className="charm-search-notes-wrap">
+                        <Search size={13} color="#94a3b8" />
+                        <input
+                          placeholder="Search"
+                          value={consultationSearchQuery}
+                          onChange={(e) => setConsultationSearchQuery(e.target.value)}
+                        />
+                      </div>
+                      <button
+                        type="button"
+                        className="charm-btn-orange-consult"
+                        onClick={handleConsultationClick}
+                      >
+                        <Plus size={14} /> Consultation
+                      </button>
+                    </div>
+
+                    <table className="charm-consultations-table">
+                      <thead>
+                        <tr>
+                          <th style={{ width: "40%" }}>Title</th>
+                          <th style={{ width: "22%" }}>Provider</th>
+                          <th style={{ width: "20%" }}>Visit Type</th>
+                          <th style={{ width: "12%" }}>Date</th>
+                          <th style={{ width: "6%", textAlign: "center" }}></th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {filteredEncounters.length === 0 ? (
+                          <tr>
+                            <td colSpan={5} className="charm-empty-table-cell">
+                              No consultations found for the selected filter.
+                            </td>
+                          </tr>
+                        ) : (
+                          filteredEncounters.map((enc) => {
+                            const prov = staff.find((s) => s.id === enc.provider_id)?.name || "Dr. Ananya Demo";
+                            const dateStr = enc.created_at ? day(enc.created_at) : "Nov 12, 2026";
+                            const titleStr = `${dateStr} : ${prov} : ${enc.mode || "In Person"}`;
+                            return (
+                              <tr key={enc.id} className="charm-consult-row">
+                                <td onClick={() => setSelectedConsultationId(enc.id)}>
+                                  <span className="charm-enc-title-link">{titleStr}</span>
+                                </td>
+                                <td onClick={() => setSelectedConsultationId(enc.id)}>{prov}</td>
+                                <td onClick={() => setSelectedConsultationId(enc.id)}>{enc.visit_type || "--"}</td>
+                                <td onClick={() => setSelectedConsultationId(enc.id)}>{dateStr}</td>
+                                <td style={{ textAlign: "center" }}>
+                                  <div style={{ display: "inline-flex", gap: 4 }}>
+                                    <button
+                                      type="button"
+                                      className="charm-btn-icon-subtle"
+                                      title="Edit Consultation"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        navigate("/encounter/" + enc.id + "/" + id);
+                                      }}
+                                    >
+                                      <Edit2 size={13} />
+                                    </button>
+                                    <button
+                                      type="button"
+                                      className="charm-btn-icon-subtle danger"
+                                      title="Delete Consultation"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        setDeleteConfirmEncounter(enc);
+                                      }}
+                                    >
+                                      <Trash2 size={13} />
+                                    </button>
+                                  </div>
+                                </td>
+                              </tr>
+                            );
+                          })
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
               );
             }
 
@@ -1551,33 +1859,104 @@ export function PatientChart({ id }: { id: string }) {
             onClose={() => setModal("")}
           />
         )}
-      {showNewEncounterModal && (
-        <NewEncounterModal
-          patient={chart.patient}
-          staff={staff}
-          onClose={() => setShowNewEncounterModal(false)}
-          onCreate={async (payload) => {
-            try {
-              const r = await api("/encounters", "POST", {
-                patient_id: id,
-                provider_id:
-                  payload.provider_id ||
-                  (user.role === "doctor"
-                    ? user.id
-                    : staff.find((s) => s.role === "doctor")?.id || user.id),
-                assistant_id: staff.find((s) => s.role === "assistant")?.id || null,
-                visit_type: payload.visit_type || "Cardiology consultation",
-                chart_type: payload.chart_type || "SOAP Template",
-                mode: payload.mode || "In Person",
-              });
-              setShowNewEncounterModal(false);
-              await refresh();
-              navigate("/encounter/" + r.id + "/" + id);
-            } catch (err) {
-              notify("Failed to create consultation: " + String(err));
-            }
-          }}
-        />
+      {showUnfinishedPrompt && (
+        <div className="modal-backdrop">
+          <div className="charm-unfinished-modal">
+            <div className="charm-unfinished-header">
+              <h3>New Encounter</h3>
+              <button
+                type="button"
+                className="charm-btn-icon-subtle"
+                onClick={() => setShowUnfinishedPrompt(false)}
+              >
+                <X size={16} />
+              </button>
+            </div>
+            <div className="charm-unfinished-body">
+              <p className="charm-unfinished-desc">
+                There are some unfinished consultations for this patient. Would you like to continue them ?
+              </p>
+              <div className="charm-unfinished-links">
+                {(chart.encounters || [])
+                  .filter((e: Row) => e.status !== "signed")
+                  .map((e: Row) => {
+                    const prov = staff.find((s) => s.id === e.provider_id)?.name || "Provider";
+                    const dateStr = e.created_at ? day(e.created_at) : "Nov 12, 2026";
+                    return (
+                      <div
+                        key={e.id}
+                        className="charm-unfinished-item"
+                        onClick={() => {
+                          setShowUnfinishedPrompt(false);
+                          navigate("/encounter/" + e.id + "/" + id);
+                        }}
+                      >
+                        <span className="charm-unfinished-arrow">›</span>
+                        <span>Consultation on {dateStr} ({prov})</span>
+                      </div>
+                    );
+                  })}
+              </div>
+              <div className="charm-create-new-prompt">
+                <button
+                  type="button"
+                  className="charm-btn-link-create-new"
+                  onClick={async () => {
+                    setShowUnfinishedPrompt(false);
+                    await handleCreateNewConsultation();
+                  }}
+                >
+                  No, I want to create new consultation
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {deleteConfirmEncounter && (
+        <div className="modal-backdrop">
+          <div className="charm-confirm-dialog">
+            <div className="charm-confirm-dialog-header">
+              Confirmation
+            </div>
+            <div className="charm-confirm-dialog-body">
+              Invoice# NELINV-42224 is generated for this Chart Note. If you delete this Chart Note, it will be unassociated from the invoice.
+              <br /><br />
+              Do you want to continue?
+            </div>
+            <div className="charm-confirm-dialog-footer">
+              <button
+                type="button"
+                className="charm-btn-subtle"
+                onClick={() => setDeleteConfirmEncounter(null)}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="btn-danger"
+                style={{ padding: "6px 16px", borderRadius: 4, fontWeight: 600, background: "#dc2626", color: "#fff", border: "none", cursor: "pointer" }}
+                onClick={async () => {
+                  try {
+                    await api("/encounters/" + deleteConfirmEncounter.id, "DELETE");
+                    const deletedId = deleteConfirmEncounter.id;
+                    setDeleteConfirmEncounter(null);
+                    if (selectedConsultationId === deletedId) {
+                      setSelectedConsultationId(null);
+                    }
+                    await refresh();
+                    notify("Consultation deleted successfully.");
+                  } catch (err) {
+                    notify("Failed to delete consultation: " + String(err));
+                  }
+                }}
+              >
+                OK
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
@@ -2611,24 +2990,45 @@ export function EncounterEditor({
       notify(`Loaded template: ${templateName} in Review of Systems`);
       scrollTo("sec-ros", "ROS");
     } else if (templateName.includes("EECP")) {
-      if (!getValues("chief_complaint")) {
-        setValue(
-          "chief_complaint",
-          "- Chest pain, burning sensation in the chest, radiating left shoulder pain, and jaw pain-Yes\n- Shortness of breath / Chest pain related to exertion-Yes\n- Difficulty in climbing stairs or slopes-Yes",
-        );
-      }
-      if (!getValues("assessment")) {
-        setValue(
-          "assessment",
-          "Patient came with chest pain, shortness of breath, tiredness, easy fatigability, swelling in the legs, not able to walk without symptoms. Known case of CAD for the past 2 years. Current cardiac risk factors include hypertension, dyslipidemia. General condition stable. Hemodynamically stable for continued EECP counterpulsation.",
-        );
-      }
-      if (!getValues("plan")) {
-        setValue(
-          "plan",
-          "Avoid high potassium foods:-\nEECP daily session recommended for 35 sessions.\nMaintain target augmentation ratio > 1.2.",
-        );
-      }
+      notify("Saving Notes... Loading template: " + templateName);
+      setPostEecpAssessment({ "The patient maintain the benefits.": true });
+      setHpiInitialAssessment(true);
+      setHpiChestPain("Yes");
+      setHpiFreq("j");
+      setHpiNitro("nil");
+      setHpiWalk("—");
+      setHpiSob("Yes");
+      setHpiNyha("Class I");
+      setHpiEdema("Yes");
+      setHpiEdemaStatus("Stable");
+      setHpiOrthopnea("Yes");
+      setHpiPnd("Yes");
+      setHpiPalpitations("No");
+      setPmhInitialAssessment(true);
+      setPmhCad("2020");
+      setPmhCabg("fhf");
+      setRosHeaders({
+        General: true,
+        Gastroentrology: true,
+        Renal: true,
+        Anemia: true,
+        "EECP Indications & Contraindications": true,
+      });
+      setValue(
+        "chief_complaint",
+        "- Chest pain, burning sensation in the chest, radiating left shoulder pain, and jaw pain\n- Shortness of breath / Chest pain related to exertion\n- Difficulty in climbing stairs or slopes\n- Symptoms appear while bending down\n- Inability to walk after meals\n- Swelling in legs\n- Tiredness.\n- Lack of sleep\n- Recent history of hospitalization for ACS/LVF",
+        { shouldDirty: true, shouldTouch: true },
+      );
+      setValue(
+        "assessment",
+        "Coronary Artery Disease - Angina Pectoris (CCS Class II). Known case of CAD for the past 2 years. Status post-CABG. Current cardiac risk factors include hypertension, dyslipidemia. General condition stable. Hemodynamically stable for continued EECP counterpulsation.",
+        { shouldDirty: true, shouldTouch: true },
+      );
+      setValue(
+        "plan",
+        "1. EECP Session recommended daily for 35 days (1 hour per session).\n2. Continue cardioprotective medications as prescribed.\n3. Low salt, low saturated fat diet. Avoid high potassium foods.\n4. Maintain daily walking within pain-free threshold.\n5. Review after completion of 35 sessions or SOS.",
+        { shouldDirty: true, shouldTouch: true },
+      );
       notify(`Loaded template: ${templateName}`);
     } else if (templateName.includes("Diabetes")) {
       if (!getValues("assessment")) {
@@ -2820,47 +3220,96 @@ export function EncounterEditor({
         <div className="charm-consult-meta-left">
           <div className="charm-meta-field">
             <span>Provider:</span>
-            <strong>
-              {staff.find((s) => s.id === encounter.provider_id)?.name ||
-                user.name}
-              <ChevronDown size={13} style={{ display: "inline", marginLeft: 3 }} />
-            </strong>
+            <select
+              className="charm-meta-select"
+              value={encounter.provider_id || ""}
+              onChange={async (e) => {
+                try {
+                  await api("/encounters/" + id, "PATCH", { provider_id: e.target.value });
+                  await refresh();
+                  notify("Provider updated.");
+                } catch (err) {
+                  notify("Failed to update provider: " + String(err));
+                }
+              }}
+            >
+              {staff
+                .filter((s) => s.role === "doctor" || s.id === encounter.provider_id)
+                .map((s) => (
+                  <option key={s.id} value={s.id}>
+                    {s.name}
+                  </option>
+                ))}
+            </select>
           </div>
 
           <div className="charm-meta-field">
             <span>Date:</span>
-            <strong>
-              {dateTime(encounter.created_at).slice(0, 12)}
+            <strong title="Consultation date">
+              {encounter.created_at ? day(encounter.created_at) : "Nov 13, 2026"}
               <Edit2 size={12} style={{ display: "inline", marginLeft: 4, color: "#64748b" }} />
             </strong>
           </div>
 
           <div className="charm-meta-field">
             <span>Facility:</span>
-            <strong>Heal Your Heart Neelankarai...</strong>
+            <select className="charm-meta-select" defaultValue="Heal Your Heart Neelankarai">
+              <option value="Heal Your Heart Neelankarai">Heal Your Heart Neelankarai</option>
+              <option value="Heal Your Heart Royapettah">Heal Your Heart Royapettah</option>
+              <option value="Heal Your Heart Anna Nagar">Heal Your Heart Anna Nagar</option>
+            </select>
           </div>
 
           <div className="charm-meta-field">
             <span>Visit Type:</span>
-            <strong>
-              {encounter.visit_type || "--"}
-              <ChevronDown size={13} style={{ display: "inline", marginLeft: 3 }} />
-            </strong>
+            <select
+              className="charm-meta-select"
+              value={encounter.visit_type || "EECP On-going Visit"}
+              onChange={async (e) => {
+                try {
+                  await api("/encounters/" + id, "PATCH", { visit_type: e.target.value });
+                  await refresh();
+                  notify("Visit type updated.");
+                } catch (err) {
+                  notify("Failed to update visit type: " + String(err));
+                }
+              }}
+            >
+              <option value="--">--</option>
+              <option value="EECP On-going Visit">EECP On-going Visit</option>
+              <option value="Initial Cardiology Consultation">Initial Cardiology Consultation</option>
+              <option value="EECP 24th Day">EECP 24th Day</option>
+              <option value="Follow-up Review">Follow-up Review</option>
+              <option value="Comprehensive Cardiology Evaluation">Comprehensive Evaluation</option>
+            </select>
           </div>
 
           <div className="charm-meta-field">
-            <span>Duration (mins):</span>
-            <strong>30</strong>
+            <span>Session Duration (mins):</span>
+            <strong>--</strong>
           </div>
 
           <div className="charm-meta-field">
             <span>Resource:</span>
-            <strong>Bed 1</strong>
+            <select className="charm-meta-select" defaultValue="--">
+              <option value="--">--</option>
+              <option value="Bed 1">Bed 1</option>
+              <option value="Bed 2">Bed 2</option>
+              <option value="Bed 3">Bed 3</option>
+              <option value="EECP Console 1">EECP Console 1</option>
+              <option value="EECP Console 2">EECP Console 2</option>
+            </select>
           </div>
 
           <div className="charm-meta-field">
             <span>Reason:</span>
-            <span className="muted">Cardiology EECP Consultation</span>
+            <select className="charm-meta-select" defaultValue="--">
+              <option value="--">--</option>
+              <option value="Cardiology Consultation">Cardiology Consultation</option>
+              <option value="EECP Treatment Session Review">EECP Treatment Session Review</option>
+              <option value="Angina Evaluation">Angina Evaluation</option>
+              <option value="Routine Heart Check">Routine Heart Check</option>
+            </select>
           </div>
         </div>
 

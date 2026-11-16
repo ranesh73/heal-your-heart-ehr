@@ -125,8 +125,13 @@ export const today = () =>
   }).format(new Date());
 export const localInput = (value: string) =>
   new Date(new Date(value).getTime() + 330 * 60000).toISOString().slice(0, 16);
-export const toISO = (value: string) =>
-  value.length === 16 ? value + ":00+05:30" : value;
+export const toISO = (value: string) => {
+  if (!value) return value;
+  if (value.includes("+") || value.endsWith("Z")) return value;
+  if (value.length === 16) return value + ":00+05:30";
+  if (value.length === 19) return value + "+05:30";
+  return value + "+05:30";
+};
 export const label = (value: string) =>
   value?.replaceAll("_", " ").replaceAll("-", " ") || "—";
 export function navigate(path: string) {

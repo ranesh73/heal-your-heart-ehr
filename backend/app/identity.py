@@ -2,7 +2,7 @@ import os
 import secrets
 from datetime import timedelta
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
-from sqlalchemy import select, func, delete
+from sqlalchemy import select, func, delete, or_
 from . import models as m, schemas as s
 from .db import get_db
 from .security import context, digest, password_hash, password_matches
@@ -235,8 +235,68 @@ def remove_availability(identifier:str,c=Depends(context)):
 def catalogs(kind:str|None=None,q:str|None=None,c=Depends(context)):
     query=select(m.Catalog).where(m.Catalog.facility_id==c.facility_id,m.Catalog.active==True)
     if kind: query=query.where(m.Catalog.kind==kind)
-    if q: query=query.where(m.Catalog.name.ilike(f'%{q}%'))
-    return [serialize(x) for x in c.db.scalars(query.order_by(m.Catalog.name))]
+    if q and q.strip(): query=query.where(m.Catalog.name.ilike(f'%{q.strip()}%'))
+    items = [serialize(x) for x in c.db.scalars(query.order_by(m.Catalog.name))]
+    existing_names = {x['name'].strip().lower() for x in items}
+
+    # Enrich medication queries with master medicine catalogue
+    if kind in (None, 'medication'):
+        term = q.strip() if q else ''
+        med_stmt = select(m.MedicineCatalog).where(m.MedicineCatalog.is_active == True)
+        if term:
+            norm = term.lower()
+            med_stmt = med_stmt.where(
+                or_(
+                    m.MedicineCatalog.product_name.ilike(f'%{term}%'),
+                    m.MedicineCatalog.trade_name.ilike(f'%{term}%'),
+                    m.MedicineCatalog.normalized_name.ilike(f'%{norm}%'),
+                    m.MedicineCatalog.normalized_trade.ilike(f'%{norm}%')
+                )
+            )
+        for med in c.db.scalars(med_stmt.order_by(m.MedicineCatalog.product_name).limit(100)).all():
+            m_norm = med.product_name.strip().lower()
+            if m_norm not in existing_names:
+                existing_names.add(m_norm)
+                items.append({
+                    'id': med.id,
+                    'facility_id': c.facility_id,
+                    'kind': 'medication',
+                    'name': med.product_name,
+                    'code': '',
+                    'instructions': f"Trade: {med.trade_name}" if med.trade_name and med.trade_name.lower() != m_norm else '',
+                    'notes': med.trade_name or '',
+                    'active': True
+                })
+
+    # Enrich injection queries with central injection catalogue
+    if kind in (None, 'injection'):
+        term = q.strip() if q else ''
+        inj_stmt = select(m.InjectionCatalog).where(m.InjectionCatalog.is_active == True)
+        if term:
+            norm = term.lower()
+            inj_stmt = inj_stmt.where(
+                or_(
+                    m.InjectionCatalog.name.ilike(f'%{term}%'),
+                    m.InjectionCatalog.normalized_name.ilike(f'%{norm}%'),
+                    m.InjectionCatalog.original_source_name.ilike(f'%{term}%')
+                )
+            )
+        for inj in c.db.scalars(inj_stmt.order_by(m.InjectionCatalog.name).limit(100)).all():
+            i_norm = inj.name.strip().lower()
+            if i_norm not in existing_names:
+                existing_names.add(i_norm)
+                items.append({
+                    'id': inj.id,
+                    'facility_id': c.facility_id,
+                    'kind': 'injection',
+                    'name': inj.name,
+                    'code': '',
+                    'instructions': 'Central injection catalogue',
+                    'notes': inj.original_source_name or '',
+                    'active': True
+                })
+
+    return items
 
 
 @router.post('/admin/catalogs')

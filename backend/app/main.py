@@ -7,10 +7,14 @@ from fastapi.responses import JSONResponse, FileResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import ValidationError
 from sqlalchemy.exc import IntegrityError
-from . import identity, patients, scheduling, clinical, eecp, operations, settings_router, templates_router
+from . import identity, patients, scheduling, clinical, eecp, operations, settings_router, templates_router, catalogue_service, rx_service, immunization_service, settings_modules_service, billing_service
 
 app=FastAPI(title='Heal Your Heart EHR',version='0.1.0',docs_url='/api/docs' if os.getenv('EHR_API_DOCS')=='1' else None,redoc_url=None,openapi_url='/api/openapi.json' if os.getenv('EHR_API_DOCS')=='1' else None)
-for router in (identity.router,patients.router,scheduling.router,clinical.router,eecp.router,operations.router,settings_router.router,templates_router.router): app.include_router(router)
+app.include_router(immunization_service.router, prefix="/api/settings/immunization")
+app.include_router(immunization_service.router, prefix="/settings/immunization")
+app.include_router(settings_modules_service.router)
+app.include_router(billing_service.router)
+for router in (identity.router,patients.router,scheduling.router,clinical.router,eecp.router,operations.router,settings_router.router,templates_router.router,catalogue_service.router,rx_service.router): app.include_router(router)
 
 
 @app.middleware('http')
@@ -50,6 +54,23 @@ async def unexpected_error(request,exc):
     traceback.print_exc()
     logging.getLogger('ehr').error('Request failed: %s: %s', type(exc).__name__, exc)
     return JSONResponse({'detail':'The operation could not be completed. No changes were saved.'},status_code=500)
+
+
+@app.on_event('startup')
+def startup_sync():
+    try:
+        settings_router.load_store()
+    except Exception as e:
+        logging.getLogger('ehr').warning('Startup settings sync failed: %s', e)
+    try:
+        from .db import engine
+        from sqlalchemy import text
+        with engine.begin() as conn:
+            cols = [r[1] for r in conn.execute(text("PRAGMA table_info(appointments)")).fetchall()]
+            if 'token_number' not in cols:
+                conn.execute(text("ALTER TABLE appointments ADD COLUMN token_number INTEGER"))
+    except Exception as e:
+        logging.getLogger('ehr').warning('Startup migration failed: %s', e)
 
 
 @app.get('/api/health')

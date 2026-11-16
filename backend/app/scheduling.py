@@ -117,6 +117,46 @@ def appointment_label(identifier:str,data:s.AppointmentLabelChange,c=Depends(con
     return serialize(row)
 
 
+@router.patch('/{identifier}')
+@router.put('/{identifier}')
+def update_appointment(identifier:str, data:s.AppointmentPatch, c=Depends(context)):
+    c.allow(SCHEDULING|{'assistant'}); row=c.record(m.Appointment,identifier)
+    if data.resource_id is not None:
+        row.resource_id = data.resource_id if data.resource_id else None
+    if data.token_number is not None:
+        row.token_number = data.token_number
+    if data.status is not None:
+        row.status = data.status
+        if data.status == 'checked-in' and not row.checked_in_at:
+            row.checked_in_at = m.now()
+    if data.status_label is not None:
+        row.status_label = data.status_label
+    if data.checked_in_at is not None:
+        row.checked_in_at = data.checked_in_at
+    row.version += 1
+    c.audit('update_appointment', row)
+    return serialize(row)
+
+
+@router.post('/{identifier}/token')
+def generate_token(identifier:str, c=Depends(context)):
+    c.allow(SCHEDULING|{'assistant'}); row=c.record(m.Appointment,identifier)
+    if not row.token_number:
+        day_start = row.start_at.replace(hour=0, minute=0, second=0, microsecond=0)
+        day_end = row.start_at.replace(hour=23, minute=59, second=59, microsecond=999999)
+        max_token = c.db.scalar(
+            select(func.max(m.Appointment.token_number)).where(
+                m.Appointment.facility_id == c.facility_id,
+                m.Appointment.start_at >= day_start,
+                m.Appointment.start_at <= day_end
+            )
+        ) or 0
+        row.token_number = max_token + 1
+        row.version += 1
+        c.audit('generate_token', row, f"Token #{row.token_number}")
+    return serialize(row)
+
+
 @router.post('/{identifier}/reschedule')
 def reschedule(identifier:str,data:s.Reschedule,c=Depends(context)):
     c.allow(SCHEDULING); row=c.record(m.Appointment,identifier); check_version(row,data.version)
