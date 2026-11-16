@@ -707,7 +707,7 @@ function VitalsSummary({ rows }: { rows: Row[] }) {
 }
 
 export function PatientChart({ id }: { id: string }) {
-  const { user, staff, refresh, notify } = useApp();
+  const { user, staff, facilities, refresh, notify } = useApp();
   const queryClient = useQueryClient();
   const [tab, setTab] = useState("Overview");
   const [recordTab, setRecordTab] = useState("Vitals");
@@ -718,6 +718,37 @@ export function PatientChart({ id }: { id: string }) {
   const [subTab, setSubTab] = useState("Face Sheet");
   const [moreOpen, setMoreOpen] = useState(false);
   const [showUnfinishedPrompt, setShowUnfinishedPrompt] = useState(false);
+  const [showNewEncounterModal, setShowNewEncounterModal] = useState(false);
+  const [newEncFacilityId, setNewEncFacilityId] = useState(branch || facilities[0]?.id || "");
+  const [newEncProviderId, setNewEncProviderId] = useState(
+    user?.role === "doctor" ? user.id : staff.find((s) => s.role === "doctor")?.id || user.id
+  );
+  const [newEncDate, setNewEncDate] = useState(() => {
+    const d = new Date();
+    return d.toISOString().slice(0, 10);
+  });
+  const [newEncVisitType, setNewEncVisitType] = useState("EECP On-going Visit");
+  const [newEncMode, setNewEncMode] = useState<"In Person" | "Phone Call" | "Video Consult">("In Person");
+  const [newEncChartType, setNewEncChartType] = useState<"Quick" | "Brief" | "Comprehensive" | "SOAP Template">("SOAP Template");
+  const [creatingEncounter, setCreatingEncounter] = useState(false);
+
+  useEffect(() => {
+    if (!newEncProviderId && staff.length > 0) {
+      if (user?.role === "doctor") {
+        setNewEncProviderId(user.id);
+      } else {
+        const doc = staff.find((s) => s.role === "doctor");
+        if (doc) setNewEncProviderId(doc.id);
+      }
+    }
+  }, [user, staff, newEncProviderId]);
+
+  useEffect(() => {
+    if (!newEncFacilityId && facilities.length > 0) {
+      setNewEncFacilityId(branch || facilities[0].id);
+    }
+  }, [branch, facilities, newEncFacilityId]);
+
   const [selectedConsultationId, setSelectedConsultationId] = useState<string | null>(null);
   const [consultationSubfilter, setConsultationSubfilter] = useState<string>("All");
   const [deleteConfirmEncounter, setDeleteConfirmEncounter] = useState<Row | null>(null);
@@ -751,25 +782,36 @@ export function PatientChart({ id }: { id: string }) {
     ...(billingRoles.includes(user.role) ? ["Billing"] : []),
     "More",
   ];
-  const handleCreateNewConsultation = async () => {
+  const handleCreateEncounter = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    const providerId = user.role === "doctor" ? user.id : (newEncProviderId || staff.find((s) => s.role === "doctor")?.id || user.id);
+    setCreatingEncounter(true);
     try {
-      const providerId = user.role === "doctor" ? user.id : (staff.find((s) => s.role === "doctor")?.id || user.id);
       const r = await api<Row>("/encounters", "POST", {
         patient_id: id,
+        facility_id: newEncFacilityId || branch,
         provider_id: providerId,
-        chart_type: "SOAP Template",
-        mode: "In Person",
-        visit_type: "EECP On-going Visit",
+        chart_type: newEncChartType,
+        mode: newEncMode,
+        visit_type: newEncVisitType || "EECP On-going Visit",
       });
       await queryClient.invalidateQueries({ queryKey: ["chart", branch, id] });
       await refresh();
+      setShowNewEncounterModal(false);
       navigate("/encounter/" + r.id + "/" + id);
     } catch (err) {
       notify("Failed to create consultation: " + String(err));
+    } finally {
+      setCreatingEncounter(false);
     }
   };
-  const handleConsultationClick = async () => {
-    await handleCreateNewConsultation();
+  const handleConsultationClick = () => {
+    const unfinished = (chart.encounters || []).filter((e: Row) => e.status !== "signed");
+    if (unfinished.length > 0) {
+      setShowUnfinishedPrompt(true);
+    } else {
+      setShowNewEncounterModal(true);
+    }
   };
   const createEncounter = () => {
     handleConsultationClick();
@@ -2000,15 +2042,214 @@ export function PatientChart({ id }: { id: string }) {
                 <button
                   type="button"
                   className="charm-btn-link-create-new"
-                  onClick={async () => {
+                  onClick={() => {
                     setShowUnfinishedPrompt(false);
-                    await handleCreateNewConsultation();
+                    setShowNewEncounterModal(true);
                   }}
                 >
                   No, I want to create new consultation
                 </button>
               </div>
             </div>
+          </div>
+        </div>
+      )}
+
+      {showNewEncounterModal && (
+        <div className="modal-backdrop">
+          <div className="charm-new-encounter-modal">
+            <div className="charm-new-encounter-header">
+              <h3>New Encounter</h3>
+              <button
+                type="button"
+                className="charm-btn-icon-subtle"
+                onClick={() => setShowNewEncounterModal(false)}
+              >
+                <X size={16} />
+              </button>
+            </div>
+            <form onSubmit={handleCreateEncounter}>
+              <div className="charm-new-encounter-body">
+                <div className="charm-new-enc-form-grid">
+                  <div className="charm-new-enc-row">
+                    <label className="charm-new-enc-label">
+                      Facility<span className="req">*</span>
+                    </label>
+                    <div className="charm-new-enc-control">
+                      <select
+                        className="charm-new-enc-select"
+                        value={newEncFacilityId}
+                        onChange={(e) => setNewEncFacilityId(e.target.value)}
+                        required
+                      >
+                        {facilities.map((f: Row) => (
+                          <option key={f.id} value={f.id}>
+                            {f.name}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+
+                  <div className="charm-new-enc-row">
+                    <label className="charm-new-enc-label">
+                      Consultation with<span className="req">*</span>
+                    </label>
+                    <div className="charm-new-enc-control">
+                      <select
+                        className="charm-new-enc-select"
+                        value={newEncProviderId}
+                        onChange={(e) => setNewEncProviderId(e.target.value)}
+                        required
+                      >
+                        {staff
+                          .filter((s) => s.role === "doctor")
+                          .map((d) => (
+                            <option key={d.id} value={d.id}>
+                              {d.name}
+                            </option>
+                          ))}
+                      </select>
+                    </div>
+                  </div>
+
+                  <div className="charm-new-enc-row">
+                    <label className="charm-new-enc-label">
+                      Date<span className="req">*</span>
+                    </label>
+                    <div className="charm-new-enc-control">
+                      <div className="charm-new-enc-date-wrap">
+                        <input
+                          type="date"
+                          className="charm-new-enc-input"
+                          value={newEncDate}
+                          onChange={(e) => setNewEncDate(e.target.value)}
+                          required
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="charm-new-enc-row">
+                    <label className="charm-new-enc-label">Visit Type</label>
+                    <div className="charm-new-enc-control">
+                      <select
+                        className="charm-new-enc-select"
+                        value={newEncVisitType}
+                        onChange={(e) => setNewEncVisitType(e.target.value)}
+                      >
+                        <option value="">--Select--</option>
+                        <option value="EECP On-going Visit">EECP On-going Visit</option>
+                        <option value="Follow-up Visit">Follow-up Visit</option>
+                        <option value="New Patient Visit">New Patient Visit</option>
+                        <option value="Cardiology consultation">Cardiology consultation</option>
+                        <option value="Walk-in (New Patient Visit)">Walk-in (New Patient Visit)</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  <div className="charm-new-enc-row">
+                    <label className="charm-new-enc-label">
+                      Consultation Mode<span className="req">*</span>
+                    </label>
+                    <div className="charm-new-enc-control">
+                      <div className="charm-new-enc-radio-group">
+                        <label className="charm-new-enc-radio-label">
+                          <input
+                            type="radio"
+                            name="consultMode"
+                            checked={newEncMode === "In Person"}
+                            onChange={() => setNewEncMode("In Person")}
+                          />
+                          In Person
+                        </label>
+                        <label className="charm-new-enc-radio-label">
+                          <input
+                            type="radio"
+                            name="consultMode"
+                            checked={newEncMode === "Phone Call"}
+                            onChange={() => setNewEncMode("Phone Call")}
+                          />
+                          Phone Call
+                        </label>
+                        <label className="charm-new-enc-radio-label">
+                          <input
+                            type="radio"
+                            name="consultMode"
+                            checked={newEncMode === "Video Consult"}
+                            onChange={() => setNewEncMode("Video Consult")}
+                          />
+                          Video Consult
+                        </label>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="charm-new-enc-row">
+                    <label className="charm-new-enc-label">
+                      Chart Type<span className="req">*</span>
+                    </label>
+                    <div className="charm-new-enc-control">
+                      <div className="charm-new-enc-radio-group">
+                        <label className="charm-new-enc-radio-label">
+                          <input
+                            type="radio"
+                            name="chartType"
+                            checked={newEncChartType === "Quick"}
+                            onChange={() => setNewEncChartType("Quick")}
+                          />
+                          Quick
+                        </label>
+                        <label className="charm-new-enc-radio-label">
+                          <input
+                            type="radio"
+                            name="chartType"
+                            checked={newEncChartType === "Brief"}
+                            onChange={() => setNewEncChartType("Brief")}
+                          />
+                          Brief
+                        </label>
+                        <label className="charm-new-enc-radio-label">
+                          <input
+                            type="radio"
+                            name="chartType"
+                            checked={newEncChartType === "Comprehensive"}
+                            onChange={() => setNewEncChartType("Comprehensive")}
+                          />
+                          Comprehensive
+                        </label>
+                        <label className="charm-new-enc-radio-label soap-label">
+                          <input
+                            type="radio"
+                            name="chartType"
+                            checked={newEncChartType === "SOAP Template"}
+                            onChange={() => setNewEncChartType("SOAP Template")}
+                          />
+                          SOAP Template
+                        </label>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="charm-new-encounter-footer">
+                <button
+                  type="submit"
+                  className="charm-btn-orange-create"
+                  disabled={creatingEncounter}
+                >
+                  {creatingEncounter ? "Creating..." : "Create"}
+                </button>
+                <button
+                  type="button"
+                  className="charm-btn-cancel-link"
+                  onClick={() => setShowNewEncounterModal(false)}
+                >
+                  Cancel
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}
