@@ -60,7 +60,10 @@ def init_db():
                         src_cur.execute("SELECT name FROM sqlite_master WHERE type='table' AND name=?", (table.name,))
                         if not src_cur.fetchone():
                             continue
-                        src_cur.execute(f"SELECT * FROM {table.name}")
+                        if table.name == "audit_events":
+                            src_cur.execute(f"SELECT * FROM {table.name} ORDER BY created_at DESC LIMIT 50")
+                        else:
+                            src_cur.execute(f"SELECT * FROM {table.name}")
                         rows = [dict(r) for r in src_cur.fetchall()]
                         if rows:
                             col_map = {c.name: c for c in table.columns}
@@ -85,7 +88,22 @@ def init_db():
                                                 pass
                                         p_row[k] = v
                                 parsed_rows.append(p_row)
-                            conn.execute(table.insert(), parsed_rows)
+
+                            if table.foreign_keys:
+                                for fk in table.foreign_keys:
+                                    tgt_tbl = fk.column.table.name
+                                    tgt_col = fk.column.name
+                                    try:
+                                        existing_ids = set(conn.execute(text(f"SELECT {tgt_col} FROM {tgt_tbl}")).scalars().all())
+                                        parsed_rows = [r for r in parsed_rows if r.get(fk.parent.name) is None or r.get(fk.parent.name) in existing_ids]
+                                    except Exception:
+                                        pass
+
+                            if parsed_rows:
+                                CHUNK_SIZE = 50
+                                for i in range(0, len(parsed_rows), CHUNK_SIZE):
+                                    chunk = parsed_rows[i:i + CHUNK_SIZE]
+                                    conn.execute(table.insert(), chunk)
                     log.info("PostgreSQL database seeding complete!")
         except Exception as e:
             log.warning("PostgreSQL auto-seed check skipped or failed: %s", e)
