@@ -135,7 +135,9 @@ export const toISO = (value: string) => {
 export const label = (value: string) =>
   value?.replaceAll("_", " ").replaceAll("-", " ") || "—";
 export function navigate(path: string) {
-  location.hash = path;
+  const target = path.startsWith("#") ? path.slice(1) : path;
+  location.hash = target;
+  window.dispatchEvent(new HashChangeEvent("hashchange"));
 }
 export const patientName = (id: string, patients: Row[]) =>
   patients.find((p) => p.id === id)?.name || "Patient";

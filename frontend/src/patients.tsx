@@ -665,12 +665,7 @@ export function PatientChart({ id }: { id: string }) {
     }
   };
   const handleConsultationClick = async () => {
-    const unfinished = (chart.encounters || []).filter((e: Row) => e.status !== "signed");
-    if (unfinished.length > 0) {
-      setShowUnfinishedPrompt(true);
-    } else {
-      await handleCreateNewConsultation();
-    }
+    await handleCreateNewConsultation();
   };
   const createEncounter = () => {
     handleConsultationClick();
@@ -2690,14 +2685,19 @@ export function EncounterEditor({
     queryKey: ["chart", branch, patientId],
     queryFn: () => api("/patients/" + patientId),
   });
-  const encounter = chart?.encounters?.find((r: Row) => r.id === id);
+  const directEncounterQuery = useQuery({
+    queryKey: ["encounter", id],
+    queryFn: () => api<Row>(`/encounters/${id}`),
+    enabled: Boolean(id),
+  });
+  const encounter = chart?.encounters?.find((r: Row) => r.id === id) || directEncounterQuery.data;
 
   useEffect(() => {
-    if (!encounter && !isLoading && !refetchAttempted) {
+    if (!encounter && !isLoading && !directEncounterQuery.isLoading && !refetchAttempted) {
       setRefetchAttempted(true);
       refetch();
     }
-  }, [encounter, isLoading, refetchAttempted, refetch]);
+  }, [encounter, isLoading, directEncounterQuery.isLoading, refetchAttempted, refetch]);
   const [modal, setModal] = useState("");
   const [saveError, setSaveError] = useState<unknown>();
   const [busy, setBusy] = useState(false);
@@ -2951,8 +2951,8 @@ export function EncounterEditor({
     return () => removeEventListener("beforeunload", fn);
   }, [isDirty]);
 
-  if (isLoading || (id && !encounter && (isFetching || !refetchAttempted))) return <Loading />;
-  if (error) return <ErrorBox error={error} />;
+  if (isLoading || directEncounterQuery.isLoading || (id && !encounter && (isFetching || directEncounterQuery.isFetching || !refetchAttempted))) return <Loading />;
+  if (error || directEncounterQuery.error) return <ErrorBox error={error || directEncounterQuery.error} />;
   if (!encounter)
     return (
       <Empty
@@ -2964,7 +2964,7 @@ export function EncounterEditor({
   const editable =
     (user.role === "admin" || (user.role === "doctor" && encounter.provider_id === user.id)) &&
     encounter.status === "draft";
-  const old = chart.encounters.filter(
+  const old = (chart?.encounters || []).filter(
     (e: Row) => e.id !== id && e.status === "signed",
   );
   const source = old.find((e: Row) => e.id === previous) || old[0];

@@ -354,11 +354,22 @@ def encounters(c=Depends(context)):
     return [encounter_out(c.db,x) for x in c.db.scalars(select(m.Encounter).where(m.Encounter.facility_id==c.facility_id).order_by(m.Encounter.created_at.desc()).limit(500))]
 
 
+@router.get('/encounters/{identifier}')
+def get_encounter(identifier:str,c=Depends(context)):
+    c.allow(CLINICAL)
+    row=c.record(m.Encounter,identifier)
+    return encounter_out(c.db,row)
+
+
 @router.post('/encounters')
 def create_encounter(data:s.EncounterInput,c=Depends(context)):
-    c.allow({'doctor','admin','assistant'}); c.patient(data.patient_id); c.staff(data.provider_id,{'doctor'})
-    if c.user.role == 'doctor' and data.provider_id != c.user.id:
-        raise HTTPException(403,'Create encounters under your own clinician account')
+    c.allow({'doctor','admin','assistant'}); c.patient(data.patient_id)
+    if c.user.role == 'doctor':
+        data.provider_id = c.user.id
+    elif not data.provider_id:
+        doc = c.db.scalar(select(m.User).where(m.User.facility_id==c.facility_id, m.User.role=='doctor', m.User.is_active==True))
+        if doc: data.provider_id = doc.id
+    c.staff(data.provider_id,{'doctor'})
     if data.assistant_id: c.staff(data.assistant_id,{'assistant'})
     if data.appointment_id:
         appointment=c.record(m.Appointment,data.appointment_id)
