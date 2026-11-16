@@ -365,7 +365,7 @@ function Home({
               >
                 <div className="charm-grid-icon-box">
                   <img
-                    src={`/assets/dashboard/tile_${m.id}_clean.png`}
+                    src={`/assets/dashboard/tile_${m.id}_clean.svg`}
                     alt={m.title}
                     className="charm-grid-tile-img"
                     width={96}
@@ -909,7 +909,7 @@ function Workspace() {
                       >
                         <div className="charm-waffle-icon-box">
                           <img
-                            src={`/assets/dashboard/tile_${m.id}_clean.png`}
+                            src={`/assets/dashboard/tile_${m.id}_clean.svg`}
                             alt={m.title}
                             className="charm-waffle-tile-img"
                             width={28}

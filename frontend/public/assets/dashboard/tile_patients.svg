@@ -1,0 +1,127 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="100%" height="100%">
+  <defs>
+
+    <filter id="tile-shadow" x="-15%" y="-10%" width="130%" height="135%" filterUnits="userSpaceOnUse">
+      <feDropShadow dx="0" dy="5" stdDeviation="5" flood-color="#0f766e" flood-opacity="0.12" />
+      <feDropShadow dx="0" dy="1.5" stdDeviation="2" flood-color="#042f2e" flood-opacity="0.08" />
+    </filter>
+
+    <filter id="elem-shadow" x="-25%" y="-20%" width="150%" height="155%" filterUnits="userSpaceOnUse">
+      <feDropShadow dx="0" dy="4.5" stdDeviation="3.5" flood-color="#042f2e" flood-opacity="0.22" />
+    </filter>
+
+    <filter id="coral-shadow" x="-25%" y="-20%" width="150%" height="155%" filterUnits="userSpaceOnUse">
+      <feDropShadow dx="0" dy="4" stdDeviation="3.2" flood-color="#7f1d1d" flood-opacity="0.28" />
+    </filter>
+
+    <filter id="glow-bubble" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur stdDeviation="1" result="blur" />
+      <feComposite in="SourceGraphic" in2="blur" operator="over" />
+    </filter>
+
+    <!-- Card Background Gradients -->
+    <linearGradient id="bg-tile" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#ffffff" />
+      <stop offset="45%" stop-color="#fafffd" />
+      <stop offset="100%" stop-color="#e9f6f2" />
+    </linearGradient>
+
+    <linearGradient id="border-tile" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#ffffff" stop-opacity="0.9" />
+      <stop offset="60%" stop-color="#d1fae5" stop-opacity="0.7" />
+      <stop offset="100%" stop-color="#a7f3d0" stop-opacity="0.8" />
+    </linearGradient>
+
+    <linearGradient id="card-gloss" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#ffffff" stop-opacity="0.85" />
+      <stop offset="100%" stop-color="#ffffff" stop-opacity="0" />
+    </linearGradient>
+
+    <!-- Teal 3D Gradients -->
+    <linearGradient id="teal-body" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#14b8a6" />
+      <stop offset="35%" stop-color="#0d9488" />
+      <stop offset="75%" stop-color="#0f766e" />
+      <stop offset="100%" stop-color="#115e59" />
+    </linearGradient>
+
+    <linearGradient id="teal-cyl" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#0f766e" />
+      <stop offset="25%" stop-color="#14b8a6" />
+      <stop offset="50%" stop-color="#5eead4" />
+      <stop offset="75%" stop-color="#0d9488" />
+      <stop offset="100%" stop-color="#115e59" />
+    </linearGradient>
+
+    <linearGradient id="teal-vert" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#2dd4bf" />
+      <stop offset="30%" stop-color="#0d9488" />
+      <stop offset="85%" stop-color="#0f766e" />
+      <stop offset="100%" stop-color="#134e4a" />
+    </linearGradient>
+
+    <radialGradient id="teal-sphere" cx="35%" cy="32%" r="65%">
+      <stop offset="0%" stop-color="#5eead4" />
+      <stop offset="25%" stop-color="#2dd4bf" />
+      <stop offset="55%" stop-color="#0d9488" />
+      <stop offset="85%" stop-color="#0f766e" />
+      <stop offset="100%" stop-color="#115e59" />
+    </radialGradient>
+
+    <!-- Coral Red 3D Gradients -->
+    <linearGradient id="coral-body" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#ff7875" />
+      <stop offset="30%" stop-color="#ff4d4f" />
+      <stop offset="75%" stop-color="#ef4444" />
+      <stop offset="100%" stop-color="#dc2626" />
+    </linearGradient>
+
+    <linearGradient id="coral-cyl" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#dc2626" />
+      <stop offset="30%" stop-color="#ff7875" />
+      <stop offset="55%" stop-color="#fca5a5" />
+      <stop offset="80%" stop-color="#ef4444" />
+      <stop offset="100%" stop-color="#b91c1c" />
+    </linearGradient>
+
+    <radialGradient id="coral-sphere" cx="35%" cy="32%" r="65%">
+      <stop offset="0%" stop-color="#fee2e2" />
+      <stop offset="22%" stop-color="#f87171" />
+      <stop offset="60%" stop-color="#ef4444" />
+      <stop offset="85%" stop-color="#dc2626" />
+      <stop offset="100%" stop-color="#991b1b" />
+    </radialGradient>
+
+  </defs>
+
+  <!-- 3D Squircle Base Card Container -->
+  <g filter="url(#tile-shadow)">
+    <rect x="7" y="7" width="114" height="114" rx="26" ry="26" fill="url(#bg-tile)" stroke="url(#border-tile)" stroke-width="1.6" />
+  </g>
+
+  <!-- Subtle Inner Glass Reflection Rim -->
+  <path d="M 12 33 C 12 21 21 12 33 12 L 95 12 C 107 12 116 21 116 33 C 116 39 104 45 64 45 C 24 45 12 39 12 33 Z" fill="url(#card-gloss)" opacity="0.65" pointer-events="none" />
+
+  <!-- Module 3D Vector Artwork -->
+
+  <!-- Secondary Back User (Coral Red) -->
+  <g filter="url(#coral-shadow)">
+    <!-- Head -->
+    <circle cx="81" cy="46" r="13" fill="url(#coral-sphere)" />
+    <!-- Torso -->
+    <path d="M 66 69 C 72 65 79 65 85 68 C 95 73 99 82 99 93 C 99 95.5 97 97 94 97 L 72 97" fill="url(#coral-body)" />
+    <!-- Highlight on shoulder -->
+    <path d="M 74 72 C 80 69 88 71 94 77" stroke="rgba(255,255,255,0.45)" stroke-width="2" fill="none" stroke-linecap="round" />
+  </g>
+
+  <!-- Primary Foreground User (Teal) -->
+  <g filter="url(#elem-shadow)">
+    <!-- Head -->
+    <circle cx="50" cy="42" r="16.5" fill="url(#teal-sphere)" />
+    <!-- Torso -->
+    <path d="M 23 93 C 23 71 35 63 50 63 C 65 63 77 71 77 93 C 77 96 74.5 97.5 71 97.5 L 29 97.5 C 25.5 97.5 23 96 23 93 Z" fill="url(#teal-vert)" />
+    <!-- Chest 3D Specular Arc -->
+    <path d="M 32 89 C 33 75 40 69 50 69 C 60 69 67 75 68 89" stroke="rgba(255,255,255,0.38)" stroke-width="2.5" fill="none" stroke-linecap="round" />
+  </g>
+
+</svg>

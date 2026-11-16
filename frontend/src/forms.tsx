@@ -81,7 +81,7 @@ export function PatientForm({
           if (!allowed.provider_id) allowed.provider_id = null;
           const data = await api(
             "/patients" +
-              (patient ? "/" + patient.id + "?version=" + patient.version : ""),
+            (patient ? "/" + patient.id + "?version=" + patient.version : ""),
             patient ? "PUT" : "POST",
             { ...allowed, facility_ids: selected },
           );
@@ -497,6 +497,62 @@ export function QuickNewPatientView({
   );
 }
 
+export function computeDefaultToDate(startDateStr: string): string {
+  if (!startDateStr) return "";
+  const d = new Date(`${startDateStr}T12:00:00`);
+  const day = d.getDay(); // 0 is Sun, 6 is Sat
+  const daysUntilSat = day === 6 ? 7 : (6 - day);
+  d.setDate(d.getDate() + (daysUntilSat === 0 ? 6 : daysUntilSat));
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
+export function countAppointmentsBetween(startStr: string, endStr: string, interval: number, skipSun: boolean): number {
+  if (!startStr || !endStr) return 1;
+  const startD = new Date(`${startStr}T12:00:00`);
+  const endD = new Date(`${endStr}T12:00:00`);
+  if (endD < startD) return 1;
+  let count = 0;
+  const cur = new Date(startD);
+  while (cur <= endD && count < 100) {
+    if (skipSun && cur.getDay() === 0) {
+      cur.setDate(cur.getDate() + 1);
+      continue;
+    }
+    count++;
+    cur.setDate(cur.getDate() + Math.max(1, interval));
+  }
+  return Math.max(1, count);
+}
+
+export function computeEndDateFromCount(startStr: string, count: number, interval: number, skipSun: boolean): string {
+  if (!startStr || count <= 0) return startStr;
+  const cur = new Date(`${startStr}T12:00:00`);
+  let matched = 0;
+  let lastValid = cur;
+  while (matched < count && matched < 100) {
+    if (skipSun && cur.getDay() === 0) {
+      cur.setDate(cur.getDate() + 1);
+      continue;
+    }
+    matched++;
+    lastValid = new Date(cur);
+    if (matched < count) {
+      cur.setDate(cur.getDate() + Math.max(1, interval));
+    }
+  }
+  return `${lastValid.getFullYear()}-${String(lastValid.getMonth() + 1).padStart(2, "0")}-${String(lastValid.getDate()).padStart(2, "0")}`;
+}
+
+export function formatShortDatePreview(val: string): string {
+  if (!val) return "";
+  const [y, m, d] = val.split("-").map(Number);
+  if (!y || !m || !d) return val;
+  const dt = new Date(y, m - 1, d);
+  const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+  const days = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+  return `${days[dt.getDay()]} ${months[dt.getMonth()]} ${dt.getDate()}`;
+}
+
 export function AppointmentForm({
   patientId,
   plan,
@@ -518,7 +574,7 @@ export function AppointmentForm({
   initialResourceId?: string;
   initialDuration?: number;
   waitingListEntry?: Row;
-  onBooked?: () => void;
+  onBooked?: (date?: string) => void;
 }) {
   const { staff, patients, resources, facilities, refresh, notify } = useApp();
   const qc = useQueryClient();
@@ -554,7 +610,7 @@ export function AppointmentForm({
     try {
       const saved = localStorage.getItem("hyh_appointment_statuses");
       if (saved) return JSON.parse(saved);
-    } catch {}
+    } catch { }
     return [
       { id: "1", name: "Confirmed", color: "#10b981" },
       { id: "2", name: "Checked in", color: "#3b82f6" },
@@ -579,7 +635,7 @@ export function AppointmentForm({
     try {
       const saved = localStorage.getItem("hyh_visit_types");
       if (saved) return JSON.parse(saved);
-    } catch {}
+    } catch { }
     return [
       { id: "vt1", name: "Cardiology Consultation", duration: 30 },
       { id: "vt2", name: "EECP session", duration: 60 },
@@ -600,28 +656,29 @@ export function AppointmentForm({
           localStorage.setItem("hyh_appointment_statuses", JSON.stringify(data));
         }
       })
-      .catch(() => {});
+      .catch(() => { });
 
     api<any[]>("/calendar/visit-types")
       .then((data) => {
         if (data && data.length > 0) {
-          setAvailableVisitTypes(data);
-          localStorage.setItem("hyh_visit_types", JSON.stringify(data));
+          const clean = data.filter((d: any) => !["Absent", "Admission", "EECP Treatment Started", "EECP Treatment Completed", "Patient Discontinued"].includes(d.name));
+          setAvailableVisitTypes(clean);
+          localStorage.setItem("hyh_visit_types", JSON.stringify(clean));
         }
       })
-      .catch(() => {});
+      .catch(() => { });
 
     const onStatusUpdate = () => {
       try {
         const saved = localStorage.getItem("hyh_appointment_statuses");
         if (saved) setAvailableStatuses(JSON.parse(saved));
-      } catch {}
+      } catch { }
     };
     const onVisitTypeUpdate = () => {
       try {
         const saved = localStorage.getItem("hyh_visit_types");
         if (saved) setAvailableVisitTypes(JSON.parse(saved));
-      } catch {}
+      } catch { }
     };
 
     window.addEventListener("hyh_appointment_statuses_updated", onStatusUpdate);
@@ -682,12 +739,41 @@ export function AppointmentForm({
   });
   const [apptStatus, setApptStatus] = useState(appointment?.status || "confirmed");
   const [periodType, setPeriodType] = useState<"single" | "period">(plan ? "period" : "single");
-  const [repeatCount, setRepeatCount] = useState<number>(
-    plan ? Math.max(1, plan.session_count - plan.scheduled) : 1
-  );
   const [intervalDays, setIntervalDays] = useState<number>(1);
   const [skipSundays, setSkipSundays] = useState(true);
+  const [toDate, setToDate] = useState(() => {
+    return computeDefaultToDate(selDate);
+  });
+  const [repeatCount, setRepeatCount] = useState<number>(() => {
+    if (plan) return Math.max(1, plan.session_count - plan.scheduled);
+    return countAppointmentsBetween(selDate, computeDefaultToDate(selDate), 1, true);
+  });
+
+  const effectiveFirstDate = useMemo(() => {
+    if (!selDate) return "";
+    if (periodType === "period" && skipSundays) {
+      const d = new Date(`${selDate}T12:00:00`);
+      if (d.getDay() === 0) {
+        d.setDate(d.getDate() + 1);
+        return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+      }
+    }
+    return selDate;
+  }, [selDate, periodType, skipSundays]);
+
+  useEffect(() => {
+    if (periodType === "period") {
+      if (!toDate || toDate < selDate) {
+        const defTo = computeDefaultToDate(selDate);
+        setToDate(defTo);
+        setRepeatCount(countAppointmentsBetween(selDate, defTo, intervalDays, skipSundays));
+      } else {
+        setRepeatCount(countAppointmentsBetween(selDate, toDate, intervalDays, skipSundays));
+      }
+    }
+  }, [selDate, periodType]);
   const [allowOverlap, setAllowOverlap] = useState(true);
+  const [allowOutsideHours, setAllowOutsideHours] = useState(true);
   const [reason, setReason] = useState(appointment?.reason || waitingListEntry?.reason || "");
   const [message, setMessage] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -866,6 +952,7 @@ export function AppointmentForm({
         duration_minutes: Number(duration),
         reason: reason || undefined,
         allow_overlap: allowOverlap,
+        allow_outside_hours: allowOutsideHours,
       };
 
       if (appointment) {
@@ -874,9 +961,9 @@ export function AppointmentForm({
       } else {
         payload.visit_type = visitType;
         payload.mode = mode;
-        payload.repeat_count = periodType === "period" ? Number(repeatCount) : Number(repeatCount) || 1;
-        payload.interval_days = Number(intervalDays);
-        payload.skip_sundays = skipSundays;
+        payload.repeat_count = periodType === "period" ? Number(repeatCount) || 1 : 1;
+        payload.interval_days = periodType === "period" ? Number(intervalDays) || 1 : 1;
+        payload.skip_sundays = periodType === "period" ? skipSundays : false;
         payload.plan_id = plan?.id || null;
         await api("/appointments", "POST", payload);
       }
@@ -884,7 +971,9 @@ export function AppointmentForm({
       await refresh();
       await qc.refetchQueries({ queryKey: ["chart"] });
       notify(appointment ? "Appointment rescheduled." : "Appointment booking confirmed.");
-      if (waitingListEntry) onBooked?.();
+      const targetNavDate = periodType === "period" ? (effectiveFirstDate || selDate) : selDate;
+      console.log("AppointmentForm submitted successfully, calling onBooked with:", targetNavDate);
+      onBooked?.(targetNavDate);
       onClose();
     } catch (ex: any) {
       setErr(ex?.detail || ex?.message || "Failed to schedule appointment");
@@ -899,10 +988,10 @@ export function AppointmentForm({
         showQuickNewPatient
           ? "New Appointment"
           : waitingListEntry
-          ? "Confirm Waiting List"
-          : appointment
-          ? "Reschedule Appointment"
-          : "New Appointment"
+            ? "Confirm Waiting List"
+            : appointment
+              ? "Reschedule Appointment"
+              : "New Appointment"
       }
       onClose={onClose}
       wide
@@ -1197,71 +1286,76 @@ export function AppointmentForm({
             </div>
 
             {!waitingListEntry && <>
-            {/* APPOINTMENT MODE (Horizontal Radio Group - CharmHealth Frame 055 & 070) */}
-            <div className="charm-form-row">
-              <label className="charm-field-label">Appointment Mode</label>
-              <div className="charm-radio-group">
-                <label>
-                  <input
-                    type="radio"
-                    name="mode"
-                    checked={mode === "In person"}
-                    onChange={() => setMode("In person")}
-                  />{" "}
-                  In Person
-                </label>
-                <label>
-                  <input
-                    type="radio"
-                    name="mode"
-                    checked={mode === "Phone"}
-                    onChange={() => setMode("Phone")}
-                  />{" "}
-                  Phone Call
-                </label>
-                <label>
-                  <input
-                    type="radio"
-                    name="mode"
-                    checked={mode === "Video"}
-                    onChange={() => setMode("Video")}
-                  />{" "}
-                  Video Consult
-                </label>
+              {/* APPOINTMENT MODE (Horizontal Radio Group - CharmHealth Frame 055 & 070) */}
+              <div className="charm-form-row">
+                <label className="charm-field-label">Appointment Mode</label>
+                <div className="charm-radio-group">
+                  <label>
+                    <input
+                      type="radio"
+                      name="mode"
+                      checked={mode === "In person"}
+                      onChange={() => setMode("In person")}
+                    />{" "}
+                    In Person
+                  </label>
+                  <label>
+                    <input
+                      type="radio"
+                      name="mode"
+                      checked={mode === "Phone"}
+                      onChange={() => setMode("Phone")}
+                    />{" "}
+                    Phone Call
+                  </label>
+                  <label>
+                    <input
+                      type="radio"
+                      name="mode"
+                      checked={mode === "Video"}
+                      onChange={() => setMode("Video")}
+                    />{" "}
+                    Video Consult
+                  </label>
+                </div>
               </div>
-            </div>
             </>}
 
             {!waitingListEntry && <>
-            {/* APPOINTMENT FOR (Horizontal Radio Group - CharmHealth Frame 055 & 070) */}
-            <div className="charm-form-row">
-              <label className="charm-field-label">Appointment For</label>
-              <div className="charm-radio-group">
-                <label>
-                  <input
-                    type="radio"
-                    name="period"
-                    checked={periodType === "single"}
-                    onChange={() => setPeriodType("single")}
-                  />{" "}
-                  Single Date
-                </label>
-                <label>
-                  <input
-                    type="radio"
-                    name="period"
-                    checked={periodType === "period"}
-                    onChange={() => setPeriodType("period")}
-                  />{" "}
-                  Period
-                </label>
+              {/* APPOINTMENT FOR (Horizontal Radio Group - CharmHealth Frame 055 & 070) */}
+              <div className="charm-form-row">
+                <label className="charm-field-label">Appointment For</label>
+                <div className="charm-radio-group">
+                  <label>
+                    <input
+                      type="radio"
+                      name="period"
+                      checked={periodType === "single"}
+                      onChange={() => setPeriodType("single")}
+                    />{" "}
+                    Single Date
+                  </label>
+                  <label>
+                    <input
+                      type="radio"
+                      name="period"
+                      checked={periodType === "period"}
+                      onChange={() => {
+                        setPeriodType("period");
+                        const defTo = computeDefaultToDate(selDate);
+                        setToDate(defTo);
+                        setRepeatCount(countAppointmentsBetween(selDate, defTo, intervalDays, skipSundays));
+                      }}
+                    />{" "}
+                    Period
+                  </label>
+                </div>
               </div>
-            </div>
             </>}
 
             {/* Date Selection (Authentic CharmHealth Formatted Date & Picker) */}
             <div className="charm-form-row">
-              <label className="charm-field-label">Date</label>
+              <label className="charm-field-label">{periodType === "period" ? "From Date *" : "Date *"}</label>
               <div className="charm-date-input-wrap" ref={datePickerRef}>
                 <input
                   type="text"
@@ -1302,7 +1396,7 @@ export function AppointmentForm({
                             setSelDate(`${parts[0]}-${e.target.value}-${parts[2] || "01"}`);
                           }}
                         >
-                          {["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"].map((mn, idx) => (
+                          {["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"].map((mn, idx) => (
                             <option key={mn} value={String(idx + 1).padStart(2, "0")}>{mn}</option>
                           ))}
                         </select>
@@ -1393,7 +1487,7 @@ export function AppointmentForm({
                   value={startHour}
                   onChange={(e) => setStartHour(e.target.value)}
                 >
-                  {["01","02","03","04","05","06","07","08","09","10","11","12"].map((h) => (
+                  {["01", "02", "03", "04", "05", "06", "07", "08", "09", "10", "11", "12"].map((h) => (
                     <option key={h} value={h}>{h}</option>
                   ))}
                 </select>
@@ -1404,7 +1498,7 @@ export function AppointmentForm({
                   value={startMin}
                   onChange={(e) => setStartMin(e.target.value)}
                 >
-                  {["00","05","10","15","20","25","30","35","40","45","50","55"].map((m) => (
+                  {["00", "05", "10", "15", "20", "25", "30", "35", "40", "45", "50", "55"].map((m) => (
                     <option key={m} value={m}>{m}</option>
                   ))}
                 </select>
@@ -1441,6 +1535,74 @@ export function AppointmentForm({
 
             {periodType === "period" && (
               <>
+                {/* To Date / End Date */}
+                <div className="charm-form-row">
+                  <label className="charm-field-label">To Date (End Date) *</label>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 6, flex: 1 }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                      <input
+                        aria-label="To Date"
+                        type="date"
+                        className="charm-field-input"
+                        style={{ width: 160 }}
+                        value={toDate}
+                        min={selDate}
+                        onChange={(e) => {
+                          const newTo = e.target.value;
+                          setToDate(newTo);
+                          if (newTo) {
+                            setRepeatCount(countAppointmentsBetween(selDate, newTo, intervalDays, skipSundays));
+                          }
+                        }}
+                        required
+                      />
+                      {toDate && (
+                        <span style={{ fontSize: 13, color: "#475569", fontWeight: 500 }}>
+                          {formatShortDatePreview(toDate)}
+                        </span>
+                      )}
+                    </div>
+                    {/* Quick selection chips */}
+                    <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 2 }}>
+                      <button
+                        type="button"
+                        className="charm-quick-chip"
+                        onClick={() => {
+                          const targetSat = computeDefaultToDate(selDate);
+                          setToDate(targetSat);
+                          setRepeatCount(countAppointmentsBetween(selDate, targetSat, intervalDays, skipSundays));
+                        }}
+                      >
+                        📅 Till Saturday
+                      </button>
+                      <button
+                        type="button"
+                        className="charm-quick-chip"
+                        onClick={() => {
+                          const targetCount = 6;
+                          setRepeatCount(targetCount);
+                          const targetEnd = computeEndDateFromCount(selDate, targetCount, intervalDays, skipSundays);
+                          setToDate(targetEnd);
+                        }}
+                      >
+                        6 Days (1 Week)
+                      </button>
+                      <button
+                        type="button"
+                        className="charm-quick-chip"
+                        onClick={() => {
+                          const targetCount = 35;
+                          setRepeatCount(targetCount);
+                          const targetEnd = computeEndDateFromCount(selDate, targetCount, intervalDays, skipSundays);
+                          setToDate(targetEnd);
+                        }}
+                      >
+                        EECP Course (35 days)
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
                 <div className="charm-form-row">
                   <label className="charm-field-label">Number of appointments *</label>
                   <input
@@ -1451,7 +1613,12 @@ export function AppointmentForm({
                     className="charm-field-input"
                     style={{ width: 100 }}
                     value={repeatCount}
-                    onChange={(e) => setRepeatCount(Number(e.target.value))}
+                    onChange={(e) => {
+                      const count = Math.max(1, Number(e.target.value) || 1);
+                      setRepeatCount(count);
+                      const newEnd = computeEndDateFromCount(selDate, count, intervalDays, skipSundays);
+                      setToDate(newEnd);
+                    }}
                     required
                   />
                 </div>
@@ -1466,22 +1633,55 @@ export function AppointmentForm({
                     className="charm-field-input"
                     style={{ width: 100 }}
                     value={intervalDays}
-                    onChange={(e) => setIntervalDays(Number(e.target.value))}
+                    onChange={(e) => {
+                      const val = Math.max(1, Number(e.target.value) || 1);
+                      setIntervalDays(val);
+                      setRepeatCount(countAppointmentsBetween(selDate, toDate, val, skipSundays));
+                    }}
                     required
                   />
                 </div>
 
                 <div className="charm-form-row">
                   <label className="charm-field-label">Skip Sundays</label>
-                  <label style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 13 }}>
+                  <label style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 13, cursor: "pointer" }}>
                     <input
                       aria-label="Skip Sundays"
                       type="checkbox"
                       checked={skipSundays}
-                      onChange={(e) => setSkipSundays(e.target.checked)}
+                      onChange={(e) => {
+                        const checked = e.target.checked;
+                        setSkipSundays(checked);
+                        setRepeatCount(countAppointmentsBetween(selDate, toDate, intervalDays, checked));
+                      }}
                     />{" "}
                     Exclude Sundays from schedule
                   </label>
+                </div>
+
+                {/* Live Schedule Summary Banner */}
+                <div
+                  style={{
+                    margin: "8px 0 16px 0",
+                    padding: "10px 14px",
+                    background: "#f0fdf4",
+                    border: "1px solid #86efac",
+                    borderRadius: 6,
+                    color: "#166534",
+                    fontSize: 13,
+                    display: "flex",
+                    alignItems: "flex-start",
+                    gap: 8,
+                  }}
+                >
+                  <span style={{ fontSize: 16 }}>🗓️</span>
+                  <div>
+                    <strong>Schedule Summary:</strong> Will book <strong>{repeatCount}</strong> appointment{repeatCount > 1 ? "s" : ""} at{" "}
+                    <strong>{startHour}:{startMin} {startAmpm}</strong> from{" "}
+                    <strong>{formatShortDatePreview(effectiveFirstDate || selDate)}</strong> to{" "}
+                    <strong>{formatShortDatePreview(toDate)}</strong>
+                    {skipSundays ? " (Sundays excluded)" : ""}.
+                  </div>
                 </div>
               </>
             )}
@@ -1613,7 +1813,20 @@ export function AppointmentForm({
           <div className="charm-appt-footer" style={{ display: "flex", flexDirection: "column", alignItems: "flex-start", gap: 10 }}>
             {err && (
               <div className="error-box" style={{ width: "100%", margin: 0 }}>
-                {err}
+                <div>{err}</div>
+                {err.toLowerCase().includes("unavailable") && (
+                  <label style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 8, cursor: "pointer", fontWeight: 600, color: "#b45309", fontSize: 12 }}>
+                    <input
+                      type="checkbox"
+                      checked={allowOutsideHours}
+                      onChange={(e) => {
+                        setAllowOutsideHours(e.target.checked);
+                        setErr("");
+                      }}
+                    />
+                    Book outside scheduled provider working hours (override)
+                  </label>
+                )}
               </div>
             )}
             <div style={{ display: "flex", gap: 8 }}>
@@ -1664,13 +1877,13 @@ export function RecordForm({
   const fields: Field[] = [
     ...(!patientId
       ? [
-          {
-            name: "patient_id",
-            label: "Patient",
-            type: "patient",
-            required: true,
-          },
-        ]
+        {
+          name: "patient_id",
+          label: "Patient",
+          type: "patient",
+          required: true,
+        },
+      ]
       : []),
     ...(metadata.record_fields?.[kind] || []),
   ];

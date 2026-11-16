@@ -1,0 +1,125 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="100%" height="100%">
+  <defs>
+
+    <filter id="tile-shadow" x="-15%" y="-10%" width="130%" height="135%" filterUnits="userSpaceOnUse">
+      <feDropShadow dx="0" dy="5" stdDeviation="5" flood-color="#0f766e" flood-opacity="0.12" />
+      <feDropShadow dx="0" dy="1.5" stdDeviation="2" flood-color="#042f2e" flood-opacity="0.08" />
+    </filter>
+
+    <filter id="elem-shadow" x="-25%" y="-20%" width="150%" height="155%" filterUnits="userSpaceOnUse">
+      <feDropShadow dx="0" dy="4.5" stdDeviation="3.5" flood-color="#042f2e" flood-opacity="0.22" />
+    </filter>
+
+    <filter id="coral-shadow" x="-25%" y="-20%" width="150%" height="155%" filterUnits="userSpaceOnUse">
+      <feDropShadow dx="0" dy="4" stdDeviation="3.2" flood-color="#7f1d1d" flood-opacity="0.28" />
+    </filter>
+
+    <filter id="glow-bubble" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur stdDeviation="1" result="blur" />
+      <feComposite in="SourceGraphic" in2="blur" operator="over" />
+    </filter>
+
+    <!-- Card Background Gradients -->
+    <linearGradient id="bg-tile" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#ffffff" />
+      <stop offset="45%" stop-color="#fafffd" />
+      <stop offset="100%" stop-color="#e9f6f2" />
+    </linearGradient>
+
+    <linearGradient id="border-tile" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#ffffff" stop-opacity="0.9" />
+      <stop offset="60%" stop-color="#d1fae5" stop-opacity="0.7" />
+      <stop offset="100%" stop-color="#a7f3d0" stop-opacity="0.8" />
+    </linearGradient>
+
+    <linearGradient id="card-gloss" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#ffffff" stop-opacity="0.85" />
+      <stop offset="100%" stop-color="#ffffff" stop-opacity="0" />
+    </linearGradient>
+
+    <!-- Teal 3D Gradients -->
+    <linearGradient id="teal-body" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#14b8a6" />
+      <stop offset="35%" stop-color="#0d9488" />
+      <stop offset="75%" stop-color="#0f766e" />
+      <stop offset="100%" stop-color="#115e59" />
+    </linearGradient>
+
+    <linearGradient id="teal-cyl" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#0f766e" />
+      <stop offset="25%" stop-color="#14b8a6" />
+      <stop offset="50%" stop-color="#5eead4" />
+      <stop offset="75%" stop-color="#0d9488" />
+      <stop offset="100%" stop-color="#115e59" />
+    </linearGradient>
+
+    <linearGradient id="teal-vert" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#2dd4bf" />
+      <stop offset="30%" stop-color="#0d9488" />
+      <stop offset="85%" stop-color="#0f766e" />
+      <stop offset="100%" stop-color="#134e4a" />
+    </linearGradient>
+
+    <radialGradient id="teal-sphere" cx="35%" cy="32%" r="65%">
+      <stop offset="0%" stop-color="#5eead4" />
+      <stop offset="25%" stop-color="#2dd4bf" />
+      <stop offset="55%" stop-color="#0d9488" />
+      <stop offset="85%" stop-color="#0f766e" />
+      <stop offset="100%" stop-color="#115e59" />
+    </radialGradient>
+
+    <!-- Coral Red 3D Gradients -->
+    <linearGradient id="coral-body" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#ff7875" />
+      <stop offset="30%" stop-color="#ff4d4f" />
+      <stop offset="75%" stop-color="#ef4444" />
+      <stop offset="100%" stop-color="#dc2626" />
+    </linearGradient>
+
+    <linearGradient id="coral-cyl" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#dc2626" />
+      <stop offset="30%" stop-color="#ff7875" />
+      <stop offset="55%" stop-color="#fca5a5" />
+      <stop offset="80%" stop-color="#ef4444" />
+      <stop offset="100%" stop-color="#b91c1c" />
+    </linearGradient>
+
+    <radialGradient id="coral-sphere" cx="35%" cy="32%" r="65%">
+      <stop offset="0%" stop-color="#fee2e2" />
+      <stop offset="22%" stop-color="#f87171" />
+      <stop offset="60%" stop-color="#ef4444" />
+      <stop offset="85%" stop-color="#dc2626" />
+      <stop offset="100%" stop-color="#991b1b" />
+    </radialGradient>
+
+  </defs>
+
+  <!-- 3D Squircle Base Card Container -->
+  <g filter="url(#tile-shadow)">
+    <rect x="7" y="7" width="114" height="114" rx="26" ry="26" fill="url(#bg-tile)" stroke="url(#border-tile)" stroke-width="1.6" />
+  </g>
+
+  <!-- Subtle Inner Glass Reflection Rim -->
+  <path d="M 12 33 C 12 21 21 12 33 12 L 95 12 C 107 12 116 21 116 33 C 116 39 104 45 64 45 C 24 45 12 39 12 33 Z" fill="url(#card-gloss)" opacity="0.65" pointer-events="none" />
+
+  <!-- Module 3D Vector Artwork -->
+
+  <!-- 8-Tooth Mechanical Gear (Teal) -->
+  <g filter="url(#elem-shadow)">
+    <!-- High-Precision 8-Tooth Gear Outline centered at (64, 64) -->
+    <path d="
+      M 59 23 L 69 23 L 71 31.5 C 74.5 32.8 77.8 34.6 80.8 36.9 L 88.5 33.5 L 95.5 40.5 L 92.1 48.2 C 94.4 51.2 96.2 54.5 97.5 58 L 106 60 L 106 70 L 97.5 72 C 96.2 75.5 94.4 78.8 92.1 81.8 L 95.5 89.5 L 88.5 96.5 L 80.8 93.1 C 77.8 95.4 74.5 97.2 71 98.5 L 69 107 L 59 107 L 57 98.5 C 53.5 97.2 50.2 95.4 47.2 93.1 L 39.5 96.5 L 32.5 89.5 L 35.9 81.8 C 33.6 78.8 31.8 75.5 30.5 72 L 22 70 L 22 60 L 30.5 58 C 31.8 54.5 33.6 51.2 35.9 48.2 L 32.5 40.5 L 39.5 33.5 L 47.2 36.9 C 50.2 34.6 53.5 32.8 57 31.5 Z
+    " fill="url(#teal-body)" stroke="url(#teal-cyl)" stroke-width="2.5" stroke-linejoin="round" />
+
+    <!-- Concentric Recessed White Channel -->
+    <circle cx="64" cy="64" r="23" fill="#ffffff" stroke="url(#teal-body)" stroke-width="2" />
+  </g>
+
+  <!-- Central Hub (Coral Red) -->
+  <g filter="url(#coral-shadow)">
+    <circle cx="64" cy="64" r="14" fill="url(#coral-sphere)" />
+    <!-- Specular Highlight Point -->
+    <circle cx="60" cy="60" r="3.8" fill="#ffffff" opacity="0.65" />
+  </g>
+
+</svg>

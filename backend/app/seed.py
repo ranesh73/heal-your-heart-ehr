@@ -25,7 +25,7 @@ def seed(db,password):
         for branch in branches if role in ('admin','doctor','billing') else branches[:2]:
             db.add(m.UserFacility(user_id=user.id,facility_id=branch.id))
             if role in ('doctor','therapist'):
-                for weekday in range(6): db.add(m.Availability(facility_id=branch.id,user_id=user.id,weekday=weekday,start_minute=8*60,end_minute=20*60))
+                for weekday in range(7): db.add(m.Availability(facility_id=branch.id,user_id=user.id,weekday=weekday,start_minute=7*60,end_minute=20*60+30))
     branch=branches[0]
     def common(p): return dict(patient_id=p.id,facility_id=branch.id,author_id=users['doctor'].id)
     patients=[]
@@ -78,9 +78,12 @@ if __name__=='__main__':
         lock_writes(db)
         created=seed(db,password); db.commit()
     if created:
-        output=Path(__file__).resolve().parents[2]/'.demo-credentials.txt'
-        output.write_text('LOCAL DEVELOPMENT ONLY — generated credentials\n\nAccounts:\n'+''.join(r+'@demo.local\n' for r in ['admin','doctor','assistant','therapist','reception','billing'])+'\nPassword for all demo accounts: '+password+'\n',encoding='utf-8')
-        print('Synthetic records created. Credentials saved to .demo-credentials.txt in the project root.')
+        try:
+            output=Path(__file__).resolve().parents[2]/'.demo-credentials.txt'
+            output.write_text('LOCAL DEVELOPMENT ONLY — generated credentials\n\nAccounts:\n'+''.join(r+'@demo.local\n' for r in ['admin','doctor','assistant','therapist','reception','billing'])+'\nPassword for all demo accounts: '+password+'\n',encoding='utf-8')
+            print('Synthetic records created. Credentials saved to .demo-credentials.txt in the project root.')
+        except Exception as e:
+            print(f'Synthetic records created. Note on credentials file: {e}')
     else: print('Existing database retained; seeding skipped.')
     try:
         from scripts.seed_clinical_catalogs import seed_catalogs
