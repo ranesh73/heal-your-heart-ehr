@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { CharmChartNotesGlobal } from "./charmChartNotesGlobal";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
 import {
   Activity,
@@ -604,6 +604,7 @@ function VitalsSummary({ rows }: { rows: Row[] }) {
 
 export function PatientChart({ id }: { id: string }) {
   const { user, staff, refresh, notify } = useApp();
+  const queryClient = useQueryClient();
   const [tab, setTab] = useState("Overview");
   const [recordTab, setRecordTab] = useState("Vitals");
   const [modal, setModal] = useState("");
@@ -648,7 +649,7 @@ export function PatientChart({ id }: { id: string }) {
   ];
   const handleCreateNewConsultation = async () => {
     try {
-      const providerId = staff.find((s) => s.role === "doctor")?.id || user.id;
+      const providerId = user.role === "doctor" ? user.id : (staff.find((s) => s.role === "doctor")?.id || user.id);
       const r = await api<Row>("/encounters", "POST", {
         patient_id: id,
         provider_id: providerId,
@@ -656,6 +657,7 @@ export function PatientChart({ id }: { id: string }) {
         mode: "In Person",
         visit_type: "EECP On-going Visit",
       });
+      await queryClient.invalidateQueries({ queryKey: ["chart", branch, id] });
       await refresh();
       navigate("/encounter/" + r.id + "/" + id);
     } catch (err) {
@@ -1294,11 +1296,9 @@ export function PatientChart({ id }: { id: string }) {
                         <h4 style={{ fontSize: 13, fontWeight: 700, color: "#1e293b", margin: "0 0 6px 0", borderBottom: "1px solid #e2e8f0", paddingBottom: 4 }}>
                           History of Present Illness (HPI)
                         </h4>
-                        <div style={{ fontSize: 12.5, color: "#334155" }}>
-                          <div><strong>Chest Pain:</strong> Frequency: j/week | Nitroglycerin: nil | Walking Time: —</div>
-                          <div><strong>NYHA Class:</strong> Class I | <strong>Edema:</strong> Stable</div>
-                          <div><strong>Orthopnea:</strong> No | <strong>PND:</strong> No | <strong>Palpitations:</strong> No</div>
-                        </div>
+                        <p style={{ margin: 0, fontSize: 13, color: "#334155", whiteSpace: "pre-wrap" }}>
+                          {selectedEnc?.hpi || "Patient attended consultation. Cardiovascular assessment documented."}
+                        </p>
                       </div>
 
                       <div style={{ marginBottom: 16 }}>
@@ -2679,15 +2679,25 @@ export function EncounterEditor({
   patientId: string;
 }) {
   const { user, staff, facilities, refresh, notify } = useApp();
+  const [refetchAttempted, setRefetchAttempted] = useState(false);
   const {
     data: chart,
     isLoading,
+    isFetching,
+    refetch,
     error,
   } = useQuery({
     queryKey: ["chart", branch, patientId],
     queryFn: () => api("/patients/" + patientId),
   });
   const encounter = chart?.encounters?.find((r: Row) => r.id === id);
+
+  useEffect(() => {
+    if (!encounter && !isLoading && !refetchAttempted) {
+      setRefetchAttempted(true);
+      refetch();
+    }
+  }, [encounter, isLoading, refetchAttempted, refetch]);
   const [modal, setModal] = useState("");
   const [saveError, setSaveError] = useState<unknown>();
   const [busy, setBusy] = useState(false);
@@ -2759,11 +2769,7 @@ export function EncounterEditor({
     "Lack of sleep",
     "Recent history of hospitalization for ACS/LVF",
   ];
-  const [ccAnswers, setCcAnswers] = useState<Record<number, "Yes" | "No" | "">>({
-    0: "Yes",
-    1: "No",
-    8: "Yes",
-  });
+  const [ccAnswers, setCcAnswers] = useState<Record<number, "Yes" | "No" | "">>({});
 
   // Authentic CharmHealth: Post-EECP assessment checklist under Symptoms
   const postEecpOptions = [
@@ -2775,29 +2781,27 @@ export function EncounterEditor({
   ];
   const [postEecpAssessment, setPostEecpAssessment] = useState<
     Record<string, boolean>
-  >({
-    "The patient maintain the benefits.": true,
-  });
+  >({});
 
   // Authentic CharmHealth (Frames 003-005): HPI Frequency Table and Cardiac Symptoms
   const [hpiInitialAssessment, setHpiInitialAssessment] = useState(false);
-  const [hpiChestPain, setHpiChestPain] = useState<"No" | "Yes" | "Other">("Yes");
-  const [hpiFreq, setHpiFreq] = useState("j");
+  const [hpiChestPain, setHpiChestPain] = useState<"No" | "Yes" | "Other">("No");
+  const [hpiFreq, setHpiFreq] = useState("");
   const [hpiNitro, setHpiNitro] = useState("");
   const [hpiWalk, setHpiWalk] = useState("");
-  const [hpiSob, setHpiSob] = useState<"No" | "Yes" | "Other">("Yes");
-  const [hpiNyha, setHpiNyha] = useState<string>("Class I");
-  const [hpiEdema, setHpiEdema] = useState<"No" | "Yes" | "Other">("Yes");
-  const [hpiEdemaStatus, setHpiEdemaStatus] = useState<string>("Stable");
-  const [hpiOrthopnea, setHpiOrthopnea] = useState<"Yes" | "No">("Yes");
-  const [hpiPnd, setHpiPnd] = useState<"Yes" | "No">("Yes");
+  const [hpiSob, setHpiSob] = useState<"No" | "Yes" | "Other">("No");
+  const [hpiNyha, setHpiNyha] = useState<string>("");
+  const [hpiEdema, setHpiEdema] = useState<"No" | "Yes" | "Other">("No");
+  const [hpiEdemaStatus, setHpiEdemaStatus] = useState<string>("");
+  const [hpiOrthopnea, setHpiOrthopnea] = useState<"Yes" | "No">("No");
+  const [hpiPnd, setHpiPnd] = useState<"Yes" | "No">("No");
   const [hpiPalpitations, setHpiPalpitations] = useState<"Yes" | "No">("No");
   const [pmhInitialAssessment, setPmhInitialAssessment] = useState(false);
 
   // Authentic CharmHealth: Past Medical History (PMH) structured fields
-  const [pmhCad, setPmhCad] = useState("2020");
+  const [pmhCad, setPmhCad] = useState("");
   const [pmhPtca, setPmhPtca] = useState("");
-  const [pmhCabg, setPmhCabg] = useState("fhf");
+  const [pmhCabg, setPmhCabg] = useState("");
   const [pmhMi, setPmhMi] = useState("");
   const [pmhDm1, setPmhDm1] = useState("");
   const [pmhDm2, setPmhDm2] = useState("");
@@ -2805,7 +2809,7 @@ export function EncounterEditor({
   const [pmhLipid, setPmhLipid] = useState("");
 
   // Authentic CharmHealth: Plan, Recommendations & Treatment Notes (frames 017-021)
-  const [dietAvoidPotassium, setDietAvoidPotassium] = useState(true);
+  const [dietAvoidPotassium, setDietAvoidPotassium] = useState(false);
   const [dietFruits, setDietFruits] = useState(false);
   const [dietVeg, setDietVeg] = useState(false);
   const [dietOthers, setDietOthers] = useState(false);
@@ -2947,7 +2951,7 @@ export function EncounterEditor({
     return () => removeEventListener("beforeunload", fn);
   }, [isDirty]);
 
-  if (isLoading) return <Loading />;
+  if (isLoading || (id && !encounter && (isFetching || !refetchAttempted))) return <Loading />;
   if (error) return <ErrorBox error={error} />;
   if (!encounter)
     return (
