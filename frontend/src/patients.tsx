@@ -665,12 +665,7 @@ export function PatientChart({ id }: { id: string }) {
     }
   };
   const handleConsultationClick = async () => {
-    const unfinished = (chart.encounters || []).filter((e: Row) => e.status !== "signed");
-    if (unfinished.length > 0) {
-      setShowUnfinishedPrompt(true);
-    } else {
-      await handleCreateNewConsultation();
-    }
+    await handleCreateNewConsultation();
   };
   const createEncounter = () => {
     handleConsultationClick();
@@ -2690,14 +2685,19 @@ export function EncounterEditor({
     queryKey: ["chart", branch, patientId],
     queryFn: () => api("/patients/" + patientId),
   });
-  const encounter = chart?.encounters?.find((r: Row) => r.id === id);
+  const directEncounterQuery = useQuery({
+    queryKey: ["encounter", id],
+    queryFn: () => api<Row>(`/encounters/${id}`),
+    enabled: Boolean(id),
+  });
+  const encounter = chart?.encounters?.find((r: Row) => r.id === id) || directEncounterQuery.data;
 
   useEffect(() => {
-    if (!encounter && !isLoading && !refetchAttempted) {
+    if (!encounter && !isLoading && !directEncounterQuery.isLoading && !refetchAttempted) {
       setRefetchAttempted(true);
       refetch();
     }
-  }, [encounter, isLoading, refetchAttempted, refetch]);
+  }, [encounter, isLoading, directEncounterQuery.isLoading, refetchAttempted, refetch]);
   const [modal, setModal] = useState("");
   const [saveError, setSaveError] = useState<unknown>();
   const [busy, setBusy] = useState(false);
@@ -2951,8 +2951,8 @@ export function EncounterEditor({
     return () => removeEventListener("beforeunload", fn);
   }, [isDirty]);
 
-  if (isLoading || (id && !encounter && (isFetching || !refetchAttempted))) return <Loading />;
-  if (error) return <ErrorBox error={error} />;
+  if (isLoading || directEncounterQuery.isLoading || (id && !encounter && (isFetching || directEncounterQuery.isFetching || !refetchAttempted))) return <Loading />;
+  if (error || directEncounterQuery.error) return <ErrorBox error={error || directEncounterQuery.error} />;
   if (!encounter)
     return (
       <Empty
@@ -2964,7 +2964,7 @@ export function EncounterEditor({
   const editable =
     (user.role === "admin" || (user.role === "doctor" && encounter.provider_id === user.id)) &&
     encounter.status === "draft";
-  const old = chart.encounters.filter(
+  const old = (chart?.encounters || []).filter(
     (e: Row) => e.id !== id && e.status === "signed",
   );
   const source = old.find((e: Row) => e.id === previous) || old[0];
@@ -2996,21 +2996,21 @@ export function EncounterEditor({
     } else if (templateName.includes("EECP")) {
       notify("Saving Notes... Loading template: " + templateName);
       setPostEecpAssessment({ "The patient maintain the benefits.": true });
-      setHpiInitialAssessment(true);
-      setHpiChestPain("Yes");
-      setHpiFreq("j");
-      setHpiNitro("nil");
-      setHpiWalk("—");
-      setHpiSob("Yes");
-      setHpiNyha("Class I");
-      setHpiEdema("Yes");
-      setHpiEdemaStatus("Stable");
-      setHpiOrthopnea("Yes");
-      setHpiPnd("Yes");
+      setHpiInitialAssessment(false);
+      setHpiChestPain("No");
+      setHpiFreq("");
+      setHpiNitro("");
+      setHpiWalk("");
+      setHpiSob("No");
+      setHpiNyha("");
+      setHpiEdema("No");
+      setHpiEdemaStatus("");
+      setHpiOrthopnea("No");
+      setHpiPnd("No");
       setHpiPalpitations("No");
-      setPmhInitialAssessment(true);
-      setPmhCad("2020");
-      setPmhCabg("fhf");
+      setPmhInitialAssessment(false);
+      setPmhCad("");
+      setPmhCabg("");
       setRosHeaders({
         General: true,
         Gastroentrology: true,
@@ -3520,7 +3520,7 @@ export function EncounterEditor({
                       <small className="muted">(No. of times per week)</small>
                     </td>
                     <td>
-                      <strong>{hpiFreq || "nil"}</strong>
+                      <strong>{hpiFreq || "—"}</strong>
                     </td>
                   </tr>
                   <tr>
@@ -3530,7 +3530,7 @@ export function EncounterEditor({
                       <small className="muted">(No. taken per week)</small>
                     </td>
                     <td>
-                      <strong>{hpiNitro || "nil"}</strong>
+                      <strong>{hpiNitro || "—"}</strong>
                     </td>
                   </tr>
                   <tr>
@@ -3543,8 +3543,8 @@ export function EncounterEditor({
               </table>
 
               <div style={{ marginTop: 8, fontSize: 12 }}>
-                <p style={{ margin: "2px 0" }}>Shortness of Breath: <strong>{hpiSob}</strong> ({hpiNyha})</p>
-                <p style={{ margin: "2px 0" }}>Edema of Legs: <strong>{hpiEdema}</strong> ({hpiEdemaStatus})</p>
+                <p style={{ margin: "2px 0" }}>Shortness of Breath: <strong>{hpiSob}</strong>{hpiNyha ? ` (${hpiNyha})` : ""}</p>
+                <p style={{ margin: "2px 0" }}>Edema of Legs: <strong>{hpiEdema}</strong>{hpiEdemaStatus ? ` (${hpiEdemaStatus})` : ""}</p>
                 <p style={{ margin: "2px 0" }}>Orthopnea: <strong>{hpiOrthopnea}</strong> · PND: <strong>{hpiPnd}</strong></p>
               </div>
 
@@ -3559,7 +3559,7 @@ export function EncounterEditor({
                 <tbody>
                   <tr>
                     <td>CAD Diagnosis:</td>
-                    <td><strong>{pmhCad || "2020"}</strong></td>
+                    <td><strong>{pmhCad || "—"}</strong></td>
                   </tr>
                   <tr>
                     <td>PTCA:</td>
@@ -3567,7 +3567,7 @@ export function EncounterEditor({
                   </tr>
                   <tr>
                     <td>CABG:</td>
-                    <td><strong>{pmhCabg || "fhf"}</strong></td>
+                    <td><strong>{pmhCabg || "—"}</strong></td>
                   </tr>
                   <tr>
                     <td>Myocardial Infarction:</td>
@@ -6024,7 +6024,7 @@ export function EncounterEditor({
                       Chest Pain Frequency per Week:
                       <span className="charm-soap-muted">(No. of times per week)</span>
                     </td>
-                    <td className="charm-soap-td-val">{hpiFreq || "j"}</td>
+                    <td className="charm-soap-td-val">{hpiFreq || "—"}</td>
                   </tr>
                   <tr>
                     <td className="charm-soap-td-label">
@@ -6095,7 +6095,7 @@ export function EncounterEditor({
                       <span className="charm-soap-muted">(Years &amp; months)</span>
                     </td>
                     <td className="charm-soap-td-val" style={{ width: "25%" }}>
-                      {pmhCad || "2020"}
+                      {pmhCad || "—"}
                     </td>
                     <td className="charm-soap-td-label" style={{ width: "25%" }}>
                       PTCA:
@@ -6110,7 +6110,7 @@ export function EncounterEditor({
                       CABG:
                       <span className="charm-soap-muted">(Years &amp; months)</span>
                     </td>
-                    <td className="charm-soap-td-val">{pmhCabg || "fhf"}</td>
+                    <td className="charm-soap-td-val">{pmhCabg || "—"}</td>
                     <td className="charm-soap-td-label">
                       Myocardial Infarction:
                       <span className="charm-soap-muted">(Years &amp; Months)</span>

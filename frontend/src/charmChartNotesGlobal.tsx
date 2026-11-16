@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import {
   ClipboardList,
   Plus,
@@ -37,6 +37,17 @@ export function CharmChartNotesGlobal() {
   const [consultMode, setConsultMode] = useState<string>("In Person");
   const [creatingNote, setCreatingNote] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!consultProviderId && staff.length > 0) {
+      if (user?.role === "doctor") {
+        setConsultProviderId(user.id);
+      } else {
+        const doc = staff.find((s) => s.role === "doctor");
+        if (doc) setConsultProviderId(doc.id);
+      }
+    }
+  }, [user, staff, consultProviderId]);
 
   // Fetch encounters from backend
   const encountersQuery = useQuery({
@@ -129,7 +140,7 @@ export function CharmChartNotesGlobal() {
       notify("Please select a patient.");
       return;
     }
-    const provId = consultProviderId || (user.role === "doctor" ? user.id : staff.find((s) => s.role === "doctor")?.id || user.id);
+    const provId = user.role === "doctor" ? user.id : (consultProviderId || staff.find((s) => s.role === "doctor")?.id || user.id);
     setCreatingNote(true);
     try {
       const created = await api<any>("/encounters", "POST", {
