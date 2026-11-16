@@ -2020,6 +2020,7 @@ export function PatientChart({ id }: { id: string }) {
               <div className="charm-unfinished-links">
                 {(chart.encounters || [])
                   .filter((e: Row) => e.status !== "signed")
+                  .slice(0, 3)
                   .map((e: Row) => {
                     const prov = staff.find((s) => s.id === e.provider_id)?.name || "Provider";
                     const dateStr = e.created_at ? day(e.created_at) : "Nov 12, 2026";
@@ -2038,6 +2039,11 @@ export function PatientChart({ id }: { id: string }) {
                     );
                   })}
               </div>
+              {(chart.encounters || []).filter((e: Row) => e.status !== "signed").length > 3 && (
+                <div style={{ fontSize: "12px", color: "#64748b", marginBottom: "12px", fontStyle: "italic" }}>
+                  + {(chart.encounters || []).filter((e: Row) => e.status !== "signed").length - 3} older unfinished drafts in chart
+                </div>
+              )}
               <div className="charm-create-new-prompt">
                 <button
                   type="button"

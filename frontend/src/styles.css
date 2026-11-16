@@ -10952,10 +10952,14 @@ textarea.charm-input {
   background: #ffffff;
   border-radius: 6px;
   width: 95%;
-  max-width: 520px;
+  max-width: 500px;
+  max-height: 85vh;
+  display: flex;
+  flex-direction: column;
   box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.25);
   border: 1px solid #cbd5e1;
   overflow: hidden;
+  animation: charmModalFadeIn 0.15s ease-out;
 }
 
 .charm-unfinished-header {
@@ -10965,6 +10969,7 @@ textarea.charm-input {
   padding: 12px 18px;
   border-bottom: 1px solid #e2e8f0;
   background: #f8fafc;
+  flex-shrink: 0;
 }
 
 .charm-unfinished-header h3 {
@@ -10975,22 +10980,27 @@ textarea.charm-input {
 }
 
 .charm-unfinished-body {
-  padding: 20px 24px;
+  padding: 18px 22px;
   font-size: 13px;
   color: #334155;
+  overflow-y: auto;
+  flex: 1;
 }
 
 .charm-unfinished-desc {
-  margin: 0 0 16px 0;
+  margin: 0 0 14px 0;
   line-height: 1.5;
+  color: #334155;
 }
 
 .charm-unfinished-links {
   display: flex;
   flex-direction: column;
-  gap: 10px;
-  margin-bottom: 20px;
-  padding-left: 8px;
+  gap: 8px;
+  max-height: 160px;
+  overflow-y: auto;
+  margin-bottom: 16px;
+  padding-right: 4px;
 }
 
 .charm-unfinished-item {
@@ -11000,11 +11010,14 @@ textarea.charm-input {
   cursor: pointer;
   color: #0284c7;
   font-weight: 500;
-  transition: color 0.15s ease;
+  transition: color 0.15s ease, background 0.15s ease;
+  padding: 4px 6px;
+  border-radius: 4px;
 }
 
 .charm-unfinished-item:hover {
   color: #0369a1;
+  background-color: #f0f9ff;
   text-decoration: underline;
 }
 
@@ -11041,6 +11054,9 @@ textarea.charm-input {
   border-radius: 6px;
   width: 95%;
   max-width: 540px;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
   box-shadow: 0 25px 35px -5px rgba(0, 0, 0, 0.35);
   border: 1px solid #cbd5e1;
   overflow: hidden;
@@ -11054,6 +11070,7 @@ textarea.charm-input {
   padding: 14px 22px;
   border-bottom: 1px solid #e2e8f0;
   background: #ffffff;
+  flex-shrink: 0;
 }
 
 .charm-new-encounter-header h3 {
@@ -11066,6 +11083,8 @@ textarea.charm-input {
 
 .charm-new-encounter-body {
   padding: 22px 28px 16px;
+  overflow-y: auto;
+  flex: 1;
 }
 
 .charm-new-enc-form-grid {
