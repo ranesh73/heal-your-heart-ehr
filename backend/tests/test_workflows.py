@@ -1,4 +1,5 @@
 import os
+import io
 import tempfile
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timedelta
@@ -905,3 +906,49 @@ def test_billing_settings_workflows():
 
 
 
+
+
+def test_patient_import_workflow():
+    c = client("admin")
+
+    # 1. Download CSV template
+    res = c.get("/api/patients/import/template")
+    assert res.status_code == 200, res.text
+    assert "text/csv" in res.headers["content-type"]
+    text = res.text
+    assert "Patient Record ID" in text
+    assert "First Name" in text
+    assert "Last Name" in text
+    assert "Gender" in text
+    assert "Date Of Birth" in text
+
+    # 2. Test importing valid CSV
+    suffix = uuid4().hex[:6]
+    csv_data = (
+        "Patient Record ID,First Name,Last Name,Gender,Date Of Birth(mm/dd/yyyy),Email,Home Phone,Mobile Phone,Work Phone,AddressLine1,AddressLine2,City,Country,State,Zip Code,Caregiver First Name,Caregiver Last Name\n"
+        f"TEST_IMP_{suffix}1,Kavita{suffix},Raman,Female,05/14/1988,kavita.{suffix}@example.com,,98401{suffix[:5]}1,,12 Beach Rd,,Chennai,India,Tamil Nadu,600041,,\n"
+        f"TEST_IMP_{suffix}2,Suresh{suffix},Babu,Male,11/20/1975,suresh.{suffix}@example.com,,98401{suffix[:5]}2,,45 Lake St,,Chennai,India,Tamil Nadu,600041,,\n"
+    )
+    files = {"file": ("test_patients.csv", io.BytesIO(csv_data.encode("utf-8")), "text/csv")}
+    res = c.post("/api/patients/import", files=files)
+    assert res.status_code == 200, res.text
+    data = res.json()
+    assert data["imported"] == 2
+    assert data["skipped"] == 0
+    assert len(data["errors"]) == 0
+
+    # 3. Test duplicate detection (importing same CSV again)
+    files_dup = {"file": ("test_patients.csv", io.BytesIO(csv_data.encode("utf-8")), "text/csv")}
+    res_dup = c.post("/api/patients/import", files=files_dup)
+    assert res_dup.status_code == 200, res_dup.text
+    data_dup = res_dup.json()
+    assert data_dup["imported"] == 0
+    assert data_dup["skipped"] == 2
+
+    # 4. Test active/inactive filtering
+    res_active = c.get("/api/patients?active=true")
+    assert res_active.status_code == 200, res_active.text
+    assert res_active.json()["total"] >= 2
+
+    res_inactive = c.get("/api/patients?active=false")
+    assert res_inactive.status_code == 200, res_inactive.text

@@ -1,4 +1,7 @@
-from fastapi import APIRouter, Depends, HTTPException
+import io
+import csv
+from datetime import datetime
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Response
 from sqlalchemy import select, or_, func, delete
 from . import models as m, schemas as s
 from .security import context, CLINICAL, BILLING, check_version, next_number
@@ -8,15 +11,207 @@ router=APIRouter(prefix='/api/patients')
 
 
 @router.get('')
-def patients(q:str='',offset:int=0,limit:int=100,c=Depends(context)):
+def patients(q:str='',offset:int=0,limit:int=100,active:bool|None=None,c=Depends(context)):
     if len(q)>100 or offset<0 or not 1<=limit<=200: raise HTTPException(422,'Invalid search or page')
     query=select(m.Patient).join(m.PatientFacility).where(m.PatientFacility.facility_id==c.facility_id)
+    if active is not None:
+        query=query.where(m.Patient.active==active)
     if q:
         pattern='%'+q.replace('%','\\%').replace('_','\\_')+'%'
         query=query.where(or_(m.Patient.first_name.ilike(pattern,escape='\\'),m.Patient.last_name.ilike(pattern,escape='\\'),
             (m.Patient.first_name+' '+m.Patient.last_name).ilike(pattern,escape='\\'),m.Patient.mrn.ilike(pattern,escape='\\'),m.Patient.phone.ilike(pattern,escape='\\')))
     total=c.db.scalar(select(func.count()).select_from(query.subquery()))
     return {'total':total,'items':[patient_out(c.db,p) for p in c.db.scalars(query.order_by(m.Patient.first_name).offset(offset).limit(limit))]}
+
+
+@router.get('/import/template')
+def import_template(c=Depends(context)):
+    c.allow({'reception','admin','doctor'})
+    headers = [
+        "Patient Record ID", "First Name", "Last Name", "Gender", "Date Of Birth(mm/dd/yyyy)",
+        "Email", "Home Phone", "Mobile Phone", "Work Phone",
+        "AddressLine1", "AddressLine2", "City", "Country", "State", "Zip Code",
+        "Caregiver First Name", "Caregiver Last Name"
+    ]
+    sample_rows = [
+        ["HUHNKR7263", "Aarav", "Sharma", "Male", "05/14/1988", "aarav.sharma@example.com", "", "9840123456", "", "14 Beach Road", "Neelankarai", "Chennai", "India", "Tamil Nadu", "600041", "", ""],
+        ["HUHNKR7264", "Priya", "Natarajan", "Female", "11/20/1992", "priya.n@example.com", "", "9840123457", "", "22 East Coast Rd", "", "Chennai", "India", "Tamil Nadu", "600041", "", ""]
+    ]
+    output = io.StringIO()
+    writer = csv.writer(output)
+    writer.writerow(headers)
+    for row in sample_rows:
+        writer.writerow(row)
+    csv_content = output.getvalue()
+    return Response(
+        content=csv_content,
+        media_type='text/csv',
+        headers={"Content-Disposition": "attachment; filename=patient_import_template.csv"}
+    )
+
+
+@router.post('/import')
+async def import_patients(file: UploadFile = File(...), c=Depends(context)):
+    c.allow({'reception','admin','doctor'})
+    content = await file.read()
+    try:
+        text_content = content.decode('utf-8-sig')
+    except UnicodeDecodeError:
+        text_content = content.decode('latin-1', errors='replace')
+    
+    reader = csv.reader(io.StringIO(text_content))
+    rows = list(reader)
+    if not rows:
+        raise HTTPException(422, 'Uploaded file is empty')
+    
+    header = [h.strip() for h in rows[0]]
+    header_lower = [h.lower() for h in header]
+    
+    def find_col(possible_names):
+        for name in possible_names:
+            name_l = name.lower()
+            if name_l in header_lower:
+                return header_lower.index(name_l)
+        return -1
+    
+    col_rec_id = find_col(['patient record id', 'record id', 'mrn', 'patient id'])
+    col_first_name = find_col(['first name', 'firstname'])
+    col_last_name = find_col(['last name', 'lastname'])
+    col_gender = find_col(['gender', 'sex'])
+    col_dob = find_col(['date of birth(mm/dd/yyyy)', 'date of birth', 'dob'])
+    col_email = find_col(['email'])
+    col_home_phone = find_col(['home phone'])
+    col_mobile_phone = find_col(['mobile phone', 'phone', 'mobile'])
+    col_work_phone = find_col(['work phone'])
+    col_addr1 = find_col(['addressline1', 'address line 1', 'address1', 'address'])
+    col_addr2 = find_col(['addressline2', 'address line 2', 'address2'])
+    col_area = find_col(['area'])
+    col_city = find_col(['city'])
+    col_country = find_col(['country'])
+    col_state = find_col(['state'])
+    col_zip = find_col(['zip code', 'zip', 'postal code', 'postal_code'])
+    col_cg_first = find_col(['caregiver first name', 'caregiver name'])
+    col_cg_last = find_col(['caregiver last name'])
+
+    missing_cols = []
+    if col_first_name == -1: missing_cols.append("First Name")
+    if col_last_name == -1: missing_cols.append("Last Name")
+    if col_gender == -1: missing_cols.append("Gender")
+    if col_dob == -1: missing_cols.append("Date Of Birth")
+    if missing_cols:
+        raise HTTPException(422, f"Missing required column(s): {', '.join(missing_cols)}")
+    
+    data_rows = rows[1:]
+    if len(data_rows) > 500:
+        raise HTTPException(422, "You can only import a maximum of 500 patients.")
+    
+    branch = c.db.get(m.Facility, c.facility_id)
+    imported = []
+    skipped = []
+    errors = []
+
+    for idx, r in enumerate(data_rows, start=2):
+        if not r or all(not cell.strip() for cell in r):
+            continue
+        
+        def val(col_idx):
+            return r[col_idx].strip() if col_idx != -1 and col_idx < len(r) else ''
+        
+        rec_id = val(col_rec_id)
+        first_name = val(col_first_name)
+        last_name = val(col_last_name)
+        gender_raw = val(col_gender)
+        dob_raw = val(col_dob)
+        email = val(col_email)
+        mobile_phone = val(col_mobile_phone)
+        home_phone = val(col_home_phone)
+        addr1 = val(col_addr1)
+        addr2 = val(col_addr2)
+        area = val(col_area)
+        city = val(col_city)
+        country = val(col_country) or 'India'
+        state = val(col_state) or 'Tamil Nadu'
+        zip_code = val(col_zip)
+        cg_name = (val(col_cg_first) + (' ' + val(col_cg_last) if val(col_cg_last) else '')).strip()
+
+        if not first_name or not last_name or not gender_raw or not dob_raw:
+            errors.append(f"Row {idx}: First Name, Last Name, Gender, and Date Of Birth should not be empty.")
+            continue
+        
+        gender_clean = gender_raw.capitalize()
+        if gender_clean.startswith('M'):
+            sex = 'Male'
+        elif gender_clean.startswith('F'):
+            sex = 'Female'
+        elif gender_clean in {'Other', 'Unknown'}:
+            sex = gender_clean
+        else:
+            sex = 'Other'
+        
+        parsed_dob = None
+        for fmt in ('%m/%d/%Y', '%Y-%m-%d', '%d-%m-%Y', '%d/%m/%Y', '%m-%d-%Y'):
+            try:
+                parsed_dob = datetime.strptime(dob_raw, fmt).date()
+                break
+            except ValueError:
+                pass
+        if not parsed_dob:
+            errors.append(f"Row {idx}: Invalid Date Of Birth '{dob_raw}'. Expected format mm/dd/yyyy.")
+            continue
+
+        phone = mobile_phone or home_phone
+        dup_conditions = [
+            (func.lower(m.Patient.first_name) == first_name.lower()) &
+            (func.lower(m.Patient.last_name) == last_name.lower()) &
+            (m.Patient.dob == parsed_dob)
+        ]
+        if phone:
+            dup_conditions.append(m.Patient.phone == phone)
+        if email:
+            dup_conditions.append((func.lower(m.Patient.email) == email.lower()) & (m.Patient.email != ''))
+        if rec_id:
+            dup_conditions.append(m.Patient.mrn == rec_id)
+        
+        existing = c.db.scalar(select(m.Patient).where(or_(*dup_conditions)))
+        if existing:
+            skipped.append({"row": idx, "name": f"{first_name} {last_name}", "reason": f"Duplicate of existing patient (MRN: {existing.mrn})"})
+            continue
+        
+        mrn = rec_id if rec_id and not c.db.scalar(select(m.Patient).where(m.Patient.mrn == rec_id)) else next_number(c.db, branch.code + '-MR')
+        full_address = f"{addr1}, {addr2}".strip(', ') if addr1 or addr2 else ''
+        
+        patient = m.Patient(
+            mrn=mrn,
+            first_name=first_name,
+            last_name=last_name,
+            dob=parsed_dob,
+            sex=sex,
+            primary_facility_id=c.facility_id,
+            phone=phone,
+            email=email,
+            address=full_address,
+            area=area,
+            city=city,
+            district=city,
+            state=state,
+            postal_code=zip_code,
+            emergency_name=cg_name,
+            active=True
+        )
+        c.db.add(patient)
+        c.db.flush()
+        c.db.add(m.PatientFacility(patient_id=patient.id, facility_id=c.facility_id))
+        imported.append({"id": patient.id, "name": f"{patient.first_name} {patient.last_name}", "mrn": patient.mrn})
+    
+    c.audit('import_patients', branch, f"Imported {len(imported)} patients, skipped {len(skipped)}")
+    return {
+        "imported": len(imported),
+        "skipped": len(skipped),
+        "total": len(data_rows),
+        "errors": errors,
+        "records": imported,
+        "skipped_records": skipped
+    }
 
 
 def validate_patient(data,c,existing=None):

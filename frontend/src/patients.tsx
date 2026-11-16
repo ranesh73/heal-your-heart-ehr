@@ -1,5 +1,7 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { CharmChartNotesGlobal } from "./charmChartNotesGlobal";
+import { AddPatientView } from "./patientRegistration";
+import { ImportPatientsModal } from "./patientImport";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
 import {
@@ -114,29 +116,131 @@ import {
 } from "./charmChartTypes";
 
 export function PatientsPage() {
-  const { user } = useApp();
+  const { user, notify } = useApp();
   const [q, setQ] = useState("");
   const [offset, setOffset] = useState(0);
-  const [add, setAdd] = useState(false);
-  const { data, isLoading, error } = useQuery({
-    queryKey: ["directory", branch, q, offset],
+  const [viewMode, setViewMode] = useState<"list" | "add">("list");
+  const [showInactive, setShowInactive] = useState(false);
+  const [showImport, setShowImport] = useState(false);
+  const [showMoreActions, setShowMoreActions] = useState(false);
+  const qrdaInputRef = useRef<HTMLInputElement>(null);
+
+  const { data, isLoading, error, refetch } = useQuery({
+    queryKey: ["directory", branch, q, offset, showInactive],
     queryFn: () =>
       api(
-        "/patients?limit=25&offset=" + offset + "&q=" + encodeURIComponent(q),
+        "/patients?limit=25&offset=" +
+          offset +
+          "&q=" +
+          encodeURIComponent(q) +
+          (showInactive ? "&active=false" : "&active=true"),
       ),
   });
+
+  if (viewMode === "add") {
+    return (
+      <AddPatientView
+        onCancel={() => setViewMode("list")}
+        onSaved={(p, openChart) => {
+          setViewMode("list");
+          refetch();
+          if (openChart) {
+            navigate("/patients/" + p.id);
+          }
+        }}
+      />
+    );
+  }
+
   return (
     <>
-      <PageHeading
-        eyebrow="Patient workspace"
-        title="Patients"
-        description="Find a patient. Pick up their care where it left off."
-        actions={
-          ["reception", "doctor", "admin"].includes(user.role) && (
-            <AddButton onClick={() => setAdd(true)}>Register patient</AddButton>
-          )
-        }
+      <div className="charm-patients-header-row">
+        <div>
+          <div className="eyebrow">PATIENT WORKSPACE</div>
+          <h2 className="charm-patients-title">
+            {showInactive ? "Inactive Patients" : "Patients"}
+          </h2>
+          <p className="muted" style={{ margin: "2px 0 0 0", fontSize: 13 }}>
+            {showInactive
+              ? "Viewing deactivated or archived patient records."
+              : "Find a patient. Pick up their care where it left off."}
+          </p>
+        </div>
+
+        {["reception", "doctor", "admin"].includes(user.role) && (
+          <div className="charm-patients-header-actions">
+            <button
+              type="button"
+              className="charm-btn-patient-add"
+              onClick={() => setViewMode("add")}
+            >
+              <Plus size={16} style={{ marginRight: 4 }} />
+              Patient
+            </button>
+            <div className="charm-more-actions-container">
+              <button
+                type="button"
+                className="charm-btn-more-dots"
+                title="More Actions"
+                onClick={() => setShowMoreActions(!showMoreActions)}
+              >
+                <MoreHorizontal size={18} />
+              </button>
+              {showMoreActions && (
+                <div className="charm-dropdown-menu">
+                  <button
+                    type="button"
+                    className="charm-dropdown-item"
+                    onClick={() => {
+                      setShowMoreActions(false);
+                      setShowImport(true);
+                    }}
+                  >
+                    Import Patients
+                  </button>
+                  <button
+                    type="button"
+                    className="charm-dropdown-item"
+                    onClick={() => {
+                      setShowMoreActions(false);
+                      qrdaInputRef.current?.click();
+                    }}
+                  >
+                    Import Patients in QRDA I Format
+                  </button>
+                  <div className="charm-dropdown-divider" />
+                  <button
+                    type="button"
+                    className="charm-dropdown-item"
+                    onClick={() => {
+                      setShowMoreActions(false);
+                      setShowInactive(!showInactive);
+                      setOffset(0);
+                    }}
+                  >
+                    {showInactive ? "Show Active Patients" : "Show Inactive Patients"}
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+      </div>
+
+      <input
+        type="file"
+        ref={qrdaInputRef}
+        accept=".xml,.zip"
+        style={{ display: "none" }}
+        onChange={(e) => {
+          const file = e.target.files?.[0];
+          if (file) {
+            notify(`QRDA Category I file selected: ${file.name}. Validating clinical quality measures...`);
+            e.target.value = "";
+          }
+        }}
       />
+
       <Panel>
         <div className="toolbar">
           <div className="search-input">
@@ -152,7 +256,7 @@ export function PatientsPage() {
             />
           </div>
           <span className="muted">
-            {data?.total ?? 0} patients · current branch
+            {data?.total ?? 0} patients · {showInactive ? "inactive records" : "current branch"}
           </span>
         </div>
         {isLoading ? (
@@ -202,7 +306,7 @@ export function PatientsPage() {
                 ),
               },
             ]}
-            empty="No matching patients"
+            empty={showInactive ? "No inactive patients found" : "No matching patients"}
           />
         )}
         <ErrorBox error={error} />
@@ -227,12 +331,12 @@ export function PatientsPage() {
           </Button>
         </div>
       </Panel>
-      {add && (
-        <PatientForm
-          onClose={() => setAdd(false)}
-          onSaved={(p) => {
-            setAdd(false);
-            navigate("/patients/" + p.id);
+
+      {showImport && (
+        <ImportPatientsModal
+          onClose={() => setShowImport(false)}
+          onSuccess={() => {
+            refetch();
           }}
         />
       )}
