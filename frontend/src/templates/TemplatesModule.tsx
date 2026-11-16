@@ -114,14 +114,30 @@ export function TemplatesModule({
     }
   };
 
-  const handleTemplateClick = (t: ClinicalTemplate) => {
-    setSelectedTemplate(t);
+  const loadFullTemplate = async (t: ClinicalTemplate): Promise<ClinicalTemplate> => {
+    try {
+      const full = await api.getTemplate(t.id);
+      return full || t;
+    } catch (err) {
+      console.error('Failed to load full template:', err);
+      return t;
+    }
+  };
+
+  const handleTemplateClick = async (t: ClinicalTemplate) => {
+    const full = await loadFullTemplate(t);
+    setSelectedTemplate(full);
     setViewMode('viewer');
   };
 
   const handleAction = async (action: ActionOption, t: ClinicalTemplate) => {
-    if (action === 'edit') {
-      setSelectedTemplate(t);
+    if (action === 'view') {
+      const full = await loadFullTemplate(t);
+      setSelectedTemplate(full);
+      setViewMode('viewer');
+    } else if (action === 'edit') {
+      const full = await loadFullTemplate(t);
+      setSelectedTemplate(full);
       setViewMode('builder');
     } else if (action === 'duplicate') {
       try {
