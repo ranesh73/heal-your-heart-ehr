@@ -195,6 +195,9 @@ def get_template_details(template_id: int):
     sections = []
     for s_row in section_rows:
         sec = dict(s_row)
+        sec_title = sec.get("title") or sec.get("name") or "Section"
+        sec["title"] = sec_title
+        sec["name"] = sec_title
         cursor.execute("SELECT * FROM template_components WHERE section_id = ? ORDER BY order_index ASC;", (sec["id"],))
         comp_rows = cursor.fetchall()
 
@@ -202,6 +205,8 @@ def get_template_details(template_id: int):
         for c_row in comp_rows:
             comp = dict(c_row)
             comp["column_count"] = comp.get("column_count") or 3
+            comp["is_mandatory"] = bool(comp.get("is_required") or comp.get("is_mandatory"))
+            comp["is_required"] = comp["is_mandatory"]
             if comp.get("config"):
                 try:
                     comp["config"] = json.loads(comp["config"])
