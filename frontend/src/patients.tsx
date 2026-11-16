@@ -789,7 +789,6 @@ export function PatientChart({ id }: { id: string }) {
     try {
       const r = await api<Row>("/encounters", "POST", {
         patient_id: id,
-        facility_id: newEncFacilityId || branch,
         provider_id: providerId,
         chart_type: newEncChartType,
         mode: newEncMode,
