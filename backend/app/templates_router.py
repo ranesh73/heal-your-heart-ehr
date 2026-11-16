@@ -405,6 +405,7 @@ def update_defaults(template_id: int, data: dict):
 
 # --- Search Templates ---
 @router.get("/search/templates")
+@router.get("/templates/search")
 def search_templates(q: str = ""):
     conn = get_con()
     cursor = conn.cursor()
