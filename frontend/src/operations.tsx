@@ -1294,8 +1294,32 @@ function Schedule() {
     const list = staff.filter((s) => ["doctor", "therapist"].includes(s.role));
     return list.length > 0 ? list : staff;
   }, [staff]);
-  const [view, setView] = useState("List View");
-  const [date, setDate] = useState(today());
+  const [view, setView] = useState(() => {
+    try {
+      return sessionStorage.getItem("hyh_cal_view") || "List View";
+    } catch {
+      return "List View";
+    }
+  });
+  const [date, setDate] = useState(() => {
+    try {
+      return sessionStorage.getItem("hyh_cal_date") || today();
+    } catch {
+      return today();
+    }
+  });
+
+  useEffect(() => {
+    try {
+      if (date) sessionStorage.setItem("hyh_cal_date", date);
+    } catch {}
+  }, [date]);
+
+  useEffect(() => {
+    try {
+      if (view) sessionStorage.setItem("hyh_cal_view", view);
+    } catch {}
+  }, [view]);
   const [provider, setProvider] = useState("");
   const [add, setAdd] = useState(false);
   const [availability, setAvailability] = useState(false);

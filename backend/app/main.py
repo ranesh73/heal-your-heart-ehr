@@ -60,6 +60,11 @@ async def unexpected_error(request,exc):
 @app.on_event('startup')
 def startup_sync():
     try:
+        from . import db
+        db.init_db()
+    except Exception as e:
+        logging.getLogger('ehr').warning('Startup init_db failed: %s', e)
+    try:
         settings_router.load_store()
     except Exception as e:
         logging.getLogger('ehr').warning('Startup settings sync failed: %s', e)
@@ -67,9 +72,10 @@ def startup_sync():
         from .db import engine
         from sqlalchemy import text
         with engine.begin() as conn:
-            cols = [r[1] for r in conn.execute(text("PRAGMA table_info(appointments)")).fetchall()]
-            if 'token_number' not in cols:
-                conn.execute(text("ALTER TABLE appointments ADD COLUMN token_number INTEGER"))
+            if engine.dialect.name == 'sqlite':
+                cols = [r[1] for r in conn.execute(text("PRAGMA table_info(appointments)")).fetchall()]
+                if 'token_number' not in cols:
+                    conn.execute(text("ALTER TABLE appointments ADD COLUMN token_number INTEGER"))
             conn.execute(text("""
                 CREATE TABLE IF NOT EXISTS waiting_list_entries (
                     id TEXT PRIMARY KEY,
