@@ -105,6 +105,7 @@ class AppointmentLabelChange(Version):
 class EncounterInput(Input):
     patient_id: str
     provider_id: str
+    facility_id: str | None = None
     assistant_id: str | None = None
     appointment_id: str | None = None
     visit_type: str = Field(default='Consultation', max_length=80)

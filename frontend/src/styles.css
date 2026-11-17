@@ -10952,10 +10952,14 @@ textarea.charm-input {
   background: #ffffff;
   border-radius: 6px;
   width: 95%;
-  max-width: 520px;
+  max-width: 500px;
+  max-height: 85vh;
+  display: flex;
+  flex-direction: column;
   box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.25);
   border: 1px solid #cbd5e1;
   overflow: hidden;
+  animation: charmModalFadeIn 0.15s ease-out;
 }
 
 .charm-unfinished-header {
@@ -10965,6 +10969,7 @@ textarea.charm-input {
   padding: 12px 18px;
   border-bottom: 1px solid #e2e8f0;
   background: #f8fafc;
+  flex-shrink: 0;
 }
 
 .charm-unfinished-header h3 {
@@ -10975,22 +10980,27 @@ textarea.charm-input {
 }
 
 .charm-unfinished-body {
-  padding: 20px 24px;
+  padding: 18px 22px;
   font-size: 13px;
   color: #334155;
+  overflow-y: auto;
+  flex: 1;
 }
 
 .charm-unfinished-desc {
-  margin: 0 0 16px 0;
+  margin: 0 0 14px 0;
   line-height: 1.5;
+  color: #334155;
 }
 
 .charm-unfinished-links {
   display: flex;
   flex-direction: column;
-  gap: 10px;
-  margin-bottom: 20px;
-  padding-left: 8px;
+  gap: 8px;
+  max-height: 160px;
+  overflow-y: auto;
+  margin-bottom: 16px;
+  padding-right: 4px;
 }
 
 .charm-unfinished-item {
@@ -11000,11 +11010,14 @@ textarea.charm-input {
   cursor: pointer;
   color: #0284c7;
   font-weight: 500;
-  transition: color 0.15s ease;
+  transition: color 0.15s ease, background 0.15s ease;
+  padding: 4px 6px;
+  border-radius: 4px;
 }
 
 .charm-unfinished-item:hover {
   color: #0369a1;
+  background-color: #f0f9ff;
   text-decoration: underline;
 }
 
@@ -11033,6 +11046,168 @@ textarea.charm-input {
 .charm-btn-link-create-new:hover {
   text-decoration: underline;
   color: #0369a1;
+}
+
+/* Authentic CharmHealth "New Encounter" Configuration Modal (frame_037, frame_055) */
+.charm-new-encounter-modal {
+  background: #ffffff;
+  border-radius: 6px;
+  width: 95%;
+  max-width: 540px;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 25px 35px -5px rgba(0, 0, 0, 0.35);
+  border: 1px solid #cbd5e1;
+  overflow: hidden;
+  animation: charmModalFadeIn 0.15s ease-out;
+}
+
+.charm-new-encounter-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 22px;
+  border-bottom: 1px solid #e2e8f0;
+  background: #ffffff;
+  flex-shrink: 0;
+}
+
+.charm-new-encounter-header h3 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 500;
+  color: #a16207;
+  letter-spacing: -0.2px;
+}
+
+.charm-new-encounter-body {
+  padding: 22px 28px 16px;
+  overflow-y: auto;
+  flex: 1;
+}
+
+.charm-new-enc-form-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.charm-new-enc-row {
+  display: grid;
+  grid-template-columns: 140px 1fr;
+  align-items: start;
+  gap: 16px;
+}
+
+.charm-new-enc-label {
+  text-align: right;
+  font-size: 13px;
+  color: #334155;
+  font-weight: 500;
+  padding-top: 6px;
+}
+
+.charm-new-enc-label .req {
+  color: #dc2626;
+  margin-left: 2px;
+}
+
+.charm-new-enc-control {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.charm-new-enc-select,
+.charm-new-enc-input {
+  width: 100%;
+  max-width: 280px;
+  border: 1px solid #cbd5e1;
+  border-radius: 4px;
+  padding: 6px 10px;
+  font-size: 13px;
+  color: #1e293b;
+  background-color: #fff;
+  outline: none;
+}
+
+.charm-new-enc-select:focus,
+.charm-new-enc-input:focus {
+  border-color: #0284c7;
+  box-shadow: 0 0 0 2px rgba(2, 132, 199, 0.15);
+}
+
+.charm-new-enc-date-wrap {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.charm-new-enc-radio-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding-top: 4px;
+}
+
+.charm-new-enc-radio-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: #334155;
+  cursor: pointer;
+  user-select: none;
+}
+
+.charm-new-enc-radio-label input[type="radio"] {
+  accent-color: #0284c7;
+  cursor: pointer;
+}
+
+.charm-new-enc-radio-label.soap-label {
+  color: #b45309;
+  font-weight: 500;
+}
+
+.charm-new-encounter-footer {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px 28px 24px;
+  margin-left: 156px;
+}
+
+.charm-btn-orange-create {
+  background: #ea580c;
+  color: #ffffff;
+  border: none;
+  border-radius: 4px;
+  padding: 7px 20px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.charm-btn-orange-create:hover {
+  background: #c2410c;
+}
+
+.charm-btn-cancel-link {
+  background: none;
+  border: 1px solid #e2e8f0;
+  color: #64748b;
+  border-radius: 4px;
+  padding: 6px 14px;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.charm-btn-cancel-link:hover {
+  background: #f8fafc;
+  color: #334155;
 }
 
 /* ehr2.charmtracker.com says confirmation dialog (frame_022) */

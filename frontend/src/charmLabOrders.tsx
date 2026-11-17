@@ -1607,7 +1607,7 @@ export function CharmLabOrders({ patientId, encounterId, isGlobal }: CharmLabOrd
                                     try {
                                       await api(`/orders/${order.id}/review`, "POST", { version: order.version });
                                       queryClient.invalidateQueries({ queryKey: ["orders"] });
-                                      setOpenResultMenuId(null);
+                                      setOpenMenuId(null);
                                       notify("Lab result successfully reviewed and signed.");
                                     } catch (err: any) {
                                       alert(err.message || "Unable to sign lab result");
@@ -1634,7 +1634,7 @@ export function CharmLabOrders({ patientId, encounterId, isGlobal }: CharmLabOrd
                                   onClick={() => {
                                     setSelectedOrder(order);
                                     setViewMode("import_result");
-                                    setOpenResultMenuId(null);
+                                    setOpenMenuId(null);
                                   }}
                                 >
                                   Edit Lab Result
@@ -1657,7 +1657,7 @@ export function CharmLabOrders({ patientId, encounterId, isGlobal }: CharmLabOrd
                                   onClick={() => {
                                     const patientObj = patients.find((p) => p.id === order.patient_id);
                                     exportOrderAsPdf(order, patientObj, staff);
-                                    setOpenResultMenuId(null);
+                                    setOpenMenuId(null);
                                     notify("Exporting lab result PDF report...");
                                   }}
                                 >
@@ -1680,7 +1680,7 @@ export function CharmLabOrders({ patientId, encounterId, isGlobal }: CharmLabOrd
                                   }}
                                   onClick={() => {
                                     setPlotOrder(order);
-                                    setOpenResultMenuId(null);
+                                    setOpenMenuId(null);
                                   }}
                                 >
                                   Plot
@@ -2095,6 +2095,16 @@ export function CharmLabOrders({ patientId, encounterId, isGlobal }: CharmLabOrd
         </div>
       )}
 
+      {/* PLOT MODAL (TRENDS & VISUALIZATION) */}
+      {plotOrder && (
+        <PlotModal
+          order={plotOrder}
+          patient={patients.find((p) => p.id === plotOrder.patient_id)}
+          allOrders={orders}
+          onClose={() => setPlotOrder(null)}
+        />
+      )}
+
       {/* 8. SELECT LAB ORDER FOR RESULTS ENTRY MODAL */}
       {selectOrderForResultsModal && (
         <div
@@ -2222,16 +2232,6 @@ export function CharmLabOrders({ patientId, encounterId, isGlobal }: CharmLabOrd
             </div>
           </div>
         </div>
-      )}
-
-      {/* PLOT MODAL (TRENDS & VISUALIZATION) */}
-      {plotOrder && (
-        <PlotModal
-          order={plotOrder}
-          patient={patients.find((p) => p.id === plotOrder.patient_id)}
-          allOrders={orders}
-          onClose={() => setPlotOrder(null)}
-        />
       )}
     </div>
   );
