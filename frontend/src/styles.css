@@ -1250,10 +1250,34 @@ main.main-patient-chart {
   padding: 0 !important;
 }
 
+.modal.charm-clinical-modal > .modal-head,
+.modal.charm-modal-container > .modal-head,
+.modal:has(.charm-modal-form) > .modal-head,
+.modal-head {
+  flex: 0 0 auto !important;
+  flex-shrink: 0 !important;
+  height: auto !important;
+  min-height: auto !important;
+  max-height: none !important;
+  display: flex !important;
+  flex-direction: row !important;
+  align-items: flex-start !important;
+  justify-content: space-between !important;
+  gap: 16px !important;
+  padding: 14px 20px !important;
+  background: var(--bg-surface) !important;
+  position: sticky !important;
+  top: 0 !important;
+  z-index: 20 !important;
+  box-sizing: border-box !important;
+}
+
 .modal.charm-clinical-modal > form,
-.modal.charm-clinical-modal > div,
+.modal.charm-clinical-modal > div.charm-modal-form,
+.modal.charm-clinical-modal > div:not(.modal-head),
 .modal.charm-modal-container > form,
-.modal.charm-modal-container > div,
+.modal.charm-modal-container > div.charm-modal-form,
+.modal.charm-modal-container > div:not(.modal-head),
 .modal:has(.charm-modal-footer) > form,
 .modal:has(.charm-modal-footer) > div.charm-modal-form,
 .modal > form.charm-modal-form,

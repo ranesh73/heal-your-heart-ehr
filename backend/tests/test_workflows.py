@@ -1548,3 +1548,16 @@ def test_invoice_bulk_actions_and_draft_only_deletion():
     }))
     assert del_draft_res['count'] == 1
     ok(c.get(f"/api/invoices/{draft_inv['id']}"), 404)
+
+
+def test_invoice_pdf_generation_templates():
+    c = client('reception')
+    p = patient(c)
+    inv = create_billing_test_invoice(c, p['id'], total_paise=95000)
+
+    for template in ('standard', 'superbill', 'envelope'):
+        res = c.get(f"/api/invoices/{inv['id']}/pdf?template={template}")
+        assert res.status_code == 200
+        assert res.headers['content-type'] == 'application/pdf'
+        assert res.content.startswith(b'%PDF-1.4')
+        assert len(res.content) > 500

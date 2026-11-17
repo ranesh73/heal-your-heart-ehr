@@ -32,6 +32,32 @@ def get_single_invoice(identifier: str, c=Depends(context)):
     return invoice_out(c.db, row)
 
 
+@router.get('/invoices/{identifier}/pdf')
+def get_invoice_pdf(identifier: str, template: str = Query('standard'), c=Depends(context)):
+    c.allow(BILLING)
+    row = c.record(m.Invoice, identifier)
+    lines = list(c.db.scalars(select(m.InvoiceLine).where(m.InvoiceLine.invoice_id == row.id).order_by(m.InvoiceLine.id)))
+    pat = c.db.get(m.Patient, row.patient_id)
+    fac = c.db.get(m.Facility, row.facility_id)
+    
+    ledger = invoice_out(c.db, row)
+    row.paid_paise = ledger['paid_paise'] + ledger['credited_paise']
+    row.balance_paise = ledger['balance_paise']
+    
+    from .invoice_pdf import generate_invoice_pdf
+    tmpl = template if template in ('standard', 'superbill', 'envelope') else 'standard'
+    pdf_bytes = generate_invoice_pdf(row, lines, pat, fac, template=tmpl)
+    filename = f"Invoice_{row.number}_{tmpl}.pdf"
+    return Response(
+        content=pdf_bytes,
+        media_type="application/pdf",
+        headers={
+            "Content-Disposition": f"inline; filename={filename}",
+            "Cache-Control": "no-cache",
+        }
+    )
+
+
 @router.post('/invoices')
 def create_invoice(data:s.InvoiceInput,c=Depends(context)):
     c.allow(BILLING); c.patient(data.patient_id)
