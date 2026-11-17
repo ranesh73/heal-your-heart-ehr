@@ -767,8 +767,8 @@ def inventory_reports(
                 'expiry_date': bth.expiry_date.isoformat() if bth and bth.expiry_date else '',
                 'supplier_name': bth.supplier_name if bth else '',
                 'quantity': mv.quantity,
-                'cost_price': bth.cost_price if bth else itm.cost_price,
-                'total_cost': (bth.cost_price if bth else itm.cost_price) * mv.quantity,
+                'cost_price': (bth.cost_price if (bth and bth.cost_price is not None) else (itm.cost_price or 0.0)),
+                'total_cost': (bth.cost_price if (bth and bth.cost_price is not None) else (itm.cost_price or 0.0)) * mv.quantity,
                 'reference': mv.reference or (bth.reference_number if bth else '')
             })
         return {'report_type': report_type, 'rows': data, 'count': len(data)}
@@ -815,7 +815,7 @@ def inventory_reports(
                 'balance': det['balance'],
                 'cost_price': itm.cost_price,
                 'retail_price': itm.retail_price,
-                'total_valuation': det['balance'] * itm.cost_price,
+                'total_valuation': det['balance'] * (itm.cost_price or 0.0),
                 'reorder_level': itm.reorder_level,
                 'status': det['status']
             })
