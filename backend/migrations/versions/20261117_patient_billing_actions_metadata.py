@@ -21,13 +21,13 @@ def upgrade():
     existing_cols = {c['name'] for c in inspector.get_columns('invoices')}
 
     if 'is_flagged' not in existing_cols:
-        op.add_column('invoices', sa.Column('is_flagged', sa.Boolean(), nullable=False, server_default=sa.text('0')))
+        op.add_column('invoices', sa.Column('is_flagged', sa.Boolean(), nullable=False, server_default=sa.false()))
     if 'is_mailed' not in existing_cols:
-        op.add_column('invoices', sa.Column('is_mailed', sa.Boolean(), nullable=False, server_default=sa.text('0')))
+        op.add_column('invoices', sa.Column('is_mailed', sa.Boolean(), nullable=False, server_default=sa.false()))
     if 'mailed_at' not in existing_cols:
         op.add_column('invoices', sa.Column('mailed_at', sa.DateTime(), nullable=True))
     if 'sent_for_collection' not in existing_cols:
-        op.add_column('invoices', sa.Column('sent_for_collection', sa.Boolean(), nullable=False, server_default=sa.text('0')))
+        op.add_column('invoices', sa.Column('sent_for_collection', sa.Boolean(), nullable=False, server_default=sa.false()))
     if 'collection_at' not in existing_cols:
         op.add_column('invoices', sa.Column('collection_at', sa.DateTime(), nullable=True))
     if 'notes' not in existing_cols:

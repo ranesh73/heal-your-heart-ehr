@@ -31,7 +31,7 @@ def upgrade():
             sa.Column("other_reference", sa.String(100), nullable=False, server_default=""),
             sa.Column("description", sa.Text(), nullable=False, server_default=""),
             sa.Column("payment_from", sa.String(50), nullable=False, server_default="Patient"),
-            sa.Column("is_void", sa.Boolean(), nullable=False, server_default=sa.text("0")),
+            sa.Column("is_void", sa.Boolean(), nullable=False, server_default=sa.false()),
             sa.Column("idempotency_key", sa.String(80), nullable=True, unique=True),
         )
 
