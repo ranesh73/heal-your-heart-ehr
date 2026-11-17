@@ -288,8 +288,39 @@ class StaffInput(Input):
     email: str = Field(min_length=3,max_length=160)
     name: str = Field(min_length=1,max_length=120)
     role: Literal['admin','doctor','assistant','therapist','reception','billing']
-    password: str = Field(min_length=12,max_length=200)
+    password: str = Field(min_length=6,max_length=200)
     facility_ids: list[str] = Field(min_length=1)
+    phone: str | None = None
+    title: str | None = None
+
+
+class StaffUpdate(Input):
+    name: str | None = None
+    role: Literal['admin','doctor','assistant','therapist','reception','billing'] | None = None
+    phone: str | None = None
+    title: str | None = None
+    active: bool | None = None
+    facility_ids: list[str] | None = None
+
+
+class RequestOtpInput(Input):
+    identifier: str = Field(min_length=3, max_length=160)
+
+
+class VerifyOtpResetInput(Input):
+    identifier: str = Field(min_length=3, max_length=160)
+    otp: str = Field(min_length=4, max_length=10)
+    new_password: str = Field(min_length=6, max_length=200)
+
+
+class SignupRequestInput(Input):
+    first_name: str = Field(min_length=1, max_length=80)
+    last_name: str = Field(min_length=1, max_length=80)
+    email: str = Field(min_length=3, max_length=160)
+    phone: str = Field(min_length=5, max_length=40)
+    practice_name: str = Field(min_length=1, max_length=160)
+    specialty: str = Field(min_length=1, max_length=100)
+    notes: str | None = None
 
 
 class FacilityInput(Input):

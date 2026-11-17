@@ -48,6 +48,8 @@ class User(Entity, Base):
     email = Column(String(160), unique=True, nullable=False)
     name = Column(String(120), nullable=False)
     role = Column(String(24), nullable=False)
+    phone = Column(String(40), nullable=True)
+    title = Column(String(100), nullable=True)
     password_hash = Column(String(300), nullable=False)
     active = Column(Boolean, nullable=False, default=True)
     __table_args__ = (CheckConstraint("role IN ('admin','doctor','assistant','therapist','reception','billing')"),)
@@ -70,6 +72,27 @@ class StaffSession(Base):
 class LoginAttempt(Entity, Base):
     __tablename__ = 'login_attempts'
     key = Column(String(64), index=True, nullable=False)
+
+
+class OtpToken(Entity, Base):
+    __tablename__ = 'otp_tokens'
+    identifier = Column(String(160), index=True, nullable=False)
+    otp_hash = Column(String(64), nullable=False)
+    purpose = Column(String(40), default='password_reset', nullable=False)
+    expires_at = Column(DateTime, nullable=False)
+    attempts = Column(Integer, default=0, nullable=False)
+
+
+class SignupRequest(Entity, Base):
+    __tablename__ = 'signup_requests'
+    first_name = Column(String(80), nullable=False)
+    last_name = Column(String(80), nullable=False)
+    email = Column(String(160), index=True, nullable=False)
+    phone = Column(String(40), nullable=False)
+    practice_name = Column(String(160), nullable=False)
+    specialty = Column(String(100), nullable=False)
+    status = Column(String(30), default='pending_approval', nullable=False)
+    notes = Column(Text, nullable=True)
 
 
 class Resource(Entity, Base):

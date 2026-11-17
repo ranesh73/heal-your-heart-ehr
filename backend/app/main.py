@@ -94,6 +94,8 @@ def health(): return {'status':'ok','mode':'development','external_integrations'
 FRONTEND=Path(__file__).resolve().parents[2]/'frontend'/'dist'
 if FRONTEND.exists():
     app.mount('/assets',StaticFiles(directory=FRONTEND/'assets'),name='assets')
+    if (FRONTEND/'images').exists():
+        app.mount('/images',StaticFiles(directory=FRONTEND/'images'),name='images')
     @app.get('/{path:path}')
     def spa(path:str):
         if path.startswith('api/'):

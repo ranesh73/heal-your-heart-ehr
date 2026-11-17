@@ -13,12 +13,22 @@ router = APIRouter(prefix='/api')
 
 @router.post('/auth/login')
 def login(data: s.Login, request: Request, response: Response, db=Depends(get_db)):
-    key = digest(data.email.lower()+'|'+(request.client.host if request.client else 'local'))
+    norm_identifier = data.email.strip().lower()
+    raw_identifier = data.email.strip()
+    key = digest(norm_identifier+'|'+(request.client.host if request.client else 'local'))
     recent = m.now()-timedelta(minutes=15)
     attempts = db.scalar(select(func.count()).select_from(m.LoginAttempt).where(m.LoginAttempt.key==key,m.LoginAttempt.created_at>recent))
     if attempts >= 10:
         raise HTTPException(429,'Too many sign-in attempts. Try again in 15 minutes.')
-    user = db.scalar(select(m.User).where(m.User.email==data.email.lower()))
+    user = db.scalar(
+        select(m.User).where(
+            or_(
+                m.User.email == norm_identifier,
+                m.User.phone == raw_identifier,
+                func.replace(m.User.phone, ' ', '') == raw_identifier.replace(' ', '')
+            )
+        )
+    )
     if not user or not user.active or not password_matches(data.password,user.password_hash):
         # Retain failed attempt even though the request fails.
         db.add(m.LoginAttempt(key=key))
@@ -39,6 +49,118 @@ def login(data: s.Login, request: Request, response: Response, db=Depends(get_db
         'csrf': csrf,
         'facility_id': facility_id,
         'facilities': [serialize(x) for x in facilities]
+    }
+
+
+@router.post('/auth/request-otp')
+def request_otp(data: s.RequestOtpInput, request: Request, db=Depends(get_db)):
+    raw = data.identifier.strip()
+    norm = raw.lower()
+    key = digest('otp|' + norm + '|' + (request.client.host if request.client else 'local'))
+    recent = m.now() - timedelta(minutes=15)
+    attempts = db.scalar(select(func.count()).select_from(m.LoginAttempt).where(m.LoginAttempt.key == key, m.LoginAttempt.created_at > recent))
+    if attempts >= 10:
+        raise HTTPException(429, 'Too many OTP requests. Please try again later.')
+    db.add(m.LoginAttempt(key=key))
+
+    user = db.scalar(
+        select(m.User).where(
+            or_(
+                m.User.email == norm,
+                m.User.phone == raw,
+                func.replace(m.User.phone, ' ', '') == raw.replace(' ', '')
+            )
+        )
+    )
+    if not user:
+        raise HTTPException(404, 'No account found with that email or mobile number')
+
+    otp_code = f"{secrets.randbelow(900000) + 100000}"
+    expires_at = m.now() + timedelta(minutes=10)
+
+    db.execute(delete(m.OtpToken).where(m.OtpToken.identifier == norm))
+    otp_row = m.OtpToken(
+        identifier=norm,
+        otp_hash=digest(otp_code),
+        purpose='password_reset',
+        expires_at=expires_at,
+        attempts=0
+    )
+    db.add(otp_row)
+    db.commit()
+
+    return {
+        'ok': True,
+        'message': f'Verification code sent to registered contact for {user.name}',
+        'identifier': norm,
+        'dev_otp': otp_code
+    }
+
+
+@router.post('/auth/verify-otp-reset')
+def verify_otp_reset(data: s.VerifyOtpResetInput, db=Depends(get_db)):
+    norm = data.identifier.strip().lower()
+    raw = data.identifier.strip()
+    token_row = db.scalar(
+        select(m.OtpToken)
+        .where(m.OtpToken.identifier == norm, m.OtpToken.purpose == 'password_reset')
+        .order_by(m.OtpToken.created_at.desc())
+    )
+    if not token_row:
+        raise HTTPException(400, 'Invalid or expired OTP session. Please request a new code.')
+    if token_row.expires_at < m.now():
+        db.delete(token_row)
+        db.commit()
+        raise HTTPException(400, 'OTP code has expired. Please request a new one.')
+    if token_row.attempts >= 5:
+        db.delete(token_row)
+        db.commit()
+        raise HTTPException(429, 'Too many invalid attempts. Request a new OTP.')
+
+    if token_row.otp_hash != digest(data.otp.strip()):
+        token_row.attempts += 1
+        db.commit()
+        raise HTTPException(400, 'Incorrect verification code. Please check and try again.')
+
+    user = db.scalar(
+        select(m.User).where(
+            or_(
+                m.User.email == norm,
+                m.User.phone == raw,
+                func.replace(m.User.phone, ' ', '') == raw.replace(' ', '')
+            )
+        )
+    )
+    if not user:
+        raise HTTPException(404, 'User account not found')
+
+    user.password_hash = password_hash(data.new_password)
+    user.version += 1
+    db.delete(token_row)
+    db.execute(delete(m.StaffSession).where(m.StaffSession.user_id == user.id))
+    db.add(m.AuditEvent(actor_id=user.id, action='password_reset_otp', entity_type='users', entity_id=user.id))
+    db.commit()
+
+    return {'ok': True, 'message': 'Password has been updated successfully. You can now sign in.'}
+
+
+@router.post('/auth/signup-request')
+def signup_request(data: s.SignupRequestInput, db=Depends(get_db)):
+    req = m.SignupRequest(
+        first_name=data.first_name,
+        last_name=data.last_name,
+        email=data.email.strip().lower(),
+        phone=data.phone.strip(),
+        practice_name=data.practice_name.strip(),
+        specialty=data.specialty.strip(),
+        status='pending_approval',
+        notes=data.notes
+    )
+    db.add(req)
+    db.commit()
+    return {
+        'ok': True,
+        'message': 'Registration request submitted. A practice administrator will verify and approve your account.'
     }
 
 
@@ -80,11 +202,69 @@ def create_user(data:s.StaffInput,c=Depends(context)):
         raise HTTPException(403,'Cannot grant access to an unauthorized branch')
     if c.db.scalar(select(m.User).where(m.User.email==data.email.lower())):
         raise HTTPException(409,'Email already exists')
-    row=m.User(email=data.email.lower(),name=data.name,role=data.role,password_hash=password_hash(data.password))
+    row=m.User(
+        email=data.email.lower(),
+        name=data.name,
+        role=data.role,
+        phone=data.phone or None,
+        title=data.title or None,
+        password_hash=password_hash(data.password)
+    )
     c.db.add(row); c.db.flush()
     for fid in set(data.facility_ids): c.db.add(m.UserFacility(user_id=row.id,facility_id=fid))
     c.audit('create_staff',row)
     return serialize(row)
+
+
+@router.put('/admin/users/{identifier}')
+def update_user(identifier: str, data: s.StaffUpdate, c=Depends(context)):
+    c.allow({'admin'})
+    user = c.staff(identifier)
+    d = data.model_dump(exclude_unset=True)
+    if 'name' in d and d['name']:
+        user.name = d['name']
+    if 'role' in d and d['role']:
+        user.role = d['role']
+    if 'phone' in d:
+        user.phone = d['phone']
+    if 'title' in d:
+        user.title = d['title']
+    if 'active' in d and d['active'] is not None:
+        user.active = d['active']
+    if 'facility_ids' in d and d['facility_ids'] is not None:
+        c.db.execute(delete(m.UserFacility).where(m.UserFacility.user_id == user.id))
+        for fid in set(d['facility_ids']):
+            c.db.add(m.UserFacility(user_id=user.id, facility_id=fid))
+    user.version += 1
+    c.audit('update_staff', user)
+    return serialize(user)
+
+
+@router.post('/admin/users/{identifier}/toggle-status')
+def toggle_user_status(identifier: str, c=Depends(context)):
+    c.allow({'admin'})
+    user = c.staff(identifier)
+    if user.id == c.user.id:
+        raise HTTPException(409, 'Cannot change status of your own account')
+    user.active = not user.active
+    user.version += 1
+    if not user.active:
+        c.db.execute(delete(m.StaffSession).where(m.StaffSession.user_id == user.id))
+    c.audit('toggle_staff_status', user)
+    return serialize(user)
+
+
+@router.delete('/admin/users/{identifier}')
+def delete_user(identifier: str, c=Depends(context)):
+    c.allow({'admin'})
+    user = c.staff(identifier)
+    if user.id == c.user.id:
+        raise HTTPException(409, 'Cannot delete your own account')
+    user.active = False
+    user.version += 1
+    c.db.execute(delete(m.StaffSession).where(m.StaffSession.user_id == user.id))
+    c.audit('delete_staff_soft', user)
+    return {'ok': True, 'id': user.id, 'active': False}
 
 
 @router.post('/admin/users/{identifier}/deactivate')
@@ -92,7 +272,6 @@ def deactivate_user(identifier:str,c=Depends(context)):
     c.allow({'admin'})
     row=c.staff(identifier)
     if row.id==c.user.id: raise HTTPException(409,'Cannot deactivate your own account')
-    # A branch administrator may not deactivate staff with additional branch access.
     fids=list(c.db.scalars(select(m.UserFacility.facility_id).where(m.UserFacility.user_id==row.id)))
     if not set(fids).issubset(c.facility_ids): raise HTTPException(403,'Staff has access outside your scope')
     row.active=False; row.version+=1

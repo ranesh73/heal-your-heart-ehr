@@ -28,25 +28,7 @@ from app.seed import seed
 from app.security import password_hash
 from app.worker import run_once
 
-PASSWORD='Test-only-'+uuid4().hex
-
-
-@pytest.fixture(scope='session',autouse=True)
-def setup():
-    command.upgrade(Config('alembic.ini'),'head')
-    with SessionLocal() as db:
-        lock_writes(db); seed(db,PASSWORD); db.commit()
-    try:
-        from scripts.seed_medicine_catalogs import seed as seed_meds
-        seed_meds()
-    except Exception:
-        pass
-    try:
-        from scripts.seed_rx_catalogs import seed_rx
-        seed_rx()
-    except Exception:
-        pass
-    yield
+from tests.conftest import PASSWORD
 
 
 def client(role='doctor',facility=None):
