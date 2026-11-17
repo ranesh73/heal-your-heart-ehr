@@ -1,5 +1,6 @@
 """Shared validation and form definitions. Bounds are data sanity checks, not treatment advice."""
 from datetime import date, datetime
+import uuid
 from typing import Literal, Any
 from pydantic import BaseModel, ConfigDict, Field, create_model, field_validator
 
@@ -172,17 +173,29 @@ class InvoiceLineInput(Input):
     unit_paise: int = Field(ge=0, le=100000000)
 
 
+class InvoicePaymentInput(Input):
+    amount_paise: int = Field(default=0, ge=0, le=100000000)
+    mode: str = Field(default='Cash', max_length=50)
+    reference: str = Field(default='', max_length=100)
+
+
 class InvoiceInput(Input):
     patient_id: str
     encounter_id: str | None = None
+    doctor_id: str | None = None
+    status: str = Field(default='unpaid', max_length=30)
     lines: list[InvoiceLineInput] = Field(min_length=1, max_length=100)
     discount_paise: int = Field(default=0, ge=0, le=100000000)
+    payment: InvoicePaymentInput | None = None
+    notes: str = Field(default='', max_length=2000)
+    terms: str = Field(default='', max_length=2000)
 
 
 class PaymentInput(Input):
     amount_paise: int = Field(gt=0, le=100000000)
-    mode: Literal['Cash', 'UPI', 'Card', 'Bank transfer']
-    idempotency_key: str = Field(min_length=16, max_length=80)
+    mode: str = Field(default='Cash', max_length=50)
+    reference: str = Field(default='', max_length=100)
+    idempotency_key: str = Field(default_factory=lambda: uuid.uuid4().hex, min_length=16, max_length=80)
     simulated: Literal[True] = True
 
 

@@ -31,7 +31,22 @@ def invoice_out(db,row):
     result['credits'] = [serialize(x) for x in db.scalars(select(m.Credit).where(m.Credit.invoice_id==row.id))]
     result['paid_paise'] = sum(x['amount_paise'] for x in result['payments'])
     result['credited_paise'] = sum(x['amount_paise'] for x in result['credits'])
-    result['balance_paise'] = row.total_paise-result['paid_paise']-result['credited_paise']
+    result['balance_paise'] = 0 if row.status == 'cancelled' else max(0, row.total_paise-result['paid_paise']-result['credited_paise'])
+    fac = db.get(m.Facility, row.facility_id)
+    result['facility_name'] = fac.name if fac else 'Heal Your Heart Neelankarai'
+    pat = db.get(m.Patient, row.patient_id)
+    if pat:
+        result['patient_name'] = f"{pat.first_name} {pat.last_name}".strip()
+        result['patient_mrn'] = pat.mrn
+    doc = db.get(m.User, row.author_id)
+    result['consultant_name'] = doc.name if doc else 'Dr. Ramasamy S'
+    if row.encounter_id:
+        enc = db.get(m.Encounter, row.encounter_id)
+        if enc:
+            result['consultation_date'] = str(enc.created_at)
+            enc_doc = db.get(m.User, enc.provider_id)
+            if enc_doc:
+                result['consultant_name'] = enc_doc.name
     return result
 
 
