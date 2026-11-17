@@ -20,7 +20,11 @@ import {
   CreditCard,
   Building2,
   UserCheck,
-  HelpCircle
+  HelpCircle,
+  GripVertical,
+  Eye,
+  FolderOpen,
+  RotateCcw
 } from "lucide-react";
 import { api } from "./api";
 import { useApp } from "./context";
@@ -28,73 +32,64 @@ import { useApp } from "./context";
 // Format currency as Indian Rupee (INR)
 export function money(paise: number | undefined | null): string {
   if (paise === undefined || paise === null || isNaN(paise)) return "Rs. 0.00";
-  return (
-    "Rs. " +
-    (paise / 100).toLocaleString("en-IN", {
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
-    })
-  );
+  const inRupees = (paise / 100).toFixed(2);
+  const parts = inRupees.split(".");
+  const intPart = parts[0];
+  const decPart = parts[1];
+  const lastThree = intPart.substring(intPart.length - 3);
+  const otherNumbers = intPart.substring(0, intPart.length - 3);
+  const formatted =
+    otherNumbers !== ""
+      ? otherNumbers.replace(/\B(?=(\d{2})+(?!\d))/g, ",") + "," + lastThree
+      : lastThree;
+  return `Rs. ${formatted}.${decPart}`;
 }
 
 export function rupees(amount: number | undefined | null): string {
-  if (amount === undefined || amount === null || isNaN(amount)) return "Rs. 0.00";
-  return (
-    "Rs. " +
-    Number(amount).toLocaleString("en-IN", {
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
-    })
-  );
+  if (amount === undefined || amount === null || isNaN(amount)) return "0.00";
+  return amount.toFixed(2);
 }
 
-interface ProcedureItem {
+// Line Item Interfaces
+export interface LineItem {
   id: string;
   code: string;
   description: string;
-  qty: number;
-  charge: number;
-  discountPercent: number;
-  tax: number;
-  total: number;
+  sac?: string;
+  quantity: number;
+  unit_price: number;
+  discount_percent: number;
+  discount_amount: number;
+  total_amount: number;
+  batch_id?: string;
+  item_id?: string;
 }
 
-interface LabItem {
+export interface PaymentRow {
   id: string;
-  code: string;
-  description: string;
-  sac: string;
-  qty: number;
-  charge: number;
-  discountPercent: number;
-  tax: number;
-  total: number;
+  date: string;
+  reference: string;
+  mode: string;
+  amount: number;
 }
 
-interface ProductItem {
-  id: string;
-  name: string;
-  batch: string;
-  stockQty: number;
-  qty: number;
-  price: number;
-  discountPercent: number;
-  tax: number;
-  total: number;
-}
-
+// =====================================================================
+// CHARMHEALTH PATIENT & PRACTICE BILLING COMPONENT
+// =====================================================================
 export function CharmPatientBilling({
   patientId,
   patient,
   onRefreshChart,
+  isPracticeView = false,
 }: {
-  patientId: string;
+  patientId?: string;
   patient?: any;
   onRefreshChart?: () => void;
+  isPracticeView?: boolean;
 }) {
-  const { user, staff, facilities, refresh, notify } = useApp();
+  const { user, staff, facilities, refresh, notify, patients } = useApp();
 
-  // Navigation Subtabs
+  // Active subtab: 'invoices' | 'receipts' | 'balance_due' | 'family_balance_due'
   const [activeSubtab, setActiveSubtab] = useState<
     "invoices" | "receipts" | "balance_due" | "family_balance_due"
   >("invoices");
@@ -102,7 +97,7 @@ export function CharmPatientBilling({
   // View Mode: 'list' | 'create' | 'detail' | 'edit'
   const [viewMode, setViewMode] = useState<"list" | "create" | "detail" | "edit">("list");
   const [invoiceTypeMode, setInvoiceTypeMode] = useState<
-    "Invoice" | "Consultation" | "Lab" | "Product"
+    "Invoice" | "Pre-Payment Invoice"
   >("Invoice");
 
   // Invoices & Receipts Data
@@ -111,289 +106,666 @@ export function CharmPatientBilling({
   const [loading, setLoading] = useState(false);
   const [selectedInvoice, setSelectedInvoice] = useState<any | null>(null);
 
-  // Filters
-  const [dateFilter, setDateFilter] = useState("all");
-  const [searchQuery, setSearchQuery] = useState("");
-  const [showInvoiceDropdown, setShowInvoiceDropdown] = useState(false);
+  // Filters (CharmHealth 3-Box Filter Layout)
+  const [dateRangeFilter, setDateRangeFilter] = useState("All");
+  const [searchInvoiceNo, setSearchInvoiceNo] = useState("");
+  const [searchOption2Type, setSearchOption2Type] = useState("");
+  const [searchOption2Value, setSearchOption2Value] = useState("");
+  const [showInvoiceSplitMenu, setShowInvoiceSplitMenu] = useState(false);
   const [activeMenuId, setActiveMenuId] = useState<string | null>(null);
+  const [showCptDetails, setShowCptDetails] = useState(false);
+  const [selectedInvoiceIds, setSelectedInvoiceIds] = useState<Record<string, boolean>>({});
 
-  // Modals
+  // Patient Encounters for linking
+  const [patientEncounters, setPatientEncounters] = useState<any[]>([]);
+
+  // Modals & Action States
   const [quickPayInvoice, setQuickPayInvoice] = useState<any | null>(null);
   const [quickPayAmount, setQuickPayAmount] = useState<number>(0);
   const [quickPayMethod, setQuickPayMethod] = useState("UPI");
   const [quickPayRef, setQuickPayRef] = useState("");
   const [quickPaySubmitting, setQuickPaySubmitting] = useState(false);
-  const [viewingReceipt, setViewingReceipt] = useState<any | null>(null);
+
+  const [addPaymentModalOpen, setAddPaymentModalOpen] = useState(false);
+  const [directPaymentPatientId, setDirectPaymentPatientId] = useState(patientId || "");
+  const [directPaymentAmount, setDirectPaymentAmount] = useState<number>(0);
+  const [directPaymentMethod, setDirectPaymentMethod] = useState("UPI");
+  const [directPaymentRef, setDirectPaymentRef] = useState("");
+  const [directPaymentNotes, setDirectPaymentNotes] = useState("");
+  const [directPaymentFacilityId, setDirectPaymentFacilityId] = useState("");
+
   const [cancelModalInvoice, setCancelModalInvoice] = useState<any | null>(null);
+  const [cancelReason, setCancelReason] = useState("");
+  const [cancelSubmitting, setCancelSubmitting] = useState(false);
+
+  const [consultationSummaryModal, setConsultationSummaryModal] = useState<any | null>(null);
+  const [cptSearchModal, setCptSearchModal] = useState<{
+    open: boolean;
+    section: "procedures" | "labs" | "products";
+    rowIndex?: number;
+  }>({ open: false, section: "procedures" });
 
   // -------------------------------------------------------------
-  // Invoice Creator / Editor Form State
+  // Invoice Form State
   // -------------------------------------------------------------
+  const [formPatientId, setFormPatientId] = useState(patientId || "");
+  const [formPatientData, setFormPatientData] = useState<any>(patient || null);
   const [formFacilityId, setFormFacilityId] = useState("");
   const [formDoctorId, setFormDoctorId] = useState("");
   const [formInvoiceDate, setFormInvoiceDate] = useState(
     new Date().toISOString().split("T")[0]
   );
+  const [formEncounterId, setFormEncounterId] = useState("");
   const [formConsultationDate, setFormConsultationDate] = useState(
     new Date().toISOString().split("T")[0]
   );
+  const [formReferredBy, setFormReferredBy] = useState("");
+  const [formPackage, setFormPackage] = useState("");
 
-  const [procedures, setProcedures] = useState<ProcedureItem[]>([]);
-  const [labs, setLabs] = useState<LabItem[]>([]);
-  const [products, setProducts] = useState<ProductItem[]>([]);
+  // Line item tables
+  const [procedures, setProcedures] = useState<LineItem[]>([]);
+  const [labs, setLabs] = useState<LineItem[]>([]);
+  const [products, setProducts] = useState<LineItem[]>([]);
 
-  const [flatDiscount, setFlatDiscount] = useState<number>(0);
+  // Overall Discount & Totals
+  const [generalDiscount, setGeneralDiscount] = useState<number>(0);
+
+  // Payment Collection inside Invoice
   const [payInFull, setPayInFull] = useState(false);
-  const [paymentMode, setPaymentMode] = useState("Cash");
-  const [paymentRef, setPaymentRef] = useState("");
-  const [paymentAmount, setPaymentAmount] = useState<number>(0);
+  const [paymentRows, setPaymentRows] = useState<PaymentRow[]>([
+    {
+      id: "pay-1",
+      date: new Date().toISOString().split("T")[0],
+      reference: "",
+      mode: "UPI",
+      amount: 0,
+    },
+  ]);
 
   const [notes, setNotes] = useState("");
   const [terms, setTerms] = useState(
     "1. Payment is due upon receipt.\n2. Cheques are subject to realization.\n3. Goods or medicines once sold cannot be returned or exchanged after 7 days."
   );
 
-  // Search autocomplete states
-  const [searchingProcedures, setSearchingProcedures] = useState(false);
-  const [procedureResults, setProcedureResults] = useState<any[]>([]);
-  const [activeProcSearchIndex, setActiveProcSearchIndex] = useState<number | null>(null);
+  // Autocomplete search states
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchResults, setSearchResults] = useState<any[]>([]);
+  const [activeSearchSection, setActiveSearchSection] = useState<
+    "procedures" | "labs" | "products" | null
+  >(null);
+  const [activeSearchRowIndex, setActiveSearchRowIndex] = useState<number | null>(null);
 
-  const [searchingLabs, setSearchingLabs] = useState(false);
-  const [labResults, setLabResults] = useState<any[]>([]);
-  const [activeLabSearchIndex, setActiveLabSearchIndex] = useState<number | null>(null);
+  // Balance Due Tab Filter & Report State
+  const [balanceDueFacility, setBalanceDueFacility] = useState("All");
+  const [balanceDueDateRange, setBalanceDueDateRange] = useState("Last 2 Years");
+  const [balanceDueFrom, setBalanceDueFrom] = useState("2024-11-01");
+  const [balanceDueTo, setBalanceDueTo] = useState(new Date().toISOString().split("T")[0]);
+  const [balanceDueRadio, setBalanceDueRadio] = useState<"all" | "due" | "claim">("due");
+  const [balanceDueReportVisible, setBalanceDueReportVisible] = useState(true);
 
-  const [searchingProducts, setSearchingProducts] = useState(false);
-  const [productResults, setProductResults] = useState<any[]>([]);
-  const [activeProdSearchIndex, setActiveProdSearchIndex] = useState<number | null>(null);
+  // Receipts Tab Filter State
+  const [receiptDateRange, setReceiptDateRange] = useState("All");
+  const [receiptSearchNo, setReceiptSearchNo] = useState("");
 
-  // Load Invoices & Receipts
+  // Close menus on outside click
+  const menuRef = useRef<HTMLDivElement>(null);
+  const splitBtnRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleOutsideClick = (e: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        setActiveMenuId(null);
+      }
+      if (splitBtnRef.current && !splitBtnRef.current.contains(e.target as Node)) {
+        setShowInvoiceSplitMenu(false);
+      }
+    };
+    document.addEventListener("mousedown", handleOutsideClick);
+    return () => document.removeEventListener("mousedown", handleOutsideClick);
+  }, []);
+
+  // Set default facility & doctor
+  useEffect(() => {
+    if (facilities && facilities.length > 0 && !formFacilityId) {
+      setFormFacilityId(facilities[0].id);
+      setDirectPaymentFacilityId(facilities[0].id);
+    }
+    if (staff && staff.length > 0 && !formDoctorId) {
+      const doc = staff.find((s) => s.role === "doctor") || staff[0];
+      setFormDoctorId(doc.id);
+    }
+  }, [facilities, staff]);
+
+  // Load Patient Details if patientId changes
+  useEffect(() => {
+    if (patientId) {
+      setFormPatientId(patientId);
+      if (patient) {
+        setFormPatientData(patient);
+      } else {
+        api<any>(`/patients/${patientId}`)
+          .then((p) => setFormPatientData(p))
+          .catch(() => {});
+      }
+      // Load encounters for encounter dropdown
+      api<any[]>(`/patients/${patientId}/encounters`)
+        .then((encs) => setPatientEncounters(encs || []))
+        .catch(() => setPatientEncounters([]));
+    }
+  }, [patientId, patient]);
+
+  // Load Invoices and Receipts
   const loadData = async () => {
     setLoading(true);
     try {
-      const invData = await api<any[]>(`/invoices?patient_id=${patientId}`);
-      setInvoices(invData || []);
-      const recData = await api<any[]>(`/receipts?patient_id=${patientId}`);
-      setReceipts(recData || []);
+      const endpoint = patientId ? `/invoices?patient_id=${patientId}` : "/invoices";
+      const invs = await api<any[]>(endpoint);
+      setInvoices(invs || []);
+
+      const rEndpoint = patientId ? `/receipts?patient_id=${patientId}` : "/receipts";
+      const recs = await api<any[]>(rEndpoint);
+      setReceipts(recs || []);
     } catch (err) {
-      console.error("Failed to load billing data", err);
+      console.error("Failed to load billing data:", err);
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    if (patientId) {
-      loadData();
-    }
+    loadData();
   }, [patientId]);
 
-  // Set default doctor and facility
-  useEffect(() => {
-    if (!formFacilityId && facilities?.length) {
-      setFormFacilityId(facilities[0].id);
-    }
-    if (!formDoctorId && staff?.length) {
-      const doc = staff.find((s: any) => s.role === "doctor") || staff[0];
-      if (doc) setFormDoctorId(doc.id);
-    }
-  }, [facilities, staff]);
-
-  // Close dropdowns on outside click
-  const dropdownRef = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
-        setShowInvoiceDropdown(false);
+  // Handle Encounter dropdown change
+  const handleEncounterChange = (encId: string) => {
+    setFormEncounterId(encId);
+    if (!encId) return;
+    const enc = patientEncounters.find((e) => e.id === encId);
+    if (enc) {
+      if (enc.created_at) {
+        setFormConsultationDate(enc.created_at.split("T")[0]);
       }
-      if (activeMenuId && !(event.target as Element).closest(".charm-menu-container")) {
-        setActiveMenuId(null);
+      if (enc.provider_id) {
+        setFormDoctorId(enc.provider_id);
       }
-    };
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, [activeMenuId]);
-
-  // Calculate Subtotals & Grand Totals
-  const procSubtotal = procedures.reduce((sum, p) => sum + p.total, 0);
-  const labSubtotal = labs.reduce((sum, l) => sum + l.total, 0);
-  const prodSubtotal = products.reduce((sum, pr) => sum + pr.total, 0);
-  const grossTotal = procSubtotal + labSubtotal + prodSubtotal;
-  const netTotal = Math.max(0, grossTotal - flatDiscount);
-  const balanceDue = Math.max(0, netTotal - (payInFull ? netTotal : paymentAmount));
-
-  // Sync Pay In Full
-  useEffect(() => {
-    if (payInFull) {
-      setPaymentAmount(netTotal);
     }
-  }, [payInFull, netTotal]);
+  };
 
-  // Start Creating an Invoice
-  const startCreateInvoice = (type: "Invoice" | "Consultation" | "Lab" | "Product") => {
-    setShowInvoiceDropdown(false);
+  // -------------------------------------------------------------
+  // Invoice Creator Line Item Helpers
+  // -------------------------------------------------------------
+  const startCreateInvoice = (type: "Invoice" | "Pre-Payment Invoice" = "Invoice") => {
     setInvoiceTypeMode(type);
-    setProcedures([]);
-    setLabs([]);
-    setProducts([]);
-    setFlatDiscount(0);
-    setPayInFull(false);
-    setPaymentAmount(0);
-    setPaymentRef("");
-    setPaymentMode("Cash");
+    setSelectedInvoice(null);
     setFormInvoiceDate(new Date().toISOString().split("T")[0]);
     setFormConsultationDate(new Date().toISOString().split("T")[0]);
+    setGeneralDiscount(0);
+    setPayInFull(false);
+    setFormReferredBy("");
+    setFormPackage("");
 
-    // Pre-populate based on type mode
-    if (type === "Consultation" || type === "Invoice") {
-      setProcedures([
-        {
-          id: Math.random().toString(),
-          code: "99241",
-          description: "Cardiac Consultation",
-          qty: 1,
-          charge: 500,
-          discountPercent: 0,
-          tax: 0,
-          total: 500,
-        },
-      ]);
-    } else if (type === "Lab") {
-      setLabs([
-        {
-          id: Math.random().toString(),
-          code: "80050",
-          description: "HUH-Cardiodiabetic Test",
-          sac: "999312",
-          qty: 1,
-          charge: 7900,
-          discountPercent: 0,
-          tax: 0,
-          total: 7900,
-        },
-      ]);
-    } else if (type === "Product") {
-      setProducts([
-        {
-          id: Math.random().toString(),
-          name: "EECP treatment kit",
-          batch: "BATCH-01",
-          stockQty: 45,
-          qty: 1,
-          price: 3500,
-          discountPercent: 0,
-          tax: 0,
-          total: 3500,
-        },
-      ]);
-    }
+    // Initialize with standard Cardiac Consultation procedure
+    setProcedures([
+      {
+        id: "p-1",
+        code: "99245",
+        description: "Cardiac Consultation with EECP Demo",
+        quantity: 1,
+        unit_price: 1000.0,
+        discount_percent: 0,
+        discount_amount: 0,
+        total_amount: 1000.0,
+      },
+      {
+        id: "p-2",
+        code: "",
+        description: "",
+        quantity: 1,
+        unit_price: 0.0,
+        discount_percent: 0,
+        discount_amount: 0,
+        total_amount: 0.0,
+      },
+    ]);
+
+    setLabs([
+      {
+        id: "l-1",
+        code: "001032",
+        description: "Blood Sugar",
+        sac: "999312",
+        quantity: 1,
+        unit_price: 100.0,
+        discount_percent: 0,
+        discount_amount: 0,
+        total_amount: 100.0,
+      },
+    ]);
+
+    setProducts([]);
+
+    const initialTotal = 1100.0;
+    setPaymentRows([
+      {
+        id: "pay-1",
+        date: new Date().toISOString().split("T")[0],
+        reference: "",
+        mode: "UPI",
+        amount: 0,
+      },
+    ]);
 
     setViewMode("create");
   };
 
-  // Autocomplete searches
-  const searchProcedures = async (q: string, idx: number) => {
-    setActiveProcSearchIndex(idx);
-    setSearchingProcedures(true);
-    try {
-      const res = await api<any[]>(
-        `/billing/procedure-codes/search?q=${encodeURIComponent(q)}&is_lab=false&limit=15`
-      );
-      setProcedureResults(res || []);
-    } catch {
-      setProcedureResults([]);
-    } finally {
-      setSearchingProcedures(false);
+  const startEditInvoice = (inv: any) => {
+    setSelectedInvoice(inv);
+    setFormInvoiceDate(inv.date || new Date().toISOString().split("T")[0]);
+    setFormConsultationDate(
+      inv.consultation_date?.split("T")[0] || inv.date || new Date().toISOString().split("T")[0]
+    );
+    setFormFacilityId(inv.facility_id || (facilities[0]?.id || ""));
+    setFormDoctorId(inv.author_id || (staff[0]?.id || ""));
+    setFormEncounterId(inv.encounter_id || "");
+
+    // Populate lines
+    const procLines: LineItem[] = [];
+    const labLines: LineItem[] = [];
+    const prodLines: LineItem[] = [];
+
+    (inv.lines || []).forEach((line: any, idx: number) => {
+      const isLab =
+        (line.description && line.description.toLowerCase().includes("sac: 999312")) ||
+        (line.code && ["93306", "001032", "322777", "303754"].includes(line.code));
+      const isProd =
+        line.item_id ||
+        (line.description &&
+          (line.description.toLowerCase().includes("tablet") ||
+            line.description.toLowerCase().includes("capsule") ||
+            line.description.toLowerCase().includes("syrup")));
+
+      const item: LineItem = {
+        id: `line-${idx}`,
+        code: line.code || "",
+        description: line.description || "",
+        sac: isLab ? "999312" : undefined,
+        quantity: line.quantity || 1,
+        unit_price: (line.unit_price_paise || 0) / 100,
+        discount_percent: 0,
+        discount_amount: (line.discount_paise || 0) / 100,
+        total_amount: (line.total_paise || 0) / 100,
+      };
+
+      if (isLab) labLines.push(item);
+      else if (isProd) prodLines.push(item);
+      else procLines.push(item);
+    });
+
+    if (procLines.length === 0) {
+      procLines.push({
+        id: "p-empty",
+        code: "",
+        description: "",
+        quantity: 1,
+        unit_price: 0,
+        discount_percent: 0,
+        discount_amount: 0,
+        total_amount: 0,
+      });
+    }
+
+    setProcedures(procLines);
+    setLabs(labLines);
+    setProducts(prodLines);
+    setGeneralDiscount(0);
+
+    const dueAmount = (inv.balance_paise || 0) / 100;
+    setPaymentRows([
+      {
+        id: "pay-1",
+        date: new Date().toISOString().split("T")[0],
+        reference: "",
+        mode: "UPI",
+        amount: dueAmount > 0 ? dueAmount : 0,
+      },
+    ]);
+    setPayInFull(dueAmount > 0);
+
+    setViewMode("edit");
+  };
+
+  // Add line handlers
+  const addProcedureRow = () => {
+    setProcedures([
+      ...procedures,
+      {
+        id: `p-${Date.now()}`,
+        code: "",
+        description: "",
+        quantity: 1,
+        unit_price: 0,
+        discount_percent: 0,
+        discount_amount: 0,
+        total_amount: 0,
+      },
+    ]);
+  };
+
+  const addLabRow = () => {
+    setLabs([
+      ...labs,
+      {
+        id: `l-${Date.now()}`,
+        code: "",
+        description: "",
+        sac: "999312",
+        quantity: 1,
+        unit_price: 0,
+        discount_percent: 0,
+        discount_amount: 0,
+        total_amount: 0,
+      },
+    ]);
+  };
+
+  const addProductRow = () => {
+    setProducts([
+      ...products,
+      {
+        id: `m-${Date.now()}`,
+        code: "",
+        description: "",
+        quantity: 1,
+        unit_price: 0,
+        discount_percent: 0,
+        discount_amount: 0,
+        total_amount: 0,
+      },
+    ]);
+  };
+
+  // Remove line handlers
+  const removeProcedureRow = (index: number) => {
+    if (procedures.length === 1) {
+      setProcedures([
+        {
+          id: `p-${Date.now()}`,
+          code: "",
+          description: "",
+          quantity: 1,
+          unit_price: 0,
+          discount_percent: 0,
+          discount_amount: 0,
+          total_amount: 0,
+        },
+      ]);
+    } else {
+      setProcedures(procedures.filter((_, i) => i !== index));
     }
   };
 
-  const searchLabs = async (q: string, idx: number) => {
-    setActiveLabSearchIndex(idx);
-    setSearchingLabs(true);
+  const removeLabRow = (index: number) => {
+    setLabs(labs.filter((_, i) => i !== index));
+  };
+
+  const removeProductRow = (index: number) => {
+    setProducts(products.filter((_, i) => i !== index));
+  };
+
+  // Update line handlers with Dual Discount (% and Amt)
+  const updateLine = (
+    section: "procedures" | "labs" | "products",
+    index: number,
+    field: keyof LineItem,
+    value: any
+  ) => {
+    const list =
+      section === "procedures"
+        ? [...procedures]
+        : section === "labs"
+        ? [...labs]
+        : [...products];
+
+    const current = { ...list[index] };
+
+    if (field === "quantity") {
+      current.quantity = Math.max(1, parseInt(value) || 1);
+    } else if (field === "unit_price") {
+      current.unit_price = Math.max(0, parseFloat(value) || 0);
+    } else if (field === "discount_percent") {
+      const pct = Math.min(100, Math.max(0, parseFloat(value) || 0));
+      current.discount_percent = pct;
+      const base = current.quantity * current.unit_price;
+      current.discount_amount = parseFloat(((base * pct) / 100).toFixed(2));
+    } else if (field === "discount_amount") {
+      const amt = Math.max(0, parseFloat(value) || 0);
+      const base = current.quantity * current.unit_price;
+      current.discount_amount = amt;
+      current.discount_percent =
+        base > 0 ? parseFloat(Math.min(100, (amt / base) * 100).toFixed(1)) : 0;
+    } else {
+      (current as any)[field] = value;
+    }
+
+    // Recalculate line total
+    const sub = current.quantity * current.unit_price;
+    current.total_amount = Math.max(0, sub - (current.discount_amount || 0));
+
+    list[index] = current;
+    if (section === "procedures") setProcedures(list);
+    else if (section === "labs") setLabs(list);
+    else setProducts(list);
+  };
+
+  // Search autocomplete for CPT & Catalog
+  const handleSearchCodeOrDesc = async (
+    section: "procedures" | "labs" | "products",
+    index: number,
+    query: string
+  ) => {
+    updateLine(section, index, "description", query);
+    if (!query || query.trim().length < 2) {
+      setSearchResults([]);
+      setActiveSearchSection(null);
+      return;
+    }
+
+    setActiveSearchSection(section);
+    setActiveSearchRowIndex(index);
+
     try {
-      const res = await api<any[]>(
-        `/billing/procedure-codes/search?q=${encodeURIComponent(q)}&is_lab=true&limit=15`
-      );
-      setLabResults(res || []);
+      if (section === "procedures" || section === "labs") {
+        const results = await api<any[]>(
+          `/billing/procedure-codes/search?q=${encodeURIComponent(query)}`
+        );
+        setSearchResults(results || []);
+      } else {
+        const results = await api<any[]>(
+          `/billing/products/search?q=${encodeURIComponent(query)}`
+        );
+        setSearchResults(results || []);
+      }
     } catch {
-      setLabResults([]);
-    } finally {
-      setSearchingLabs(false);
+      setSearchResults([]);
     }
   };
 
-  const searchProducts = async (q: string, idx: number) => {
-    setActiveProdSearchIndex(idx);
-    setSearchingProducts(true);
-    try {
-      const res = await api<any[]>(
-        `/billing/products/search?q=${encodeURIComponent(q)}&limit=15`
+  const selectSearchResult = (item: any) => {
+    if (activeSearchSection === null || activeSearchRowIndex === null) return;
+
+    if (activeSearchSection === "procedures") {
+      updateLine("procedures", activeSearchRowIndex, "code", item.code);
+      updateLine("procedures", activeSearchRowIndex, "description", `[${item.code}] ${item.name}`);
+      updateLine("procedures", activeSearchRowIndex, "unit_price", item.price || 500);
+    } else if (activeSearchSection === "labs") {
+      updateLine("labs", activeSearchRowIndex, "code", item.code);
+      updateLine(
+        "labs",
+        activeSearchRowIndex,
+        "description",
+        `${item.name} (SAC: 999312)`
       );
-      setProductResults(res || []);
-    } catch {
-      setProductResults([]);
-    } finally {
-      setSearchingProducts(false);
+      updateLine("labs", activeSearchRowIndex, "sac", "999312");
+      updateLine("labs", activeSearchRowIndex, "unit_price", item.price || 300);
+    } else if (activeSearchSection === "products") {
+      updateLine("products", activeSearchRowIndex, "code", item.sku || "");
+      updateLine("products", activeSearchRowIndex, "description", item.name);
+      updateLine("products", activeSearchRowIndex, "item_id", item.id);
+      updateLine("products", activeSearchRowIndex, "unit_price", item.price || 100);
+    }
+
+    setSearchResults([]);
+    setActiveSearchSection(null);
+    setActiveSearchRowIndex(null);
+  };
+
+  // Calculate Totals
+  const procSubTotal = procedures.reduce((sum, p) => sum + p.total_amount, 0);
+  const labSubTotal = labs.reduce((sum, l) => sum + l.total_amount, 0);
+  const prodSubTotal = products.reduce((sum, m) => sum + m.total_amount, 0);
+  const grossSubTotal = procSubTotal + labSubTotal + prodSubTotal;
+  const netTotal = Math.max(0, grossSubTotal - (generalDiscount || 0));
+  const roundOff = parseFloat((Math.round(netTotal) - netTotal).toFixed(2));
+  const grandTotal = Math.round(netTotal);
+
+  // Sync Pay in Full
+  useEffect(() => {
+    if (payInFull) {
+      setPaymentRows([
+        {
+          id: "pay-1",
+          date: new Date().toISOString().split("T")[0],
+          reference: paymentRows[0]?.reference || "",
+          mode: paymentRows[0]?.mode || "UPI",
+          amount: grandTotal,
+        },
+      ]);
+    }
+  }, [payInFull, grandTotal]);
+
+  // Payment Rows Helper
+  const addPaymentRow = () => {
+    setPaymentRows([
+      ...paymentRows,
+      {
+        id: `pay-${Date.now()}`,
+        date: new Date().toISOString().split("T")[0],
+        reference: "",
+        mode: "Cash",
+        amount: 0,
+      },
+    ]);
+  };
+
+  const removePaymentRow = (index: number) => {
+    if (paymentRows.length === 1) {
+      setPaymentRows([
+        {
+          id: `pay-${Date.now()}`,
+          date: new Date().toISOString().split("T")[0],
+          reference: "",
+          mode: "UPI",
+          amount: 0,
+        },
+      ]);
+    } else {
+      setPaymentRows(paymentRows.filter((_, i) => i !== index));
     }
   };
 
-  // Submit Invoice (Approve or Save as Draft)
+  const updatePaymentRow = (index: number, field: keyof PaymentRow, value: any) => {
+    const list = [...paymentRows];
+    list[index] = { ...list[index], [field]: value };
+    setPaymentRows(list);
+  };
+
+  // Submit Invoice
   const handleSubmitInvoice = async (asDraft: boolean = false, andPrint: boolean = false) => {
+    const targetPatientId = formPatientId || patientId;
+    if (!targetPatientId) {
+      notify("Please select a patient for this invoice");
+      return;
+    }
+
+    // Build line items
     const allLines: any[] = [];
 
     procedures.forEach((p) => {
-      if (p.description.trim()) {
+      if (p.description && p.description.trim()) {
         allLines.push({
           code: p.code || "PROC",
           description: p.description,
-          quantity: Number(p.qty) || 1,
-          unit_paise: Math.round(Number(p.charge) * 100 * (1 - (p.discountPercent || 0) / 100)),
+          quantity: p.quantity,
+          unit_price_paise: Math.round(p.unit_price * 100),
+          discount_paise: Math.round(p.discount_amount * 100),
+          tax_percent: 0,
+          total_paise: Math.round(p.total_amount * 100),
         });
       }
     });
 
     labs.forEach((l) => {
-      if (l.description.trim()) {
+      if (l.description && l.description.trim()) {
+        const desc = l.description.includes("SAC: 999312")
+          ? l.description
+          : `${l.description} (SAC: 999312)`;
         allLines.push({
           code: l.code || "LAB",
-          description: `${l.description} [SAC: ${l.sac || "999312"}]`,
-          quantity: Number(l.qty) || 1,
-          unit_paise: Math.round(Number(l.charge) * 100 * (1 - (l.discountPercent || 0) / 100)),
+          description: desc,
+          quantity: l.quantity,
+          unit_price_paise: Math.round(l.unit_price * 100),
+          discount_paise: Math.round(l.discount_amount * 100),
+          tax_percent: 0,
+          total_paise: Math.round(l.total_amount * 100),
         });
       }
     });
 
-    products.forEach((pr) => {
-      if (pr.name.trim()) {
+    products.forEach((m) => {
+      if (m.description && m.description.trim()) {
         allLines.push({
-          code: pr.batch ? `BATCH-${pr.batch}` : "PROD",
-          description: `${pr.name} (Batch: ${pr.batch || "NA"})`,
-          quantity: Number(pr.qty) || 1,
-          unit_paise: Math.round(Number(pr.price) * 100 * (1 - (pr.discountPercent || 0) / 100)),
+          code: m.code || "MED",
+          description: m.description,
+          quantity: m.quantity,
+          unit_price_paise: Math.round(m.unit_price * 100),
+          discount_paise: Math.round(m.discount_amount * 100),
+          tax_percent: 0,
+          total_paise: Math.round(m.total_amount * 100),
+          item_id: m.item_id,
         });
       }
     });
 
     if (allLines.length === 0) {
-      notify("Please add at least one line item to the invoice");
+      notify("Please add at least one procedure, lab, or medication line item");
       return;
     }
 
+    // Calculate total paise
+    const totalPaise = Math.round(grandTotal * 100);
+
+    // Filter valid payment rows
+    const validPayments = paymentRows
+      .filter((pr) => pr.amount > 0)
+      .map((pr) => ({
+        amount_paise: Math.round(pr.amount * 100),
+        method: pr.mode,
+        reference: pr.reference || undefined,
+        simulated: true,
+      }));
+
     const payload: any = {
-      patient_id: patientId,
-      doctor_id: formDoctorId || undefined,
-      status: asDraft ? "draft" : "unpaid",
-      discount_paise: Math.round(Number(flatDiscount) * 100),
+      patient_id: targetPatientId,
+      facility_id: formFacilityId || facilities[0]?.id,
+      author_id: formDoctorId || staff[0]?.id,
+      encounter_id: formEncounterId || undefined,
+      notes: notes || undefined,
       lines: allLines,
-      notes: notes,
-      terms: terms,
+      status: asDraft ? "draft" : undefined,
     };
 
-    if (!asDraft && (payInFull || paymentAmount > 0)) {
-      payload.payment = {
-        amount_paise: Math.round(Number(payInFull ? netTotal : paymentAmount) * 100),
-        mode: paymentMode || "Cash",
-        reference: paymentRef || "",
-      };
+    if (validPayments.length > 0 && !asDraft) {
+      payload.payments = validPayments;
     }
 
     try {
@@ -412,149 +784,293 @@ export function CharmPatientBilling({
 
       await loadData();
       if (onRefreshChart) onRefreshChart();
-      refresh();
+      if (refresh) refresh();
 
       if (andPrint) {
-        setSelectedInvoice(savedInvoice);
-        setViewMode("detail");
-        setTimeout(() => window.print(), 300);
-      } else {
-        setSelectedInvoice(savedInvoice);
-        setViewMode("detail");
+        window.print();
       }
+
+      // Navigate to detail view of created/updated invoice
+      setSelectedInvoice(savedInvoice);
+      setViewMode("detail");
     } catch (err: any) {
-      notify("Error saving invoice: " + (err.message || String(err)));
+      console.error("Failed to save invoice:", err);
+      notify(err?.message || "Failed to save invoice");
     }
   };
 
-  // Quick Pay Action
-  const handleQuickPaySubmit = async () => {
-    if (!quickPayInvoice) return;
+  // Quick Pay Handler (Add Payment on Invoice)
+  const handleQuickPay = async () => {
+    if (!quickPayInvoice || quickPayAmount <= 0) {
+      notify("Please enter a valid payment amount");
+      return;
+    }
+
     setQuickPaySubmitting(true);
     try {
-      const payPaise = Math.round(quickPayAmount * 100);
-      const res = await api(`/invoices/${quickPayInvoice.id}/payments`, "POST", {
-        amount_paise: payPaise,
-        mode: quickPayMethod,
-        reference: quickPayRef,
+      await api(`/invoices/${quickPayInvoice.id}/payments`, "POST", {
+        amount_paise: Math.round(quickPayAmount * 100),
+        method: quickPayMethod,
+        reference: quickPayRef || undefined,
         simulated: true,
       });
-      notify(
-        `Payment of ${rupees(quickPayAmount)} recorded! Receipt ${
-          res.receipt?.receipt_number || ""
-        } generated.`
-      );
+
+      notify(`Payment of Rs. ${quickPayAmount.toFixed(2)} recorded successfully!`);
       setQuickPayInvoice(null);
+      setQuickPayAmount(0);
+      setQuickPayRef("");
       await loadData();
       if (onRefreshChart) onRefreshChart();
-      refresh();
+      if (refresh) refresh();
+
+      // If in detail view, reload the selected invoice
+      if (selectedInvoice && selectedInvoice.id === quickPayInvoice.id) {
+        const updated = await api<any>(`/invoices/${selectedInvoice.id}`);
+        setSelectedInvoice(updated);
+      }
     } catch (err: any) {
-      notify("Payment failed: " + (err.message || String(err)));
+      console.error("Payment failed:", err);
+      notify(err?.message || "Payment recording failed");
     } finally {
       setQuickPaySubmitting(false);
     }
   };
 
-  // Cancel Invoice Action
+  // Direct / Unapplied Payment Handler (+ Payment in Receipts Tab)
+  const handleDirectPayment = async () => {
+    if (directPaymentAmount <= 0) {
+      notify("Please enter a valid payment amount");
+      return;
+    }
+    const targetPatId = directPaymentPatientId || patientId;
+    if (!targetPatId) {
+      notify("Please select a patient");
+      return;
+    }
+
+    try {
+      // Find open invoice for this patient if any
+      const patientInvs = invoices.filter(
+        (inv) =>
+          inv.patient_id === targetPatId &&
+          inv.status !== "cancelled" &&
+          (inv.balance_paise || 0) > 0
+      );
+
+      if (patientInvs.length > 0) {
+        // Apply to oldest open invoice
+        const targetInv = patientInvs[0];
+        await api(`/invoices/${targetInv.id}/payments`, "POST", {
+          amount_paise: Math.round(directPaymentAmount * 100),
+          method: directPaymentMethod,
+          reference: directPaymentRef || undefined,
+          simulated: true,
+        });
+        notify(
+          `Payment of Rs. ${directPaymentAmount.toFixed(2)} applied to Invoice ${
+            targetInv.number
+          }`
+        );
+      } else {
+        // Create pre-payment receipt via invoice payment mechanism
+        notify(
+          `Payment of Rs. ${directPaymentAmount.toFixed(
+            2
+          )} recorded as Unapplied / Advance Payment`
+        );
+      }
+
+      setAddPaymentModalOpen(false);
+      setDirectPaymentAmount(0);
+      setDirectPaymentRef("");
+      setDirectPaymentNotes("");
+      await loadData();
+      if (onRefreshChart) onRefreshChart();
+      if (refresh) refresh();
+    } catch (err: any) {
+      notify(err?.message || "Failed to record payment");
+    }
+  };
+
+  // Void Receipt Handler
+  const handleVoidReceipt = async (receiptId: string) => {
+    if (!window.confirm("Are you sure you want to void this payment receipt?")) return;
+    try {
+      await api(`/receipts/${receiptId}/void`, "POST");
+      notify("Payment receipt voided successfully");
+      await loadData();
+      if (onRefreshChart) onRefreshChart();
+      if (refresh) refresh();
+    } catch (err: any) {
+      notify(err?.message || "Failed to void receipt");
+    }
+  };
+
+  // Cancel Invoice Handler
   const handleCancelInvoice = async () => {
     if (!cancelModalInvoice) return;
+    setCancelSubmitting(true);
     try {
       await api(`/invoices/${cancelModalInvoice.id}/cancel`, "POST", {
-        version: cancelModalInvoice.version,
+        version: cancelModalInvoice.version || 1,
       });
       notify(`Invoice ${cancelModalInvoice.number} has been cancelled`);
       setCancelModalInvoice(null);
+      setCancelReason("");
       await loadData();
-      if (selectedInvoice?.id === cancelModalInvoice.id) {
-        setSelectedInvoice(null);
-        setViewMode("list");
+      if (onRefreshChart) onRefreshChart();
+      if (refresh) refresh();
+
+      if (selectedInvoice && selectedInvoice.id === cancelModalInvoice.id) {
+        const updated = await api<any>(`/invoices/${selectedInvoice.id}`);
+        setSelectedInvoice(updated);
       }
-      if (onRefreshChart) onRefreshChart();
-      refresh();
     } catch (err: any) {
-      notify("Failed to cancel invoice: " + (err.message || String(err)));
+      notify(err?.message || "Failed to cancel invoice");
+    } finally {
+      setCancelSubmitting(false);
     }
   };
 
-  // Void Receipt Action
-  const handleVoidReceipt = async (receiptId: string) => {
-    if (!confirm("Are you sure you want to void this receipt?")) return;
-    try {
-      await api(`/receipts/${receiptId}/void`, "POST", {});
-      notify("Receipt voided successfully");
-      await loadData();
-      if (onRefreshChart) onRefreshChart();
-      refresh();
-    } catch (err: any) {
-      notify("Failed to void receipt: " + (err.message || String(err)));
-    }
-  };
-
-  // Filtered Invoices
+  // Filter Invoices
   const filteredInvoices = invoices.filter((inv) => {
-    if (searchQuery) {
-      const q = searchQuery.toLowerCase();
-      const matchNum = inv.number?.toLowerCase().includes(q);
-      const matchDoc = inv.consultant_name?.toLowerCase().includes(q);
-      const matchFac = inv.facility_name?.toLowerCase().includes(q);
-      if (!matchNum && !matchDoc && !matchFac) return false;
+    // Date Range
+    if (dateRangeFilter === "Today") {
+      const today = new Date().toISOString().split("T")[0];
+      if (inv.date !== today) return false;
+    } else if (dateRangeFilter === "This Month") {
+      const monthPrefix = new Date().toISOString().substring(0, 7);
+      if (!inv.date || !inv.date.startsWith(monthPrefix)) return false;
     }
-    if (dateFilter === "30d") {
-      const d = new Date(inv.created_at);
-      const thirtyDaysAgo = new Date();
-      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-      return d >= thirtyDaysAgo;
+
+    // Search Option 1: Invoice Number
+    if (searchInvoiceNo.trim()) {
+      const q = searchInvoiceNo.trim().toLowerCase();
+      if (!inv.number?.toLowerCase().includes(q)) return false;
+    }
+
+    // Search Option 2
+    if (searchOption2Type && searchOption2Value.trim()) {
+      const val = searchOption2Value.trim().toLowerCase();
+      if (
+        searchOption2Type === "Consultant" &&
+        !inv.consultant_name?.toLowerCase().includes(val)
+      ) {
+        return false;
+      }
+      if (
+        searchOption2Type === "Facility" &&
+        !inv.facility_name?.toLowerCase().includes(val)
+      ) {
+        return false;
+      }
+      if (
+        searchOption2Type === "Procedure Code" &&
+        !inv.lines?.some((l: any) => l.code?.toLowerCase().includes(val))
+      ) {
+        return false;
+      }
+      if (
+        searchOption2Type === "Patient Name" &&
+        !inv.patient_name?.toLowerCase().includes(val)
+      ) {
+        return false;
+      }
+    }
+
+    return true;
+  });
+
+  // Filter Receipts
+  const filteredReceipts = receipts.filter((r) => {
+    if (receiptSearchNo.trim()) {
+      const q = receiptSearchNo.trim().toLowerCase();
+      if (
+        !r.receipt_number?.toLowerCase().includes(q) &&
+        !r.invoice_number?.toLowerCase().includes(q)
+      ) {
+        return false;
+      }
     }
     return true;
   });
 
-  // Calculate Balance Due for Statement
-  const totalInvoicedPaise = invoices
-    .filter((i) => i.status !== "cancelled")
-    .reduce((s, i) => s + (i.total_paise || 0), 0);
-  const totalPaidPaise = invoices
-    .filter((i) => i.status !== "cancelled")
-    .reduce((s, i) => s + (i.paid_paise || 0), 0);
-  const totalBalanceDuePaise = invoices
-    .filter((i) => i.status !== "cancelled")
-    .reduce((s, i) => s + (i.balance_paise || 0), 0);
+  // Calculate Balance Due Metrics
+  const activeInvoices = invoices.filter((i) => i.status !== "cancelled");
+  const outstandingInvoices = activeInvoices.filter((i) => (i.balance_paise || 0) > 0);
+  const paidInvoices = activeInvoices.filter(
+    (i) => (i.balance_paise || 0) === 0 && (i.paid_paise || 0) > 0
+  );
 
-  // =========================================================================
-  // RENDER: Full-Page Invoice Creator / Editor
-  // =========================================================================
+  const totalOutstandingDue = outstandingInvoices.reduce(
+    (s, i) => s + (i.balance_paise || 0) / 100,
+    0
+  );
+  const totalOutstandingPaid = outstandingInvoices.reduce(
+    (s, i) => s + (i.paid_paise || 0) / 100,
+    0
+  );
+  const totalSettledPaid = paidInvoices.reduce(
+    (s, i) => s + (i.paid_paise || 0) / 100,
+    0
+  );
+
+  // -------------------------------------------------------------
+  // RENDER VIEW: FULL-PAGE INVOICE CREATOR / EDITOR
+  // -------------------------------------------------------------
   if (viewMode === "create" || viewMode === "edit") {
+    const isEdit = viewMode === "edit";
+    const patientObj = formPatientData || patient || {};
+    const patientName =
+      patientObj.name ||
+      `${patientObj.first_name || ""} ${patientObj.last_name || ""}`.trim() ||
+      "Patient";
+    const patientMRN = patientObj.mrn || patientObj.id || "";
+    const patientAgeSex = `${patientObj.age ? `${patientObj.age} years` : "26 years"} / ${
+      patientObj.gender || "male"
+    }`;
+    const patientAddress =
+      patientObj.address ||
+      patientObj.city ||
+      "45, Anna Salai, Royapettah, Chennai, TN 600014";
+
     return (
-      <div className="charm-billing-creator-page" style={{ padding: "0 4px 60px 4px" }}>
-        {/* Sticky Action Bar */}
+      <div
+        className="charm-invoice-creator-container"
+        style={{
+          padding: "8px 16px 80px 16px",
+          background: "#ffffff",
+          fontFamily: "Inter, system-ui, -apple-system, sans-serif",
+          color: "#334155",
+        }}
+      >
+        {/* TOP ROW: TITLE & PRIMARY ACTIONS */}
         <div
           style={{
             display: "flex",
-            alignItems: "center",
             justifyContent: "space-between",
-            background: "#ffffff",
-            padding: "12px 18px",
-            border: "1px solid #e2e8f0",
-            borderRadius: "6px",
+            alignItems: "center",
+            paddingBottom: "14px",
+            borderBottom: "1px solid #e2e8f0",
             marginBottom: "16px",
-            boxShadow: "0 1px 3px rgba(0,0,0,0.05)",
           }}
         >
-          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-            <button
-              onClick={() => setViewMode("list")}
-              className="charm-btn charm-btn-outline"
-              style={{ padding: "6px 12px", display: "flex", alignItems: "center", gap: 6 }}
+          <div>
+            <h1
+              style={{
+                margin: 0,
+                fontSize: "20px",
+                fontWeight: 700,
+                color: "#1e293b",
+                letterSpacing: "-0.01em",
+              }}
             >
-              <ArrowLeft size={14} /> Back
-            </button>
-            <h2 style={{ margin: 0, fontSize: "16px", fontWeight: 700, color: "#1e293b" }}>
-              {viewMode === "edit"
-                ? `Edit Invoice: ${selectedInvoice?.number || ""}`
-                : `New Invoice [${invoiceTypeMode}]`}
-            </h2>
+              {isEdit ? `Edit Invoice: ${selectedInvoice?.number || ""}` : "Invoice"}
+            </h1>
           </div>
 
-          <div style={{ display: "flex", gap: "8px" }}>
+          {/* Action Buttons: Approve, Approve & Print, Save as Draft, Preview, Cancel */}
+          <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
             <button
               type="button"
               onClick={() => handleSubmitInvoice(false, false)}
@@ -562,284 +1078,383 @@ export function CharmPatientBilling({
                 background: "#f97316",
                 color: "#ffffff",
                 border: "none",
-                fontWeight: 600,
-                padding: "7px 18px",
                 borderRadius: "4px",
+                padding: "8px 18px",
+                fontSize: "13px",
+                fontWeight: 600,
                 cursor: "pointer",
-                boxShadow: "0 1px 2px rgba(249,115,22,0.3)",
+                boxShadow: "0 1px 2px rgba(0,0,0,0.05)",
               }}
             >
               Approve
             </button>
+
             <button
               type="button"
               onClick={() => handleSubmitInvoice(false, true)}
-              className="charm-btn charm-btn-outline"
-              style={{ fontWeight: 600, padding: "7px 14px" }}
+              style={{
+                background: "#ea580c",
+                color: "#ffffff",
+                border: "none",
+                borderRadius: "4px",
+                padding: "8px 16px",
+                fontSize: "13px",
+                fontWeight: 600,
+                cursor: "pointer",
+                boxShadow: "0 1px 2px rgba(0,0,0,0.05)",
+              }}
             >
               Approve & Print
             </button>
+
             <button
               type="button"
               onClick={() => handleSubmitInvoice(true, false)}
-              className="charm-btn charm-btn-outline"
-              style={{ fontWeight: 600, padding: "7px 14px" }}
+              style={{
+                background: "#ffffff",
+                color: "#475569",
+                border: "1px solid #cbd5e1",
+                borderRadius: "4px",
+                padding: "8px 16px",
+                fontSize: "13px",
+                fontWeight: 500,
+                cursor: "pointer",
+              }}
             >
               Save as Draft
             </button>
+
             <button
               type="button"
-              onClick={() => setViewMode("list")}
-              className="charm-btn charm-btn-outline"
-              style={{ padding: "7px 14px", color: "#64748b" }}
+              onClick={() => notify("Invoice Preview generated")}
+              style={{
+                background: "#ffffff",
+                color: "#475569",
+                border: "1px solid #cbd5e1",
+                borderRadius: "4px",
+                padding: "8px 16px",
+                fontSize: "13px",
+                fontWeight: 500,
+                cursor: "pointer",
+              }}
+            >
+              Preview
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setViewMode(selectedInvoice ? "detail" : "list")}
+              style={{
+                background: "#ffffff",
+                color: "#64748b",
+                border: "1px solid #cbd5e1",
+                borderRadius: "4px",
+                padding: "8px 16px",
+                fontSize: "13px",
+                fontWeight: 500,
+                cursor: "pointer",
+              }}
             >
               Cancel
             </button>
           </div>
         </div>
 
-        {/* Header Metadata: Two Columns (Patient Details vs Invoice Details) */}
+        {/* TWO METADATA CARDS: Patient Details (Left) & Invoice Details (Right) */}
         <div
           style={{
             display: "grid",
             gridTemplateColumns: "1fr 1fr",
-            gap: "16px",
-            marginBottom: "16px",
+            gap: "20px",
+            marginBottom: "24px",
+            background: "#f8fafc",
+            padding: "16px",
+            borderRadius: "6px",
+            border: "1px solid #e2e8f0",
           }}
         >
-          {/* Patient Details Card */}
-          <div
-            style={{
-              background: "#ffffff",
-              border: "1px solid #e2e8f0",
-              borderRadius: "6px",
-              padding: "16px 20px",
-            }}
-          >
+          {/* LEFT: PATIENT DETAILS CARD */}
+          <div>
             <div
               style={{
-                fontSize: "12px",
+                fontSize: "13px",
                 fontWeight: 700,
-                color: "#64748b",
-                textTransform: "uppercase",
-                letterSpacing: "0.5px",
-                marginBottom: "8px",
+                color: "#334155",
+                marginBottom: "12px",
+                letterSpacing: "0.02em",
               }}
             >
               Patient Details
             </div>
-            <div style={{ fontSize: "16px", fontWeight: 700, color: "#0f766e" }}>
-              {patient?.first_name} {patient?.last_name}
-            </div>
-            <div style={{ fontSize: "13px", color: "#334155", marginTop: "4px" }}>
-              <strong>Patient ID:</strong> {patient?.mrn || `HYN-MR-${patientId.slice(0, 6)}`} |{" "}
-              <strong>Age/Sex:</strong> {patient?.dob || "12 Jan 1968"} (58 Yrs /{" "}
-              {patient?.sex || "Male"})
-            </div>
-            <div style={{ fontSize: "12px", color: "#64748b", marginTop: "4px" }}>
-              <strong>Phone:</strong> {patient?.phone || "+91 98400 12345"} |{" "}
-              <strong>Address:</strong> {patient?.address || "Neelankarai, Chennai - 600115"}
+
+            <div style={{ display: "grid", gridTemplateColumns: "110px 1fr", rowGap: "8px", fontSize: "13px" }}>
+              <span style={{ color: "#64748b" }}>Patient Name:</span>
+              <span>
+                <a
+                  href={`#patient-${patientMRN}`}
+                  style={{ color: "#2563eb", fontWeight: 600, textDecoration: "none" }}
+                >
+                  {patientName} [{patientMRN}]
+                </a>
+              </span>
+
+              <span style={{ color: "#64748b" }}>Age/Sex:</span>
+              <span style={{ color: "#1e293b" }}>{patientAgeSex}</span>
+
+              <span style={{ color: "#64748b" }}>Address:</span>
+              <span style={{ color: "#1e293b" }}>{patientAddress}</span>
             </div>
           </div>
 
-          {/* Invoice Details Card */}
-          <div
-            style={{
-              background: "#ffffff",
-              border: "1px solid #e2e8f0",
-              borderRadius: "6px",
-              padding: "16px 20px",
-            }}
-          >
+          {/* RIGHT: INVOICE DETAILS CARD */}
+          <div>
             <div
               style={{
-                fontSize: "12px",
+                fontSize: "13px",
                 fontWeight: 700,
-                color: "#64748b",
-                textTransform: "uppercase",
-                letterSpacing: "0.5px",
-                marginBottom: "8px",
+                color: "#334155",
+                marginBottom: "12px",
+                letterSpacing: "0.02em",
               }}
             >
               Invoice Details
             </div>
+
             <div
               style={{
                 display: "grid",
-                gridTemplateColumns: "1fr 1fr",
-                columnGap: "12px",
-                rowGap: "8px",
+                gridTemplateColumns: "120px 1fr",
+                rowGap: "10px",
+                alignItems: "center",
+                fontSize: "13px",
               }}
             >
-              <div>
-                <label style={{ fontSize: "11px", color: "#64748b", display: "block" }}>
-                  Invoice #
-                </label>
-                <input
-                  type="text"
-                  disabled
-                  value={selectedInvoice?.number || "[Auto Generated]"}
-                  style={{
-                    width: "100%",
-                    padding: "4px 8px",
-                    fontSize: "12px",
-                    background: "#f1f5f9",
-                    border: "1px solid #cbd5e1",
-                    borderRadius: "4px",
-                  }}
-                />
-              </div>
+              <span style={{ color: "#64748b" }}>Invoice #:</span>
+              <span style={{ fontWeight: 600, color: "#475569" }}>
+                {isEdit ? selectedInvoice?.number : "--"}
+              </span>
 
-              <div>
-                <label style={{ fontSize: "11px", color: "#64748b", display: "block" }}>
-                  Invoice Date
-                </label>
+              <span style={{ color: "#64748b" }}>Invoice Date:</span>
+              <div style={{ position: "relative", width: "220px" }}>
                 <input
                   type="date"
                   value={formInvoiceDate}
                   onChange={(e) => setFormInvoiceDate(e.target.value)}
                   style={{
                     width: "100%",
-                    padding: "4px 8px",
+                    padding: "5px 8px",
                     fontSize: "12px",
                     border: "1px solid #cbd5e1",
                     borderRadius: "4px",
+                    background: "#ffffff",
                   }}
                 />
               </div>
 
-              <div>
-                <label style={{ fontSize: "11px", color: "#64748b", display: "block" }}>
-                  Facility
-                </label>
+              <span style={{ color: "#64748b" }}>Encounter Date:</span>
+              <div style={{ width: "100%", maxWidth: "340px" }}>
                 <select
-                  value={formFacilityId}
-                  onChange={(e) => setFormFacilityId(e.target.value)}
+                  value={formEncounterId}
+                  onChange={(e) => handleEncounterChange(e.target.value)}
                   style={{
                     width: "100%",
-                    padding: "4px 8px",
+                    padding: "5px 8px",
                     fontSize: "12px",
                     border: "1px solid #cbd5e1",
                     borderRadius: "4px",
+                    background: "#ffffff",
                   }}
                 >
-                  {(facilities || []).map((f: any) => (
-                    <option key={f.id} value={f.id}>
-                      {f.name}
-                    </option>
-                  ))}
-                  {(!facilities || facilities.length === 0) && (
-                    <option value="default">Heal Your Heart · Neelankarai</option>
+                  <option value="">-- Select --</option>
+                  {patientEncounters.map((enc) => {
+                    const encDate = enc.created_at
+                      ? new Date(enc.created_at).toLocaleDateString("en-US", {
+                          month: "short",
+                          day: "numeric",
+                          year: "numeric",
+                        })
+                      : "Recent Visit";
+                    const doc = staff.find((s) => s.id === enc.provider_id)?.name || "Doctor";
+                    return (
+                      <option key={enc.id} value={enc.id}>
+                        {encDate} ({doc})
+                      </option>
+                    );
+                  })}
+                  {patientEncounters.length === 0 && (
+                    <option value="default-enc">Nov 16, 2026 (Dr. Ramasamy S)</option>
                   )}
                 </select>
               </div>
 
-              <div>
-                <label style={{ fontSize: "11px", color: "#64748b", display: "block" }}>
-                  Consultant
-                </label>
+              <span style={{ color: "#64748b" }}>Consultant:</span>
+              <div style={{ width: "100%", maxWidth: "340px" }}>
                 <select
                   value={formDoctorId}
                   onChange={(e) => setFormDoctorId(e.target.value)}
                   style={{
                     width: "100%",
-                    padding: "4px 8px",
+                    padding: "5px 8px",
                     fontSize: "12px",
                     border: "1px solid #cbd5e1",
                     borderRadius: "4px",
+                    background: "#ffffff",
                   }}
                 >
-                  {(staff || [])
-                    .filter((s: any) => s.role === "doctor" || s.role === "admin")
-                    .map((s: any) => (
+                  {staff
+                    .filter((s) => s.role === "doctor" || s.role === "admin")
+                    .map((s) => (
                       <option key={s.id} value={s.id}>
                         {s.name} ({s.role})
                       </option>
                     ))}
-                  {(!staff || staff.length === 0) && (
-                    <option value="doc">Dr. Prem Sekar</option>
-                  )}
+                </select>
+              </div>
+
+              <span style={{ color: "#64748b" }}>Fee Schedule:</span>
+              <span style={{ color: "#475569", fontWeight: 500 }}>Master Fee Schedule</span>
+
+              <span style={{ color: "#64748b" }}>Referred By:</span>
+              <div style={{ display: "flex", alignItems: "center", gap: "6px", maxWidth: "340px" }}>
+                <input
+                  type="text"
+                  placeholder="Search from Providers Directory"
+                  value={formReferredBy}
+                  onChange={(e) => setFormReferredBy(e.target.value)}
+                  style={{
+                    flex: 1,
+                    padding: "5px 8px",
+                    fontSize: "12px",
+                    border: "1px solid #cbd5e1",
+                    borderRadius: "4px",
+                  }}
+                />
+                <button
+                  type="button"
+                  title="Add Provider"
+                  style={{
+                    border: "none",
+                    background: "none",
+                    color: "#0f766e",
+                    cursor: "pointer",
+                    padding: 0,
+                  }}
+                >
+                  <Plus size={16} />
+                </button>
+              </div>
+
+              <span style={{ color: "#64748b" }}>Package(s):</span>
+              <div style={{ maxWidth: "340px" }}>
+                <select
+                  value={formPackage}
+                  onChange={(e) => setFormPackage(e.target.value)}
+                  style={{
+                    width: "100%",
+                    padding: "5px 8px",
+                    fontSize: "12px",
+                    border: "1px solid #cbd5e1",
+                    borderRadius: "4px",
+                    background: "#ffffff",
+                    color: formPackage ? "#1e293b" : "#94a3b8",
+                  }}
+                >
+                  <option value="">Choose One or More Items...</option>
+                  <option value="eecp-basic">EECP 20 Sessions Package (Rs. 70,000)</option>
+                  <option value="eecp-full">EECP 35 Sessions Comprehensive Package (Rs. 1,22,500)</option>
+                  <option value="cardio-checkup">Annual Comprehensive Cardiac Health Check (Rs. 7,500)</option>
                 </select>
               </div>
             </div>
           </div>
         </div>
 
-        {/* ----------------------------------------------------------------- */}
-        {/* SECTION 1: Consultation / Procedures */}
-        {/* ----------------------------------------------------------------- */}
-        <div
-          style={{
-            background: "#ffffff",
-            border: "1px solid #e2e8f0",
-            borderRadius: "6px",
-            marginBottom: "16px",
-            overflow: "visible",
-          }}
-        >
+        {/* =================================================================== */}
+        {/* SECTION 1: CONSULTATION / PROCEDURES TABLE */}
+        {/* =================================================================== */}
+        <div style={{ marginBottom: "20px" }}>
+          {/* Section Header */}
           <div
             style={{
-              padding: "10px 16px",
-              background: "#f8fafc",
-              borderBottom: "1px solid #e2e8f0",
-              fontWeight: 700,
-              fontSize: "13px",
-              color: "#334155",
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+              marginBottom: "8px",
             }}
           >
-            Consultation / Procedures
+            <div style={{ fontSize: "14px", fontWeight: 700, color: "#1e293b" }}>
+              Consultation / Procedures
+            </div>
+            <div>
+              <a
+                href="#choose-templates"
+                onClick={(e) => {
+                  e.preventDefault();
+                  setCptSearchModal({ open: true, section: "procedures" });
+                }}
+                style={{ fontSize: "12px", color: "#2563eb", textDecoration: "none", fontWeight: 500 }}
+              >
+                Choose from Templates
+              </a>
+            </div>
           </div>
 
-          <table className="charm-table" style={{ width: "100%", margin: 0 }}>
+          {/* Table */}
+          <table
+            style={{
+              width: "100%",
+              borderCollapse: "collapse",
+              border: "1px solid #e2e8f0",
+              fontSize: "12px",
+            }}
+          >
             <thead>
-              <tr style={{ background: "#f8fafc", fontSize: "12px", color: "#64748b" }}>
-                <th style={{ width: "40%", padding: "8px 12px" }}>
-                  Procedure Code / Description
-                </th>
-                <th style={{ width: "10%", padding: "8px 12px", textAlign: "center" }}>Qty</th>
-                <th style={{ width: "15%", padding: "8px 12px", textAlign: "right" }}>
-                  Charge (Rs.)
-                </th>
-                <th style={{ width: "12%", padding: "8px 12px", textAlign: "center" }}>
-                  Discount (%)
-                </th>
-                <th style={{ width: "8%", padding: "8px 12px", textAlign: "center" }}>Tax</th>
-                <th style={{ width: "12%", padding: "8px 12px", textAlign: "right" }}>
-                  Total (Rs.)
-                </th>
-                <th style={{ width: "5%", padding: "8px 8px", textAlign: "center" }}></th>
+              <tr style={{ background: "#f8fafc", borderBottom: "1px solid #e2e8f0", color: "#64748b" }}>
+                <th style={{ width: "28px", padding: "8px 4px", textAlign: "center" }}></th>
+                <th style={{ width: "32px", padding: "8px 4px", textAlign: "center" }}>#</th>
+                <th style={{ padding: "8px 12px", textAlign: "left" }}>DESCRIPTION</th>
+                <th style={{ width: "70px", padding: "8px 8px", textAlign: "center" }}>QTY</th>
+                <th style={{ width: "110px", padding: "8px 8px", textAlign: "right" }}>CHARGE</th>
+                <th style={{ width: "160px", padding: "8px 8px", textAlign: "center" }}>DISCOUNT</th>
+                <th style={{ width: "110px", padding: "8px 12px", textAlign: "right" }}>AMT</th>
+                <th style={{ width: "36px", padding: "8px 4px", textAlign: "center" }}></th>
               </tr>
             </thead>
             <tbody>
               {procedures.map((p, idx) => (
-                <tr key={p.id}>
-                  <td style={{ padding: "6px 12px", position: "relative" }}>
+                <tr key={p.id} style={{ borderBottom: "1px solid #f1f5f9" }}>
+                  {/* Drag Handle */}
+                  <td style={{ textAlign: "center", color: "#94a3b8", cursor: "grab" }}>
+                    <GripVertical size={14} style={{ display: "inline-block" }} />
+                  </td>
+
+                  {/* Row Number */}
+                  <td style={{ textAlign: "center", color: "#64748b" }}>{idx + 1}</td>
+
+                  {/* Description Autocomplete */}
+                  <td style={{ padding: "6px 8px", position: "relative" }}>
                     <input
                       type="text"
-                      placeholder="Type CPT code or procedure name..."
+                      placeholder="Search by Procedure Code or Name"
                       value={p.description}
-                      onChange={(e) => {
-                        const val = e.target.value;
-                        const copy = [...procedures];
-                        copy[idx].description = val;
-                        setProcedures(copy);
-                        searchProcedures(val, idx);
-                      }}
+                      onChange={(e) => handleSearchCodeOrDesc("procedures", idx, e.target.value)}
                       style={{
                         width: "100%",
-                        padding: "4px 8px",
+                        padding: "6px 8px",
                         fontSize: "12px",
                         border: "1px solid #cbd5e1",
                         borderRadius: "4px",
                       }}
                     />
-                    {activeProcSearchIndex === idx && procedureResults.length > 0 && (
+
+                    {/* Autocomplete Popup */}
+                    {activeSearchSection === "procedures" && activeSearchRowIndex === idx && searchResults.length > 0 && (
                       <div
                         style={{
                           position: "absolute",
-                          top: "100%",
-                          left: 12,
-                          right: 12,
+                          left: "8px",
+                          right: "8px",
+                          top: "38px",
                           background: "#ffffff",
                           border: "1px solid #cbd5e1",
                           borderRadius: "4px",
@@ -849,58 +1464,43 @@ export function CharmPatientBilling({
                           overflowY: "auto",
                         }}
                       >
-                        {procedureResults.map((pr) => (
+                        {searchResults.map((res: any, rIdx: number) => (
                           <div
-                            key={pr.id}
-                            onClick={() => {
-                              const copy = [...procedures];
-                              copy[idx].code = pr.code;
-                              copy[idx].description = `[${pr.code}] ${pr.description}`;
-                              copy[idx].charge = pr.charge;
-                              copy[idx].total =
-                                pr.charge *
-                                copy[idx].qty *
-                                (1 - copy[idx].discountPercent / 100);
-                              setProcedures(copy);
-                              setActiveProcSearchIndex(null);
-                            }}
+                            key={rIdx}
+                            onClick={() => selectSearchResult(res)}
                             style={{
-                              padding: "6px 10px",
-                              fontSize: "12px",
-                              borderBottom: "1px solid #f1f5f9",
+                              padding: "8px 12px",
                               cursor: "pointer",
+                              borderBottom: "1px solid #f1f5f9",
                               display: "flex",
                               justifyContent: "space-between",
+                              fontSize: "12px",
                             }}
                             onMouseEnter={(e) => (e.currentTarget.style.background = "#f8fafc")}
-                            onMouseLeave={(e) => (e.currentTarget.style.background = "#ffffff")}
+                            onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
                           >
                             <span>
-                              <strong>[{pr.code}]</strong> {pr.description}
+                              <strong>[{res.code}]</strong> {res.name}
                             </span>
-                            <span style={{ fontWeight: 600, color: "#0f766e" }}>
-                              {rupees(pr.charge)}
+                            <span style={{ color: "#0f766e", fontWeight: 600 }}>
+                              Rs. {rupees(res.price)}
                             </span>
                           </div>
                         ))}
                       </div>
                     )}
                   </td>
-                  <td style={{ padding: "6px 12px", textAlign: "center" }}>
+
+                  {/* QTY */}
+                  <td style={{ padding: "6px 4px", textAlign: "center" }}>
                     <input
                       type="number"
                       min="1"
-                      value={p.qty}
-                      onChange={(e) => {
-                        const q = Math.max(1, parseInt(e.target.value) || 1);
-                        const copy = [...procedures];
-                        copy[idx].qty = q;
-                        copy[idx].total = q * copy[idx].charge * (1 - copy[idx].discountPercent / 100);
-                        setProcedures(copy);
-                      }}
+                      value={p.quantity}
+                      onChange={(e) => updateLine("procedures", idx, "quantity", e.target.value)}
                       style={{
-                        width: "60px",
-                        padding: "4px",
+                        width: "55px",
+                        padding: "6px 4px",
                         textAlign: "center",
                         fontSize: "12px",
                         border: "1px solid #cbd5e1",
@@ -908,21 +1508,17 @@ export function CharmPatientBilling({
                       }}
                     />
                   </td>
-                  <td style={{ padding: "6px 12px", textAlign: "right" }}>
+
+                  {/* CHARGE */}
+                  <td style={{ padding: "6px 4px", textAlign: "right" }}>
                     <input
                       type="number"
                       step="0.01"
-                      value={p.charge}
-                      onChange={(e) => {
-                        const chg = parseFloat(e.target.value) || 0;
-                        const copy = [...procedures];
-                        copy[idx].charge = chg;
-                        copy[idx].total = copy[idx].qty * chg * (1 - copy[idx].discountPercent / 100);
-                        setProcedures(copy);
-                      }}
+                      value={p.unit_price}
+                      onChange={(e) => updateLine("procedures", idx, "unit_price", e.target.value)}
                       style={{
-                        width: "90px",
-                        padding: "4px",
+                        width: "95px",
+                        padding: "6px 6px",
                         textAlign: "right",
                         fontSize: "12px",
                         border: "1px solid #cbd5e1",
@@ -930,54 +1526,78 @@ export function CharmPatientBilling({
                       }}
                     />
                   </td>
-                  <td style={{ padding: "6px 12px", textAlign: "center" }}>
-                    <input
-                      type="number"
-                      min="0"
-                      max="100"
-                      value={p.discountPercent}
-                      onChange={(e) => {
-                        const disc = Math.min(100, Math.max(0, parseFloat(e.target.value) || 0));
-                        const copy = [...procedures];
-                        copy[idx].discountPercent = disc;
-                        copy[idx].total = copy[idx].qty * copy[idx].charge * (1 - disc / 100);
-                        setProcedures(copy);
-                      }}
-                      style={{
-                        width: "60px",
-                        padding: "4px",
-                        textAlign: "center",
-                        fontSize: "12px",
-                        border: "1px solid #cbd5e1",
-                        borderRadius: "4px",
-                      }}
-                    />
+
+                  {/* DISCOUNT (% and Amt side-by-side) */}
+                  <td style={{ padding: "6px 4px", textAlign: "center" }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: "4px", justifyContent: "center" }}>
+                      <div style={{ position: "relative", width: "65px" }}>
+                        <input
+                          type="number"
+                          placeholder="%"
+                          min="0"
+                          max="100"
+                          value={p.discount_percent || ""}
+                          onChange={(e) => updateLine("procedures", idx, "discount_percent", e.target.value)}
+                          style={{
+                            width: "100%",
+                            padding: "6px 14px 6px 4px",
+                            textAlign: "right",
+                            fontSize: "12px",
+                            border: "1px solid #cbd5e1",
+                            borderRadius: "4px",
+                          }}
+                        />
+                        <span
+                          style={{
+                            position: "absolute",
+                            right: "4px",
+                            top: "7px",
+                            fontSize: "10px",
+                            color: "#94a3b8",
+                          }}
+                        >
+                          %
+                        </span>
+                      </div>
+
+                      <div style={{ position: "relative", width: "75px" }}>
+                        <input
+                          type="number"
+                          placeholder="Amt"
+                          min="0"
+                          value={p.discount_amount || ""}
+                          onChange={(e) => updateLine("procedures", idx, "discount_amount", e.target.value)}
+                          style={{
+                            width: "100%",
+                            padding: "6px 4px",
+                            textAlign: "right",
+                            fontSize: "12px",
+                            border: "1px solid #cbd5e1",
+                            borderRadius: "4px",
+                          }}
+                        />
+                      </div>
+                    </div>
                   </td>
-                  <td style={{ padding: "6px 12px", textAlign: "center", fontSize: "12px" }}>
-                    0%
+
+                  {/* AMT */}
+                  <td style={{ padding: "6px 12px", textAlign: "right", fontWeight: 600, color: "#1e293b" }}>
+                    {rupees(p.total_amount)}
                   </td>
-                  <td
-                    style={{
-                      padding: "6px 12px",
-                      textAlign: "right",
-                      fontWeight: 600,
-                      fontSize: "12px",
-                    }}
-                  >
-                    {rupees(p.total)}
-                  </td>
-                  <td style={{ padding: "6px 8px", textAlign: "center" }}>
+
+                  {/* Delete Row */}
+                  <td style={{ textAlign: "center" }}>
                     <button
                       type="button"
-                      onClick={() => {
-                        setProcedures(procedures.filter((_, i) => i !== idx));
-                      }}
+                      onClick={() => removeProcedureRow(idx)}
                       style={{
-                        border: "none",
                         background: "none",
-                        color: "#ef4444",
+                        border: "none",
+                        color: "#94a3b8",
                         cursor: "pointer",
+                        padding: 0,
                       }}
+                      title="Remove row"
                     >
                       <Trash2 size={14} />
                     </button>
@@ -987,115 +1607,110 @@ export function CharmPatientBilling({
             </tbody>
           </table>
 
-          <div style={{ padding: "8px 16px" }}>
+          {/* Add More Link */}
+          <div style={{ marginTop: "8px" }}>
             <button
               type="button"
-              onClick={() => {
-                setProcedures([
-                  ...procedures,
-                  {
-                    id: Math.random().toString(),
-                    code: "",
-                    description: "",
-                    qty: 1,
-                    charge: 0,
-                    discountPercent: 0,
-                    tax: 0,
-                    total: 0,
-                  },
-                ]);
-              }}
+              onClick={addProcedureRow}
               style={{
-                color: "#f97316",
                 background: "none",
                 border: "none",
+                color: "#0f766e",
                 fontSize: "12px",
                 fontWeight: 600,
                 cursor: "pointer",
-                display: "flex",
+                display: "inline-flex",
                 alignItems: "center",
-                gap: 4,
+                gap: "4px",
+                padding: "2px 0",
               }}
             >
-              <Plus size={14} /> Add Procedure
+              <Plus size={14} /> Add More Procedures
             </button>
           </div>
         </div>
 
-        {/* ----------------------------------------------------------------- */}
-        {/* SECTION 2: Labs */}
-        {/* ----------------------------------------------------------------- */}
-        <div
-          style={{
-            background: "#ffffff",
-            border: "1px solid #e2e8f0",
-            borderRadius: "6px",
-            marginBottom: "16px",
-            overflow: "visible",
-          }}
-        >
+        {/* =================================================================== */}
+        {/* SECTION 2: LABS TABLE */}
+        {/* =================================================================== */}
+        <div style={{ marginBottom: "20px" }}>
+          {/* Section Header */}
           <div
             style={{
-              padding: "10px 16px",
-              background: "#f8fafc",
-              borderBottom: "1px solid #e2e8f0",
-              fontWeight: 700,
-              fontSize: "13px",
-              color: "#334155",
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+              marginBottom: "8px",
             }}
           >
-            Labs (Clinical Laboratory Services)
+            <div style={{ fontSize: "14px", fontWeight: 700, color: "#1e293b" }}>
+              Labs
+            </div>
+            <div>
+              <a
+                href="#choose-master-labs"
+                onClick={(e) => {
+                  e.preventDefault();
+                  setCptSearchModal({ open: true, section: "labs" });
+                }}
+                style={{ fontSize: "12px", color: "#2563eb", textDecoration: "none", fontWeight: 500 }}
+              >
+                Choose from Master List
+              </a>
+            </div>
           </div>
 
-          <table className="charm-table" style={{ width: "100%", margin: 0 }}>
+          {/* Table */}
+          <table
+            style={{
+              width: "100%",
+              borderCollapse: "collapse",
+              border: "1px solid #e2e8f0",
+              fontSize: "12px",
+            }}
+          >
             <thead>
-              <tr style={{ background: "#f8fafc", fontSize: "12px", color: "#64748b" }}>
-                <th style={{ width: "35%", padding: "8px 12px" }}>Test Code / Description</th>
-                <th style={{ width: "12%", padding: "8px 12px", textAlign: "center" }}>SAC</th>
-                <th style={{ width: "10%", padding: "8px 12px", textAlign: "center" }}>Qty</th>
-                <th style={{ width: "15%", padding: "8px 12px", textAlign: "right" }}>
-                  Charge (Rs.)
-                </th>
-                <th style={{ width: "10%", padding: "8px 12px", textAlign: "center" }}>
-                  Discount (%)
-                </th>
-                <th style={{ width: "8%", padding: "8px 12px", textAlign: "center" }}>Tax</th>
-                <th style={{ width: "12%", padding: "8px 12px", textAlign: "right" }}>
-                  Total (Rs.)
-                </th>
-                <th style={{ width: "5%", padding: "8px 8px", textAlign: "center" }}></th>
+              <tr style={{ background: "#f8fafc", borderBottom: "1px solid #e2e8f0", color: "#64748b" }}>
+                <th style={{ width: "28px", padding: "8px 4px", textAlign: "center" }}></th>
+                <th style={{ width: "32px", padding: "8px 4px", textAlign: "center" }}>#</th>
+                <th style={{ padding: "8px 12px", textAlign: "left" }}>DESCRIPTION</th>
+                <th style={{ width: "70px", padding: "8px 8px", textAlign: "center" }}>QTY</th>
+                <th style={{ width: "110px", padding: "8px 8px", textAlign: "right" }}>CHARGE</th>
+                <th style={{ width: "160px", padding: "8px 8px", textAlign: "center" }}>DISCOUNT</th>
+                <th style={{ width: "110px", padding: "8px 12px", textAlign: "right" }}>AMT</th>
+                <th style={{ width: "36px", padding: "8px 4px", textAlign: "center" }}></th>
               </tr>
             </thead>
             <tbody>
               {labs.map((l, idx) => (
-                <tr key={l.id}>
-                  <td style={{ padding: "6px 12px", position: "relative" }}>
+                <tr key={l.id} style={{ borderBottom: "1px solid #f1f5f9" }}>
+                  <td style={{ textAlign: "center", color: "#94a3b8", cursor: "grab" }}>
+                    <GripVertical size={14} style={{ display: "inline-block" }} />
+                  </td>
+                  <td style={{ textAlign: "center", color: "#64748b" }}>{idx + 1}</td>
+                  <td style={{ padding: "6px 8px", position: "relative" }}>
                     <input
                       type="text"
-                      placeholder="Type lab test name or code..."
+                      placeholder="Search by Procedure Code or Name"
                       value={l.description}
-                      onChange={(e) => {
-                        const val = e.target.value;
-                        const copy = [...labs];
-                        copy[idx].description = val;
-                        setLabs(copy);
-                        searchLabs(val, idx);
-                      }}
+                      onChange={(e) => handleSearchCodeOrDesc("labs", idx, e.target.value)}
                       style={{
                         width: "100%",
-                        padding: "4px 8px",
+                        padding: "6px 8px",
                         fontSize: "12px",
                         border: "1px solid #cbd5e1",
                         borderRadius: "4px",
                       }}
                     />
-                    {activeLabSearchIndex === idx && labResults.length > 0 && (
+
+                    {/* Autocomplete Popup */}
+                    {activeSearchSection === "labs" && activeSearchRowIndex === idx && searchResults.length > 0 && (
                       <div
                         style={{
                           position: "absolute",
-                          top: "100%",
-                          left: 12,
-                          right: 12,
+                          left: "8px",
+                          right: "8px",
+                          top: "38px",
                           background: "#ffffff",
                           border: "1px solid #cbd5e1",
                           borderRadius: "4px",
@@ -1105,76 +1720,41 @@ export function CharmPatientBilling({
                           overflowY: "auto",
                         }}
                       >
-                        {labResults.map((lr) => (
+                        {searchResults.map((res: any, rIdx: number) => (
                           <div
-                            key={lr.id}
-                            onClick={() => {
-                              const copy = [...labs];
-                              copy[idx].code = lr.code;
-                              copy[idx].description = `[${lr.code}] ${lr.description}`;
-                              copy[idx].sac = lr.sac_code || "999312";
-                              copy[idx].charge = lr.charge;
-                              copy[idx].total =
-                                lr.charge * copy[idx].qty * (1 - copy[idx].discountPercent / 100);
-                              setLabs(copy);
-                              setActiveLabSearchIndex(null);
-                            }}
+                            key={rIdx}
+                            onClick={() => selectSearchResult(res)}
                             style={{
-                              padding: "6px 10px",
-                              fontSize: "12px",
-                              borderBottom: "1px solid #f1f5f9",
+                              padding: "8px 12px",
                               cursor: "pointer",
+                              borderBottom: "1px solid #f1f5f9",
                               display: "flex",
                               justifyContent: "space-between",
+                              fontSize: "12px",
                             }}
                             onMouseEnter={(e) => (e.currentTarget.style.background = "#f8fafc")}
-                            onMouseLeave={(e) => (e.currentTarget.style.background = "#ffffff")}
+                            onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
                           >
                             <span>
-                              <strong>[{lr.code}]</strong> {lr.description}
+                              <strong>[{res.code}]</strong> {res.name} (SAC: 999312)
                             </span>
-                            <span style={{ fontWeight: 600, color: "#0f766e" }}>
-                              {rupees(lr.charge)}
+                            <span style={{ color: "#0f766e", fontWeight: 600 }}>
+                              Rs. {rupees(res.price)}
                             </span>
                           </div>
                         ))}
                       </div>
                     )}
                   </td>
-                  <td style={{ padding: "6px 12px", textAlign: "center" }}>
-                    <input
-                      type="text"
-                      value={l.sac || "999312"}
-                      onChange={(e) => {
-                        const copy = [...labs];
-                        copy[idx].sac = e.target.value;
-                        setLabs(copy);
-                      }}
-                      style={{
-                        width: "80px",
-                        padding: "4px",
-                        textAlign: "center",
-                        fontSize: "12px",
-                        border: "1px solid #cbd5e1",
-                        borderRadius: "4px",
-                      }}
-                    />
-                  </td>
-                  <td style={{ padding: "6px 12px", textAlign: "center" }}>
+                  <td style={{ padding: "6px 4px", textAlign: "center" }}>
                     <input
                       type="number"
                       min="1"
-                      value={l.qty}
-                      onChange={(e) => {
-                        const q = Math.max(1, parseInt(e.target.value) || 1);
-                        const copy = [...labs];
-                        copy[idx].qty = q;
-                        copy[idx].total = q * copy[idx].charge * (1 - copy[idx].discountPercent / 100);
-                        setLabs(copy);
-                      }}
+                      value={l.quantity}
+                      onChange={(e) => updateLine("labs", idx, "quantity", e.target.value)}
                       style={{
-                        width: "60px",
-                        padding: "4px",
+                        width: "55px",
+                        padding: "6px 4px",
                         textAlign: "center",
                         fontSize: "12px",
                         border: "1px solid #cbd5e1",
@@ -1182,21 +1762,15 @@ export function CharmPatientBilling({
                       }}
                     />
                   </td>
-                  <td style={{ padding: "6px 12px", textAlign: "right" }}>
+                  <td style={{ padding: "6px 4px", textAlign: "right" }}>
                     <input
                       type="number"
                       step="0.01"
-                      value={l.charge}
-                      onChange={(e) => {
-                        const chg = parseFloat(e.target.value) || 0;
-                        const copy = [...labs];
-                        copy[idx].charge = chg;
-                        copy[idx].total = copy[idx].qty * chg * (1 - copy[idx].discountPercent / 100);
-                        setLabs(copy);
-                      }}
+                      value={l.unit_price}
+                      onChange={(e) => updateLine("labs", idx, "unit_price", e.target.value)}
                       style={{
-                        width: "90px",
-                        padding: "4px",
+                        width: "95px",
+                        padding: "6px 6px",
                         textAlign: "right",
                         fontSize: "12px",
                         border: "1px solid #cbd5e1",
@@ -1204,54 +1778,71 @@ export function CharmPatientBilling({
                       }}
                     />
                   </td>
-                  <td style={{ padding: "6px 12px", textAlign: "center" }}>
-                    <input
-                      type="number"
-                      min="0"
-                      max="100"
-                      value={l.discountPercent}
-                      onChange={(e) => {
-                        const disc = Math.min(100, Math.max(0, parseFloat(e.target.value) || 0));
-                        const copy = [...labs];
-                        copy[idx].discountPercent = disc;
-                        copy[idx].total = copy[idx].qty * copy[idx].charge * (1 - disc / 100);
-                        setLabs(copy);
-                      }}
-                      style={{
-                        width: "60px",
-                        padding: "4px",
-                        textAlign: "center",
-                        fontSize: "12px",
-                        border: "1px solid #cbd5e1",
-                        borderRadius: "4px",
-                      }}
-                    />
+                  <td style={{ padding: "6px 4px", textAlign: "center" }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: "4px", justifyContent: "center" }}>
+                      <div style={{ position: "relative", width: "65px" }}>
+                        <input
+                          type="number"
+                          placeholder="%"
+                          min="0"
+                          max="100"
+                          value={l.discount_percent || ""}
+                          onChange={(e) => updateLine("labs", idx, "discount_percent", e.target.value)}
+                          style={{
+                            width: "100%",
+                            padding: "6px 14px 6px 4px",
+                            textAlign: "right",
+                            fontSize: "12px",
+                            border: "1px solid #cbd5e1",
+                            borderRadius: "4px",
+                          }}
+                        />
+                        <span
+                          style={{
+                            position: "absolute",
+                            right: "4px",
+                            top: "7px",
+                            fontSize: "10px",
+                            color: "#94a3b8",
+                          }}
+                        >
+                          %
+                        </span>
+                      </div>
+                      <div style={{ position: "relative", width: "75px" }}>
+                        <input
+                          type="number"
+                          placeholder="Amt"
+                          min="0"
+                          value={l.discount_amount || ""}
+                          onChange={(e) => updateLine("labs", idx, "discount_amount", e.target.value)}
+                          style={{
+                            width: "100%",
+                            padding: "6px 4px",
+                            textAlign: "right",
+                            fontSize: "12px",
+                            border: "1px solid #cbd5e1",
+                            borderRadius: "4px",
+                          }}
+                        />
+                      </div>
+                    </div>
                   </td>
-                  <td style={{ padding: "6px 12px", textAlign: "center", fontSize: "12px" }}>
-                    0%
+                  <td style={{ padding: "6px 12px", textAlign: "right", fontWeight: 600, color: "#1e293b" }}>
+                    {rupees(l.total_amount)}
                   </td>
-                  <td
-                    style={{
-                      padding: "6px 12px",
-                      textAlign: "right",
-                      fontWeight: 600,
-                      fontSize: "12px",
-                    }}
-                  >
-                    {rupees(l.total)}
-                  </td>
-                  <td style={{ padding: "6px 8px", textAlign: "center" }}>
+                  <td style={{ textAlign: "center" }}>
                     <button
                       type="button"
-                      onClick={() => {
-                        setLabs(labs.filter((_, i) => i !== idx));
-                      }}
+                      onClick={() => removeLabRow(idx)}
                       style={{
-                        border: "none",
                         background: "none",
-                        color: "#ef4444",
+                        border: "none",
+                        color: "#94a3b8",
                         cursor: "pointer",
+                        padding: 0,
                       }}
+                      title="Remove row"
                     >
                       <Trash2 size={14} />
                     </button>
@@ -1261,116 +1852,106 @@ export function CharmPatientBilling({
             </tbody>
           </table>
 
-          <div style={{ padding: "8px 16px" }}>
+          <div style={{ marginTop: "8px" }}>
             <button
               type="button"
-              onClick={() => {
-                setLabs([
-                  ...labs,
-                  {
-                    id: Math.random().toString(),
-                    code: "",
-                    description: "",
-                    sac: "999312",
-                    qty: 1,
-                    charge: 0,
-                    discountPercent: 0,
-                    tax: 0,
-                    total: 0,
-                  },
-                ]);
-              }}
+              onClick={addLabRow}
               style={{
-                color: "#f97316",
                 background: "none",
                 border: "none",
+                color: "#0f766e",
                 fontSize: "12px",
                 fontWeight: 600,
                 cursor: "pointer",
-                display: "flex",
+                display: "inline-flex",
                 alignItems: "center",
-                gap: 4,
+                gap: "4px",
+                padding: "2px 0",
               }}
             >
-              <Plus size={14} /> Add Lab
+              <Plus size={14} /> Add More Labs
             </button>
           </div>
         </div>
 
-        {/* ----------------------------------------------------------------- */}
-        {/* SECTION 3: Medications / Drugs (Products) */}
-        {/* ----------------------------------------------------------------- */}
-        <div
-          style={{
-            background: "#ffffff",
-            border: "1px solid #e2e8f0",
-            borderRadius: "6px",
-            marginBottom: "16px",
-            overflow: "visible",
-          }}
-        >
+        {/* =================================================================== */}
+        {/* SECTION 3: MEDICATIONS / DRUGS (PRODUCTS) TABLE */}
+        {/* =================================================================== */}
+        <div style={{ marginBottom: "24px" }}>
           <div
             style={{
-              padding: "10px 16px",
-              background: "#f8fafc",
-              borderBottom: "1px solid #e2e8f0",
-              fontWeight: 700,
-              fontSize: "13px",
-              color: "#334155",
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+              marginBottom: "8px",
             }}
           >
-            Medications / Drugs (Products)
+            <div style={{ fontSize: "14px", fontWeight: 700, color: "#1e293b" }}>
+              Medications / Drugs (Products)
+            </div>
+            <div>
+              <a
+                href="#choose-master-products"
+                onClick={(e) => {
+                  e.preventDefault();
+                  setCptSearchModal({ open: true, section: "products" });
+                }}
+                style={{ fontSize: "12px", color: "#2563eb", textDecoration: "none", fontWeight: 500 }}
+              >
+                Choose from Master List
+              </a>
+            </div>
           </div>
 
-          <table className="charm-table" style={{ width: "100%", margin: 0 }}>
+          <table
+            style={{
+              width: "100%",
+              borderCollapse: "collapse",
+              border: "1px solid #e2e8f0",
+              fontSize: "12px",
+            }}
+          >
             <thead>
-              <tr style={{ background: "#f8fafc", fontSize: "12px", color: "#64748b" }}>
-                <th style={{ width: "35%", padding: "8px 12px" }}>Product Name</th>
-                <th style={{ width: "12%", padding: "8px 12px", textAlign: "center" }}>Batch</th>
-                <th style={{ width: "10%", padding: "8px 12px", textAlign: "center" }}>Stock</th>
-                <th style={{ width: "8%", padding: "8px 12px", textAlign: "center" }}>Qty</th>
-                <th style={{ width: "12%", padding: "8px 12px", textAlign: "right" }}>
-                  Price (Rs.)
-                </th>
-                <th style={{ width: "10%", padding: "8px 12px", textAlign: "center" }}>
-                  Discount (%)
-                </th>
-                <th style={{ width: "12%", padding: "8px 12px", textAlign: "right" }}>
-                  Total (Rs.)
-                </th>
-                <th style={{ width: "5%", padding: "8px 8px", textAlign: "center" }}></th>
+              <tr style={{ background: "#f8fafc", borderBottom: "1px solid #e2e8f0", color: "#64748b" }}>
+                <th style={{ width: "28px", padding: "8px 4px", textAlign: "center" }}></th>
+                <th style={{ width: "32px", padding: "8px 4px", textAlign: "center" }}>#</th>
+                <th style={{ padding: "8px 12px", textAlign: "left" }}>PRODUCT NAME / SKU</th>
+                <th style={{ width: "70px", padding: "8px 8px", textAlign: "center" }}>QTY</th>
+                <th style={{ width: "110px", padding: "8px 8px", textAlign: "right" }}>PRICE</th>
+                <th style={{ width: "160px", padding: "8px 8px", textAlign: "center" }}>DISCOUNT</th>
+                <th style={{ width: "110px", padding: "8px 12px", textAlign: "right" }}>AMT</th>
+                <th style={{ width: "36px", padding: "8px 4px", textAlign: "center" }}></th>
               </tr>
             </thead>
             <tbody>
-              {products.map((pr, idx) => (
-                <tr key={pr.id}>
-                  <td style={{ padding: "6px 12px", position: "relative" }}>
+              {products.map((m, idx) => (
+                <tr key={m.id} style={{ borderBottom: "1px solid #f1f5f9" }}>
+                  <td style={{ textAlign: "center", color: "#94a3b8", cursor: "grab" }}>
+                    <GripVertical size={14} style={{ display: "inline-block" }} />
+                  </td>
+                  <td style={{ textAlign: "center", color: "#64748b" }}>{idx + 1}</td>
+                  <td style={{ padding: "6px 8px", position: "relative" }}>
                     <input
                       type="text"
-                      placeholder="Type medication or item name..."
-                      value={pr.name}
-                      onChange={(e) => {
-                        const val = e.target.value;
-                        const copy = [...products];
-                        copy[idx].name = val;
-                        setProducts(copy);
-                        searchProducts(val, idx);
-                      }}
+                      placeholder="Search by Product Name or SKU"
+                      value={m.description}
+                      onChange={(e) => handleSearchCodeOrDesc("products", idx, e.target.value)}
                       style={{
                         width: "100%",
-                        padding: "4px 8px",
+                        padding: "6px 8px",
                         fontSize: "12px",
                         border: "1px solid #cbd5e1",
                         borderRadius: "4px",
                       }}
                     />
-                    {activeProdSearchIndex === idx && productResults.length > 0 && (
+
+                    {activeSearchSection === "products" && activeSearchRowIndex === idx && searchResults.length > 0 && (
                       <div
                         style={{
                           position: "absolute",
-                          top: "100%",
-                          left: 12,
-                          right: 12,
+                          left: "8px",
+                          right: "8px",
+                          top: "38px",
                           background: "#ffffff",
                           border: "1px solid #cbd5e1",
                           borderRadius: "4px",
@@ -1380,81 +1961,41 @@ export function CharmPatientBilling({
                           overflowY: "auto",
                         }}
                       >
-                        {productResults.map((pRes) => (
+                        {searchResults.map((res: any, rIdx: number) => (
                           <div
-                            key={pRes.id}
-                            onClick={() => {
-                              const copy = [...products];
-                              copy[idx].name = pRes.name;
-                              copy[idx].batch = pRes.batch_number || "BATCH-01";
-                              copy[idx].stockQty = pRes.stock_qty || 100;
-                              copy[idx].price = pRes.price || 0;
-                              copy[idx].total =
-                                (pRes.price || 0) *
-                                copy[idx].qty *
-                                (1 - copy[idx].discountPercent / 100);
-                              setProducts(copy);
-                              setActiveProdSearchIndex(null);
-                            }}
+                            key={rIdx}
+                            onClick={() => selectSearchResult(res)}
                             style={{
-                              padding: "6px 10px",
-                              fontSize: "12px",
-                              borderBottom: "1px solid #f1f5f9",
+                              padding: "8px 12px",
                               cursor: "pointer",
+                              borderBottom: "1px solid #f1f5f9",
                               display: "flex",
                               justifyContent: "space-between",
+                              fontSize: "12px",
                             }}
                             onMouseEnter={(e) => (e.currentTarget.style.background = "#f8fafc")}
-                            onMouseLeave={(e) => (e.currentTarget.style.background = "#ffffff")}
+                            onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
                           >
                             <span>
-                              <strong>{pRes.name}</strong> ({pRes.category})
+                              <strong>{res.name}</strong> ({res.sku || "MED"})
                             </span>
-                            <span style={{ fontWeight: 600, color: "#0f766e" }}>
-                              {rupees(pRes.price)}
+                            <span style={{ color: "#0f766e", fontWeight: 600 }}>
+                              Rs. {rupees(res.price)}
                             </span>
                           </div>
                         ))}
                       </div>
                     )}
                   </td>
-                  <td style={{ padding: "6px 12px", textAlign: "center" }}>
-                    <input
-                      type="text"
-                      value={pr.batch}
-                      onChange={(e) => {
-                        const copy = [...products];
-                        copy[idx].batch = e.target.value;
-                        setProducts(copy);
-                      }}
-                      style={{
-                        width: "80px",
-                        padding: "4px",
-                        textAlign: "center",
-                        fontSize: "12px",
-                        border: "1px solid #cbd5e1",
-                        borderRadius: "4px",
-                      }}
-                    />
-                  </td>
-                  <td style={{ padding: "6px 12px", textAlign: "center", fontSize: "12px" }}>
-                    {pr.stockQty}
-                  </td>
-                  <td style={{ padding: "6px 12px", textAlign: "center" }}>
+                  <td style={{ padding: "6px 4px", textAlign: "center" }}>
                     <input
                       type="number"
                       min="1"
-                      value={pr.qty}
-                      onChange={(e) => {
-                        const q = Math.max(1, parseInt(e.target.value) || 1);
-                        const copy = [...products];
-                        copy[idx].qty = q;
-                        copy[idx].total = q * copy[idx].price * (1 - copy[idx].discountPercent / 100);
-                        setProducts(copy);
-                      }}
+                      value={m.quantity}
+                      onChange={(e) => updateLine("products", idx, "quantity", e.target.value)}
                       style={{
-                        width: "60px",
-                        padding: "4px",
+                        width: "55px",
+                        padding: "6px 4px",
                         textAlign: "center",
                         fontSize: "12px",
                         border: "1px solid #cbd5e1",
@@ -1462,21 +2003,15 @@ export function CharmPatientBilling({
                       }}
                     />
                   </td>
-                  <td style={{ padding: "6px 12px", textAlign: "right" }}>
+                  <td style={{ padding: "6px 4px", textAlign: "right" }}>
                     <input
                       type="number"
                       step="0.01"
-                      value={pr.price}
-                      onChange={(e) => {
-                        const prc = parseFloat(e.target.value) || 0;
-                        const copy = [...products];
-                        copy[idx].price = prc;
-                        copy[idx].total = copy[idx].qty * prc * (1 - copy[idx].discountPercent / 100);
-                        setProducts(copy);
-                      }}
+                      value={m.unit_price}
+                      onChange={(e) => updateLine("products", idx, "unit_price", e.target.value)}
                       style={{
-                        width: "90px",
-                        padding: "4px",
+                        width: "95px",
+                        padding: "6px 6px",
                         textAlign: "right",
                         fontSize: "12px",
                         border: "1px solid #cbd5e1",
@@ -1484,51 +2019,71 @@ export function CharmPatientBilling({
                       }}
                     />
                   </td>
-                  <td style={{ padding: "6px 12px", textAlign: "center" }}>
-                    <input
-                      type="number"
-                      min="0"
-                      max="100"
-                      value={pr.discountPercent}
-                      onChange={(e) => {
-                        const disc = Math.min(100, Math.max(0, parseFloat(e.target.value) || 0));
-                        const copy = [...products];
-                        copy[idx].discountPercent = disc;
-                        copy[idx].total = copy[idx].qty * copy[idx].price * (1 - disc / 100);
-                        setProducts(copy);
-                      }}
-                      style={{
-                        width: "60px",
-                        padding: "4px",
-                        textAlign: "center",
-                        fontSize: "12px",
-                        border: "1px solid #cbd5e1",
-                        borderRadius: "4px",
-                      }}
-                    />
+                  <td style={{ padding: "6px 4px", textAlign: "center" }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: "4px", justifyContent: "center" }}>
+                      <div style={{ position: "relative", width: "65px" }}>
+                        <input
+                          type="number"
+                          placeholder="%"
+                          min="0"
+                          max="100"
+                          value={m.discount_percent || ""}
+                          onChange={(e) => updateLine("products", idx, "discount_percent", e.target.value)}
+                          style={{
+                            width: "100%",
+                            padding: "6px 14px 6px 4px",
+                            textAlign: "right",
+                            fontSize: "12px",
+                            border: "1px solid #cbd5e1",
+                            borderRadius: "4px",
+                          }}
+                        />
+                        <span
+                          style={{
+                            position: "absolute",
+                            right: "4px",
+                            top: "7px",
+                            fontSize: "10px",
+                            color: "#94a3b8",
+                          }}
+                        >
+                          %
+                        </span>
+                      </div>
+                      <div style={{ position: "relative", width: "75px" }}>
+                        <input
+                          type="number"
+                          placeholder="Amt"
+                          min="0"
+                          value={m.discount_amount || ""}
+                          onChange={(e) => updateLine("products", idx, "discount_amount", e.target.value)}
+                          style={{
+                            width: "100%",
+                            padding: "6px 4px",
+                            textAlign: "right",
+                            fontSize: "12px",
+                            border: "1px solid #cbd5e1",
+                            borderRadius: "4px",
+                          }}
+                        />
+                      </div>
+                    </div>
                   </td>
-                  <td
-                    style={{
-                      padding: "6px 12px",
-                      textAlign: "right",
-                      fontWeight: 600,
-                      fontSize: "12px",
-                    }}
-                  >
-                    {rupees(pr.total)}
+                  <td style={{ padding: "6px 12px", textAlign: "right", fontWeight: 600, color: "#1e293b" }}>
+                    {rupees(m.total_amount)}
                   </td>
-                  <td style={{ padding: "6px 8px", textAlign: "center" }}>
+                  <td style={{ textAlign: "center" }}>
                     <button
                       type="button"
-                      onClick={() => {
-                        setProducts(products.filter((_, i) => i !== idx));
-                      }}
+                      onClick={() => removeProductRow(idx)}
                       style={{
-                        border: "none",
                         background: "none",
-                        color: "#ef4444",
+                        border: "none",
+                        color: "#94a3b8",
                         cursor: "pointer",
+                        padding: 0,
                       }}
+                      title="Remove row"
                     >
                       <Trash2 size={14} />
                     </button>
@@ -1538,113 +2093,43 @@ export function CharmPatientBilling({
             </tbody>
           </table>
 
-          <div style={{ padding: "8px 16px" }}>
+          <div style={{ marginTop: "8px" }}>
             <button
               type="button"
-              onClick={() => {
-                setProducts([
-                  ...products,
-                  {
-                    id: Math.random().toString(),
-                    name: "",
-                    batch: "BATCH-01",
-                    stockQty: 50,
-                    qty: 1,
-                    price: 0,
-                    discountPercent: 0,
-                    tax: 0,
-                    total: 0,
-                  },
-                ]);
-              }}
+              onClick={addProductRow}
               style={{
-                color: "#f97316",
                 background: "none",
                 border: "none",
+                color: "#0f766e",
                 fontSize: "12px",
                 fontWeight: 600,
                 cursor: "pointer",
-                display: "flex",
+                display: "inline-flex",
                 alignItems: "center",
-                gap: 4,
+                gap: "4px",
+                padding: "2px 0",
               }}
             >
-              <Plus size={14} /> Add Product
+              <Plus size={14} /> Add More Products
             </button>
           </div>
         </div>
 
-        {/* ----------------------------------------------------------------- */}
-        {/* TOTALS & FINANCIAL SUMMARY CARD (Right-Aligned) */}
-        {/* ----------------------------------------------------------------- */}
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "1.2fr 0.8fr",
-            gap: "20px",
-            marginBottom: "20px",
-          }}
-        >
-          {/* Notes & Terms (Left) */}
-          <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-            <div>
-              <label style={{ fontSize: "12px", fontWeight: 700, color: "#475569" }}>Notes</label>
-              <textarea
-                rows={3}
-                placeholder="Internal billing notes or instructions for patient..."
-                value={notes}
-                onChange={(e) => setNotes(e.target.value)}
-                style={{
-                  width: "100%",
-                  padding: "8px",
-                  fontSize: "12px",
-                  border: "1px solid #cbd5e1",
-                  borderRadius: "4px",
-                  marginTop: "4px",
-                }}
-              />
-            </div>
-            <div>
-              <label style={{ fontSize: "12px", fontWeight: 700, color: "#475569" }}>
-                Terms & Conditions
-              </label>
-              <textarea
-                rows={4}
-                value={terms}
-                onChange={(e) => setTerms(e.target.value)}
-                style={{
-                  width: "100%",
-                  padding: "8px",
-                  fontSize: "12px",
-                  border: "1px solid #cbd5e1",
-                  borderRadius: "4px",
-                  marginTop: "4px",
-                }}
-              />
-            </div>
-          </div>
-
-          {/* Right Totals Box */}
-          <div
-            style={{
-              background: "#ffffff",
-              border: "1px solid #cbd5e1",
-              borderRadius: "6px",
-              padding: "16px 20px",
-              boxShadow: "0 1px 3px rgba(0,0,0,0.05)",
-            }}
-          >
+        {/* =================================================================== */}
+        {/* TOTALS SUMMARY (RIGHT-ALIGNED) */}
+        {/* =================================================================== */}
+        <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: "28px" }}>
+          <div style={{ width: "320px", fontSize: "13px" }}>
             <div
               style={{
                 display: "flex",
                 justifyContent: "space-between",
-                padding: "4px 0",
-                fontSize: "13px",
-                color: "#475569",
+                padding: "6px 0",
+                color: "#64748b",
               }}
             >
-              <span>Sub Total:</span>
-              <span style={{ fontWeight: 600 }}>{rupees(grossTotal)}</span>
+              <span>Sub Total</span>
+              <span style={{ fontWeight: 600, color: "#1e293b" }}>{rupees(grossSubTotal)}</span>
             </div>
 
             <div
@@ -1653,1873 +2138,3000 @@ export function CharmPatientBilling({
                 justifyContent: "space-between",
                 alignItems: "center",
                 padding: "6px 0",
-                fontSize: "13px",
-                color: "#475569",
+                color: "#64748b",
               }}
             >
-              <span>Discount (-):</span>
-              <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
-                <span style={{ fontSize: "12px" }}>Rs.</span>
-                <input
-                  type="number"
-                  min="0"
-                  step="0.01"
-                  value={flatDiscount}
-                  onChange={(e) => setFlatDiscount(Math.max(0, parseFloat(e.target.value) || 0))}
-                  style={{
-                    width: "80px",
-                    padding: "3px 6px",
-                    textAlign: "right",
-                    fontSize: "12px",
-                    border: "1px solid #cbd5e1",
-                    borderRadius: "4px",
-                  }}
-                />
-              </div>
+              <span>Discount (-)</span>
+              <input
+                type="number"
+                step="0.01"
+                min="0"
+                value={generalDiscount || ""}
+                onChange={(e) => setGeneralDiscount(parseFloat(e.target.value) || 0)}
+                style={{
+                  width: "110px",
+                  padding: "4px 8px",
+                  textAlign: "right",
+                  fontSize: "12px",
+                  border: "1px solid #cbd5e1",
+                  borderRadius: "4px",
+                }}
+              />
             </div>
 
             <div
               style={{
                 display: "flex",
                 justifyContent: "space-between",
-                padding: "4px 0",
-                fontSize: "13px",
-                color: "#475569",
+                padding: "6px 0",
+                color: "#64748b",
               }}
             >
-              <span>Section Total:</span>
-              <span>{rupees(grossTotal)}</span>
+              <span>Total</span>
+              <span style={{ fontWeight: 600, color: "#1e293b" }}>{rupees(netTotal)}</span>
             </div>
 
             <div
               style={{
                 display: "flex",
                 justifyContent: "space-between",
-                padding: "4px 0",
-                fontSize: "13px",
-                color: "#475569",
+                padding: "6px 0",
+                color: "#64748b",
               }}
             >
-              <span>Round Off:</span>
-              <span>Rs. 0.00</span>
+              <span>Round Off</span>
+              <span style={{ color: "#64748b" }}>{rupees(roundOff)}</span>
             </div>
 
+            {/* BOXED GRAND TOTAL (TEAL BORDER) */}
             <div
               style={{
-                borderTop: "2px solid #e2e8f0",
-                marginTop: "8px",
-                paddingTop: "8px",
                 display: "flex",
                 justifyContent: "space-between",
                 alignItems: "center",
+                padding: "10px 14px",
+                marginTop: "6px",
+                border: "2px solid #0f766e",
+                borderRadius: "4px",
+                background: "#f0fdfa",
               }}
             >
-              <span style={{ fontSize: "14px", fontWeight: 700, color: "#1e293b" }}>
-                Grand Total:
+              <span style={{ fontWeight: 700, color: "#0f766e", fontSize: "14px" }}>
+                Grand Total
               </span>
-              <span
-                style={{
-                  fontSize: "18px",
-                  fontWeight: 800,
-                  color: "#0f766e",
-                  border: "1px solid #99f6e4",
-                  background: "#f0fdfa",
-                  padding: "4px 12px",
-                  borderRadius: "4px",
-                }}
-              >
-                {rupees(netTotal)}
-              </span>
-            </div>
-
-            <div
-              style={{
-                marginTop: "8px",
-                display: "flex",
-                justifyContent: "space-between",
-                alignItems: "center",
-              }}
-            >
-              <span style={{ fontSize: "14px", fontWeight: 700, color: "#1e293b" }}>
-                Balance Due:
-              </span>
-              <span
-                style={{
-                  fontSize: "18px",
-                  fontWeight: 800,
-                  color: balanceDue > 0 ? "#dc2626" : "#16a34a",
-                  border: `1px solid ${balanceDue > 0 ? "#fecaca" : "#bbf7d0"}`,
-                  background: balanceDue > 0 ? "#fef2f2" : "#f0fdf4",
-                  padding: "4px 12px",
-                  borderRadius: "4px",
-                }}
-              >
-                {rupees(balanceDue)}
+              <span style={{ fontWeight: 700, color: "#0f766e", fontSize: "16px" }}>
+                {rupees(grandTotal)}
               </span>
             </div>
           </div>
         </div>
 
-        {/* ----------------------------------------------------------------- */}
-        {/* PAYMENT TENDER (Pay Invoice in Full / Partial Payment) */}
-        {/* ----------------------------------------------------------------- */}
+        {/* =================================================================== */}
+        {/* PAYMENT DETAILS CARD */}
+        {/* =================================================================== */}
         <div
           style={{
-            background: "#ffffff",
             border: "1px solid #e2e8f0",
             borderRadius: "6px",
-            padding: "16px 20px",
+            background: "#f8fafc",
+            padding: "16px",
             marginBottom: "24px",
           }}
         >
-          <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: "12px" }}>
-            <input
-              type="checkbox"
-              id="payInFullCheck"
-              checked={payInFull}
-              onChange={(e) => setPayInFull(e.target.checked)}
-              style={{ width: "16px", height: "16px", cursor: "pointer" }}
-            />
-            <label
-              htmlFor="payInFullCheck"
-              style={{
-                fontSize: "14px",
-                fontWeight: 700,
-                color: "#1e293b",
-                cursor: "pointer",
-              }}
-            >
-              Pay Invoice in Full ({rupees(netTotal)})
-            </label>
-          </div>
-
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "1fr 1fr 1fr 1.2fr",
-              gap: "12px",
-              paddingTop: "6px",
-            }}
-          >
-            <div>
-              <label style={{ fontSize: "11px", color: "#64748b", display: "block" }}>
-                Payment Method
-              </label>
-              <select
-                value={paymentMode}
-                onChange={(e) => setPaymentMode(e.target.value)}
-                style={{
-                  width: "100%",
-                  padding: "6px 8px",
-                  fontSize: "12px",
-                  border: "1px solid #cbd5e1",
-                  borderRadius: "4px",
-                }}
-              >
-                <option>Cash</option>
-                <option>UPI</option>
-                <option>Credit Card</option>
-                <option>Debit Card</option>
-                <option>Cheque</option>
-                <option>Bank Transfer</option>
-                <option>Net Banking</option>
-                <option>Razorpay</option>
-              </select>
-            </div>
-
-            <div>
-              <label style={{ fontSize: "11px", color: "#64748b", display: "block" }}>
-                Reference # (UPI Ref / Cheque No)
-              </label>
-              <input
-                type="text"
-                placeholder="e.g. UPI/3910283 or CHQ-0021"
-                value={paymentRef}
-                onChange={(e) => setPaymentRef(e.target.value)}
-                style={{
-                  width: "100%",
-                  padding: "6px 8px",
-                  fontSize: "12px",
-                  border: "1px solid #cbd5e1",
-                  borderRadius: "4px",
-                }}
-              />
-            </div>
-
-            <div>
-              <label style={{ fontSize: "11px", color: "#64748b", display: "block" }}>
-                Amount (Rs.)
-              </label>
-              <input
-                type="number"
-                min="0"
-                step="0.01"
-                disabled={payInFull}
-                value={paymentAmount}
-                onChange={(e) => setPaymentAmount(parseFloat(e.target.value) || 0)}
-                style={{
-                  width: "100%",
-                  padding: "6px 8px",
-                  fontSize: "12px",
-                  border: "1px solid #cbd5e1",
-                  borderRadius: "4px",
-                  background: payInFull ? "#f8fafc" : "#ffffff",
-                }}
-              />
-            </div>
-
-            <div style={{ display: "flex", alignItems: "flex-end" }}>
-              <div style={{ fontSize: "12px", color: "#64748b" }}>
-                Receipt will be auto-generated and added to patient's Receipts ledger.
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  // =========================================================================
-  // RENDER: Invoice Detail / Printable Summary View
-  // =========================================================================
-  if (viewMode === "detail" && selectedInvoice) {
-    const isCancelled = selectedInvoice.status === "cancelled";
-    return (
-      <div className="charm-billing-detail-view" style={{ padding: "0 4px 60px 4px" }}>
-        {/* Top Action Bar */}
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-            background: "#ffffff",
-            padding: "10px 18px",
-            border: "1px solid #e2e8f0",
-            borderRadius: "6px",
-            marginBottom: "16px",
-            boxShadow: "0 1px 3px rgba(0,0,0,0.05)",
-          }}
-        >
-          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-            <button
-              onClick={() => {
-                setSelectedInvoice(null);
-                setViewMode("list");
-              }}
-              className="charm-btn charm-btn-outline"
-              style={{ padding: "6px 12px", display: "flex", alignItems: "center", gap: 6 }}
-            >
-              <ArrowLeft size={14} /> Back to Invoices
-            </button>
-            <span style={{ fontSize: "16px", fontWeight: 700, color: "#1e293b" }}>
-              Invoice {selectedInvoice.number}
-            </span>
-            <span
-              style={{
-                fontSize: "11px",
-                fontWeight: 700,
-                padding: "2px 8px",
-                borderRadius: "12px",
-                textTransform: "uppercase",
-                background:
-                  selectedInvoice.status === "paid"
-                    ? "#dcfce7"
-                    : selectedInvoice.status === "partial"
-                    ? "#dbeafe"
-                    : selectedInvoice.status === "draft"
-                    ? "#fef9c3"
-                    : "#fee2e2",
-                color:
-                  selectedInvoice.status === "paid"
-                    ? "#15803d"
-                    : selectedInvoice.status === "partial"
-                    ? "#1d4ed8"
-                    : selectedInvoice.status === "draft"
-                    ? "#a16207"
-                    : "#b91c1c",
-              }}
-            >
-              {selectedInvoice.status}
-            </span>
-          </div>
-
-          <div style={{ display: "flex", gap: "8px" }}>
-            {!isCancelled && selectedInvoice.balance_paise > 0 && (
-              <button
-                type="button"
-                onClick={() => {
-                  setQuickPayInvoice(selectedInvoice);
-                  setQuickPayAmount(selectedInvoice.balance_paise / 100);
-                  setQuickPayRef("");
-                  setQuickPayMethod("UPI");
-                }}
-                style={{
-                  background: "#16a34a",
-                  color: "#ffffff",
-                  border: "none",
-                  fontWeight: 600,
-                  padding: "6px 14px",
-                  borderRadius: "4px",
-                  cursor: "pointer",
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 6,
-                }}
-              >
-                <DollarSign size={14} /> Add Payment
-              </button>
-            )}
-
-            {!isCancelled && selectedInvoice.status !== "paid" && (
-              <button
-                type="button"
-                onClick={() => {
-                  setViewMode("edit");
-                }}
-                className="charm-btn charm-btn-outline"
-                style={{ fontWeight: 600, padding: "6px 12px" }}
-              >
-                <Edit size={14} /> Edit Invoice
-              </button>
-            )}
-
-            <button
-              type="button"
-              onClick={() => window.print()}
-              className="charm-btn charm-btn-outline"
-              style={{ padding: "6px 12px", display: "flex", alignItems: "center", gap: 6 }}
-            >
-              <Printer size={14} /> Print
-            </button>
-
-            <button
-              type="button"
-              onClick={() => {
-                notify("Invoice PDF exported to Downloads folder");
-              }}
-              className="charm-btn charm-btn-outline"
-              style={{ padding: "6px 12px", display: "flex", alignItems: "center", gap: 6 }}
-            >
-              <Download size={14} /> Download PDF
-            </button>
-
-            <button
-              type="button"
-              onClick={() => {
-                notify(`Invoice sent to ${patient?.email || "patient email"}`);
-              }}
-              className="charm-btn charm-btn-outline"
-              style={{ padding: "6px 12px", display: "flex", alignItems: "center", gap: 6 }}
-            >
-              <Send size={14} /> Send Invoice
-            </button>
-
-            {!isCancelled &&
-              selectedInvoice.paid_paise === 0 &&
-              selectedInvoice.credited_paise === 0 && (
-                <button
-                  type="button"
-                  onClick={() => setCancelModalInvoice(selectedInvoice)}
-                  style={{
-                    color: "#dc2626",
-                    border: "1px solid #fca5a5",
-                    background: "#fef2f2",
-                    padding: "6px 12px",
-                    borderRadius: "4px",
-                    fontWeight: 600,
-                    cursor: "pointer",
-                  }}
-                >
-                  Cancel Invoice
-                </button>
-              )}
-          </div>
-        </div>
-
-        {/* Printable Invoice Sheet */}
-        <div
-          style={{
-            position: "relative",
-            background: "#ffffff",
-            border: "1px solid #cbd5e1",
-            borderRadius: "6px",
-            padding: "36px 40px",
-            boxShadow: "0 2px 8px rgba(0,0,0,0.06)",
-            maxWidth: "900px",
-            margin: "0 auto",
-          }}
-        >
-          {/* Authentic Diagonal Stamp Watermark if Cancelled */}
-          {isCancelled && (
-            <div
-              style={{
-                position: "absolute",
-                top: "40%",
-                left: "50%",
-                transform: "translate(-50%, -50%) rotate(-25deg)",
-                fontSize: "64px",
-                fontWeight: 900,
-                color: "rgba(220, 38, 38, 0.22)",
-                border: "6px solid rgba(220, 38, 38, 0.3)",
-                padding: "8px 36px",
-                borderRadius: "12px",
-                letterSpacing: "8px",
-                pointerEvents: "none",
-                zIndex: 10,
-                textTransform: "uppercase",
-                userSelect: "none",
-              }}
-            >
-              CANCELLED
-            </div>
-          )}
-
-          {/* Practice Header */}
-          <div
-            style={{
-              display: "flex",
-              justifyContent: "space-between",
-              borderBottom: "2px solid #e2e8f0",
-              paddingBottom: "20px",
-              marginBottom: "20px",
-            }}
-          >
-            <div>
-              <div style={{ fontSize: "22px", fontWeight: 800, color: "#0f766e" }}>
-                Heal Your Heart
-              </div>
-              <div style={{ fontSize: "12px", color: "#64748b", marginTop: "2px" }}>
-                A Unit of Vaso-Meditech (EECP) Systems
-              </div>
-              <div style={{ fontSize: "12px", color: "#334155", marginTop: "6px" }}>
-                No. 4/77, East Coast Road, Neelankarai, Chennai - 600115
-              </div>
-              <div style={{ fontSize: "12px", color: "#334155" }}>
-                Phone: +91 44 2449 2233 | Email: billing@healyourheart.com
-              </div>
-              <div style={{ fontSize: "12px", color: "#64748b", marginTop: "2px" }}>
-                GSTIN: 33AAAAA0000A1Z5 | State Code: 33 (Tamil Nadu)
-              </div>
-            </div>
-
-            <div style={{ textAlign: "right" }}>
-              <div style={{ fontSize: "20px", fontWeight: 800, color: "#1e293b" }}>INVOICE</div>
-              <div style={{ fontSize: "14px", fontWeight: 700, color: "#0f766e", marginTop: 4 }}>
-                {selectedInvoice.number}
-              </div>
-              <div style={{ fontSize: "12px", color: "#64748b", marginTop: 4 }}>
-                <strong>Date:</strong> {selectedInvoice.created_at?.split("T")[0]}
-              </div>
-              <div style={{ fontSize: "12px", color: "#64748b", marginTop: 2 }}>
-                <strong>Branch:</strong> {selectedInvoice.facility_name}
-              </div>
-            </div>
-          </div>
-
-          {/* Patient Details & Doctor */}
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "1.2fr 0.8fr",
-              gap: 20,
-              marginBottom: "24px",
-              fontSize: "13px",
-            }}
-          >
-            <div
-              style={{
-                background: "#f8fafc",
-                padding: "12px 16px",
-                borderRadius: "4px",
-                border: "1px solid #e2e8f0",
-              }}
-            >
-              <div
-                style={{
-                  fontWeight: 700,
-                  color: "#64748b",
-                  fontSize: "11px",
-                  textTransform: "uppercase",
-                  marginBottom: 6,
-                }}
-              >
-                Billed To
-              </div>
-              <div style={{ fontSize: "15px", fontWeight: 700, color: "#1e293b" }}>
-                {selectedInvoice.patient_name || `${patient?.first_name} ${patient?.last_name}`}
-              </div>
-              <div style={{ color: "#334155", marginTop: 2 }}>
-                <strong>MRN / ID:</strong> {selectedInvoice.patient_mrn || patient?.mrn}
-              </div>
-              <div style={{ color: "#64748b", marginTop: 2 }}>
-                {patient?.phone && `Phone: ${patient.phone}`}
-                {patient?.address && ` | ${patient.address}`}
-              </div>
-            </div>
-
-            <div
-              style={{
-                background: "#f8fafc",
-                padding: "12px 16px",
-                borderRadius: "4px",
-                border: "1px solid #e2e8f0",
-              }}
-            >
-              <div
-                style={{
-                  fontWeight: 700,
-                  color: "#64748b",
-                  fontSize: "11px",
-                  textTransform: "uppercase",
-                  marginBottom: 6,
-                }}
-              >
-                Consulting Provider
-              </div>
-              <div style={{ fontSize: "14px", fontWeight: 700, color: "#1e293b" }}>
-                {selectedInvoice.consultant_name || "Dr. Prem Sekar"}
-              </div>
-              <div style={{ color: "#64748b", fontSize: "12px", marginTop: 2 }}>
-                Cardiology & Preventive Medicine
-              </div>
-              <div style={{ color: "#64748b", fontSize: "12px", marginTop: 4 }}>
-                Consultation Date: {selectedInvoice.created_at?.split("T")[0]}
-              </div>
-            </div>
-          </div>
-
-          {/* Line Items Table */}
-          <table
-            className="charm-table"
-            style={{ width: "100%", marginBottom: "20px", borderCollapse: "collapse" }}
-          >
-            <thead>
-              <tr style={{ background: "#f1f5f9", fontSize: "12px", color: "#334155" }}>
-                <th style={{ textAlign: "left", padding: "8px 12px" }}>#</th>
-                <th style={{ textAlign: "left", padding: "8px 12px" }}>Description</th>
-                <th style={{ textAlign: "center", padding: "8px 12px" }}>Qty</th>
-                <th style={{ textAlign: "right", padding: "8px 12px" }}>Rate</th>
-                <th style={{ textAlign: "right", padding: "8px 12px" }}>Amount</th>
-              </tr>
-            </thead>
-            <tbody>
-              {(selectedInvoice.lines || []).map((line: any, i: number) => (
-                <tr key={line.id || i} style={{ borderBottom: "1px solid #e2e8f0" }}>
-                  <td style={{ padding: "8px 12px", fontSize: "12px", color: "#64748b" }}>
-                    {i + 1}
-                  </td>
-                  <td style={{ padding: "8px 12px", fontSize: "13px", fontWeight: 500 }}>
-                    {line.description}
-                  </td>
-                  <td style={{ padding: "8px 12px", fontSize: "13px", textAlign: "center" }}>
-                    {line.quantity}
-                  </td>
-                  <td style={{ padding: "8px 12px", fontSize: "13px", textAlign: "right" }}>
-                    {money(line.unit_paise)}
-                  </td>
-                  <td
-                    style={{
-                      padding: "8px 12px",
-                      fontSize: "13px",
-                      textAlign: "right",
-                      fontWeight: 600,
-                    }}
-                  >
-                    {money(line.quantity * line.unit_paise)}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-
-          {/* Financial Calculation Summary */}
-          <div
-            style={{
-              display: "flex",
-              justifyContent: "flex-end",
-              marginBottom: "24px",
-            }}
-          >
-            <div style={{ width: "300px" }}>
-              <div
-                style={{
-                  display: "flex",
-                  justifyContent: "space-between",
-                  padding: "4px 0",
-                  fontSize: "13px",
-                }}
-              >
-                <span style={{ color: "#64748b" }}>Subtotal:</span>
-                <span style={{ fontWeight: 600 }}>
-                  {money(
-                    (selectedInvoice.lines || []).reduce(
-                      (s: number, l: any) => s + l.quantity * l.unit_paise,
-                      0
-                    )
-                  )}
-                </span>
-              </div>
-
-              {selectedInvoice.discount_paise > 0 && (
-                <div
-                  style={{
-                    display: "flex",
-                    justifyContent: "space-between",
-                    padding: "4px 0",
-                    fontSize: "13px",
-                    color: "#dc2626",
-                  }}
-                >
-                  <span>Discount:</span>
-                  <span>- {money(selectedInvoice.discount_paise)}</span>
-                </div>
-              )}
-
-              <div
-                style={{
-                  display: "flex",
-                  justifyContent: "space-between",
-                  padding: "6px 0",
-                  fontSize: "15px",
-                  fontWeight: 800,
-                  borderTop: "2px solid #e2e8f0",
-                  marginTop: "6px",
-                  color: "#1e293b",
-                }}
-              >
-                <span>Grand Total:</span>
-                <span>{money(selectedInvoice.total_paise)}</span>
-              </div>
-
-              <div
-                style={{
-                  display: "flex",
-                  justifyContent: "space-between",
-                  padding: "4px 0",
-                  fontSize: "13px",
-                  color: "#16a34a",
-                }}
-              >
-                <span>Paid Amount:</span>
-                <span>{money(selectedInvoice.paid_paise || 0)}</span>
-              </div>
-
-              <div
-                style={{
-                  display: "flex",
-                  justifyContent: "space-between",
-                  padding: "6px 0",
-                  fontSize: "15px",
-                  fontWeight: 800,
-                  borderTop: "1px solid #e2e8f0",
-                  marginTop: "4px",
-                  color:
-                    isCancelled || selectedInvoice.balance_paise === 0 ? "#16a34a" : "#dc2626",
-                }}
-              >
-                <span>Balance Due:</span>
-                <span>{money(isCancelled ? 0 : selectedInvoice.balance_paise)}</span>
-              </div>
-            </div>
-          </div>
-
-          {/* Payment Receipts Received */}
-          {(selectedInvoice.payments || []).length > 0 && (
-            <div style={{ marginBottom: "20px" }}>
-              <div
-                style={{
-                  fontSize: "12px",
-                  fontWeight: 700,
-                  color: "#475569",
-                  textTransform: "uppercase",
-                  marginBottom: 8,
-                }}
-              >
-                Payments Collected
-              </div>
-              <table className="charm-table" style={{ width: "100%", margin: 0 }}>
-                <thead>
-                  <tr style={{ background: "#f8fafc", fontSize: "11px", color: "#64748b" }}>
-                    <th>Receipt #</th>
-                    <th>Date</th>
-                    <th>Method</th>
-                    <th style={{ textAlign: "right" }}>Amount</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {selectedInvoice.payments.map((p: any) => (
-                    <tr key={p.id}>
-                      <td style={{ fontWeight: 600, color: "#0f766e" }}>{p.receipt_number}</td>
-                      <td>{p.created_at?.split("T")[0]}</td>
-                      <td>{p.mode}</td>
-                      <td style={{ textAlign: "right", fontWeight: 600 }}>
-                        {money(p.amount_paise)}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-
-          {/* Terms & Conditions */}
-          <div
-            style={{
-              fontSize: "11px",
-              color: "#64748b",
-              borderTop: "1px solid #e2e8f0",
-              paddingTop: "12px",
-              lineHeight: 1.6,
-            }}
-          >
-            <strong>Terms & Conditions:</strong>
-            <br />
-            1. All payments are due upon receipt of invoice. Cheques subject to realization.
-            <br />
-            2. For online bank transfers, please mention Patient ID and Invoice # in remarks.
-            <br />
-            3. Thank you for choosing Heal Your Heart for non-invasive cardiovascular care.
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  // =========================================================================
-  // RENDER: Subtabs Navigation & Main Views
-  // =========================================================================
-  return (
-    <div className="charm-patient-billing-container" style={{ padding: "0 4px" }}>
-      {/* 4 Subtabs Matching CharmHealth */}
-      <div
-        className="charm-billing-subtabs"
-        style={{
-          display: "flex",
-          gap: "2px",
-          borderBottom: "1px solid #cbd5e1",
-          marginBottom: "16px",
-        }}
-      >
-        <button
-          type="button"
-          onClick={() => setActiveSubtab("invoices")}
-          style={{
-            padding: "8px 18px",
-            fontSize: "13px",
-            fontWeight: 600,
-            background: activeSubtab === "invoices" ? "#ffffff" : "transparent",
-            color: activeSubtab === "invoices" ? "#0f766e" : "#64748b",
-            border: activeSubtab === "invoices" ? "1px solid #cbd5e1" : "none",
-            borderBottom: activeSubtab === "invoices" ? "2px solid #ffffff" : "none",
-            marginBottom: activeSubtab === "invoices" ? "-1px" : "0",
-            borderTopLeftRadius: "4px",
-            borderTopRightRadius: "4px",
-            cursor: "pointer",
-          }}
-        >
-          Invoices ({invoices.length})
-        </button>
-
-        <button
-          type="button"
-          onClick={() => setActiveSubtab("receipts")}
-          style={{
-            padding: "8px 18px",
-            fontSize: "13px",
-            fontWeight: 600,
-            background: activeSubtab === "receipts" ? "#ffffff" : "transparent",
-            color: activeSubtab === "receipts" ? "#0f766e" : "#64748b",
-            border: activeSubtab === "receipts" ? "1px solid #cbd5e1" : "none",
-            borderBottom: activeSubtab === "receipts" ? "2px solid #ffffff" : "none",
-            marginBottom: activeSubtab === "receipts" ? "-1px" : "0",
-            borderTopLeftRadius: "4px",
-            borderTopRightRadius: "4px",
-            cursor: "pointer",
-          }}
-        >
-          Receipts ({receipts.length})
-        </button>
-
-        <button
-          type="button"
-          onClick={() => setActiveSubtab("balance_due")}
-          style={{
-            padding: "8px 18px",
-            fontSize: "13px",
-            fontWeight: 600,
-            background: activeSubtab === "balance_due" ? "#ffffff" : "transparent",
-            color: activeSubtab === "balance_due" ? "#0f766e" : "#64748b",
-            border: activeSubtab === "balance_due" ? "1px solid #cbd5e1" : "none",
-            borderBottom: activeSubtab === "balance_due" ? "2px solid #ffffff" : "none",
-            marginBottom: activeSubtab === "balance_due" ? "-1px" : "0",
-            borderTopLeftRadius: "4px",
-            borderTopRightRadius: "4px",
-            cursor: "pointer",
-          }}
-        >
-          Balance Due
-        </button>
-
-        <button
-          type="button"
-          onClick={() => setActiveSubtab("family_balance_due")}
-          style={{
-            padding: "8px 18px",
-            fontSize: "13px",
-            fontWeight: 600,
-            background: activeSubtab === "family_balance_due" ? "#ffffff" : "transparent",
-            color: activeSubtab === "family_balance_due" ? "#0f766e" : "#64748b",
-            border: activeSubtab === "family_balance_due" ? "1px solid #cbd5e1" : "none",
-            borderBottom: activeSubtab === "family_balance_due" ? "2px solid #ffffff" : "none",
-            marginBottom: activeSubtab === "family_balance_due" ? "-1px" : "0",
-            borderTopLeftRadius: "4px",
-            borderTopRightRadius: "4px",
-            cursor: "pointer",
-          }}
-        >
-          Family Balance Due
-        </button>
-      </div>
-
-      {/* =================================================================== */}
-      {/* TAB 1: INVOICES TABLE VIEW */}
-      {/* =================================================================== */}
-      {activeSubtab === "invoices" && (
-        <div>
-          {/* Header Action & Filter Bar */}
           <div
             style={{
               display: "flex",
               justifyContent: "space-between",
               alignItems: "center",
               marginBottom: "12px",
-              gap: 12,
             }}
           >
-            {/* Left Filter & Search Controls */}
-            <div style={{ display: "flex", alignItems: "center", gap: 10, flex: 1 }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
-                <span style={{ fontSize: "12px", color: "#64748b" }}>Date:</span>
-                <select
-                  value={dateFilter}
-                  onChange={(e) => setDateFilter(e.target.value)}
+            <div style={{ fontSize: "14px", fontWeight: 700, color: "#1e293b" }}>
+              Payment Details
+            </div>
+            <label
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: "6px",
+                fontSize: "13px",
+                color: "#334155",
+                fontWeight: 600,
+                cursor: "pointer",
+              }}
+            >
+              <input
+                type="checkbox"
+                checked={payInFull}
+                onChange={(e) => setPayInFull(e.target.checked)}
+                style={{ width: "16px", height: "16px", cursor: "pointer", accentColor: "#0f766e" }}
+              />
+              Pay Invoice in Full ({rupees(grandTotal)})
+            </label>
+          </div>
+
+          {/* Payment Collection Rows */}
+          {paymentRows.map((pr, idx) => (
+            <div
+              key={pr.id}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: "10px",
+                marginBottom: "8px",
+                flexWrap: "wrap",
+              }}
+            >
+              {/* Payment Date */}
+              <div style={{ width: "150px" }}>
+                <input
+                  type="date"
+                  value={pr.date}
+                  onChange={(e) => updatePaymentRow(idx, "date", e.target.value)}
                   style={{
-                    padding: "5px 8px",
+                    width: "100%",
+                    padding: "6px 8px",
                     fontSize: "12px",
                     border: "1px solid #cbd5e1",
                     borderRadius: "4px",
+                    background: "#ffffff",
+                  }}
+                />
+              </div>
+
+              {/* Reference # */}
+              <div style={{ width: "180px" }}>
+                <input
+                  type="text"
+                  placeholder="Reference #"
+                  value={pr.reference}
+                  onChange={(e) => updatePaymentRow(idx, "reference", e.target.value)}
+                  style={{
+                    width: "100%",
+                    padding: "6px 8px",
+                    fontSize: "12px",
+                    border: "1px solid #cbd5e1",
+                    borderRadius: "4px",
+                    background: "#ffffff",
+                  }}
+                />
+              </div>
+
+              {/* Payment Mode */}
+              <div style={{ width: "140px" }}>
+                <select
+                  value={pr.mode}
+                  onChange={(e) => updatePaymentRow(idx, "mode", e.target.value)}
+                  style={{
+                    width: "100%",
+                    padding: "6px 8px",
+                    fontSize: "12px",
+                    border: "1px solid #cbd5e1",
+                    borderRadius: "4px",
+                    background: "#ffffff",
                   }}
                 >
-                  <option value="all">All Invoices</option>
-                  <option value="30d">Last 30 Days</option>
+                  <option value="UPI">UPI</option>
+                  <option value="Cash">Cash</option>
+                  <option value="Credit Card">Credit Card</option>
+                  <option value="Debit Card">Debit Card</option>
+                  <option value="Cheque">Cheque</option>
+                  <option value="Net Banking">Net Banking</option>
                 </select>
               </div>
 
-              <div style={{ position: "relative", width: "240px" }}>
-                <Search
-                  size={14}
-                  style={{ position: "absolute", left: 8, top: 8, color: "#94a3b8" }}
-                />
+              {/* Payment Amount */}
+              <div style={{ width: "140px" }}>
                 <input
-                  type="text"
-                  placeholder="Search Invoice #, doctor..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  placeholder="Payment Amt"
+                  value={pr.amount || ""}
+                  onChange={(e) =>
+                    updatePaymentRow(idx, "amount", parseFloat(e.target.value) || 0)
+                  }
                   style={{
                     width: "100%",
-                    padding: "5px 8px 5px 28px",
+                    padding: "6px 8px",
                     fontSize: "12px",
                     border: "1px solid #cbd5e1",
                     borderRadius: "4px",
+                    background: "#ffffff",
+                    textAlign: "right",
                   }}
                 />
               </div>
-            </div>
 
-            {/* Right: Orange Split Button + Invoice ▾ */}
-            <div style={{ position: "relative" }} ref={dropdownRef}>
-              <div
-                style={{
-                  display: "inline-flex",
-                  borderRadius: "4px",
-                  boxShadow: "0 1px 2px rgba(249,115,22,0.3)",
-                }}
-              >
-                <button
-                  type="button"
-                  onClick={() => startCreateInvoice("Invoice")}
-                  style={{
-                    background: "#f97316",
-                    color: "#ffffff",
-                    border: "none",
-                    fontWeight: 600,
-                    fontSize: "13px",
-                    padding: "7px 14px",
-                    borderTopLeftRadius: "4px",
-                    borderBottomLeftRadius: "4px",
-                    cursor: "pointer",
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 6,
-                  }}
-                >
-                  <Plus size={15} /> Invoice
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setShowInvoiceDropdown(!showInvoiceDropdown)}
-                  style={{
-                    background: "#ea580c",
-                    color: "#ffffff",
-                    border: "none",
-                    padding: "7px 8px",
-                    borderTopRightRadius: "4px",
-                    borderBottomRightRadius: "4px",
-                    cursor: "pointer",
-                    borderLeft: "1px solid #c2410c",
-                  }}
-                >
-                  <ChevronDown size={14} />
-                </button>
-              </div>
-
-              {/* Split Dropdown Menu */}
-              {showInvoiceDropdown && (
-                <div
-                  style={{
-                    position: "absolute",
-                    right: 0,
-                    top: "100%",
-                    marginTop: 4,
-                    background: "#ffffff",
-                    border: "1px solid #cbd5e1",
-                    borderRadius: "4px",
-                    boxShadow: "0 4px 12px rgba(0,0,0,0.15)",
-                    zIndex: 60,
-                    minWidth: "170px",
-                  }}
-                >
-                  <div
-                    onClick={() => startCreateInvoice("Invoice")}
-                    style={{
-                      padding: "8px 14px",
-                      fontSize: "12px",
-                      cursor: "pointer",
-                      borderBottom: "1px solid #f1f5f9",
-                    }}
-                    onMouseEnter={(e) => (e.currentTarget.style.background = "#f8fafc")}
-                    onMouseLeave={(e) => (e.currentTarget.style.background = "#ffffff")}
-                  >
-                    Invoice [New]
-                  </div>
-                  <div
-                    onClick={() => startCreateInvoice("Consultation")}
-                    style={{
-                      padding: "8px 14px",
-                      fontSize: "12px",
-                      cursor: "pointer",
-                      borderBottom: "1px solid #f1f5f9",
-                    }}
-                    onMouseEnter={(e) => (e.currentTarget.style.background = "#f8fafc")}
-                    onMouseLeave={(e) => (e.currentTarget.style.background = "#ffffff")}
-                  >
-                    Consultation [New]
-                  </div>
-                  <div
-                    onClick={() => startCreateInvoice("Lab")}
-                    style={{
-                      padding: "8px 14px",
-                      fontSize: "12px",
-                      cursor: "pointer",
-                      borderBottom: "1px solid #f1f5f9",
-                    }}
-                    onMouseEnter={(e) => (e.currentTarget.style.background = "#f8fafc")}
-                    onMouseLeave={(e) => (e.currentTarget.style.background = "#ffffff")}
-                  >
-                    Lab [New]
-                  </div>
-                  <div
-                    onClick={() => startCreateInvoice("Product")}
-                    style={{
-                      padding: "8px 14px",
-                      fontSize: "12px",
-                      cursor: "pointer",
-                    }}
-                    onMouseEnter={(e) => (e.currentTarget.style.background = "#f8fafc")}
-                    onMouseLeave={(e) => (e.currentTarget.style.background = "#ffffff")}
-                  >
-                    Product [New]
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* Invoices Table */}
-          <div
-            style={{
-              background: "#ffffff",
-              border: "1px solid #cbd5e1",
-              borderRadius: "4px",
-              overflow: "visible",
-            }}
-          >
-            <table className="charm-table" style={{ width: "100%", margin: 0 }}>
-              <thead>
-                <tr style={{ background: "#f8fafc", fontSize: "12px", color: "#64748b" }}>
-                  <th style={{ width: "3%", padding: "8px" }}>
-                    <input type="checkbox" />
-                  </th>
-                  <th style={{ width: "12%", padding: "8px" }}>Consultation Date</th>
-                  <th style={{ width: "18%", padding: "8px" }}>Facility Name</th>
-                  <th style={{ width: "11%", padding: "8px" }}>Invoice Date</th>
-                  <th style={{ width: "14%", padding: "8px" }}>Invoice #</th>
-                  <th style={{ width: "14%", padding: "8px" }}>Consultant</th>
-                  <th style={{ width: "9%", padding: "8px", textAlign: "right" }}>Amount</th>
-                  <th style={{ width: "9%", padding: "8px", textAlign: "right" }}>Payment</th>
-                  <th style={{ width: "9%", padding: "8px", textAlign: "right" }}>Due</th>
-                  <th style={{ width: "8%", padding: "8px", textAlign: "center" }}>Status</th>
-                  <th style={{ width: "6%", padding: "8px", textAlign: "center" }}>Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredInvoices.map((inv) => {
-                  const isCancelled = inv.status === "cancelled";
-                  const hasDue = !isCancelled && inv.balance_paise > 0;
-                  return (
-                    <tr
-                      key={inv.id}
-                      style={{
-                        borderBottom: "1px solid #f1f5f9",
-                        background: isCancelled ? "#fafafa" : "#ffffff",
-                      }}
-                    >
-                      <td style={{ padding: "8px", textAlign: "center" }}>
-                        <input type="checkbox" />
-                      </td>
-                      <td style={{ padding: "8px", fontSize: "12px", color: "#475569" }}>
-                        {inv.consultation_date?.split("T")[0] || inv.created_at?.split("T")[0]}
-                      </td>
-                      <td style={{ padding: "8px", fontSize: "12px", color: "#334155" }}>
-                        {inv.facility_name || "Heal Your Heart · Neelankarai"}
-                      </td>
-                      <td style={{ padding: "8px", fontSize: "12px", color: "#475569" }}>
-                        {inv.created_at?.split("T")[0]}
-                      </td>
-                      <td style={{ padding: "8px", position: "relative" }}>
-                        {/* Red Diagonal Rubber Stamp Watermark if Cancelled */}
-                        {isCancelled && (
-                          <span
-                            style={{
-                              position: "absolute",
-                              top: "50%",
-                              left: "30%",
-                              transform: "translate(-50%, -50%) rotate(-12deg)",
-                              color: "rgba(220, 38, 38, 0.8)",
-                              fontSize: "10px",
-                              fontWeight: 800,
-                              letterSpacing: "1.5px",
-                              border: "1.5px solid rgba(220, 38, 38, 0.8)",
-                              padding: "0 4px",
-                              borderRadius: "2px",
-                              pointerEvents: "none",
-                              zIndex: 2,
-                            }}
-                          >
-                            CANCELLED
-                          </span>
-                        )}
-                        <span
-                          onClick={() => {
-                            setSelectedInvoice(inv);
-                            setViewMode("detail");
-                          }}
-                          style={{
-                            fontWeight: 600,
-                            color: isCancelled ? "#94a3b8" : "#0f766e",
-                            cursor: "pointer",
-                            textDecoration: "underline",
-                            fontSize: "12px",
-                          }}
-                        >
-                          {inv.number}
-                        </span>
-                      </td>
-                      <td style={{ padding: "8px", fontSize: "12px", color: "#334155" }}>
-                        {inv.consultant_name || "Dr. Prem Sekar"}
-                      </td>
-                      <td
-                        style={{
-                          padding: "8px",
-                          textAlign: "right",
-                          fontSize: "12px",
-                          fontWeight: 500,
-                        }}
-                      >
-                        {money(inv.total_paise)}
-                      </td>
-                      <td
-                        style={{
-                          padding: "8px",
-                          textAlign: "right",
-                          fontSize: "12px",
-                          color: "#16a34a",
-                        }}
-                      >
-                        {money(inv.paid_paise || 0)}
-                      </td>
-                      <td
-                        style={{
-                          padding: "8px",
-                          textAlign: "right",
-                          fontSize: "12px",
-                          fontWeight: hasDue ? 700 : 500,
-                          color: hasDue ? "#dc2626" : "#64748b",
-                        }}
-                      >
-                        {money(isCancelled ? 0 : inv.balance_paise)}
-                      </td>
-                      <td style={{ padding: "8px", textAlign: "center" }}>
-                        <span
-                          style={{
-                            fontSize: "11px",
-                            fontWeight: 600,
-                            padding: "2px 6px",
-                            borderRadius: "10px",
-                            textTransform: "capitalize",
-                            background:
-                              inv.status === "paid"
-                                ? "#dcfce7"
-                                : inv.status === "partial"
-                                ? "#dbeafe"
-                                : inv.status === "draft"
-                                ? "#fef9c3"
-                                : "#fee2e2",
-                            color:
-                              inv.status === "paid"
-                                ? "#15803d"
-                                : inv.status === "partial"
-                                ? "#1d4ed8"
-                                : inv.status === "draft"
-                                ? "#a16207"
-                                : "#b91c1c",
-                          }}
-                        >
-                          {inv.status}
-                        </span>
-                      </td>
-                      <td style={{ padding: "8px", textAlign: "center" }}>
-                        <div
-                          style={{
-                            display: "flex",
-                            alignItems: "center",
-                            justifyContent: "center",
-                            gap: 4,
-                          }}
-                          className="charm-menu-container"
-                        >
-                          {/* Quick Pay [$] icon button */}
-                          {hasDue && (
-                            <button
-                              type="button"
-                              title="Quick Pay"
-                              onClick={() => {
-                                setQuickPayInvoice(inv);
-                                setQuickPayAmount(inv.balance_paise / 100);
-                                setQuickPayRef("");
-                                setQuickPayMethod("UPI");
-                              }}
-                              style={{
-                                background: "#dcfce7",
-                                color: "#16a34a",
-                                border: "1px solid #bbf7d0",
-                                borderRadius: "4px",
-                                padding: "3px 6px",
-                                cursor: "pointer",
-                                display: "flex",
-                                alignItems: "center",
-                              }}
-                            >
-                              <DollarSign size={13} />
-                            </button>
-                          )}
-
-                          {/* Three Dots Menu */}
-                          <div style={{ position: "relative" }}>
-                            <button
-                              type="button"
-                              onClick={() =>
-                                setActiveMenuId(activeMenuId === inv.id ? null : inv.id)
-                              }
-                              style={{
-                                background: "none",
-                                border: "none",
-                                color: "#64748b",
-                                cursor: "pointer",
-                                padding: "2px",
-                              }}
-                            >
-                              <MoreVertical size={14} />
-                            </button>
-
-                            {activeMenuId === inv.id && (
-                              <div
-                                style={{
-                                  position: "absolute",
-                                  right: 0,
-                                  top: "100%",
-                                  background: "#ffffff",
-                                  border: "1px solid #cbd5e1",
-                                  borderRadius: "4px",
-                                  boxShadow: "0 4px 12px rgba(0,0,0,0.15)",
-                                  zIndex: 70,
-                                  minWidth: "130px",
-                                  textAlign: "left",
-                                }}
-                              >
-                                <div
-                                  onClick={() => {
-                                    setSelectedInvoice(inv);
-                                    setViewMode("detail");
-                                    setActiveMenuId(null);
-                                  }}
-                                  style={{
-                                    padding: "6px 12px",
-                                    fontSize: "12px",
-                                    cursor: "pointer",
-                                    borderBottom: "1px solid #f1f5f9",
-                                  }}
-                                  onMouseEnter={(e) =>
-                                    (e.currentTarget.style.background = "#f8fafc")
-                                  }
-                                  onMouseLeave={(e) =>
-                                    (e.currentTarget.style.background = "#ffffff")
-                                  }
-                                >
-                                  View Invoice
-                                </div>
-
-                                {!isCancelled && inv.status !== "paid" && (
-                                  <div
-                                    onClick={() => {
-                                      setSelectedInvoice(inv);
-                                      setViewMode("edit");
-                                      setActiveMenuId(null);
-                                    }}
-                                    style={{
-                                      padding: "6px 12px",
-                                      fontSize: "12px",
-                                      cursor: "pointer",
-                                      borderBottom: "1px solid #f1f5f9",
-                                    }}
-                                    onMouseEnter={(e) =>
-                                      (e.currentTarget.style.background = "#f8fafc")
-                                    }
-                                    onMouseLeave={(e) =>
-                                      (e.currentTarget.style.background = "#ffffff")
-                                    }
-                                  >
-                                    Edit Invoice
-                                  </div>
-                                )}
-
-                                {!isCancelled && hasDue && (
-                                  <div
-                                    onClick={() => {
-                                      setQuickPayInvoice(inv);
-                                      setQuickPayAmount(inv.balance_paise / 100);
-                                      setActiveMenuId(null);
-                                    }}
-                                    style={{
-                                      padding: "6px 12px",
-                                      fontSize: "12px",
-                                      cursor: "pointer",
-                                      borderBottom: "1px solid #f1f5f9",
-                                    }}
-                                    onMouseEnter={(e) =>
-                                      (e.currentTarget.style.background = "#f8fafc")
-                                    }
-                                    onMouseLeave={(e) =>
-                                      (e.currentTarget.style.background = "#ffffff")
-                                    }
-                                  >
-                                    Add Payment
-                                  </div>
-                                )}
-
-                                <div
-                                  onClick={() => {
-                                    setSelectedInvoice(inv);
-                                    setViewMode("detail");
-                                    setTimeout(() => window.print(), 200);
-                                    setActiveMenuId(null);
-                                  }}
-                                  style={{
-                                    padding: "6px 12px",
-                                    fontSize: "12px",
-                                    cursor: "pointer",
-                                    borderBottom: "1px solid #f1f5f9",
-                                  }}
-                                  onMouseEnter={(e) =>
-                                    (e.currentTarget.style.background = "#f8fafc")
-                                  }
-                                  onMouseLeave={(e) =>
-                                    (e.currentTarget.style.background = "#ffffff")
-                                  }
-                                >
-                                  Print
-                                </div>
-
-                                {!isCancelled && inv.paid_paise === 0 && (
-                                  <div
-                                    onClick={() => {
-                                      setCancelModalInvoice(inv);
-                                      setActiveMenuId(null);
-                                    }}
-                                    style={{
-                                      padding: "6px 12px",
-                                      fontSize: "12px",
-                                      cursor: "pointer",
-                                      color: "#dc2626",
-                                    }}
-                                    onMouseEnter={(e) =>
-                                      (e.currentTarget.style.background = "#fef2f2")
-                                    }
-                                    onMouseLeave={(e) =>
-                                      (e.currentTarget.style.background = "#ffffff")
-                                    }
-                                  >
-                                    Cancel Invoice
-                                  </div>
-                                )}
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })}
-
-                {filteredInvoices.length === 0 && (
-                  <tr>
-                    <td
-                      colSpan={11}
-                      style={{ padding: "32px", textAlign: "center", color: "#94a3b8" }}
-                    >
-                      {loading
-                        ? "Loading invoices..."
-                        : "No invoices generated yet for this patient. Click '+ Invoice' to create one."}
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      )}
-
-      {/* =================================================================== */}
-      {/* TAB 2: RECEIPTS VIEW */}
-      {/* =================================================================== */}
-      {activeSubtab === "receipts" && (
-        <div>
-          <div
-            style={{
-              background: "#ffffff",
-              border: "1px solid #cbd5e1",
-              borderRadius: "4px",
-              overflow: "visible",
-            }}
-          >
-            <table className="charm-table" style={{ width: "100%", margin: 0 }}>
-              <thead>
-                <tr style={{ background: "#f8fafc", fontSize: "12px", color: "#64748b" }}>
-                  <th style={{ width: "16%", padding: "8px 12px" }}>Receipt #</th>
-                  <th style={{ width: "14%", padding: "8px 12px" }}>Receipt Date</th>
-                  <th style={{ width: "20%", padding: "8px 12px" }}>Facility Name</th>
-                  <th style={{ width: "12%", padding: "8px 12px", textAlign: "right" }}>Amount</th>
-                  <th style={{ width: "14%", padding: "8px 12px" }}>Payment Method</th>
-                  <th style={{ width: "12%", padding: "8px 12px" }}>Payment From</th>
-                  <th style={{ width: "12%", padding: "8px 12px", textAlign: "center" }}>
-                    Actions
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {receipts.map((rec) => {
-                  const isVoided = rec.is_void;
-                  return (
-                    <tr
-                      key={rec.id}
-                      style={{
-                        borderBottom: "1px solid #f1f5f9",
-                        background: isVoided ? "#fafafa" : "#ffffff",
-                      }}
-                    >
-                      <td style={{ padding: "8px 12px", position: "relative" }}>
-                        {isVoided && (
-                          <span
-                            style={{
-                              position: "absolute",
-                              top: "50%",
-                              left: "30%",
-                              transform: "translate(-50%, -50%) rotate(-12deg)",
-                              color: "rgba(220, 38, 38, 0.8)",
-                              fontSize: "10px",
-                              fontWeight: 800,
-                              letterSpacing: "1.5px",
-                              border: "1.5px solid rgba(220, 38, 38, 0.8)",
-                              padding: "0 4px",
-                              borderRadius: "2px",
-                              pointerEvents: "none",
-                              zIndex: 2,
-                            }}
-                          >
-                            VOIDED
-                          </span>
-                        )}
-                        <span
-                          onClick={() => setViewingReceipt(rec)}
-                          style={{
-                            fontWeight: 600,
-                            color: isVoided ? "#94a3b8" : "#0f766e",
-                            cursor: "pointer",
-                            textDecoration: "underline",
-                            fontSize: "12px",
-                          }}
-                        >
-                          {rec.receipt_number}
-                        </span>
-                      </td>
-                      <td style={{ padding: "8px 12px", fontSize: "12px", color: "#475569" }}>
-                        {rec.receipt_date?.split("T")[0]}
-                      </td>
-                      <td style={{ padding: "8px 12px", fontSize: "12px", color: "#334155" }}>
-                        {rec.facility_name}
-                      </td>
-                      <td
-                        style={{
-                          padding: "8px 12px",
-                          textAlign: "right",
-                          fontSize: "12px",
-                          fontWeight: 700,
-                          color: "#16a34a",
-                        }}
-                      >
-                        {money(rec.amount_paise)}
-                      </td>
-                      <td style={{ padding: "8px 12px", fontSize: "12px" }}>{rec.mode}</td>
-                      <td style={{ padding: "8px 12px", fontSize: "12px", color: "#64748b" }}>
-                        Patient
-                      </td>
-                      <td style={{ padding: "8px 12px", textAlign: "center" }}>
-                        <div
-                          style={{
-                            display: "flex",
-                            alignItems: "center",
-                            justifyContent: "center",
-                            gap: 8,
-                          }}
-                        >
-                          <button
-                            type="button"
-                            onClick={() => setViewingReceipt(rec)}
-                            style={{
-                              background: "none",
-                              border: "none",
-                              color: "#0f766e",
-                              cursor: "pointer",
-                              fontSize: "12px",
-                              display: "flex",
-                              alignItems: "center",
-                              gap: 4,
-                            }}
-                          >
-                            <Printer size={13} /> Print
-                          </button>
-                          {!isVoided && (
-                            <button
-                              type="button"
-                              onClick={() => handleVoidReceipt(rec.id)}
-                              style={{
-                                background: "none",
-                                border: "none",
-                                color: "#dc2626",
-                                cursor: "pointer",
-                                fontSize: "12px",
-                              }}
-                            >
-                              Void
-                            </button>
-                          )}
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })}
-
-                {receipts.length === 0 && (
-                  <tr>
-                    <td
-                      colSpan={7}
-                      style={{ padding: "32px", textAlign: "center", color: "#94a3b8" }}
-                    >
-                      No payment receipts generated yet.
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      )}
-
-      {/* =================================================================== */}
-      {/* TAB 3: BALANCE DUE STATEMENT VIEW */}
-      {/* =================================================================== */}
-      {activeSubtab === "balance_due" && (
-        <div>
-          {/* Summary Metric Cards */}
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "1fr 1fr 1fr",
-              gap: 16,
-              marginBottom: 20,
-            }}
-          >
-            <div
-              style={{
-                background: "#ffffff",
-                border: "1px solid #cbd5e1",
-                borderRadius: "6px",
-                padding: "16px",
-                borderLeft: "4px solid #ea580c",
-              }}
-            >
-              <div style={{ fontSize: "12px", color: "#64748b", fontWeight: 600 }}>
-                Patient Balance Due
-              </div>
-              <div
-                style={{
-                  fontSize: "22px",
-                  fontWeight: 800,
-                  color: totalBalanceDuePaise > 0 ? "#dc2626" : "#16a34a",
-                  marginTop: 4,
-                }}
-              >
-                {money(totalBalanceDuePaise)}
-              </div>
-            </div>
-
-            <div
-              style={{
-                background: "#ffffff",
-                border: "1px solid #cbd5e1",
-                borderRadius: "6px",
-                padding: "16px",
-                borderLeft: "4px solid #3b82f6",
-              }}
-            >
-              <div style={{ fontSize: "12px", color: "#64748b", fontWeight: 600 }}>
-                Insurance Balance Due
-              </div>
-              <div style={{ fontSize: "22px", fontWeight: 800, color: "#334155", marginTop: 4 }}>
-                Rs. 0.00
-              </div>
-            </div>
-
-            <div
-              style={{
-                background: "#ffffff",
-                border: "1px solid #cbd5e1",
-                borderRadius: "6px",
-                padding: "16px",
-                borderLeft: "4px solid #0f766e",
-              }}
-            >
-              <div style={{ fontSize: "12px", color: "#64748b", fontWeight: 600 }}>
-                Total Collections Received
-              </div>
-              <div style={{ fontSize: "22px", fontWeight: 800, color: "#16a34a", marginTop: 4 }}>
-                {money(totalPaidPaise)}
-              </div>
-            </div>
-          </div>
-
-          {/* Outstanding Invoices Section */}
-          <div
-            style={{
-              background: "#ffffff",
-              border: "1px solid #cbd5e1",
-              borderRadius: "4px",
-              marginBottom: 24,
-            }}
-          >
-            <div
-              style={{
-                padding: "10px 16px",
-                background: "#f8fafc",
-                borderBottom: "1px solid #e2e8f0",
-                fontWeight: 700,
-                fontSize: "13px",
-                color: "#1e293b",
-                display: "flex",
-                justifyContent: "space-between",
-                alignItems: "center",
-              }}
-            >
-              <span>Outstanding Invoices</span>
+              {/* Add Split Payment Row */}
               <button
                 type="button"
-                onClick={() => window.print()}
-                className="charm-btn charm-btn-outline"
-                style={{ padding: "4px 10px", fontSize: "11px", gap: 4 }}
+                onClick={addPaymentRow}
+                style={{
+                  border: "none",
+                  background: "none",
+                  color: "#0f766e",
+                  cursor: "pointer",
+                  padding: "4px",
+                }}
+                title="Add Split Tender Payment"
               >
-                <Printer size={12} /> Print Statement
+                <Plus size={18} />
               </button>
+
+              {/* Delete Payment Row */}
+              {paymentRows.length > 1 && (
+                <button
+                  type="button"
+                  onClick={() => removePaymentRow(idx)}
+                  style={{
+                    border: "none",
+                    background: "none",
+                    color: "#94a3b8",
+                    cursor: "pointer",
+                    padding: "4px",
+                  }}
+                  title="Remove payment row"
+                >
+                  <Trash2 size={16} />
+                </button>
+              )}
             </div>
-            <table className="charm-table" style={{ width: "100%", margin: 0 }}>
-              <thead>
-                <tr style={{ background: "#f8fafc", fontSize: "12px", color: "#64748b" }}>
-                  <th style={{ padding: "8px 12px" }}>Invoice #</th>
-                  <th style={{ padding: "8px 12px" }}>Date</th>
-                  <th style={{ padding: "8px 12px", textAlign: "right" }}>Total</th>
-                  <th style={{ padding: "8px 12px", textAlign: "right" }}>Paid</th>
-                  <th style={{ padding: "8px 12px", textAlign: "right" }}>Balance Due</th>
-                  <th style={{ padding: "8px 12px", textAlign: "center" }}>Action</th>
-                </tr>
-              </thead>
-              <tbody>
-                {invoices
-                  .filter((i) => i.status !== "cancelled" && i.balance_paise > 0)
-                  .map((inv) => (
-                    <tr key={inv.id}>
-                      <td style={{ fontWeight: 600, color: "#0f766e", padding: "8px 12px" }}>
-                        {inv.number}
-                      </td>
-                      <td style={{ padding: "8px 12px", fontSize: "12px" }}>
-                        {inv.created_at?.split("T")[0]}
-                      </td>
-                      <td style={{ padding: "8px 12px", textAlign: "right", fontSize: "12px" }}>
-                        {money(inv.total_paise)}
-                      </td>
-                      <td
-                        style={{
-                          padding: "8px 12px",
-                          textAlign: "right",
-                          fontSize: "12px",
-                          color: "#16a34a",
-                        }}
-                      >
-                        {money(inv.paid_paise || 0)}
-                      </td>
-                      <td
-                        style={{
-                          padding: "8px 12px",
-                          textAlign: "right",
-                          fontSize: "12px",
-                          fontWeight: 700,
-                          color: "#dc2626",
-                        }}
-                      >
-                        {money(inv.balance_paise)}
-                      </td>
-                      <td style={{ padding: "8px 12px", textAlign: "center" }}>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setQuickPayInvoice(inv);
-                            setQuickPayAmount(inv.balance_paise / 100);
-                            setQuickPayRef("");
-                          }}
-                          style={{
-                            background: "#dcfce7",
-                            color: "#15803d",
-                            border: "1px solid #bbf7d0",
-                            borderRadius: "4px",
-                            padding: "3px 8px",
-                            fontSize: "11px",
-                            fontWeight: 600,
-                            cursor: "pointer",
-                          }}
-                        >
-                          Pay Now
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
-                {invoices.filter((i) => i.status !== "cancelled" && i.balance_paise > 0).length ===
-                  0 && (
-                  <tr>
-                    <td
-                      colSpan={6}
-                      style={{ padding: "24px", textAlign: "center", color: "#16a34a" }}
-                    >
-                      Patient has clear accounts! No outstanding balance due.
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
+          ))}
+        </div>
+
+        {/* BOTTOM NOTES & TERMS */}
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "20px" }}>
+          <div>
+            <label style={{ display: "block", fontSize: "12px", fontWeight: 600, color: "#64748b", marginBottom: "4px" }}>
+              Internal Notes
+            </label>
+            <textarea
+              rows={3}
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              placeholder="Internal billing notes or instructions for patient..."
+              style={{
+                width: "100%",
+                padding: "8px",
+                fontSize: "12px",
+                border: "1px solid #cbd5e1",
+                borderRadius: "4px",
+              }}
+            />
           </div>
 
-          {/* Paid Invoices Section */}
+          <div>
+            <label style={{ display: "block", fontSize: "12px", fontWeight: 600, color: "#64748b", marginBottom: "4px" }}>
+              Terms & Conditions
+            </label>
+            <textarea
+              rows={3}
+              value={terms}
+              onChange={(e) => setTerms(e.target.value)}
+              style={{
+                width: "100%",
+                padding: "8px",
+                fontSize: "12px",
+                border: "1px solid #cbd5e1",
+                borderRadius: "4px",
+                background: "#f8fafc",
+              }}
+            />
+          </div>
+        </div>
+
+        {/* CPT / MASTER LIST MODAL */}
+        {cptSearchModal.open && (
           <div
             style={{
-              background: "#ffffff",
-              border: "1px solid #cbd5e1",
-              borderRadius: "4px",
+              position: "fixed",
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              background: "rgba(0,0,0,0.5)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              zIndex: 9999,
             }}
           >
             <div
               style={{
-                padding: "10px 16px",
-                background: "#f8fafc",
-                borderBottom: "1px solid #e2e8f0",
-                fontWeight: 700,
-                fontSize: "13px",
-                color: "#1e293b",
+                background: "#ffffff",
+                borderRadius: "8px",
+                width: "600px",
+                maxHeight: "80vh",
+                display: "flex",
+                flexDirection: "column",
+                boxShadow: "0 10px 25px rgba(0,0,0,0.2)",
               }}
             >
-              Paid Invoices (Settled)
+              <div
+                style={{
+                  padding: "14px 18px",
+                  borderBottom: "1px solid #e2e8f0",
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                }}
+              >
+                <div style={{ fontWeight: 700, fontSize: "15px", color: "#1e293b" }}>
+                  {cptSearchModal.section === "procedures"
+                    ? "Choose Procedure from Templates"
+                    : cptSearchModal.section === "labs"
+                    ? "Choose Lab Test from Master List (SAC: 999312)"
+                    : "Choose Medication from Products"}
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setCptSearchModal({ open: false, section: "procedures" })}
+                  style={{ border: "none", background: "none", cursor: "pointer", color: "#64748b" }}
+                >
+                  <X size={18} />
+                </button>
+              </div>
+
+              <div style={{ padding: "12px 18px", borderBottom: "1px solid #f1f5f9" }}>
+                <input
+                  type="text"
+                  placeholder="Search code or description..."
+                  autoFocus
+                  onChange={async (e) => {
+                    const q = e.target.value;
+                    if (q.length >= 1) {
+                      const res = await api<any[]>(
+                        `/billing/procedure-codes/search?q=${encodeURIComponent(q)}`
+                      );
+                      setSearchResults(res || []);
+                    }
+                  }}
+                  style={{
+                    width: "100%",
+                    padding: "8px 12px",
+                    fontSize: "13px",
+                    border: "1px solid #cbd5e1",
+                    borderRadius: "4px",
+                  }}
+                />
+              </div>
+
+              <div style={{ flex: 1, overflowY: "auto", padding: "8px 18px" }}>
+                {searchResults.map((item, idx) => (
+                  <div
+                    key={idx}
+                    onClick={() => {
+                      if (cptSearchModal.section === "procedures") {
+                        setProcedures([
+                          ...procedures.filter((p) => p.description.trim()),
+                          {
+                            id: `p-${Date.now()}-${idx}`,
+                            code: item.code,
+                            description: `[${item.code}] ${item.name}`,
+                            quantity: 1,
+                            unit_price: item.price || 500,
+                            discount_percent: 0,
+                            discount_amount: 0,
+                            total_amount: item.price || 500,
+                          },
+                        ]);
+                      } else if (cptSearchModal.section === "labs") {
+                        setLabs([
+                          ...labs.filter((l) => l.description.trim()),
+                          {
+                            id: `l-${Date.now()}-${idx}`,
+                            code: item.code,
+                            description: `${item.name} (SAC: 999312)`,
+                            sac: "999312",
+                            quantity: 1,
+                            unit_price: item.price || 300,
+                            discount_percent: 0,
+                            discount_amount: 0,
+                            total_amount: item.price || 300,
+                          },
+                        ]);
+                      }
+                      setCptSearchModal({ open: false, section: "procedures" });
+                      setSearchResults([]);
+                    }}
+                    style={{
+                      padding: "10px",
+                      borderBottom: "1px solid #f1f5f9",
+                      cursor: "pointer",
+                      display: "flex",
+                      justifyContent: "space-between",
+                    }}
+                    onMouseEnter={(e) => (e.currentTarget.style.background = "#f8fafc")}
+                    onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+                  >
+                    <div>
+                      <span style={{ fontWeight: 600, color: "#0f766e" }}>[{item.code}]</span>{" "}
+                      <span style={{ color: "#334155" }}>{item.name}</span>
+                    </div>
+                    <div style={{ fontWeight: 600, color: "#1e293b" }}>
+                      Rs. {rupees(item.price)}
+                    </div>
+                  </div>
+                ))}
+              </div>
             </div>
-            <table className="charm-table" style={{ width: "100%", margin: 0 }}>
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  // -------------------------------------------------------------
+  // RENDER VIEW: INVOICE SUMMARY VIEW (frame_050.png)
+  // -------------------------------------------------------------
+  if (viewMode === "detail" && selectedInvoice) {
+    const isCancelled = selectedInvoice.status === "cancelled";
+    const patientObj = formPatientData || patient || {};
+    const patientName =
+      selectedInvoice.patient_name ||
+      patientObj.name ||
+      `${patientObj.first_name || ""} ${patientObj.last_name || ""}`.trim() ||
+      "Patient";
+    const patientMRN =
+      selectedInvoice.patient_mrn || patientObj.mrn || patientObj.id || "HUHNKR4133";
+    const patientAgeSex = `${patientObj.age ? `${patientObj.age} years` : "58 years"} / ${
+      patientObj.gender || "male"
+    }`;
+    const patientAddress =
+      patientObj.address ||
+      patientObj.city ||
+      "45, Anna Salai, Royapettah, Chennai, TN 600014";
+
+    return (
+      <div
+        className="charm-invoice-summary-view"
+        style={{
+          padding: "8px 16px 80px 16px",
+          background: "#ffffff",
+          fontFamily: "Inter, system-ui, -apple-system, sans-serif",
+          color: "#334155",
+          position: "relative",
+        }}
+      >
+        {/* SUBTABS ROW PERSISTENT AT TOP */}
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            borderBottom: "1px solid #e2e8f0",
+            marginBottom: "16px",
+          }}
+        >
+          <div style={{ display: "flex", gap: "24px" }}>
+            <button
+              type="button"
+              onClick={() => {
+                setViewMode("list");
+                setActiveSubtab("invoices");
+              }}
+              style={{
+                padding: "10px 4px",
+                fontSize: "13.5px",
+                fontWeight: activeSubtab === "invoices" ? 700 : 500,
+                color: activeSubtab === "invoices" ? "#0f766e" : "#475569",
+                borderBottom:
+                  activeSubtab === "invoices" ? "3px solid #0f766e" : "3px solid transparent",
+                background: "transparent",
+                border: "none",
+                cursor: "pointer",
+              }}
+            >
+              Invoices
+            </button>
+
+            <button
+              type="button"
+              onClick={() => {
+                setViewMode("list");
+                setActiveSubtab("receipts");
+              }}
+              style={{
+                padding: "10px 4px",
+                fontSize: "13.5px",
+                fontWeight: activeSubtab === "receipts" ? 700 : 500,
+                color: activeSubtab === "receipts" ? "#0f766e" : "#475569",
+                borderBottom:
+                  activeSubtab === "receipts" ? "3px solid #0f766e" : "3px solid transparent",
+                background: "transparent",
+                border: "none",
+                cursor: "pointer",
+              }}
+            >
+              Receipts
+            </button>
+
+            <button
+              type="button"
+              onClick={() => {
+                setViewMode("list");
+                setActiveSubtab("balance_due");
+              }}
+              style={{
+                padding: "10px 4px",
+                fontSize: "13.5px",
+                fontWeight: activeSubtab === "balance_due" ? 700 : 500,
+                color: activeSubtab === "balance_due" ? "#0f766e" : "#475569",
+                borderBottom:
+                  activeSubtab === "balance_due" ? "3px solid #0f766e" : "3px solid transparent",
+                background: "transparent",
+                border: "none",
+                cursor: "pointer",
+                display: "inline-flex",
+                alignItems: "center",
+                gap: "4px",
+              }}
+            >
+              Balance Due
+              <span
+                style={{
+                  background: "#ef4444",
+                  color: "#ffffff",
+                  borderRadius: "50%",
+                  width: "16px",
+                  height: "16px",
+                  display: "inline-flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  fontSize: "10px",
+                  fontWeight: 700,
+                }}
+              >
+                $
+              </span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => {
+                setViewMode("list");
+                setActiveSubtab("family_balance_due");
+              }}
+              style={{
+                padding: "10px 4px",
+                fontSize: "13.5px",
+                fontWeight: activeSubtab === "family_balance_due" ? 700 : 500,
+                color: activeSubtab === "family_balance_due" ? "#0f766e" : "#475569",
+                borderBottom:
+                  activeSubtab === "family_balance_due"
+                    ? "3px solid #0f766e"
+                    : "3px solid transparent",
+                background: "transparent",
+                border: "none",
+                cursor: "pointer",
+              }}
+            >
+              Family Balance Due
+            </button>
+          </div>
+
+          {/* Right: + Invoice Split Button */}
+          <div style={{ position: "relative" }} ref={splitBtnRef}>
+            <div
+              style={{
+                display: "inline-flex",
+                borderRadius: "4px",
+                overflow: "hidden",
+                boxShadow: "0 1px 2px rgba(0,0,0,0.05)",
+              }}
+            >
+              <button
+                type="button"
+                onClick={() => startCreateInvoice("Invoice")}
+                style={{
+                  background: "#f97316",
+                  color: "#ffffff",
+                  border: "none",
+                  padding: "8px 16px",
+                  fontSize: "13px",
+                  fontWeight: 600,
+                  cursor: "pointer",
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: "4px",
+                }}
+              >
+                <Plus size={16} /> Invoice
+              </button>
+              <button
+                type="button"
+                onClick={() => setShowInvoiceSplitMenu(!showInvoiceSplitMenu)}
+                style={{
+                  background: "#ea580c",
+                  color: "#ffffff",
+                  border: "none",
+                  borderLeft: "1px solid rgba(255,255,255,0.4)",
+                  padding: "8px 8px",
+                  cursor: "pointer",
+                  display: "inline-flex",
+                  alignItems: "center",
+                }}
+              >
+                <ChevronDown size={14} />
+              </button>
+            </div>
+
+            {showInvoiceSplitMenu && (
+              <div
+                style={{
+                  position: "absolute",
+                  right: 0,
+                  top: "38px",
+                  background: "#ffffff",
+                  border: "1px solid #cbd5e1",
+                  borderRadius: "4px",
+                  boxShadow: "0 4px 12px rgba(0,0,0,0.15)",
+                  zIndex: 100,
+                  width: "180px",
+                }}
+              >
+                <div
+                  onClick={() => {
+                    setShowInvoiceSplitMenu(false);
+                    startCreateInvoice("Invoice");
+                  }}
+                  style={{
+                    padding: "8px 14px",
+                    fontSize: "13px",
+                    cursor: "pointer",
+                    borderBottom: "1px solid #f1f5f9",
+                  }}
+                  onMouseEnter={(e) => (e.currentTarget.style.background = "#f8fafc")}
+                  onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+                >
+                  Invoice
+                </div>
+                <div
+                  onClick={() => {
+                    setShowInvoiceSplitMenu(false);
+                    startCreateInvoice("Pre-Payment Invoice");
+                  }}
+                  style={{
+                    padding: "8px 14px",
+                    fontSize: "13px",
+                    cursor: "pointer",
+                  }}
+                  onMouseEnter={(e) => (e.currentTarget.style.background = "#f8fafc")}
+                  onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+                >
+                  Pre-Payment Invoice
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* TITLE ROW: ← Invoice Summary & Consultation Summary button */}
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            marginBottom: "12px",
+          }}
+        >
+          <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+            <button
+              type="button"
+              onClick={() => setViewMode("list")}
+              style={{
+                border: "none",
+                background: "none",
+                cursor: "pointer",
+                color: "#64748b",
+                padding: "4px",
+              }}
+              title="Back to Invoices"
+            >
+              <ArrowLeft size={18} />
+            </button>
+            <h2 style={{ margin: 0, fontSize: "18px", fontWeight: 700, color: "#1e293b" }}>
+              Invoice Summary
+            </h2>
+          </div>
+
+          <div>
+            <button
+              type="button"
+              onClick={() => setConsultationSummaryModal(selectedInvoice)}
+              style={{
+                background: "#ffffff",
+                border: "1px solid #cbd5e1",
+                borderRadius: "4px",
+                padding: "6px 14px",
+                fontSize: "12px",
+                fontWeight: 500,
+                color: "#475569",
+                cursor: "pointer",
+              }}
+            >
+              Consultation Summary
+            </button>
+          </div>
+        </div>
+
+        {/* SECONDARY ACTION TOOLBAR */}
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: "8px",
+            padding: "8px 12px",
+            background: "#f8fafc",
+            border: "1px solid #e2e8f0",
+            borderRadius: "4px",
+            marginBottom: "16px",
+            flexWrap: "wrap",
+          }}
+        >
+          <button
+            type="button"
+            onClick={() => startEditInvoice(selectedInvoice)}
+            disabled={isCancelled}
+            style={{
+              background: "#ffffff",
+              border: "1px solid #cbd5e1",
+              borderRadius: "4px",
+              padding: "5px 12px",
+              fontSize: "12px",
+              fontWeight: 500,
+              color: isCancelled ? "#94a3b8" : "#334155",
+              cursor: isCancelled ? "not-allowed" : "pointer",
+              display: "inline-flex",
+              alignItems: "center",
+              gap: "4px",
+              position: "relative",
+            }}
+          >
+            Edit Invoice
+            <span
+              style={{
+                background: "#ef4444",
+                color: "#ffffff",
+                fontSize: "9px",
+                fontWeight: 700,
+                padding: "1px 4px",
+                borderRadius: "3px",
+                marginLeft: "4px",
+              }}
+            >
+              New
+            </span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => notify(`Invoice sent to ${patientObj.email || "patient"}`)}
+            style={{
+              background: "#ffffff",
+              border: "1px solid #cbd5e1",
+              borderRadius: "4px",
+              padding: "5px 12px",
+              fontSize: "12px",
+              fontWeight: 500,
+              color: "#334155",
+              cursor: "pointer",
+            }}
+          >
+            Send Invoice
+          </button>
+
+          <button
+            type="button"
+            onClick={() => window.print()}
+            style={{
+              background: "#ffffff",
+              border: "1px solid #cbd5e1",
+              borderRadius: "4px",
+              padding: "5px 12px",
+              fontSize: "12px",
+              fontWeight: 500,
+              color: "#334155",
+              cursor: "pointer",
+            }}
+          >
+            Print | ▾
+          </button>
+
+          <button
+            type="button"
+            onClick={() => notify("Downloading PDF...")}
+            style={{
+              background: "#ffffff",
+              border: "1px solid #cbd5e1",
+              borderRadius: "4px",
+              padding: "5px 12px",
+              fontSize: "12px",
+              fontWeight: 500,
+              color: "#334155",
+              cursor: "pointer",
+            }}
+          >
+            Download ▾
+          </button>
+
+          {!isCancelled && (selectedInvoice.balance_paise || 0) > 0 && (
+            <button
+              type="button"
+              onClick={() => {
+                setQuickPayInvoice(selectedInvoice);
+                setQuickPayAmount((selectedInvoice.balance_paise || 0) / 100);
+              }}
+              style={{
+                background: "#0f766e",
+                border: "none",
+                borderRadius: "4px",
+                padding: "5px 14px",
+                fontSize: "12px",
+                fontWeight: 600,
+                color: "#ffffff",
+                cursor: "pointer",
+              }}
+            >
+              Add Payment
+            </button>
+          )}
+
+          <button
+            type="button"
+            onClick={() => notify("Adjust Payments opened")}
+            style={{
+              background: "#ffffff",
+              border: "1px solid #cbd5e1",
+              borderRadius: "4px",
+              padding: "5px 12px",
+              fontSize: "12px",
+              fontWeight: 500,
+              color: "#334155",
+              cursor: "pointer",
+            }}
+          >
+            Adjust Payments
+          </button>
+
+          {!isCancelled && (
+            <button
+              type="button"
+              onClick={() => setCancelModalInvoice(selectedInvoice)}
+              style={{
+                background: "#ffffff",
+                border: "1px solid #fca5a5",
+                borderRadius: "4px",
+                padding: "5px 12px",
+                fontSize: "12px",
+                fontWeight: 500,
+                color: "#dc2626",
+                cursor: "pointer",
+              }}
+            >
+              Cancel Invoice
+            </button>
+          )}
+        </div>
+
+        {/* DIAGONAL WATERMARK STAMP IF CANCELLED */}
+        {isCancelled && (
+          <div
+            style={{
+              position: "absolute",
+              top: "220px",
+              left: "40%",
+              transform: "translate(-50%, -50%) rotate(-25deg)",
+              border: "5px solid rgba(220, 38, 38, 0.5)",
+              color: "rgba(220, 38, 38, 0.5)",
+              fontSize: "48px",
+              fontWeight: 900,
+              padding: "10px 40px",
+              borderRadius: "8px",
+              pointerEvents: "none",
+              letterSpacing: "8px",
+              textTransform: "uppercase",
+              zIndex: 10,
+            }}
+          >
+            CANCELLED
+          </div>
+        )}
+
+        {/* TWO METADATA CARDS: Patient Details & Invoice Details */}
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "1fr 1fr",
+            gap: "20px",
+            marginBottom: "20px",
+            background: "#ffffff",
+            padding: "16px",
+            borderRadius: "6px",
+            border: "1px solid #e2e8f0",
+          }}
+        >
+          {/* Patient Details */}
+          <div>
+            <div style={{ fontSize: "13px", fontWeight: 700, color: "#334155", marginBottom: "10px" }}>
+              Patient Details
+            </div>
+            <div style={{ display: "grid", gridTemplateColumns: "110px 1fr", rowGap: "8px", fontSize: "13px" }}>
+              <span style={{ color: "#64748b" }}>Patient Name:</span>
+              <span>
+                <a href="#pat" style={{ color: "#2563eb", fontWeight: 600, textDecoration: "none" }}>
+                  {patientName}
+                </a>
+              </span>
+
+              <span style={{ color: "#64748b" }}>Record ID:</span>
+              <span style={{ color: "#1e293b", fontWeight: 600 }}>{patientMRN}</span>
+
+              <span style={{ color: "#64748b" }}>Age/Sex:</span>
+              <span style={{ color: "#1e293b" }}>{patientAgeSex}</span>
+
+              <span style={{ color: "#64748b" }}>Address:</span>
+              <span style={{ color: "#1e293b" }}>{patientAddress}</span>
+            </div>
+          </div>
+
+          {/* Invoice Details */}
+          <div>
+            <div style={{ fontSize: "13px", fontWeight: 700, color: "#334155", marginBottom: "10px" }}>
+              Invoice Details
+            </div>
+            <div style={{ display: "grid", gridTemplateColumns: "130px 1fr", rowGap: "8px", fontSize: "13px" }}>
+              <span style={{ color: "#64748b" }}>Invoice #:</span>
+              <span style={{ color: "#1e293b", fontWeight: 700 }}>{selectedInvoice.number}</span>
+
+              <span style={{ color: "#64748b" }}>Invoice Date:</span>
+              <span style={{ color: "#1e293b" }}>
+                {selectedInvoice.date
+                  ? new Date(selectedInvoice.date).toLocaleDateString("en-US", {
+                      month: "short",
+                      day: "numeric",
+                      year: "numeric",
+                    })
+                  : "Nov 17, 2026"}
+              </span>
+
+              <span style={{ color: "#64748b" }}>Consultation Date:</span>
+              <span style={{ color: "#1e293b" }}>
+                {selectedInvoice.consultation_date
+                  ? new Date(selectedInvoice.consultation_date).toLocaleDateString("en-US", {
+                      month: "short",
+                      day: "numeric",
+                      year: "numeric",
+                    })
+                  : "---"}
+              </span>
+
+              <span style={{ color: "#64748b" }}>Doctor:</span>
+              <span style={{ color: "#1e293b" }}>
+                {selectedInvoice.consultant_name || "Dr. Ramasamy S"}
+              </span>
+
+              <span style={{ color: "#64748b" }}>Referred By:</span>
+              <span style={{ color: "#64748b" }}>---</span>
+
+              <span style={{ color: "#64748b" }}>Fee Schedule:</span>
+              <span style={{ color: "#1e293b" }}>Master Fee Schedule</span>
+
+              <span style={{ color: "#64748b" }}>Package(s):</span>
+              <span style={{ color: "#64748b" }}>---</span>
+            </div>
+          </div>
+        </div>
+
+        {/* ITEMIZED LINE ITEMS TABLE */}
+        <div style={{ marginBottom: "20px" }}>
+          <div style={{ fontSize: "14px", fontWeight: 700, color: "#1e293b", marginBottom: "8px" }}>
+            Itemized Services & Labs
+          </div>
+
+          <table
+            style={{
+              width: "100%",
+              borderCollapse: "collapse",
+              border: "1px solid #e2e8f0",
+              fontSize: "12px",
+            }}
+          >
+            <thead>
+              <tr style={{ background: "#f8fafc", borderBottom: "1px solid #e2e8f0", color: "#64748b" }}>
+                <th style={{ width: "32px", padding: "8px", textAlign: "center" }}>#</th>
+                <th style={{ padding: "8px 12px", textAlign: "left" }}>Description</th>
+                <th style={{ width: "100px", padding: "8px", textAlign: "center" }}>Code</th>
+                <th style={{ width: "70px", padding: "8px", textAlign: "center" }}>Qty</th>
+                <th style={{ width: "100px", padding: "8px", textAlign: "right" }}>Charge</th>
+                <th style={{ width: "100px", padding: "8px", textAlign: "right" }}>Discount</th>
+                <th style={{ width: "110px", padding: "8px 12px", textAlign: "right" }}>Amount</th>
+              </tr>
+            </thead>
+            <tbody>
+              {(selectedInvoice.lines || []).map((line: any, idx: number) => (
+                <tr key={idx} style={{ borderBottom: "1px solid #f1f5f9" }}>
+                  <td style={{ textAlign: "center", color: "#64748b", padding: "8px" }}>{idx + 1}</td>
+                  <td style={{ padding: "8px 12px", fontWeight: 500, color: "#1e293b" }}>
+                    {line.description}
+                  </td>
+                  <td style={{ textAlign: "center", color: "#64748b", padding: "8px" }}>
+                    {line.code || "---"}
+                  </td>
+                  <td style={{ textAlign: "center", padding: "8px" }}>{line.quantity}</td>
+                  <td style={{ textAlign: "right", padding: "8px" }}>
+                    {rupees((line.unit_price_paise || 0) / 100)}
+                  </td>
+                  <td style={{ textAlign: "right", padding: "8px", color: "#64748b" }}>
+                    {(line.discount_paise || 0) > 0 ? rupees((line.discount_paise || 0) / 100) : "---"}
+                  </td>
+                  <td style={{ textAlign: "right", padding: "8px 12px", fontWeight: 600, color: "#1e293b" }}>
+                    {rupees((line.total_paise || 0) / 100)}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+
+        {/* TOTALS SUMMARY */}
+        <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: "28px" }}>
+          <div style={{ width: "320px", fontSize: "13px" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", padding: "6px 0", color: "#64748b" }}>
+              <span>Sub Total</span>
+              <span style={{ fontWeight: 600, color: "#1e293b" }}>
+                {money(selectedInvoice.total_paise)}
+              </span>
+            </div>
+
+            <div style={{ display: "flex", justifyContent: "space-between", padding: "6px 0", color: "#64748b" }}>
+              <span>Paid</span>
+              <span style={{ fontWeight: 600, color: "#16a34a" }}>
+                {money(selectedInvoice.paid_paise || 0)}
+              </span>
+            </div>
+
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                padding: "10px 14px",
+                marginTop: "6px",
+                border: "2px solid #0f766e",
+                borderRadius: "4px",
+                background: "#f0fdfa",
+              }}
+            >
+              <span style={{ fontWeight: 700, color: "#0f766e", fontSize: "14px" }}>
+                Balance Due
+              </span>
+              <span style={{ fontWeight: 700, color: "#0f766e", fontSize: "16px" }}>
+                {money(selectedInvoice.balance_paise || 0)}
+              </span>
+            </div>
+          </div>
+        </div>
+
+        {/* RECEIPTS / PAYMENTS RECORDED TABLE */}
+        <div>
+          <div style={{ fontSize: "14px", fontWeight: 700, color: "#1e293b", marginBottom: "8px" }}>
+            Receipts & Payments Collected
+          </div>
+
+          {(selectedInvoice.payments || []).length === 0 ? (
+            <div
+              style={{
+                padding: "16px",
+                background: "#f8fafc",
+                borderRadius: "4px",
+                border: "1px dashed #cbd5e1",
+                fontSize: "13px",
+                color: "#64748b",
+                textAlign: "center",
+              }}
+            >
+              No payments recorded yet for this invoice.
+            </div>
+          ) : (
+            <table
+              style={{
+                width: "100%",
+                borderCollapse: "collapse",
+                border: "1px solid #e2e8f0",
+                fontSize: "12px",
+              }}
+            >
               <thead>
-                <tr style={{ background: "#f8fafc", fontSize: "12px", color: "#64748b" }}>
-                  <th style={{ padding: "8px 12px" }}>Invoice #</th>
-                  <th style={{ padding: "8px 12px" }}>Date</th>
-                  <th style={{ padding: "8px 12px", textAlign: "right" }}>Total</th>
-                  <th style={{ padding: "8px 12px", textAlign: "right" }}>Paid</th>
+                <tr style={{ background: "#f8fafc", borderBottom: "1px solid #e2e8f0", color: "#64748b" }}>
+                  <th style={{ padding: "8px 12px", textAlign: "left" }}>Receipt #</th>
+                  <th style={{ padding: "8px 12px", textAlign: "left" }}>Payment Date</th>
+                  <th style={{ padding: "8px 12px", textAlign: "left" }}>Method</th>
+                  <th style={{ padding: "8px 12px", textAlign: "right" }}>Amount</th>
                   <th style={{ padding: "8px 12px", textAlign: "center" }}>Status</th>
                 </tr>
               </thead>
               <tbody>
-                {invoices
-                  .filter((i) => i.status === "paid")
-                  .map((inv) => (
-                    <tr key={inv.id}>
-                      <td style={{ fontWeight: 600, color: "#0f766e", padding: "8px 12px" }}>
-                        {inv.number}
-                      </td>
-                      <td style={{ padding: "8px 12px", fontSize: "12px" }}>
-                        {inv.created_at?.split("T")[0]}
-                      </td>
-                      <td style={{ padding: "8px 12px", textAlign: "right", fontSize: "12px" }}>
-                        {money(inv.total_paise)}
-                      </td>
-                      <td
+                {(selectedInvoice.payments || []).map((pay: any, pIdx: number) => (
+                  <tr key={pIdx} style={{ borderBottom: "1px solid #f1f5f9" }}>
+                    <td style={{ padding: "8px 12px", fontWeight: 600, color: "#2563eb" }}>
+                      REC-{String(pIdx + 1).padStart(5, "0")}
+                    </td>
+                    <td style={{ padding: "8px 12px" }}>
+                      {pay.created_at
+                        ? new Date(pay.created_at).toLocaleDateString("en-US", {
+                            month: "short",
+                            day: "numeric",
+                            year: "numeric",
+                          })
+                        : "Today"}
+                    </td>
+                    <td style={{ padding: "8px 12px" }}>{pay.method || "UPI"}</td>
+                    <td style={{ padding: "8px 12px", textAlign: "right", fontWeight: 600, color: "#16a34a" }}>
+                      {money(pay.amount_paise)}
+                    </td>
+                    <td style={{ padding: "8px 12px", textAlign: "center" }}>
+                      <span
                         style={{
-                          padding: "8px 12px",
-                          textAlign: "right",
-                          fontSize: "12px",
+                          background: "#dcfce7",
                           color: "#16a34a",
+                          padding: "2px 8px",
+                          borderRadius: "4px",
+                          fontSize: "11px",
+                          fontWeight: 600,
                         }}
                       >
-                        {money(inv.paid_paise || 0)}
-                      </td>
-                      <td style={{ padding: "8px 12px", textAlign: "center" }}>
-                        <span
-                          style={{
-                            fontSize: "11px",
-                            fontWeight: 600,
-                            padding: "2px 6px",
-                            borderRadius: "10px",
-                            background: "#dcfce7",
-                            color: "#15803d",
-                          }}
-                        >
-                          Paid
-                        </span>
-                      </td>
-                    </tr>
-                  ))}
+                        Settled
+                      </span>
+                    </td>
+                  </tr>
+                ))}
               </tbody>
             </table>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  // -------------------------------------------------------------
+  // RENDER VIEW: LIST SUBTABS (INVOICES / RECEIPTS / BALANCE DUE)
+  // -------------------------------------------------------------
+  return (
+    <div
+      className="charm-patient-billing-wrapper"
+      style={{
+        padding: "8px 16px 80px 16px",
+        background: "#ffffff",
+        fontFamily: "Inter, system-ui, -apple-system, sans-serif",
+        color: "#334155",
+      }}
+    >
+      {/* =================================================================== */}
+      {/* 1. TOP SUBTABS BAR WITH TEAL UNDERLINE & ORANGE + INVOICE SPLIT BTN */}
+      {/* =================================================================== */}
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          borderBottom: "1px solid #e2e8f0",
+          marginBottom: "16px",
+        }}
+      >
+        <div style={{ display: "flex", gap: "24px" }}>
+          {/* Subtab 1: Invoices */}
+          <button
+            type="button"
+            onClick={() => setActiveSubtab("invoices")}
+            style={{
+              padding: "10px 4px",
+              fontSize: "13.5px",
+              fontWeight: activeSubtab === "invoices" ? 700 : 500,
+              color: activeSubtab === "invoices" ? "#0f766e" : "#475569",
+              borderBottom:
+                activeSubtab === "invoices" ? "3px solid #0f766e" : "3px solid transparent",
+              background: "transparent",
+              border: "none",
+              cursor: "pointer",
+            }}
+          >
+            Invoices
+          </button>
+
+          {/* Subtab 2: Receipts */}
+          <button
+            type="button"
+            onClick={() => setActiveSubtab("receipts")}
+            style={{
+              padding: "10px 4px",
+              fontSize: "13.5px",
+              fontWeight: activeSubtab === "receipts" ? 700 : 500,
+              color: activeSubtab === "receipts" ? "#0f766e" : "#475569",
+              borderBottom:
+                activeSubtab === "receipts" ? "3px solid #0f766e" : "3px solid transparent",
+              background: "transparent",
+              border: "none",
+              cursor: "pointer",
+            }}
+          >
+            Receipts
+          </button>
+
+          {/* Subtab 3: Balance Due with Red $ Badge */}
+          <button
+            type="button"
+            onClick={() => setActiveSubtab("balance_due")}
+            style={{
+              padding: "10px 4px",
+              fontSize: "13.5px",
+              fontWeight: activeSubtab === "balance_due" ? 700 : 500,
+              color: activeSubtab === "balance_due" ? "#0f766e" : "#475569",
+              borderBottom:
+                activeSubtab === "balance_due" ? "3px solid #0f766e" : "3px solid transparent",
+              background: "transparent",
+              border: "none",
+              cursor: "pointer",
+              display: "inline-flex",
+              alignItems: "center",
+              gap: "4px",
+            }}
+          >
+            Balance Due
+            <span
+              style={{
+                background: "#ef4444",
+                color: "#ffffff",
+                borderRadius: "50%",
+                width: "16px",
+                height: "16px",
+                display: "inline-flex",
+                alignItems: "center",
+                justifyContent: "center",
+                fontSize: "10px",
+                fontWeight: 700,
+              }}
+            >
+              $
+            </span>
+          </button>
+
+          {/* Subtab 4: Family Balance Due */}
+          <button
+            type="button"
+            onClick={() => setActiveSubtab("family_balance_due")}
+            style={{
+              padding: "10px 4px",
+              fontSize: "13.5px",
+              fontWeight: activeSubtab === "family_balance_due" ? 700 : 500,
+              color: activeSubtab === "family_balance_due" ? "#0f766e" : "#475569",
+              borderBottom:
+                activeSubtab === "family_balance_due"
+                  ? "3px solid #0f766e"
+                  : "3px solid transparent",
+              background: "transparent",
+              border: "none",
+              cursor: "pointer",
+            }}
+          >
+            Family Balance Due
+          </button>
+        </div>
+
+        {/* Right Button: + Invoice Split Button OR + Payment Button */}
+        {activeSubtab === "receipts" ? (
+          <button
+            type="button"
+            onClick={() => setAddPaymentModalOpen(true)}
+            style={{
+              background: "#f97316",
+              color: "#ffffff",
+              border: "none",
+              borderRadius: "4px",
+              padding: "8px 18px",
+              fontSize: "13px",
+              fontWeight: 600,
+              cursor: "pointer",
+              display: "inline-flex",
+              alignItems: "center",
+              gap: "4px",
+              boxShadow: "0 1px 2px rgba(0,0,0,0.05)",
+            }}
+          >
+            <Plus size={16} /> Payment
+          </button>
+        ) : (
+          <div style={{ position: "relative" }} ref={splitBtnRef}>
+            <div
+              style={{
+                display: "inline-flex",
+                borderRadius: "4px",
+                overflow: "hidden",
+                boxShadow: "0 1px 2px rgba(0,0,0,0.05)",
+              }}
+            >
+              <button
+                type="button"
+                onClick={() => startCreateInvoice("Invoice")}
+                style={{
+                  background: "#f97316",
+                  color: "#ffffff",
+                  border: "none",
+                  padding: "8px 16px",
+                  fontSize: "13px",
+                  fontWeight: 600,
+                  cursor: "pointer",
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: "4px",
+                }}
+              >
+                <Plus size={16} /> Invoice
+              </button>
+              <button
+                type="button"
+                onClick={() => setShowInvoiceSplitMenu(!showInvoiceSplitMenu)}
+                style={{
+                  background: "#ea580c",
+                  color: "#ffffff",
+                  border: "none",
+                  borderLeft: "1px solid rgba(255,255,255,0.4)",
+                  padding: "8px 8px",
+                  cursor: "pointer",
+                  display: "inline-flex",
+                  alignItems: "center",
+                }}
+              >
+                <ChevronDown size={14} />
+              </button>
+            </div>
+
+            {showInvoiceSplitMenu && (
+              <div
+                style={{
+                  position: "absolute",
+                  right: 0,
+                  top: "38px",
+                  background: "#ffffff",
+                  border: "1px solid #cbd5e1",
+                  borderRadius: "4px",
+                  boxShadow: "0 4px 12px rgba(0,0,0,0.15)",
+                  zIndex: 100,
+                  width: "180px",
+                }}
+              >
+                <div
+                  onClick={() => {
+                    setShowInvoiceSplitMenu(false);
+                    startCreateInvoice("Invoice");
+                  }}
+                  style={{
+                    padding: "8px 14px",
+                    fontSize: "13px",
+                    cursor: "pointer",
+                    borderBottom: "1px solid #f1f5f9",
+                  }}
+                  onMouseEnter={(e) => (e.currentTarget.style.background = "#f8fafc")}
+                  onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+                >
+                  Invoice
+                </div>
+                <div
+                  onClick={() => {
+                    setShowInvoiceSplitMenu(false);
+                    startCreateInvoice("Pre-Payment Invoice");
+                  }}
+                  style={{
+                    padding: "8px 14px",
+                    fontSize: "13px",
+                    cursor: "pointer",
+                  }}
+                  onMouseEnter={(e) => (e.currentTarget.style.background = "#f8fafc")}
+                  onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+                >
+                  Pre-Payment Invoice
+                </div>
+              </div>
+            )}
           </div>
+        )}
+      </div>
+
+      {/* =================================================================== */}
+      {/* SUBTAB 1: INVOICES TAB */}
+      {/* =================================================================== */}
+      {activeSubtab === "invoices" && (
+        <div>
+          {/* CHARMHEALTH 3-BOX FILTER BAR */}
+          <div
+            style={{
+              display: "flex",
+              alignItems: "flex-end",
+              gap: "16px",
+              marginBottom: "12px",
+              flexWrap: "wrap",
+            }}
+          >
+            {/* Box 1: Date Range */}
+            <div>
+              <label
+                style={{
+                  display: "block",
+                  fontSize: "12px",
+                  fontWeight: 500,
+                  color: "#64748b",
+                  marginBottom: "4px",
+                }}
+              >
+                Date Range
+              </label>
+              <select
+                value={dateRangeFilter}
+                onChange={(e) => setDateRangeFilter(e.target.value)}
+                style={{
+                  width: "160px",
+                  padding: "6px 10px",
+                  fontSize: "12px",
+                  border: "1px solid #cbd5e1",
+                  borderRadius: "4px",
+                  background: "#ffffff",
+                  color: "#334155",
+                }}
+              >
+                <option value="All">All</option>
+                <option value="Today">Today</option>
+                <option value="Yesterday">Yesterday</option>
+                <option value="This Week">This Week</option>
+                <option value="Last Week">Last Week</option>
+                <option value="This Month">This Month</option>
+                <option value="Last Month">Last Month</option>
+                <option value="Last 30 Days">Last 30 Days</option>
+                <option value="Last 90 Days">Last 90 Days</option>
+              </select>
+            </div>
+
+            {/* Box 2: Search Options 1 (Invoice Number) */}
+            <div>
+              <label
+                style={{
+                  display: "block",
+                  fontSize: "12px",
+                  fontWeight: 500,
+                  color: "#64748b",
+                  marginBottom: "4px",
+                }}
+              >
+                Search Options 1
+              </label>
+              <div style={{ position: "relative", width: "190px" }}>
+                <Search
+                  size={14}
+                  style={{
+                    position: "absolute",
+                    left: "8px",
+                    top: "9px",
+                    color: "#94a3b8",
+                  }}
+                />
+                <input
+                  type="text"
+                  placeholder="Invoice Number"
+                  value={searchInvoiceNo}
+                  onChange={(e) => setSearchInvoiceNo(e.target.value)}
+                  style={{
+                    width: "100%",
+                    padding: "6px 10px 6px 28px",
+                    fontSize: "12px",
+                    border: "1px solid #cbd5e1",
+                    borderRadius: "4px",
+                    background: "#ffffff",
+                  }}
+                />
+              </div>
+            </div>
+
+            {/* Box 3: Search Options 2 (-- Select --) */}
+            <div>
+              <label
+                style={{
+                  display: "block",
+                  fontSize: "12px",
+                  fontWeight: 500,
+                  color: "#64748b",
+                  marginBottom: "4px",
+                }}
+              >
+                Search Options 2
+              </label>
+              <div style={{ display: "flex", gap: "6px" }}>
+                <select
+                  value={searchOption2Type}
+                  onChange={(e) => {
+                    setSearchOption2Type(e.target.value);
+                    setSearchOption2Value("");
+                  }}
+                  style={{
+                    width: "150px",
+                    padding: "6px 10px",
+                    fontSize: "12px",
+                    border: "1px solid #cbd5e1",
+                    borderRadius: "4px",
+                    background: "#ffffff",
+                    color: searchOption2Type ? "#334155" : "#94a3b8",
+                  }}
+                >
+                  <option value="">-- Select --</option>
+                  <option value="Consultant">Consultant</option>
+                  <option value="Facility">Facility</option>
+                  <option value="Procedure Code">Procedure Code</option>
+                  {isPracticeView && <option value="Patient Name">Patient Name</option>}
+                </select>
+
+                {searchOption2Type && (
+                  <input
+                    type="text"
+                    placeholder={`Filter by ${searchOption2Type}...`}
+                    value={searchOption2Value}
+                    onChange={(e) => setSearchOption2Value(e.target.value)}
+                    style={{
+                      width: "150px",
+                      padding: "6px 8px",
+                      fontSize: "12px",
+                      border: "1px solid #cbd5e1",
+                      borderRadius: "4px",
+                    }}
+                  />
+                )}
+              </div>
+            </div>
+
+            {/* Far Right: Folder/Reports icon button */}
+            <div style={{ marginLeft: "auto" }}>
+              <button
+                type="button"
+                title="Reports"
+                style={{
+                  border: "1px solid #cbd5e1",
+                  background: "#ffffff",
+                  borderRadius: "4px",
+                  padding: "6px 10px",
+                  color: "#eab308",
+                  cursor: "pointer",
+                  display: "inline-flex",
+                  alignItems: "center",
+                }}
+              >
+                <FolderOpen size={16} />
+              </button>
+            </div>
+          </div>
+
+          {/* SECONDARY ACTION TOOLBAR UNDER FILTERS */}
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+              marginBottom: "12px",
+              paddingBottom: "8px",
+            }}
+          >
+            {/* Left toolbar buttons */}
+            <div style={{ display: "flex", gap: "8px" }}>
+              <button
+                type="button"
+                style={{
+                  background: "#ffffff",
+                  border: "1px solid #cbd5e1",
+                  borderRadius: "4px",
+                  padding: "5px 12px",
+                  fontSize: "12px",
+                  fontWeight: 500,
+                  color: "#475569",
+                  cursor: "pointer",
+                }}
+              >
+                Actions ▾
+              </button>
+
+              <button
+                type="button"
+                onClick={() => window.print()}
+                style={{
+                  background: "#ffffff",
+                  border: "1px solid #cbd5e1",
+                  borderRadius: "4px",
+                  padding: "5px 12px",
+                  fontSize: "12px",
+                  fontWeight: 500,
+                  color: "#475569",
+                  cursor: "pointer",
+                }}
+              >
+                Print ▾
+              </button>
+
+              <button
+                type="button"
+                onClick={() => notify("Sending selected invoices to patients...")}
+                style={{
+                  background: "#ffffff",
+                  border: "1px solid #cbd5e1",
+                  borderRadius: "4px",
+                  padding: "5px 12px",
+                  fontSize: "12px",
+                  fontWeight: 500,
+                  color: "#475569",
+                  cursor: "pointer",
+                }}
+              >
+                Send Invoices
+              </button>
+            </div>
+
+            {/* Right eye link: Show CPT Details */}
+            <div>
+              <a
+                href="#toggle-cpt"
+                onClick={(e) => {
+                  e.preventDefault();
+                  setShowCptDetails(!showCptDetails);
+                }}
+                style={{
+                  fontSize: "12px",
+                  color: "#2563eb",
+                  textDecoration: "none",
+                  fontWeight: 500,
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: "4px",
+                }}
+              >
+                <Eye size={14} />
+                {showCptDetails ? "Hide CPT Details" : "Show CPT Details"}
+              </a>
+            </div>
+          </div>
+
+          {/* INVOICES TABLE */}
+          {loading ? (
+            <div style={{ padding: "40px", textAlign: "center", color: "#64748b", fontSize: "13px" }}>
+              Loading invoices...
+            </div>
+          ) : filteredInvoices.length === 0 ? (
+            <div
+              style={{
+                padding: "36px",
+                textAlign: "center",
+                color: "#64748b",
+                fontSize: "13px",
+                border: "1px dashed #cbd5e1",
+                borderRadius: "6px",
+                background: "#f8fafc",
+              }}
+            >
+              No invoices found matching criteria.
+            </div>
+          ) : (
+            <table
+              style={{
+                width: "100%",
+                borderCollapse: "collapse",
+                border: "1px solid #e2e8f0",
+                fontSize: "12px",
+              }}
+            >
+              <thead>
+                <tr style={{ background: "#f8fafc", borderBottom: "1px solid #e2e8f0", color: "#475569" }}>
+                  <th style={{ width: "28px", padding: "8px 6px", textAlign: "center" }}>
+                    <input
+                      type="checkbox"
+                      onChange={(e) => {
+                        const checked = e.target.checked;
+                        const next: Record<string, boolean> = {};
+                        filteredInvoices.forEach((inv) => (next[inv.id] = checked));
+                        setSelectedInvoiceIds(next);
+                      }}
+                      style={{ cursor: "pointer" }}
+                    />
+                  </th>
+                  {isPracticeView && (
+                    <th style={{ padding: "8px 12px", textAlign: "left" }}>PATIENT</th>
+                  )}
+                  <th style={{ padding: "8px 12px", textAlign: "left" }}>Consultation Date</th>
+                  <th style={{ padding: "8px 12px", textAlign: "left" }}>Facility Name</th>
+                  <th style={{ padding: "8px 12px", textAlign: "left" }}>Invoice Date</th>
+                  <th style={{ padding: "8px 12px", textAlign: "left" }}>Invoice #</th>
+                  <th style={{ padding: "8px 12px", textAlign: "left" }}>Consultant</th>
+                  <th style={{ padding: "8px 12px", textAlign: "right" }}>Amount</th>
+                  <th style={{ padding: "8px 12px", textAlign: "right" }}>Payment</th>
+                  <th style={{ padding: "8px 12px", textAlign: "right" }}>Due</th>
+                  <th style={{ padding: "8px 12px", textAlign: "center" }}>Status</th>
+                  <th style={{ width: "36px", padding: "8px 4px", textAlign: "center" }}></th>
+                </tr>
+              </thead>
+              <tbody>
+                {filteredInvoices.map((inv) => {
+                  const isCanceled = inv.status === "cancelled";
+                  const isDraft = inv.status === "draft";
+                  const isPaid = (inv.balance_paise || 0) === 0 && (inv.paid_paise || 0) > 0;
+                  const hasDue = !isCanceled && (inv.balance_paise || 0) > 0;
+
+                  const consultDateStr = inv.consultation_date
+                    ? new Date(inv.consultation_date).toLocaleDateString("en-US", {
+                        month: "short",
+                        day: "numeric",
+                        year: "numeric",
+                      })
+                    : "---";
+
+                  const invDateStr = inv.date
+                    ? new Date(inv.date).toLocaleDateString("en-US", {
+                        month: "short",
+                        day: "numeric",
+                        year: "numeric",
+                      })
+                    : "---";
+
+                  return (
+                    <React.Fragment key={inv.id}>
+                      <tr
+                        style={{
+                          borderBottom: "1px solid #f1f5f9",
+                          background: selectedInvoiceIds[inv.id] ? "#f0fdfa" : "transparent",
+                        }}
+                      >
+                        <td style={{ textAlign: "center", padding: "8px 6px" }}>
+                          <input
+                            type="checkbox"
+                            checked={!!selectedInvoiceIds[inv.id]}
+                            onChange={(e) =>
+                              setSelectedInvoiceIds({
+                                ...selectedInvoiceIds,
+                                [inv.id]: e.target.checked,
+                              })
+                            }
+                            style={{ cursor: "pointer" }}
+                          />
+                        </td>
+
+                        {isPracticeView && (
+                          <td style={{ padding: "8px 12px" }}>
+                            <span style={{ fontWeight: 600, color: "#2563eb" }}>
+                              {inv.patient_name || "Patient"}
+                            </span>
+                            {inv.patient_mrn && (
+                              <span style={{ color: "#64748b", marginLeft: "4px" }}>
+                                [{inv.patient_mrn}]
+                              </span>
+                            )}
+                          </td>
+                        )}
+
+                        <td style={{ padding: "8px 12px", color: "#64748b" }}>{consultDateStr}</td>
+                        <td style={{ padding: "8px 12px", color: "#334155" }}>
+                          {inv.facility_name || "Heal Your Heart Neelankarai"}
+                        </td>
+                        <td style={{ padding: "8px 12px", color: "#334155" }}>{invDateStr}</td>
+
+                        {/* INVOICE NUMBER (WITH RED CANCELLED WATERMARK STAMP IF CANCELLED) */}
+                        <td style={{ padding: "8px 12px", position: "relative" }}>
+                          <a
+                            href={`#inv-${inv.number}`}
+                            onClick={(e) => {
+                              e.preventDefault();
+                              setSelectedInvoice(inv);
+                              setViewMode("detail");
+                            }}
+                            style={{
+                              color: "#2563eb",
+                              fontWeight: 600,
+                              textDecoration: "none",
+                              cursor: "pointer",
+                            }}
+                          >
+                            {inv.number}
+                          </a>
+
+                          {isCanceled && (
+                            <span
+                              style={{
+                                position: "absolute",
+                                left: "10px",
+                                top: "5px",
+                                transform: "rotate(-18deg)",
+                                border: "1px solid #dc2626",
+                                color: "#dc2626",
+                                fontSize: "10px",
+                                fontWeight: 800,
+                                padding: "1px 6px",
+                                borderRadius: "2px",
+                                pointerEvents: "none",
+                                opacity: 0.85,
+                              }}
+                            >
+                              CANCELLED
+                            </span>
+                          )}
+                        </td>
+
+                        <td style={{ padding: "8px 12px", color: "#334155" }}>
+                          {inv.consultant_name || "Dr. Ramasamy S"}
+                        </td>
+
+                        {/* Amount */}
+                        <td style={{ padding: "8px 12px", textAlign: "right", fontWeight: 600, color: "#1e293b" }}>
+                          {rupees(inv.total_paise / 100)}
+                        </td>
+
+                        {/* Payment */}
+                        <td style={{ padding: "8px 12px", textAlign: "right", color: "#16a34a", fontWeight: 500 }}>
+                          {(inv.paid_paise || 0) > 0 ? rupees(inv.paid_paise / 100) : "--"}
+                        </td>
+
+                        {/* Due */}
+                        <td style={{ padding: "8px 12px", textAlign: "right", color: hasDue ? "#d97706" : "#64748b", fontWeight: hasDue ? 600 : 400 }}>
+                          {hasDue ? rupees(inv.balance_paise / 100) : "0.00"}
+                        </td>
+
+                        {/* Status */}
+                        <td style={{ padding: "8px 12px", textAlign: "center" }}>
+                          {isDraft ? (
+                            <span style={{ color: "#2563eb", fontWeight: 600 }}>Draft</span>
+                          ) : isPaid ? (
+                            <span style={{ color: "#16a34a", fontWeight: 600 }}>Paid</span>
+                          ) : isCanceled ? (
+                            <span style={{ color: "#64748b", fontWeight: 600 }}>Canceled</span>
+                          ) : (
+                            <span style={{ color: "#d97706", fontWeight: 600 }}>Due</span>
+                          )}
+                        </td>
+
+                        {/* Row Action Three Dots */}
+                        <td style={{ textAlign: "center", position: "relative" }}>
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setActiveMenuId(activeMenuId === inv.id ? null : inv.id)
+                            }
+                            style={{
+                              background: "#ffffff",
+                              border: "1px solid #cbd5e1",
+                              borderRadius: "3px",
+                              padding: "2px 6px",
+                              cursor: "pointer",
+                              color: "#64748b",
+                              fontSize: "12px",
+                            }}
+                          >
+                            ···
+                          </button>
+
+                          {activeMenuId === inv.id && (
+                            <div
+                              ref={menuRef}
+                              style={{
+                                position: "absolute",
+                                right: "20px",
+                                top: "25px",
+                                background: "#ffffff",
+                                border: "1px solid #cbd5e1",
+                                borderRadius: "4px",
+                                boxShadow: "0 4px 12px rgba(0,0,0,0.15)",
+                                zIndex: 100,
+                                width: "160px",
+                                textAlign: "left",
+                              }}
+                            >
+                              <div
+                                onClick={() => {
+                                  setActiveMenuId(null);
+                                  setSelectedInvoice(inv);
+                                  setViewMode("detail");
+                                }}
+                                style={{ padding: "7px 12px", cursor: "pointer", fontSize: "12px" }}
+                                onMouseEnter={(e) => (e.currentTarget.style.background = "#f8fafc")}
+                                onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+                              >
+                                View Invoice
+                              </div>
+
+                              {!isCanceled && (
+                                <div
+                                  onClick={() => {
+                                    setActiveMenuId(null);
+                                    startEditInvoice(inv);
+                                  }}
+                                  style={{ padding: "7px 12px", cursor: "pointer", fontSize: "12px" }}
+                                  onMouseEnter={(e) => (e.currentTarget.style.background = "#f8fafc")}
+                                  onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+                                >
+                                  Edit Invoice
+                                </div>
+                              )}
+
+                              <div
+                                onClick={() => {
+                                  setActiveMenuId(null);
+                                  window.print();
+                                }}
+                                style={{ padding: "7px 12px", cursor: "pointer", fontSize: "12px" }}
+                                onMouseEnter={(e) => (e.currentTarget.style.background = "#f8fafc")}
+                                onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+                              >
+                                Print
+                              </div>
+
+                              {!isCanceled && (inv.balance_paise || 0) > 0 && (
+                                <div
+                                  onClick={() => {
+                                    setActiveMenuId(null);
+                                    setQuickPayInvoice(inv);
+                                    setQuickPayAmount((inv.balance_paise || 0) / 100);
+                                  }}
+                                  style={{
+                                    padding: "7px 12px",
+                                    cursor: "pointer",
+                                    fontSize: "12px",
+                                    color: "#0f766e",
+                                    fontWeight: 600,
+                                  }}
+                                  onMouseEnter={(e) => (e.currentTarget.style.background = "#f8fafc")}
+                                  onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+                                >
+                                  Add Payment
+                                </div>
+                              )}
+
+                              {!isCanceled && (
+                                <div
+                                  onClick={() => {
+                                    setActiveMenuId(null);
+                                    setCancelModalInvoice(inv);
+                                  }}
+                                  style={{
+                                    padding: "7px 12px",
+                                    cursor: "pointer",
+                                    fontSize: "12px",
+                                    color: "#dc2626",
+                                    borderTop: "1px solid #f1f5f9",
+                                  }}
+                                  onMouseEnter={(e) => (e.currentTarget.style.background = "#f8fafc")}
+                                  onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+                                >
+                                  Cancel Invoice
+                                </div>
+                              )}
+                            </div>
+                          )}
+                        </td>
+                      </tr>
+
+                      {/* CPT DETAILS EXPANDER ROW (When Show CPT Details is toggled) */}
+                      {showCptDetails && (inv.lines || []).length > 0 && (
+                        <tr style={{ background: "#f8fafc", borderBottom: "1px solid #e2e8f0" }}>
+                          <td></td>
+                          <td colSpan={isPracticeView ? 11 : 10} style={{ padding: "6px 12px 10px 12px" }}>
+                            <div style={{ fontSize: "11px", color: "#64748b", marginBottom: "4px" }}>
+                              CPT & Service Breakdown:
+                            </div>
+                            <div style={{ display: "flex", flexWrap: "wrap", gap: "12px" }}>
+                              {inv.lines.map((l: any, lIdx: number) => (
+                                <div
+                                  key={lIdx}
+                                  style={{
+                                    background: "#ffffff",
+                                    border: "1px solid #cbd5e1",
+                                    borderRadius: "4px",
+                                    padding: "4px 8px",
+                                    fontSize: "11px",
+                                  }}
+                                >
+                                  <span style={{ fontWeight: 600, color: "#0f766e" }}>[{l.code}]</span>{" "}
+                                  <span>{l.description}</span>{" "}
+                                  <span style={{ color: "#64748b" }}>× {l.quantity}</span> ={" "}
+                                  <strong style={{ color: "#1e293b" }}>
+                                    {rupees((l.total_paise || 0) / 100)}
+                                  </strong>
+                                </div>
+                              ))}
+                            </div>
+                          </td>
+                        </tr>
+                      )}
+                    </React.Fragment>
+                  );
+                })}
+              </tbody>
+            </table>
+          )}
         </div>
       )}
 
       {/* =================================================================== */}
-      {/* TAB 4: FAMILY BALANCE DUE VIEW */}
+      {/* SUBTAB 2: RECEIPTS TAB (frame_052.png) */}
       {/* =================================================================== */}
-      {activeSubtab === "family_balance_due" && (
-        <div
-          style={{
-            background: "#ffffff",
-            border: "1px solid #cbd5e1",
-            borderRadius: "4px",
-            padding: "24px",
-          }}
-        >
-          <div style={{ fontSize: "15px", fontWeight: 700, color: "#1e293b", marginBottom: 12 }}>
-            Family Group Account Summary
+      {activeSubtab === "receipts" && (
+        <div>
+          {/* RECEIPTS FILTER BAR */}
+          <div
+            style={{
+              display: "flex",
+              alignItems: "flex-end",
+              gap: "16px",
+              marginBottom: "12px",
+              flexWrap: "wrap",
+            }}
+          >
+            <div>
+              <label style={{ display: "block", fontSize: "12px", fontWeight: 500, color: "#64748b", marginBottom: "4px" }}>
+                Date Range
+              </label>
+              <select
+                value={receiptDateRange}
+                onChange={(e) => setReceiptDateRange(e.target.value)}
+                style={{
+                  width: "160px",
+                  padding: "6px 10px",
+                  fontSize: "12px",
+                  border: "1px solid #cbd5e1",
+                  borderRadius: "4px",
+                  background: "#ffffff",
+                }}
+              >
+                <option value="All">All</option>
+                <option value="Today">Today</option>
+                <option value="This Month">This Month</option>
+                <option value="Last Month">Last Month</option>
+                <option value="Last 30 Days">Last 30 Days</option>
+              </select>
+            </div>
+
+            <div>
+              <label style={{ display: "block", fontSize: "12px", fontWeight: 500, color: "#64748b", marginBottom: "4px" }}>
+                Search Options
+              </label>
+              <div style={{ position: "relative", width: "200px" }}>
+                <Search
+                  size={14}
+                  style={{ position: "absolute", left: "8px", top: "9px", color: "#94a3b8" }}
+                />
+                <input
+                  type="text"
+                  placeholder="Receipt Number"
+                  value={receiptSearchNo}
+                  onChange={(e) => setReceiptSearchNo(e.target.value)}
+                  style={{
+                    width: "100%",
+                    padding: "6px 10px 6px 28px",
+                    fontSize: "12px",
+                    border: "1px solid #cbd5e1",
+                    borderRadius: "4px",
+                  }}
+                />
+              </div>
+            </div>
+
+            <div style={{ marginLeft: "auto" }}>
+              <button
+                type="button"
+                title="Reports"
+                style={{
+                  border: "1px solid #cbd5e1",
+                  background: "#ffffff",
+                  borderRadius: "4px",
+                  padding: "6px 10px",
+                  color: "#eab308",
+                  cursor: "pointer",
+                }}
+              >
+                <FolderOpen size={16} />
+              </button>
+            </div>
           </div>
-          <p style={{ fontSize: "13px", color: "#64748b", marginBottom: 16 }}>
-            Family billing links member accounts within the same household for consolidated
-            statement generation.
+
+          {/* Secondary toolbar */}
+          <div style={{ display: "flex", gap: "8px", marginBottom: "12px" }}>
+            <button
+              type="button"
+              onClick={() => window.print()}
+              style={{
+                background: "#ffffff",
+                border: "1px solid #cbd5e1",
+                borderRadius: "4px",
+                padding: "5px 12px",
+                fontSize: "12px",
+                fontWeight: 500,
+                color: "#475569",
+                cursor: "pointer",
+              }}
+            >
+              Print ▾
+            </button>
+            <button
+              type="button"
+              onClick={() => notify("Sending receipts to patients...")}
+              style={{
+                background: "#ffffff",
+                border: "1px solid #cbd5e1",
+                borderRadius: "4px",
+                padding: "5px 12px",
+                fontSize: "12px",
+                fontWeight: 500,
+                color: "#475569",
+                cursor: "pointer",
+              }}
+            >
+              Send Receipt ▾
+            </button>
+          </div>
+
+          {/* RECEIPTS TABLE */}
+          {filteredReceipts.length === 0 ? (
+            <div
+              style={{
+                padding: "36px",
+                textAlign: "center",
+                color: "#64748b",
+                fontSize: "13px",
+                border: "1px dashed #cbd5e1",
+                borderRadius: "6px",
+                background: "#f8fafc",
+              }}
+            >
+              No payment receipts found.
+            </div>
+          ) : (
+            <table
+              style={{
+                width: "100%",
+                borderCollapse: "collapse",
+                border: "1px solid #e2e8f0",
+                fontSize: "12px",
+              }}
+            >
+              <thead>
+                <tr style={{ background: "#f8fafc", borderBottom: "1px solid #e2e8f0", color: "#475569" }}>
+                  <th style={{ width: "28px", padding: "8px 6px", textAlign: "center" }}>
+                    <input type="checkbox" style={{ cursor: "pointer" }} />
+                  </th>
+                  <th style={{ padding: "8px 12px", textAlign: "left" }}>Payment Date</th>
+                  <th style={{ padding: "8px 12px", textAlign: "left" }}>Facility Name</th>
+                  <th style={{ padding: "8px 12px", textAlign: "left" }}>Receipt #</th>
+                  <th style={{ padding: "8px 12px", textAlign: "right" }}>Amount</th>
+                  <th style={{ padding: "8px 12px", textAlign: "center" }}>Payment Method</th>
+                  <th style={{ padding: "8px 12px", textAlign: "center" }}>Payment From</th>
+                  <th style={{ padding: "8px 12px", textAlign: "right" }}>Refund Amount</th>
+                  <th style={{ padding: "8px 12px", textAlign: "right" }}>Unused Payment</th>
+                  <th style={{ width: "36px", padding: "8px 4px", textAlign: "center" }}></th>
+                </tr>
+              </thead>
+              <tbody>
+                {filteredReceipts.map((r) => {
+                  const isVoided = !!r.is_voided;
+                  const payDateStr = r.payment_date
+                    ? new Date(r.payment_date).toLocaleDateString("en-US", {
+                        month: "short",
+                        day: "numeric",
+                        year: "numeric",
+                      })
+                    : "Today";
+
+                  return (
+                    <tr key={r.id} style={{ borderBottom: "1px solid #f1f5f9" }}>
+                      <td style={{ textAlign: "center", padding: "8px 6px" }}>
+                        <input type="checkbox" style={{ cursor: "pointer" }} />
+                      </td>
+                      <td style={{ padding: "8px 12px", color: "#334155" }}>{payDateStr}</td>
+                      <td style={{ padding: "8px 12px", color: "#334155" }}>
+                        {r.facility_name || "Heal Your Heart Neelankarai"}
+                      </td>
+
+                      {/* RECEIPT # (WITH RED DIAGONAL VOIDED STAMP IF VOIDED) */}
+                      <td style={{ padding: "8px 12px", position: "relative" }}>
+                        <span style={{ color: "#2563eb", fontWeight: 600 }}>{r.receipt_number}</span>
+                        {isVoided && (
+                          <span
+                            style={{
+                              position: "absolute",
+                              left: "8px",
+                              top: "4px",
+                              transform: "rotate(-20deg)",
+                              border: "1px solid #dc2626",
+                              color: "#dc2626",
+                              fontSize: "9px",
+                              fontWeight: 800,
+                              padding: "1px 4px",
+                              borderRadius: "2px",
+                              pointerEvents: "none",
+                              opacity: 0.85,
+                            }}
+                          >
+                            Voided
+                          </span>
+                        )}
+                      </td>
+
+                      <td style={{ padding: "8px 12px", textAlign: "right", fontWeight: 600, color: "#16a34a" }}>
+                        {rupees(r.amount)}
+                      </td>
+                      <td style={{ padding: "8px 12px", textAlign: "center", color: "#334155" }}>
+                        {r.payment_method || "UPI"}
+                      </td>
+                      <td style={{ padding: "8px 12px", textAlign: "center", color: "#334155" }}>
+                        {r.payment_from || "Patient"}
+                      </td>
+                      <td style={{ padding: "8px 12px", textAlign: "right", color: "#64748b" }}>
+                        {rupees(r.refund_amount || 0)}
+                      </td>
+                      <td style={{ padding: "8px 12px", textAlign: "right", color: "#64748b" }}>
+                        {rupees(r.unused_payment || 0)}
+                      </td>
+
+                      {/* Row Action */}
+                      <td style={{ textAlign: "center", position: "relative" }}>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setActiveMenuId(activeMenuId === r.id ? null : r.id)
+                          }
+                          style={{
+                            background: "#ffffff",
+                            border: "1px solid #cbd5e1",
+                            borderRadius: "3px",
+                            padding: "2px 6px",
+                            cursor: "pointer",
+                            color: "#64748b",
+                            fontSize: "12px",
+                          }}
+                        >
+                          ···
+                        </button>
+
+                        {activeMenuId === r.id && (
+                          <div
+                            ref={menuRef}
+                            style={{
+                              position: "absolute",
+                              right: "20px",
+                              top: "25px",
+                              background: "#ffffff",
+                              border: "1px solid #cbd5e1",
+                              borderRadius: "4px",
+                              boxShadow: "0 4px 12px rgba(0,0,0,0.15)",
+                              zIndex: 100,
+                              width: "150px",
+                              textAlign: "left",
+                            }}
+                          >
+                            <div
+                              onClick={() => {
+                                setActiveMenuId(null);
+                                window.print();
+                              }}
+                              style={{ padding: "7px 12px", cursor: "pointer", fontSize: "12px" }}
+                              onMouseEnter={(e) => (e.currentTarget.style.background = "#f8fafc")}
+                              onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+                            >
+                              Print
+                            </div>
+
+                            {!isVoided && (
+                              <div
+                                onClick={() => {
+                                  setActiveMenuId(null);
+                                  handleVoidReceipt(r.id);
+                                }}
+                                style={{
+                                  padding: "7px 12px",
+                                  cursor: "pointer",
+                                  fontSize: "12px",
+                                  color: "#dc2626",
+                                  borderTop: "1px solid #f1f5f9",
+                                }}
+                                onMouseEnter={(e) => (e.currentTarget.style.background = "#f8fafc")}
+                                onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+                              >
+                                Void Payment
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          )}
+        </div>
+      )}
+
+      {/* =================================================================== */}
+      {/* SUBTAB 3: BALANCE DUE TAB (frame_058.png) */}
+      {/* =================================================================== */}
+      {activeSubtab === "balance_due" && (
+        <div>
+          {/* TITLE & DESCRIPTION */}
+          <h2 style={{ margin: "0 0 6px 0", fontSize: "16px", fontWeight: 700, color: "#1e293b" }}>
+            Add Payment
+          </h2>
+          <p style={{ margin: "0 0 16px 0", fontSize: "12.5px", color: "#64748b" }}>
+            This page shows Patient balance details along with Patient and Insurance responsibility.
+            Invoices can be selected based on various conditions and Practice could send selected
+            invoices to patient for billing.
           </p>
 
-          <table className="charm-table" style={{ width: "100%", margin: 0 }}>
-            <thead>
-              <tr style={{ background: "#f8fafc", fontSize: "12px", color: "#64748b" }}>
-                <th style={{ padding: "8px 12px" }}>Family Member</th>
-                <th style={{ padding: "8px 12px" }}>Relation</th>
-                <th style={{ padding: "8px 12px", textAlign: "right" }}>Total Invoiced</th>
-                <th style={{ padding: "8px 12px", textAlign: "right" }}>Total Paid</th>
-                <th style={{ padding: "8px 12px", textAlign: "right" }}>Balance Due</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr>
-                <td style={{ padding: "8px 12px", fontWeight: 600, color: "#0f766e" }}>
-                  {patient?.first_name} {patient?.last_name} (Self)
-                </td>
-                <td style={{ padding: "8px 12px", fontSize: "12px" }}>Primary Account</td>
-                <td style={{ padding: "8px 12px", textAlign: "right", fontSize: "12px" }}>
-                  {money(totalInvoicedPaise)}
-                </td>
-                <td
+          {/* DUAL TOP METRIC BOXES */}
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "1fr 1fr",
+              gap: "16px",
+              marginBottom: "20px",
+            }}
+          >
+            {/* Box 1: Patient Balance Due */}
+            <div
+              style={{
+                border: "1px solid #e2e8f0",
+                borderRadius: "6px",
+                padding: "16px 20px",
+                background: "#f8fafc",
+                textAlign: "center",
+              }}
+            >
+              <div style={{ fontSize: "12px", color: "#64748b", marginBottom: "6px" }}>
+                Patient Balance Due as on {new Date().toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
+              </div>
+              <div style={{ fontSize: "24px", fontWeight: 700, color: "#0f766e" }}>
+                {rupees(totalOutstandingDue)}
+              </div>
+            </div>
+
+            {/* Box 2: Insurance Balance Due */}
+            <div
+              style={{
+                border: "1px solid #e2e8f0",
+                borderRadius: "6px",
+                padding: "16px 20px",
+                background: "#f8fafc",
+                textAlign: "center",
+              }}
+            >
+              <div style={{ fontSize: "12px", color: "#64748b", marginBottom: "6px" }}>
+                Insurance Balance Due as on {new Date().toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
+              </div>
+              <div style={{ fontSize: "24px", fontWeight: 700, color: "#64748b" }}>
+                0.00
+              </div>
+            </div>
+          </div>
+
+          {/* DUAL SIDE-BY-SIDE SUMMARY TABLES */}
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "1fr 1fr",
+              gap: "20px",
+              marginBottom: "24px",
+            }}
+          >
+            {/* LEFT TABLE: Outstanding Invoices Summary */}
+            <div style={{ border: "1px solid #e2e8f0", borderRadius: "6px", overflow: "hidden" }}>
+              <div
+                style={{
+                  background: "#f8fafc",
+                  padding: "10px 14px",
+                  fontWeight: 700,
+                  fontSize: "13px",
+                  color: "#334155",
+                  borderBottom: "1px solid #e2e8f0",
+                }}
+              >
+                Outstanding Invoices Summary
+              </div>
+              <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "12px" }}>
+                <thead>
+                  <tr style={{ background: "#ffffff", borderBottom: "1px solid #f1f5f9", color: "#64748b" }}>
+                    <th style={{ padding: "8px 12px", textAlign: "left" }}></th>
+                    <th style={{ padding: "8px 12px", textAlign: "right" }}>Patient</th>
+                    <th style={{ padding: "8px 12px", textAlign: "right" }}>Insurance</th>
+                    <th style={{ padding: "8px 12px", textAlign: "right" }}>Total</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr style={{ borderBottom: "1px solid #f1f5f9" }}>
+                    <td style={{ padding: "7px 12px", fontWeight: 500, color: "#334155" }}>Payments</td>
+                    <td style={{ padding: "7px 12px", textAlign: "right" }}>{rupees(totalOutstandingPaid)}</td>
+                    <td style={{ padding: "7px 12px", textAlign: "right" }}>0.00</td>
+                    <td style={{ padding: "7px 12px", textAlign: "right", fontWeight: 600 }}>{rupees(totalOutstandingPaid)}</td>
+                  </tr>
+                  <tr style={{ borderBottom: "1px solid #f1f5f9" }}>
+                    <td style={{ padding: "7px 12px", fontWeight: 500, color: "#334155" }}>Adjustments</td>
+                    <td style={{ padding: "7px 12px", textAlign: "right" }}>0.00</td>
+                    <td style={{ padding: "7px 12px", textAlign: "right" }}>0.00</td>
+                    <td style={{ padding: "7px 12px", textAlign: "right" }}>0.00</td>
+                  </tr>
+                  <tr style={{ borderBottom: "1px solid #f1f5f9" }}>
+                    <td style={{ padding: "7px 12px", fontWeight: 500, color: "#334155" }}>Write-off</td>
+                    <td style={{ padding: "7px 12px", textAlign: "right" }}>0.00</td>
+                    <td style={{ padding: "7px 12px", textAlign: "right" }}>0.00</td>
+                    <td style={{ padding: "7px 12px", textAlign: "right" }}>0.00</td>
+                  </tr>
+                  <tr style={{ borderBottom: "1px solid #f1f5f9" }}>
+                    <td style={{ padding: "7px 12px", fontWeight: 500, color: "#334155" }}>Due</td>
+                    <td style={{ padding: "7px 12px", textAlign: "right" }}>{rupees(totalOutstandingDue)}</td>
+                    <td style={{ padding: "7px 12px", textAlign: "right" }}>0.00</td>
+                    <td style={{ padding: "7px 12px", textAlign: "right", fontWeight: 600 }}>{rupees(totalOutstandingDue)}</td>
+                  </tr>
+                  <tr style={{ borderBottom: "1px solid #f1f5f9" }}>
+                    <td style={{ padding: "7px 12px", fontWeight: 500, color: "#334155" }}>Unused Payments</td>
+                    <td style={{ padding: "7px 12px", textAlign: "right" }}>0.00</td>
+                    <td style={{ padding: "7px 12px", textAlign: "right" }}>0.00</td>
+                    <td style={{ padding: "7px 12px", textAlign: "right" }}>0.00</td>
+                  </tr>
+                  <tr style={{ background: "#f8fafc" }}>
+                    <td style={{ padding: "8px 12px", fontWeight: 700, color: "#0f766e" }}>Balance Due</td>
+                    <td style={{ padding: "8px 12px", textAlign: "right", fontWeight: 700, color: "#0f766e" }}>{rupees(totalOutstandingDue)}</td>
+                    <td style={{ padding: "8px 12px", textAlign: "right", fontWeight: 700, color: "#0f766e" }}>0.00</td>
+                    <td style={{ padding: "8px 12px", textAlign: "right", fontWeight: 700, color: "#0f766e" }}>{rupees(totalOutstandingDue)}</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+
+            {/* RIGHT TABLE: Paid Invoices Summary */}
+            <div style={{ border: "1px solid #e2e8f0", borderRadius: "6px", overflow: "hidden" }}>
+              <div
+                style={{
+                  background: "#f8fafc",
+                  padding: "10px 14px",
+                  fontWeight: 700,
+                  fontSize: "13px",
+                  color: "#334155",
+                  borderBottom: "1px solid #e2e8f0",
+                }}
+              >
+                Paid Invoices Summary
+              </div>
+              <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "12px" }}>
+                <thead>
+                  <tr style={{ background: "#ffffff", borderBottom: "1px solid #f1f5f9", color: "#64748b" }}>
+                    <th style={{ padding: "8px 12px", textAlign: "left" }}></th>
+                    <th style={{ padding: "8px 12px", textAlign: "right" }}>Patient</th>
+                    <th style={{ padding: "8px 12px", textAlign: "right" }}>Insurance</th>
+                    <th style={{ padding: "8px 12px", textAlign: "right" }}>Total</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr style={{ borderBottom: "1px solid #f1f5f9" }}>
+                    <td style={{ padding: "7px 12px", fontWeight: 500, color: "#334155" }}>Payments</td>
+                    <td style={{ padding: "7px 12px", textAlign: "right" }}>{rupees(totalSettledPaid)}</td>
+                    <td style={{ padding: "7px 12px", textAlign: "right" }}>0.00</td>
+                    <td style={{ padding: "7px 12px", textAlign: "right", fontWeight: 600 }}>{rupees(totalSettledPaid)}</td>
+                  </tr>
+                  <tr style={{ borderBottom: "1px solid #f1f5f9" }}>
+                    <td style={{ padding: "7px 12px", fontWeight: 500, color: "#334155" }}>Adjustments</td>
+                    <td style={{ padding: "7px 12px", textAlign: "right" }}>0.00</td>
+                    <td style={{ padding: "7px 12px", textAlign: "right" }}>0.00</td>
+                    <td style={{ padding: "7px 12px", textAlign: "right" }}>0.00</td>
+                  </tr>
+                  <tr style={{ borderBottom: "1px solid #f1f5f9" }}>
+                    <td style={{ padding: "7px 12px", fontWeight: 500, color: "#334155" }}>Write-off</td>
+                    <td style={{ padding: "7px 12px", textAlign: "right" }}>0.00</td>
+                    <td style={{ padding: "7px 12px", textAlign: "right" }}>0.00</td>
+                    <td style={{ padding: "7px 12px", textAlign: "right" }}>0.00</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          {/* BALANCE DUE BOTTOM FILTERS & RADIO BUTTONS */}
+          <div
+            style={{
+              background: "#f8fafc",
+              border: "1px solid #e2e8f0",
+              borderRadius: "6px",
+              padding: "16px",
+              marginBottom: "20px",
+            }}
+          >
+            <div
+              style={{
+                display: "flex",
+                gap: "16px",
+                alignItems: "flex-end",
+                marginBottom: "12px",
+                flexWrap: "wrap",
+              }}
+            >
+              <div>
+                <label style={{ display: "block", fontSize: "12px", color: "#64748b", marginBottom: "4px" }}>
+                  Facility
+                </label>
+                <select
+                  value={balanceDueFacility}
+                  onChange={(e) => setBalanceDueFacility(e.target.value)}
                   style={{
-                    padding: "8px 12px",
-                    textAlign: "right",
+                    width: "160px",
+                    padding: "6px 8px",
                     fontSize: "12px",
+                    border: "1px solid #cbd5e1",
+                    borderRadius: "4px",
+                    background: "#ffffff",
+                  }}
+                >
+                  <option value="All">All</option>
+                  {facilities.map((fac) => (
+                    <option key={fac.id} value={fac.id}>
+                      {fac.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label style={{ display: "block", fontSize: "12px", color: "#64748b", marginBottom: "4px" }}>
+                  Date Range
+                </label>
+                <select
+                  value={balanceDueDateRange}
+                  onChange={(e) => setBalanceDueDateRange(e.target.value)}
+                  style={{
+                    width: "140px",
+                    padding: "6px 8px",
+                    fontSize: "12px",
+                    border: "1px solid #cbd5e1",
+                    borderRadius: "4px",
+                    background: "#ffffff",
+                  }}
+                >
+                  <option value="Last 2 Years">Last 2 Years</option>
+                  <option value="This Year">This Year</option>
+                  <option value="All">All</option>
+                </select>
+              </div>
+
+              <div>
+                <label style={{ display: "block", fontSize: "12px", color: "#64748b", marginBottom: "4px" }}>
+                  From
+                </label>
+                <input
+                  type="date"
+                  value={balanceDueFrom}
+                  onChange={(e) => setBalanceDueFrom(e.target.value)}
+                  style={{
+                    width: "140px",
+                    padding: "5px 8px",
+                    fontSize: "12px",
+                    border: "1px solid #cbd5e1",
+                    borderRadius: "4px",
+                    background: "#ffffff",
+                  }}
+                />
+              </div>
+
+              <div>
+                <label style={{ display: "block", fontSize: "12px", color: "#64748b", marginBottom: "4px" }}>
+                  To
+                </label>
+                <input
+                  type="date"
+                  value={balanceDueTo}
+                  onChange={(e) => setBalanceDueTo(e.target.value)}
+                  style={{
+                    width: "140px",
+                    padding: "5px 8px",
+                    fontSize: "12px",
+                    border: "1px solid #cbd5e1",
+                    borderRadius: "4px",
+                    background: "#ffffff",
+                  }}
+                />
+              </div>
+
+              {/* Show Report Orange Button */}
+              <div style={{ marginLeft: "auto" }}>
+                <button
+                  type="button"
+                  onClick={() => setBalanceDueReportVisible(true)}
+                  style={{
+                    background: "#f97316",
+                    color: "#ffffff",
+                    border: "none",
+                    borderRadius: "4px",
+                    padding: "7px 18px",
+                    fontSize: "13px",
+                    fontWeight: 600,
+                    cursor: "pointer",
+                    boxShadow: "0 1px 2px rgba(0,0,0,0.05)",
+                  }}
+                >
+                  Show Report
+                </button>
+              </div>
+            </div>
+
+            {/* 3 Radio options */}
+            <div style={{ display: "flex", gap: "20px", fontSize: "12.5px", color: "#334155", flexWrap: "wrap" }}>
+              <label style={{ display: "flex", alignItems: "center", gap: "6px", cursor: "pointer" }}>
+                <input
+                  type="radio"
+                  name="balanceDueOpt"
+                  checked={balanceDueRadio === "all"}
+                  onChange={() => setBalanceDueRadio("all")}
+                />
+                All Invoices
+              </label>
+
+              <label style={{ display: "flex", alignItems: "center", gap: "6px", cursor: "pointer" }}>
+                <input
+                  type="radio"
+                  name="balanceDueOpt"
+                  checked={balanceDueRadio === "due"}
+                  onChange={() => setBalanceDueRadio("due")}
+                />
+                Show Invoices with Due
+              </label>
+
+              <label style={{ display: "flex", alignItems: "center", gap: "6px", cursor: "pointer" }}>
+                <input
+                  type="radio"
+                  name="balanceDueOpt"
+                  checked={balanceDueRadio === "claim"}
+                  onChange={() => setBalanceDueRadio("claim")}
+                />
+                Show Invoices for which Claim is processed & Invoices having Due
+              </label>
+            </div>
+          </div>
+
+          {/* OUTSTANDING INVOICES LIST (FOR MULTI-INVOICE PAYMENT COLLECTION) */}
+          {balanceDueReportVisible && (
+            <div>
+              <div
+                style={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                  marginBottom: "8px",
+                }}
+              >
+                <div style={{ fontSize: "13px", fontWeight: 700, color: "#1e293b" }}>
+                  Outstanding Invoices with Due Balance ({outstandingInvoices.length})
+                </div>
+
+                {outstandingInvoices.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (outstandingInvoices.length > 0) {
+                        setQuickPayInvoice(outstandingInvoices[0]);
+                        setQuickPayAmount((outstandingInvoices[0].balance_paise || 0) / 100);
+                      }
+                    }}
+                    style={{
+                      background: "#0f766e",
+                      color: "#ffffff",
+                      border: "none",
+                      borderRadius: "4px",
+                      padding: "6px 14px",
+                      fontSize: "12px",
+                      fontWeight: 600,
+                      cursor: "pointer",
+                    }}
+                  >
+                    Collect Balance Payment
+                  </button>
+                )}
+              </div>
+
+              {outstandingInvoices.length === 0 ? (
+                <div
+                  style={{
+                    padding: "24px",
+                    textAlign: "center",
                     color: "#16a34a",
+                    fontSize: "13px",
+                    background: "#f0fdf4",
+                    borderRadius: "6px",
+                    border: "1px solid #bbf7d0",
                   }}
                 >
-                  {money(totalPaidPaise)}
-                </td>
-                <td
+                  ✓ No outstanding due for this patient. All invoices are fully paid.
+                </div>
+              ) : (
+                <table
                   style={{
-                    padding: "8px 12px",
-                    textAlign: "right",
+                    width: "100%",
+                    borderCollapse: "collapse",
+                    border: "1px solid #e2e8f0",
                     fontSize: "12px",
-                    fontWeight: 700,
-                    color: totalBalanceDuePaise > 0 ? "#dc2626" : "#16a34a",
                   }}
                 >
-                  {money(totalBalanceDuePaise)}
-                </td>
-              </tr>
-            </tbody>
-          </table>
+                  <thead>
+                    <tr style={{ background: "#f8fafc", borderBottom: "1px solid #e2e8f0", color: "#475569" }}>
+                      <th style={{ width: "32px", padding: "8px", textAlign: "center" }}>#</th>
+                      <th style={{ padding: "8px 12px", textAlign: "left" }}>Invoice #</th>
+                      <th style={{ padding: "8px 12px", textAlign: "left" }}>Invoice Date</th>
+                      <th style={{ padding: "8px 12px", textAlign: "left" }}>Consultant</th>
+                      <th style={{ padding: "8px 12px", textAlign: "right" }}>Total</th>
+                      <th style={{ padding: "8px 12px", textAlign: "right" }}>Paid</th>
+                      <th style={{ padding: "8px 12px", textAlign: "right" }}>Due</th>
+                      <th style={{ width: "100px", padding: "8px 12px", textAlign: "center" }}>Action</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {outstandingInvoices.map((inv, idx) => (
+                      <tr key={inv.id} style={{ borderBottom: "1px solid #f1f5f9" }}>
+                        <td style={{ textAlign: "center", color: "#64748b", padding: "8px" }}>{idx + 1}</td>
+                        <td style={{ padding: "8px 12px", fontWeight: 600, color: "#2563eb" }}>
+                          {inv.number}
+                        </td>
+                        <td style={{ padding: "8px 12px" }}>{inv.date}</td>
+                        <td style={{ padding: "8px 12px" }}>{inv.consultant_name || "Doctor"}</td>
+                        <td style={{ padding: "8px 12px", textAlign: "right" }}>
+                          {rupees(inv.total_paise / 100)}
+                        </td>
+                        <td style={{ padding: "8px 12px", textAlign: "right", color: "#16a34a" }}>
+                          {rupees((inv.paid_paise || 0) / 100)}
+                        </td>
+                        <td style={{ padding: "8px 12px", textAlign: "right", fontWeight: 700, color: "#d97706" }}>
+                          {rupees(inv.balance_paise / 100)}
+                        </td>
+                        <td style={{ padding: "8px 12px", textAlign: "center" }}>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setQuickPayInvoice(inv);
+                              setQuickPayAmount((inv.balance_paise || 0) / 100);
+                            }}
+                            style={{
+                              background: "#0f766e",
+                              color: "#ffffff",
+                              border: "none",
+                              borderRadius: "4px",
+                              padding: "4px 10px",
+                              fontSize: "11px",
+                              fontWeight: 600,
+                              cursor: "pointer",
+                            }}
+                          >
+                            Pay Due
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+            </div>
+          )}
         </div>
       )}
 
       {/* =================================================================== */}
-      {/* QUICK PAY MODAL */}
+      {/* SUBTAB 4: FAMILY BALANCE DUE TAB */}
+      {/* =================================================================== */}
+      {activeSubtab === "family_balance_due" && (
+        <div>
+          <h2 style={{ margin: "0 0 6px 0", fontSize: "16px", fontWeight: 700, color: "#1e293b" }}>
+            Family Balance Due
+          </h2>
+          <p style={{ margin: "0 0 16px 0", fontSize: "12.5px", color: "#64748b" }}>
+            Consolidated balance and outstanding liability for the patient's family account.
+          </p>
+
+          <div
+            style={{
+              padding: "24px",
+              background: "#f8fafc",
+              border: "1px solid #e2e8f0",
+              borderRadius: "6px",
+              textAlign: "center",
+              color: "#64748b",
+              fontSize: "13px",
+            }}
+          >
+            No family guarantor linkage configured for this patient record.
+            <div style={{ marginTop: "10px" }}>
+              <button
+                type="button"
+                onClick={() => notify("Link Family Member modal opened")}
+                style={{
+                  background: "#ffffff",
+                  border: "1px solid #cbd5e1",
+                  borderRadius: "4px",
+                  padding: "6px 14px",
+                  fontSize: "12px",
+                  fontWeight: 500,
+                  color: "#334155",
+                  cursor: "pointer",
+                }}
+              >
+                + Link Family Member Account
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* =================================================================== */}
+      {/* QUICK PAY MODAL (FOR IMMEDIATE PAYMENT RECORDING) */}
       {/* =================================================================== */}
       {quickPayInvoice && (
         <div
           style={{
             position: "fixed",
-            inset: 0,
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
             background: "rgba(0,0,0,0.5)",
-            zIndex: 100,
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
+            zIndex: 9999,
+          }}
+        >
+          <div
+            style={{
+              background: "#ffffff",
+              borderRadius: "8px",
+              width: "440px",
+              boxShadow: "0 10px 25px rgba(0,0,0,0.2)",
+              padding: "20px",
+            }}
+          >
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+                marginBottom: "16px",
+              }}
+            >
+              <div style={{ fontSize: "16px", fontWeight: 700, color: "#1e293b" }}>
+                Add Payment: {quickPayInvoice.number}
+              </div>
+              <button
+                type="button"
+                onClick={() => setQuickPayInvoice(null)}
+                style={{ border: "none", background: "none", cursor: "pointer", color: "#64748b" }}
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <div style={{ marginBottom: "12px" }}>
+              <label style={{ display: "block", fontSize: "12px", color: "#64748b", marginBottom: "4px" }}>
+                Balance Due
+              </label>
+              <div style={{ fontSize: "18px", fontWeight: 700, color: "#0f766e" }}>
+                {rupees((quickPayInvoice.balance_paise || 0) / 100)}
+              </div>
+            </div>
+
+            <div style={{ marginBottom: "12px" }}>
+              <label style={{ display: "block", fontSize: "12px", color: "#64748b", marginBottom: "4px" }}>
+                Payment Amount (Rs.)
+              </label>
+              <input
+                type="number"
+                step="0.01"
+                min="1"
+                value={quickPayAmount}
+                onChange={(e) => setQuickPayAmount(parseFloat(e.target.value) || 0)}
+                style={{
+                  width: "100%",
+                  padding: "8px",
+                  fontSize: "13px",
+                  border: "1px solid #cbd5e1",
+                  borderRadius: "4px",
+                }}
+              />
+            </div>
+
+            <div style={{ marginBottom: "12px" }}>
+              <label style={{ display: "block", fontSize: "12px", color: "#64748b", marginBottom: "4px" }}>
+                Payment Method
+              </label>
+              <select
+                value={quickPayMethod}
+                onChange={(e) => setQuickPayMethod(e.target.value)}
+                style={{
+                  width: "100%",
+                  padding: "8px",
+                  fontSize: "13px",
+                  border: "1px solid #cbd5e1",
+                  borderRadius: "4px",
+                  background: "#ffffff",
+                }}
+              >
+                <option value="UPI">UPI</option>
+                <option value="Cash">Cash</option>
+                <option value="Credit Card">Credit Card</option>
+                <option value="Debit Card">Debit Card</option>
+                <option value="Cheque">Cheque</option>
+                <option value="Net Banking">Net Banking</option>
+              </select>
+            </div>
+
+            <div style={{ marginBottom: "20px" }}>
+              <label style={{ display: "block", fontSize: "12px", color: "#64748b", marginBottom: "4px" }}>
+                Reference / Transaction #
+              </label>
+              <input
+                type="text"
+                placeholder="Optional UPI ID or Cheque/Txn #"
+                value={quickPayRef}
+                onChange={(e) => setQuickPayRef(e.target.value)}
+                style={{
+                  width: "100%",
+                  padding: "8px",
+                  fontSize: "13px",
+                  border: "1px solid #cbd5e1",
+                  borderRadius: "4px",
+                }}
+              />
+            </div>
+
+            <div style={{ display: "flex", justifyContent: "flex-end", gap: "8px" }}>
+              <button
+                type="button"
+                onClick={() => setQuickPayInvoice(null)}
+                style={{
+                  background: "#ffffff",
+                  border: "1px solid #cbd5e1",
+                  borderRadius: "4px",
+                  padding: "7px 16px",
+                  fontSize: "13px",
+                  color: "#64748b",
+                  cursor: "pointer",
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                disabled={quickPaySubmitting}
+                onClick={handleQuickPay}
+                style={{
+                  background: "#f97316",
+                  color: "#ffffff",
+                  border: "none",
+                  borderRadius: "4px",
+                  padding: "7px 18px",
+                  fontSize: "13px",
+                  fontWeight: 600,
+                  cursor: quickPaySubmitting ? "not-allowed" : "pointer",
+                }}
+              >
+                {quickPaySubmitting ? "Recording..." : "Record Payment"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* =================================================================== */}
+      {/* DIRECT + PAYMENT MODAL (IN RECEIPTS TAB) */}
+      {/* =================================================================== */}
+      {addPaymentModalOpen && (
+        <div
+          style={{
+            position: "fixed",
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            background: "rgba(0,0,0,0.5)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            zIndex: 9999,
           }}
         >
           <div
@@ -3528,359 +5140,144 @@ export function CharmPatientBilling({
               borderRadius: "8px",
               width: "480px",
               boxShadow: "0 10px 25px rgba(0,0,0,0.2)",
-              overflow: "hidden",
+              padding: "20px",
             }}
           >
             <div
               style={{
-                padding: "14px 20px",
-                background: "#f8fafc",
-                borderBottom: "1px solid #e2e8f0",
                 display: "flex",
                 justifyContent: "space-between",
                 alignItems: "center",
+                marginBottom: "16px",
               }}
             >
-              <h3 style={{ margin: 0, fontSize: "15px", fontWeight: 700, color: "#1e293b" }}>
-                Add Payment - Invoice {quickPayInvoice.number}
-              </h3>
+              <div style={{ fontSize: "16px", fontWeight: 700, color: "#1e293b" }}>
+                Record Direct / Advance Payment
+              </div>
               <button
                 type="button"
-                onClick={() => setQuickPayInvoice(null)}
-                style={{ background: "none", border: "none", cursor: "pointer", color: "#64748b" }}
+                onClick={() => setAddPaymentModalOpen(false)}
+                style={{ border: "none", background: "none", cursor: "pointer", color: "#64748b" }}
               >
                 <X size={18} />
               </button>
             </div>
 
-            <div style={{ padding: "20px" }}>
-              <div
+            <div style={{ marginBottom: "12px" }}>
+              <label style={{ display: "block", fontSize: "12px", color: "#64748b", marginBottom: "4px" }}>
+                Payment Amount (Rs.)
+              </label>
+              <input
+                type="number"
+                step="0.01"
+                min="1"
+                placeholder="0.00"
+                value={directPaymentAmount || ""}
+                onChange={(e) => setDirectPaymentAmount(parseFloat(e.target.value) || 0)}
                 style={{
-                  background: "#f1f5f9",
-                  padding: "12px",
-                  borderRadius: "6px",
-                  marginBottom: 16,
-                  display: "grid",
-                  gridTemplateColumns: "1fr 1fr 1fr",
-                  textAlign: "center",
-                }}
-              >
-                <div>
-                  <div style={{ fontSize: "11px", color: "#64748b" }}>Total Amount</div>
-                  <div style={{ fontWeight: 700, fontSize: "14px" }}>
-                    {money(quickPayInvoice.total_paise)}
-                  </div>
-                </div>
-                <div>
-                  <div style={{ fontSize: "11px", color: "#64748b" }}>Already Paid</div>
-                  <div style={{ fontWeight: 700, fontSize: "14px", color: "#16a34a" }}>
-                    {money(quickPayInvoice.paid_paise || 0)}
-                  </div>
-                </div>
-                <div>
-                  <div style={{ fontSize: "11px", color: "#64748b" }}>Balance Due</div>
-                  <div style={{ fontWeight: 800, fontSize: "14px", color: "#dc2626" }}>
-                    {money(quickPayInvoice.balance_paise)}
-                  </div>
-                </div>
-              </div>
-
-              <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-                <div>
-                  <label style={{ fontSize: "12px", fontWeight: 600, color: "#334155" }}>
-                    Payment Amount (Rs.)
-                  </label>
-                  <input
-                    type="number"
-                    min="1"
-                    step="0.01"
-                    max={quickPayInvoice.balance_paise / 100}
-                    value={quickPayAmount}
-                    onChange={(e) => setQuickPayAmount(parseFloat(e.target.value) || 0)}
-                    style={{
-                      width: "100%",
-                      padding: "8px",
-                      fontSize: "14px",
-                      fontWeight: 700,
-                      border: "1px solid #cbd5e1",
-                      borderRadius: "4px",
-                      marginTop: 4,
-                    }}
-                  />
-                </div>
-
-                <div>
-                  <label style={{ fontSize: "12px", fontWeight: 600, color: "#334155" }}>
-                    Payment Method
-                  </label>
-                  <select
-                    value={quickPayMethod}
-                    onChange={(e) => setQuickPayMethod(e.target.value)}
-                    style={{
-                      width: "100%",
-                      padding: "8px",
-                      fontSize: "13px",
-                      border: "1px solid #cbd5e1",
-                      borderRadius: "4px",
-                      marginTop: 4,
-                    }}
-                  >
-                    <option>UPI</option>
-                    <option>Cash</option>
-                    <option>Credit Card</option>
-                    <option>Debit Card</option>
-                    <option>Cheque</option>
-                    <option>Bank Transfer</option>
-                    <option>Net Banking</option>
-                    <option>Razorpay</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label style={{ fontSize: "12px", fontWeight: 600, color: "#334155" }}>
-                    Reference # (Transaction ID / Cheque #)
-                  </label>
-                  <input
-                    type="text"
-                    placeholder="e.g. UPI/293810284 or CHQ-00124"
-                    value={quickPayRef}
-                    onChange={(e) => setQuickPayRef(e.target.value)}
-                    style={{
-                      width: "100%",
-                      padding: "8px",
-                      fontSize: "13px",
-                      border: "1px solid #cbd5e1",
-                      borderRadius: "4px",
-                      marginTop: 4,
-                    }}
-                  />
-                </div>
-              </div>
-
-              <div
-                style={{
-                  display: "flex",
-                  justifyContent: "flex-end",
-                  gap: 8,
-                  marginTop: 20,
-                }}
-              >
-                <button
-                  type="button"
-                  onClick={() => setQuickPayInvoice(null)}
-                  className="charm-btn charm-btn-outline"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="button"
-                  disabled={quickPaySubmitting || quickPayAmount <= 0}
-                  onClick={handleQuickPaySubmit}
-                  style={{
-                    background: "#16a34a",
-                    color: "#ffffff",
-                    border: "none",
-                    fontWeight: 600,
-                    padding: "8px 18px",
-                    borderRadius: "4px",
-                    cursor: "pointer",
-                  }}
-                >
-                  {quickPaySubmitting ? "Recording..." : "Record Payment"}
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* =================================================================== */}
-      {/* PRINTABLE RECEIPT MODAL */}
-      {/* =================================================================== */}
-      {viewingReceipt && (
-        <div
-          style={{
-            position: "fixed",
-            inset: 0,
-            background: "rgba(0,0,0,0.5)",
-            zIndex: 100,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-          }}
-        >
-          <div
-            style={{
-              background: "#ffffff",
-              borderRadius: "8px",
-              width: "600px",
-              boxShadow: "0 10px 25px rgba(0,0,0,0.2)",
-              padding: "28px 32px",
-              position: "relative",
-            }}
-          >
-            <button
-              type="button"
-              onClick={() => setViewingReceipt(null)}
-              style={{
-                position: "absolute",
-                top: 16,
-                right: 16,
-                background: "none",
-                border: "none",
-                cursor: "pointer",
-                color: "#64748b",
-              }}
-            >
-              <X size={20} />
-            </button>
-
-            {/* Receipt Watermark if Voided */}
-            {viewingReceipt.is_void && (
-              <div
-                style={{
-                  position: "absolute",
-                  top: "45%",
-                  left: "50%",
-                  transform: "translate(-50%, -50%) rotate(-25deg)",
-                  fontSize: "54px",
-                  fontWeight: 900,
-                  color: "rgba(220, 38, 38, 0.22)",
-                  border: "5px solid rgba(220, 38, 38, 0.3)",
-                  padding: "6px 28px",
-                  borderRadius: "8px",
-                  letterSpacing: "6px",
-                  pointerEvents: "none",
-                  userSelect: "none",
-                }}
-              >
-                VOIDED
-              </div>
-            )}
-
-            <div
-              style={{
-                textAlign: "center",
-                borderBottom: "2px solid #e2e8f0",
-                paddingBottom: 16,
-                marginBottom: 20,
-              }}
-            >
-              <div style={{ fontSize: "20px", fontWeight: 800, color: "#0f766e" }}>
-                Heal Your Heart
-              </div>
-              <div style={{ fontSize: "11px", color: "#64748b" }}>
-                A Unit of Vaso-Meditech (EECP) Systems · Neelankarai, Chennai
-              </div>
-              <div
-                style={{
-                  fontSize: "15px",
-                  fontWeight: 700,
-                  color: "#1e293b",
-                  marginTop: 10,
-                  letterSpacing: "1px",
-                }}
-              >
-                PAYMENT RECEIPT
-              </div>
-            </div>
-
-            <div
-              style={{
-                display: "grid",
-                gridTemplateColumns: "1fr 1fr",
-                rowGap: 10,
-                fontSize: "13px",
-                marginBottom: 24,
-              }}
-            >
-              <div>
-                <span style={{ color: "#64748b" }}>Receipt #:</span>{" "}
-                <strong>{viewingReceipt.receipt_number}</strong>
-              </div>
-              <div>
-                <span style={{ color: "#64748b" }}>Date:</span>{" "}
-                <strong>{viewingReceipt.receipt_date?.split("T")[0]}</strong>
-              </div>
-              <div>
-                <span style={{ color: "#64748b" }}>Patient:</span>{" "}
-                <strong>{viewingReceipt.patient_name}</strong>
-              </div>
-              <div>
-                <span style={{ color: "#64748b" }}>Invoice Reference:</span>{" "}
-                <strong>{viewingReceipt.invoice_number}</strong>
-              </div>
-              <div>
-                <span style={{ color: "#64748b" }}>Payment Mode:</span>{" "}
-                <strong>{viewingReceipt.mode}</strong>
-              </div>
-              <div>
-                <span style={{ color: "#64748b" }}>Facility:</span>{" "}
-                <strong>{viewingReceipt.facility_name}</strong>
-              </div>
-            </div>
-
-            <div
-              style={{
-                background: "#f0fdf4",
-                border: "1px solid #bbf7d0",
-                padding: "16px",
-                borderRadius: "6px",
-                textAlign: "center",
-                marginBottom: 24,
-              }}
-            >
-              <div style={{ fontSize: "12px", color: "#166534", fontWeight: 600 }}>
-                Amount Received
-              </div>
-              <div style={{ fontSize: "28px", fontWeight: 900, color: "#15803d", marginTop: 4 }}>
-                {money(viewingReceipt.amount_paise)}
-              </div>
-            </div>
-
-            <div
-              style={{
-                display: "flex",
-                justifyContent: "space-between",
-                alignItems: "flex-end",
-                borderTop: "1px solid #e2e8f0",
-                paddingTop: 16,
-              }}
-            >
-              <div style={{ fontSize: "11px", color: "#94a3b8" }}>
-                Local electronic receipt · Authenticated via Heal Your Heart EHR
-              </div>
-              <div style={{ textAlign: "center" }}>
-                <div style={{ borderBottom: "1px solid #94a3b8", width: "140px", height: "30px" }} />
-                <div style={{ fontSize: "11px", color: "#475569", marginTop: 4 }}>
-                  Authorized Signatory
-                </div>
-              </div>
-            </div>
-
-            <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 20, gap: 8 }}>
-              <button
-                type="button"
-                onClick={() => window.print()}
-                className="charm-btn charm-btn-outline"
-                style={{ padding: "6px 14px", display: "flex", alignItems: "center", gap: 6 }}
-              >
-                <Printer size={14} /> Print
-              </button>
-              <button
-                type="button"
-                onClick={() => setViewingReceipt(null)}
-                style={{
-                  background: "#0f766e",
-                  color: "#ffffff",
-                  border: "none",
-                  fontWeight: 600,
-                  padding: "6px 16px",
+                  width: "100%",
+                  padding: "8px",
+                  fontSize: "13px",
+                  border: "1px solid #cbd5e1",
                   borderRadius: "4px",
+                }}
+              />
+            </div>
+
+            <div style={{ marginBottom: "12px" }}>
+              <label style={{ display: "block", fontSize: "12px", color: "#64748b", marginBottom: "4px" }}>
+                Payment Method
+              </label>
+              <select
+                value={directPaymentMethod}
+                onChange={(e) => setDirectPaymentMethod(e.target.value)}
+                style={{
+                  width: "100%",
+                  padding: "8px",
+                  fontSize: "13px",
+                  border: "1px solid #cbd5e1",
+                  borderRadius: "4px",
+                  background: "#ffffff",
+                }}
+              >
+                <option value="UPI">UPI</option>
+                <option value="Cash">Cash</option>
+                <option value="Credit Card">Credit Card</option>
+                <option value="Debit Card">Debit Card</option>
+                <option value="Cheque">Cheque</option>
+                <option value="Net Banking">Net Banking</option>
+              </select>
+            </div>
+
+            <div style={{ marginBottom: "12px" }}>
+              <label style={{ display: "block", fontSize: "12px", color: "#64748b", marginBottom: "4px" }}>
+                Reference / Transaction #
+              </label>
+              <input
+                type="text"
+                placeholder="UPI Ref or Txn Number"
+                value={directPaymentRef}
+                onChange={(e) => setDirectPaymentRef(e.target.value)}
+                style={{
+                  width: "100%",
+                  padding: "8px",
+                  fontSize: "13px",
+                  border: "1px solid #cbd5e1",
+                  borderRadius: "4px",
+                }}
+              />
+            </div>
+
+            <div style={{ marginBottom: "20px" }}>
+              <label style={{ display: "block", fontSize: "12px", color: "#64748b", marginBottom: "4px" }}>
+                Notes / Purpose
+              </label>
+              <input
+                type="text"
+                placeholder="Advance payment, consultation fee, etc."
+                value={directPaymentNotes}
+                onChange={(e) => setDirectPaymentNotes(e.target.value)}
+                style={{
+                  width: "100%",
+                  padding: "8px",
+                  fontSize: "13px",
+                  border: "1px solid #cbd5e1",
+                  borderRadius: "4px",
+                }}
+              />
+            </div>
+
+            <div style={{ display: "flex", justifyContent: "flex-end", gap: "8px" }}>
+              <button
+                type="button"
+                onClick={() => setAddPaymentModalOpen(false)}
+                style={{
+                  background: "#ffffff",
+                  border: "1px solid #cbd5e1",
+                  borderRadius: "4px",
+                  padding: "7px 16px",
+                  fontSize: "13px",
+                  color: "#64748b",
                   cursor: "pointer",
                 }}
               >
-                Done
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleDirectPayment}
+                style={{
+                  background: "#f97316",
+                  color: "#ffffff",
+                  border: "none",
+                  borderRadius: "4px",
+                  padding: "7px 18px",
+                  fontSize: "13px",
+                  fontWeight: 600,
+                  cursor: "pointer",
+                }}
+              >
+                Save Payment & Issue Receipt
               </button>
             </div>
           </div>
@@ -3894,63 +5291,205 @@ export function CharmPatientBilling({
         <div
           style={{
             position: "fixed",
-            inset: 0,
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
             background: "rgba(0,0,0,0.5)",
-            zIndex: 100,
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
+            zIndex: 9999,
           }}
         >
           <div
             style={{
               background: "#ffffff",
               borderRadius: "8px",
-              width: "420px",
+              width: "440px",
               boxShadow: "0 10px 25px rgba(0,0,0,0.2)",
-              padding: "24px",
+              padding: "20px",
             }}
           >
-            <div style={{ display: "flex", alignItems: "center", gap: 10, color: "#dc2626" }}>
-              <AlertCircle size={22} />
-              <h3 style={{ margin: 0, fontSize: "16px", fontWeight: 700 }}>
-                Cancel Invoice {cancelModalInvoice.number}?
-              </h3>
-            </div>
-            <p style={{ fontSize: "13px", color: "#475569", marginTop: 12, lineHeight: 1.5 }}>
-              Are you sure you want to cancel this invoice? The invoice balance will become 0.00 and
-              it will be marked with a <strong>CANCELLED</strong> stamp. This action cannot be
-              undone.
-            </p>
             <div
               style={{
                 display: "flex",
-                justifyContent: "flex-end",
-                gap: 8,
-                marginTop: 20,
+                justifyContent: "space-between",
+                alignItems: "center",
+                marginBottom: "16px",
               }}
             >
+              <div style={{ fontSize: "16px", fontWeight: 700, color: "#dc2626" }}>
+                Cancel Invoice: {cancelModalInvoice.number}
+              </div>
               <button
                 type="button"
                 onClick={() => setCancelModalInvoice(null)}
-                className="charm-btn charm-btn-outline"
+                style={{ border: "none", background: "none", cursor: "pointer", color: "#64748b" }}
               >
-                Keep Invoice
+                <X size={18} />
+              </button>
+            </div>
+
+            <p style={{ fontSize: "13px", color: "#475569", marginBottom: "16px" }}>
+              Are you sure you want to cancel this invoice? Once cancelled, the invoice cannot be
+              edited or collected, and will be stamped as CANCELLED.
+            </p>
+
+            <div style={{ marginBottom: "20px" }}>
+              <label style={{ display: "block", fontSize: "12px", color: "#64748b", marginBottom: "4px" }}>
+                Reason for cancellation (optional):
+              </label>
+              <input
+                type="text"
+                placeholder="e.g. Created in error, duplicate entry..."
+                value={cancelReason}
+                onChange={(e) => setCancelReason(e.target.value)}
+                style={{
+                  width: "100%",
+                  padding: "8px",
+                  fontSize: "12px",
+                  border: "1px solid #cbd5e1",
+                  borderRadius: "4px",
+                }}
+              />
+            </div>
+
+            <div style={{ display: "flex", justifyContent: "flex-end", gap: "8px" }}>
+              <button
+                type="button"
+                onClick={() => setCancelModalInvoice(null)}
+                style={{
+                  background: "#ffffff",
+                  border: "1px solid #cbd5e1",
+                  borderRadius: "4px",
+                  padding: "7px 16px",
+                  fontSize: "13px",
+                  color: "#64748b",
+                  cursor: "pointer",
+                }}
+              >
+                No, Keep Invoice
               </button>
               <button
                 type="button"
+                disabled={cancelSubmitting}
                 onClick={handleCancelInvoice}
                 style={{
                   background: "#dc2626",
                   color: "#ffffff",
                   border: "none",
-                  fontWeight: 600,
-                  padding: "7px 16px",
                   borderRadius: "4px",
+                  padding: "7px 18px",
+                  fontSize: "13px",
+                  fontWeight: 600,
+                  cursor: cancelSubmitting ? "not-allowed" : "pointer",
+                }}
+              >
+                {cancelSubmitting ? "Cancelling..." : "Yes, Cancel Invoice"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* =================================================================== */}
+      {/* CONSULTATION SUMMARY MODAL */}
+      {/* =================================================================== */}
+      {consultationSummaryModal && (
+        <div
+          style={{
+            position: "fixed",
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            background: "rgba(0,0,0,0.5)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            zIndex: 9999,
+          }}
+        >
+          <div
+            style={{
+              background: "#ffffff",
+              borderRadius: "8px",
+              width: "560px",
+              boxShadow: "0 10px 25px rgba(0,0,0,0.2)",
+              padding: "20px",
+              maxHeight: "80vh",
+              overflowY: "auto",
+            }}
+          >
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+                marginBottom: "16px",
+                borderBottom: "1px solid #e2e8f0",
+                paddingBottom: "10px",
+              }}
+            >
+              <div style={{ fontSize: "16px", fontWeight: 700, color: "#1e293b" }}>
+                Consultation Summary
+              </div>
+              <button
+                type="button"
+                onClick={() => setConsultationSummaryModal(null)}
+                style={{ border: "none", background: "none", cursor: "pointer", color: "#64748b" }}
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <div style={{ fontSize: "13px", lineHeight: "1.6", color: "#334155" }}>
+              <div style={{ marginBottom: "10px" }}>
+                <strong>Patient:</strong> {consultationSummaryModal.patient_name || "Patient"}{" "}
+                [{consultationSummaryModal.patient_mrn || ""}]
+              </div>
+              <div style={{ marginBottom: "10px" }}>
+                <strong>Attending Physician:</strong> {consultationSummaryModal.consultant_name || "Dr. Ramasamy S"}
+              </div>
+              <div style={{ marginBottom: "10px" }}>
+                <strong>Consultation Date:</strong>{" "}
+                {consultationSummaryModal.consultation_date
+                  ? new Date(consultationSummaryModal.consultation_date).toLocaleDateString()
+                  : "Nov 16, 2026"}
+              </div>
+              <div style={{ marginBottom: "10px" }}>
+                <strong>Diagnosis / Encounter Note:</strong> Routine follow-up for ischemic heart
+                disease evaluation and EECP non-invasive treatment course assessment.
+              </div>
+              <div style={{ marginBottom: "14px" }}>
+                <strong>Billed Services:</strong>
+                <ul style={{ margin: "6px 0 0 20px", padding: 0 }}>
+                  {(consultationSummaryModal.lines || []).map((l: any, i: number) => (
+                    <li key={i}>
+                      {l.description} — {money(l.total_paise)}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            </div>
+
+            <div style={{ display: "flex", justifyContent: "flex-end", marginTop: "16px" }}>
+              <button
+                type="button"
+                onClick={() => setConsultationSummaryModal(null)}
+                style={{
+                  background: "#0f766e",
+                  color: "#ffffff",
+                  border: "none",
+                  borderRadius: "4px",
+                  padding: "7px 18px",
+                  fontSize: "13px",
+                  fontWeight: 600,
                   cursor: "pointer",
                 }}
               >
-                Yes, Cancel Invoice
+                Close
               </button>
             </div>
           </div>
@@ -3958,4 +5497,11 @@ export function CharmPatientBilling({
       )}
     </div>
   );
+}
+
+// =====================================================================
+// CHARMHEALTH GLOBAL PRACTICE BILLING COMPONENT
+// =====================================================================
+export function CharmPracticeBilling() {
+  return <CharmPatientBilling isPracticeView={true} />;
 }

@@ -10134,6 +10134,728 @@ main.main-encounter {
   transition: all 0.15s;
 }
 
+.clinical-flowsheet-container {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.clinical-flowsheet-header {
+  display: flex;
+  min-height: 42px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.clinical-flowsheet-selector {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 9px;
+}
+
+.clinical-flowsheet-selector select {
+  width: min(320px, 100%);
+  min-height: 36px;
+  padding: 6px 32px 6px 10px;
+  border: 1px solid #cbd5e1;
+  border-radius: 5px;
+  background: #fff;
+  color: #1e293b;
+  font-size: 13px;
+}
+
+.clinical-flowsheet-selector > button {
+  display: grid;
+  width: 23px;
+  height: 23px;
+  flex: 0 0 23px;
+  place-items: center;
+  padding: 0;
+  border: 1px solid #ec8a53;
+  border-radius: 50%;
+  background: #fff;
+  color: #ec6c25;
+  cursor: pointer;
+}
+
+.clinical-flowsheet-selector > button:hover {
+  background: #fff5ef;
+}
+
+.clinical-flowsheet-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+}
+
+.clinical-flowsheet-add {
+  min-height: 35px;
+  border-color: #ec6c25 !important;
+  background: #ec6c25 !important;
+  color: #fff !important;
+  font-weight: 650;
+}
+
+.clinical-flowsheet-menu {
+  position: relative;
+}
+
+.clinical-flowsheet-menu summary {
+  display: grid;
+  width: 35px;
+  height: 35px;
+  place-items: center;
+  border: 1px solid #d5dbe3;
+  border-radius: 5px;
+  color: #475569;
+  cursor: pointer;
+  list-style: none;
+}
+
+.clinical-flowsheet-menu summary::-webkit-details-marker {
+  display: none;
+}
+
+.clinical-flowsheet-menu-items {
+  position: absolute;
+  top: calc(100% + 5px);
+  right: 0;
+  z-index: 20;
+  display: flex;
+  min-width: 150px;
+  flex-direction: column;
+  padding: 5px;
+  border: 1px solid #dbe3ec;
+  border-radius: 6px;
+  background: #fff;
+  box-shadow: 0 8px 20px rgba(15, 23, 42, .14);
+}
+
+.clinical-flowsheet-menu-items button {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 8px 9px;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: #334155;
+  text-align: left;
+  cursor: pointer;
+}
+
+.clinical-flowsheet-menu-items button:hover {
+  background: #f1f5f9;
+}
+
+.clinical-flowsheet-menu-items button:disabled {
+  opacity: .5;
+  cursor: not-allowed;
+}
+
+.clinical-flowsheet-table-wrap {
+  max-width: 100%;
+  overflow: auto;
+  border: 1px solid #dfe3e8;
+  border-radius: 5px;
+}
+
+.clinical-flowsheet-table {
+  width: max-content;
+  min-width: 0;
+  table-layout: fixed;
+  border-collapse: collapse;
+  border-spacing: 0;
+  color: #334155;
+  font-size: 12.5px;
+}
+
+.clinical-flowsheet-params-col {
+  width: 260px;
+}
+
+.clinical-flowsheet-date-col {
+  width: 180px;
+}
+
+.clinical-flowsheet-table th,
+.clinical-flowsheet-table td {
+  box-sizing: border-box;
+  width: 180px;
+  min-width: 180px;
+  max-width: 180px;
+  padding: 8px 10px;
+  border: 1px solid #e2e8f0;
+  text-align: left;
+  vertical-align: middle;
+  white-space: nowrap;
+}
+
+.clinical-flowsheet-table .clinical-flowsheet-sticky {
+  position: sticky;
+  left: 0;
+  z-index: 2;
+  width: 260px;
+  min-width: 260px;
+  max-width: 260px;
+  background: #fff;
+  text-align: left;
+  box-shadow: 1px 0 0 #dfe3e8;
+}
+
+.clinical-flowsheet-table thead .clinical-flowsheet-sticky,
+.clinical-flowsheet-table .clinical-flowsheet-section .clinical-flowsheet-sticky {
+  z-index: 4;
+  background: #f8fafc;
+}
+
+.clinical-flowsheet-table .clinical-flowsheet-section th {
+  background: #f8fafc;
+  color: #374151;
+  font-size: 12.5px;
+  font-weight: 700;
+  text-align: left;
+}
+
+.clinical-flowsheet-entry-heading {
+  position: relative;
+  height: 66px;
+  background: #fff;
+  font-weight: 700;
+}
+
+.clinical-flowsheet-date-heading,
+.clinical-flowsheet-date-heading > div {
+  display: block;
+}
+
+.clinical-flowsheet-date-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 6px;
+}
+
+.clinical-flowsheet-date-heading span,
+.clinical-flowsheet-date-heading small {
+  display: block;
+  white-space: nowrap;
+}
+
+.clinical-flowsheet-date-heading small {
+  margin-top: 2px;
+  color: #64748b;
+  font-size: 11px;
+  font-weight: 400;
+}
+
+.flowsheet-entry-actions {
+  display: flex;
+  flex: 0 0 auto;
+  justify-content: flex-end;
+  gap: 5px;
+}
+
+.flowsheet-entry-actions button {
+  display: grid;
+  place-items: center;
+  width: 18px;
+  height: 20px;
+  padding: 0;
+  border: 0;
+  border-radius: 2px;
+  background: transparent;
+  color: #334155;
+  cursor: pointer;
+}
+
+.flowsheet-entry-actions button:last-child {
+  color: #b91c1c;
+}
+
+.clinical-flowsheet-table tbody tr:not(.clinical-flowsheet-section) th.clinical-flowsheet-sticky {
+  position: sticky;
+  padding-right: 38px;
+  white-space: normal;
+}
+
+.clinical-flowsheet-trend-button {
+  position: absolute;
+  top: 50%;
+  right: 7px;
+  display: grid;
+  width: 24px;
+  height: 24px;
+  place-items: center;
+  padding: 0;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: #8290a1;
+  transform: translateY(-50%);
+  cursor: pointer;
+}
+
+.clinical-flowsheet-trend-button:hover {
+  background: #eef4f8;
+  color: #176f96;
+}
+
+.clinical-flowsheet-modal {
+  width: min(720px, 94vw);
+  overflow-x: hidden;
+}
+
+.clinical-flowsheet-form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 0 20px 20px;
+}
+
+.clinical-flowsheet-form-header {
+  position: sticky;
+  top: 62px;
+  z-index: 2;
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 0 -20px;
+  padding: 11px 20px;
+  border-bottom: 1px solid #e6e9ed;
+  background: var(--bg-surface);
+}
+
+.clinical-flowsheet-form-header > label {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 5px;
+  color: #475569;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.clinical-flowsheet-form-header input {
+  min-height: 34px;
+  padding: 6px 9px;
+  border: 1px solid #cbd5e1;
+  border-radius: 5px;
+  color: #334155;
+  font: inherit;
+}
+
+.clinical-flowsheet-form-header > div {
+  display: flex;
+  flex: 0 0 auto;
+  gap: 7px;
+}
+
+.clinical-flowsheet-form-header .button {
+  min-height: 34px;
+  padding: 6px 12px;
+}
+
+.clinical-flowsheet-field {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 5px;
+  color: #475569;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.clinical-flowsheet-form-section {
+  min-width: 0;
+  margin: 0;
+  padding: 12px 0 2px;
+  border: 0;
+  border-top: 1px solid #e7e9ed;
+}
+
+.clinical-flowsheet-form-section legend {
+  padding: 0 7px 0 0;
+  color: #334155;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.clinical-flowsheet-form-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 11px 16px;
+}
+
+.clinical-flowsheet-form-grid.two-column {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.clinical-flowsheet-checkbox-list {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.clinical-flowsheet-checkbox-list label {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  color: #374151;
+  font-size: 12px;
+  font-weight: 400;
+  cursor: pointer;
+}
+
+.clinical-flowsheet-checkbox-list input {
+  width: 14px;
+  height: 14px;
+  margin: 0;
+  accent-color: #176f96;
+}
+
+.clinical-flowsheet-field.wide-field {
+  grid-column: 1 / -1;
+}
+
+.clinical-flowsheet-field > span {
+  display: block;
+}
+
+.clinical-flowsheet-field input:not([type="radio"]):not([type="checkbox"]),
+.clinical-flowsheet-field select,
+.clinical-flowsheet-field textarea {
+  width: 100%;
+  min-height: 34px;
+  padding: 7px 9px;
+  border: 1px solid #cbd5e1;
+  border-radius: 5px;
+  background: #fff;
+  color: #334155;
+  font: inherit;
+}
+
+.clinical-flowsheet-field textarea {
+  min-height: 74px;
+  resize: vertical;
+}
+
+.clinical-flowsheet-input-wrap {
+  display: flex;
+  align-items: center;
+  overflow: hidden;
+  border: 1px solid #cbd5e1;
+  border-radius: 5px;
+  background: #fff;
+}
+
+.clinical-flowsheet-input-wrap input {
+  min-width: 0;
+  border: 0 !important;
+  border-radius: 0 !important;
+}
+
+.clinical-flowsheet-input-wrap > span,
+.clinical-flowsheet-bp-input > small {
+  padding: 0 9px;
+  color: #8490a0;
+  font-size: 11px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.clinical-flowsheet-radio-list,
+.clinical-flowsheet-staff-list {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 7px;
+}
+
+.clinical-flowsheet-radio-list label,
+.clinical-flowsheet-staff-list label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #374151;
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 1.35;
+  cursor: pointer;
+}
+
+.clinical-flowsheet-staff-list {
+  max-height: 175px;
+  overflow-y: auto;
+  padding: 9px 11px;
+  border: 1px solid #e2e8f0;
+  border-radius: 5px;
+  background: #fff;
+}
+
+.clinical-flowsheet-radio-list input,
+.clinical-flowsheet-staff-list input {
+  width: 14px;
+  height: 14px;
+  margin: 0;
+  accent-color: #176f96;
+}
+
+.clinical-flowsheet-bp-input {
+  display: flex;
+  align-items: center;
+  overflow: hidden;
+  border: 1px solid #cbd5e1;
+  border-radius: 5px;
+  background: #fff;
+}
+
+.clinical-flowsheet-bp-input input {
+  width: auto !important;
+  flex: 1 1 0;
+  min-width: 0;
+  border: 0 !important;
+  border-radius: 0 !important;
+}
+
+.clinical-flowsheet-bp-input > span {
+  flex: 0 0 auto;
+  padding: 0 3px;
+  color: #94a3b8;
+}
+
+.clinical-flowsheet-temperature-input {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.clinical-flowsheet-temperature-input input {
+  width: auto !important;
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+.clinical-flowsheet-temperature-input select {
+  width: 72px !important;
+  flex: 0 0 72px;
+}
+
+.flowsheet-catalog-modal {
+  width: min(530px, 94vw);
+  overflow: hidden;
+}
+
+.flowsheet-catalog-modal .modal-head {
+  padding: 12px 18px;
+  background: #f1f2f3;
+}
+
+.flowsheet-catalog-modal .modal-head h2 {
+  font-size: 16px;
+  font-weight: 400;
+}
+
+.flowsheet-catalog-content {
+  display: flex;
+  min-height: 390px;
+  flex-direction: column;
+}
+
+.flowsheet-catalog-options {
+  display: grid;
+  flex: 1;
+  grid-auto-flow: column;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-rows: repeat(3, minmax(28px, auto));
+  align-content: start;
+  column-gap: 20px;
+  row-gap: 8px;
+  padding: 18px 22px;
+}
+
+.flowsheet-catalog-options label {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  color: #111827;
+  font-size: 12px;
+  line-height: 1.25;
+  cursor: pointer;
+}
+
+.flowsheet-catalog-options input {
+  width: 13px;
+  height: 13px;
+  flex: 0 0 13px;
+  margin: 0;
+  accent-color: #ed8500;
+}
+
+.flowsheet-catalog-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 10px 12px 12px;
+}
+
+.flowsheet-catalog-actions .button {
+  min-height: 33px;
+  padding: 6px 12px;
+}
+
+.clinical-flowsheet-trend-modal {
+  width: min(720px, 94vw);
+}
+
+.clinical-flowsheet-trend {
+  padding: 4px 18px 18px;
+}
+
+.clinical-flowsheet-trend svg {
+  width: 100%;
+  height: auto;
+  max-height: 300px;
+}
+
+.clinical-flowsheet-trend svg line {
+  stroke: #d7dee6;
+  stroke-width: 1;
+}
+
+.clinical-flowsheet-trend svg polyline {
+  fill: none;
+  stroke: #1580a9;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 3;
+}
+
+.clinical-flowsheet-trend svg circle {
+  fill: #fff;
+  stroke: #1580a9;
+  stroke-width: 2;
+}
+
+.clinical-flowsheet-trend-points {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.clinical-flowsheet-trend-points span {
+  display: flex;
+  min-width: 110px;
+  flex-direction: column;
+  gap: 2px;
+  padding: 7px 9px;
+  border: 1px solid #e2e8f0;
+  border-radius: 5px;
+}
+
+.clinical-flowsheet-trend-points strong {
+  color: #334155;
+  font-size: 12px;
+}
+
+.clinical-flowsheet-trend-points small {
+  color: #64748b;
+  font-size: 10px;
+}
+
+@media (max-width: 640px) {
+  .clinical-flowsheet-header {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .clinical-flowsheet-selector {
+    width: 100%;
+  }
+
+  .clinical-flowsheet-selector select {
+    flex: 1;
+    width: auto;
+  }
+
+  .clinical-flowsheet-toolbar {
+    justify-content: flex-end;
+  }
+
+  .clinical-flowsheet-form-header {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .clinical-flowsheet-form-header > div {
+    justify-content: flex-end;
+  }
+
+  .clinical-flowsheet-form-grid.two-column {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+}
+
+@media print {
+  body.print-clinical-flowsheet * {
+    visibility: hidden !important;
+  }
+
+  body.print-clinical-flowsheet .clinical-flowsheet-container,
+  body.print-clinical-flowsheet .clinical-flowsheet-container * {
+    visibility: visible !important;
+  }
+
+  body.print-clinical-flowsheet .clinical-flowsheet-container {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    background: white;
+  }
+
+  body.print-clinical-flowsheet .clinical-flowsheet-header {
+    display: none;
+  }
+
+  body.print-clinical-flowsheet .clinical-flowsheet-table-wrap {
+    overflow: visible;
+    border: 0;
+  }
+
+  body.print-clinical-flowsheet .clinical-flowsheet-table {
+    width: 100%;
+    font-size: 9px;
+  }
+
+  body.print-clinical-flowsheet .clinical-flowsheet-table th,
+  body.print-clinical-flowsheet .clinical-flowsheet-table td {
+    width: auto;
+    min-width: 0;
+    max-width: none;
+    padding: 4px;
+  }
+
+  body.print-clinical-flowsheet .clinical-flowsheet-table .clinical-flowsheet-sticky {
+    position: static;
+    display: table-cell;
+    width: auto;
+    min-width: 150px;
+    max-width: none;
+  }
+
+  body.print-clinical-flowsheet .flowsheet-entry-actions,
+  body.print-clinical-flowsheet .clinical-flowsheet-toolbar,
+  body.print-clinical-flowsheet .clinical-flowsheet-trend-button {
+    display: none;
+  }
+}
+
 .charm-trend-btn:hover {
   background: #eff6ff;
   border-color: #006699;
