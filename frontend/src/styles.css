@@ -1220,17 +1220,20 @@ main.main-patient-chart {
   left: 50%;
   top: 50%;
   transform: translate(-50%, -50%);
-  width: min(600px, 94vw);
-  max-height: 90vh;
-  overflow: auto;
+  width: min(640px, 94vw);
+  max-height: 88vh;
+  overflow-y: auto;
+  overflow-x: hidden;
   background: var(--bg-surface);
   border-radius: var(--radius-lg);
   border: 1px solid var(--border-default);
   box-shadow: var(--shadow-popover);
+  display: flex;
+  flex-direction: column;
 }
 
 .modal.wide {
-  width: min(1060px, 95vw);
+  width: min(940px, 95vw);
 }
 
 .charm-modal-backdrop {
@@ -1258,7 +1261,7 @@ main.main-patient-chart {
 }
 
 .modal-head {
-  padding: 18px 22px;
+  padding: 14px 20px;
   border-bottom: 1px solid var(--border-default);
   display: flex;
   align-items: flex-start;
@@ -1267,7 +1270,8 @@ main.main-patient-chart {
   background: var(--bg-surface);
   position: sticky;
   top: 0;
-  z-index: 3;
+  z-index: 20;
+  flex-shrink: 0;
 }
 
 .modal-head h2 {
@@ -9872,9 +9876,15 @@ main.main-encounter {
   align-items: center;
   justify-content: flex-end;
   gap: 10px;
-  padding-top: 14px;
+  padding: 12px 20px;
   border-top: 1px solid #e2e8f0;
-  margin-top: 8px;
+  background: #ffffff;
+  position: sticky;
+  bottom: 0;
+  z-index: 20;
+  margin-top: auto;
+  flex-shrink: 0;
+  box-shadow: 0 -2px 6px rgba(0, 0, 0, 0.04);
 }
 
 /* ============================================================================
@@ -9886,18 +9896,18 @@ main.main-encounter {
   align-items: center;
   justify-content: space-between;
   background: #f8fafc;
-  padding: 12px 16px;
-  border-radius: 8px;
+  padding: 10px 14px;
+  border-radius: 6px;
   border: 1px solid #e2e8f0;
-  margin-bottom: 14px;
+  margin-bottom: 12px;
 }
 
 .charm-live-bmi-card {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
   background: #ffffff;
-  padding: 6px 14px;
+  padding: 4px 12px;
   border-radius: 6px;
   border: 1px solid #cbd5e1;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
@@ -9911,7 +9921,7 @@ main.main-encounter {
 }
 
 .charm-live-bmi-val {
-  font-size: 20px;
+  font-size: 18px;
   font-weight: 800;
   color: #0f172a;
 }
@@ -9924,8 +9934,8 @@ main.main-encounter {
 }
 
 .charm-bmi-pill {
-  padding: 4px 10px;
-  border-radius: 12px;
+  padding: 3px 8px;
+  border-radius: 10px;
   color: #ffffff;
   font-size: 11px;
   font-weight: 700;
@@ -9935,10 +9945,8 @@ main.main-encounter {
 .charm-vitals-groups {
   display: flex;
   flex-direction: column;
-  gap: 14px;
-  max-height: 60vh;
-  overflow-y: auto;
-  padding-right: 4px;
+  gap: 12px;
+  padding-bottom: 8px;
 }
 
 .charm-vitals-panel {
@@ -15176,6 +15184,12 @@ textarea.charm-input {
   padding: 12px 20px;
   background: #f8fafc;
   border-top: 1px solid #e2e8f0;
+  position: sticky;
+  bottom: 0;
+  z-index: 20;
+  margin-top: auto;
+  flex-shrink: 0;
+  box-shadow: 0 -2px 6px rgba(0, 0, 0, 0.04);
 }
 
 .charm-info-banner {
