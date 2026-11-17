@@ -20,6 +20,7 @@ import {
 } from "lucide-react";
 import { ViewTemplateModal } from "./patients";
 import { formatDoctorName } from "./clinicalWorkflows";
+import { CharmPracticeBilling } from "./charmPatientBilling";
 import {
   api,
   branch,
@@ -5272,28 +5273,7 @@ export function CalendarPage() {
 }
 
 export function BillingPage() {
-  const { user } = useApp();
-  const invoices = useQuery({
-    queryKey: ["invoices", branch],
-    queryFn: () => api<Row[]>("/invoices"),
-  });
-  return (
-    <>
-      <PageHeading
-        eyebrow="Practice Billing"
-        title="Invoices & Collections"
-        description="Patient billing, receipts, payment recording, and balance reconciliation."
-      />
-      {invoices.isLoading ? (
-        <Loading />
-      ) : (
-        <>
-          <ErrorBox error={invoices.error} />
-          <BillingTable rows={invoices.data || []} />
-        </>
-      )}
-    </>
-  );
+  return <CharmPracticeBilling />;
 }
 
 export function InventoryPage() {
