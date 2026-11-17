@@ -83,9 +83,10 @@ export function SettingContentView({
     // Attempt to load remote setting
     api<any>(`/settings/${category.id}/${option.id}`)
       .then((res) => {
-        if (res && res.data) {
-          setFormData(res.data);
-          localStorage.setItem(storageKey, JSON.stringify(res.data));
+        const val = res && typeof res === "object" && "data" in res ? res.data : res;
+        if (val && typeof val === "object" && Object.keys(val).length > 0) {
+          setFormData((prev) => ({ ...prev, ...val }));
+          localStorage.setItem(storageKey, JSON.stringify(val));
         }
       })
       .catch(() => {});
@@ -219,7 +220,7 @@ export function SettingContentView({
             <button
               type="button"
               className="charm-btn-orange-new"
-              onClick={handleSave}
+              onClick={() => navigate("/settings/facility/facility-list")}
             >
               <Plus size={15} />
               <span>New Facility</span>
@@ -230,7 +231,7 @@ export function SettingContentView({
             <button
               type="button"
               className="charm-btn-orange-new"
-              onClick={handleSave}
+              onClick={() => navigate("/settings/facility/facility-members")}
             >
               <Plus size={15} />
               <span>Add Member</span>
@@ -241,7 +242,7 @@ export function SettingContentView({
             <button
               type="button"
               className="charm-btn-orange-new"
-              onClick={handleSave}
+              onClick={() => navigate("/settings/facility/facility-resources")}
             >
               <Plus size={15} />
               <span>Add Resource</span>
@@ -252,7 +253,7 @@ export function SettingContentView({
             <button
               type="button"
               className="charm-btn-orange-new"
-              onClick={handleSave}
+              onClick={() => navigate("/settings/billing/procedure-codes")}
             >
               <Plus size={15} />
               <span>Add Procedure Code</span>

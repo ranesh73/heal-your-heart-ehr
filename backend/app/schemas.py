@@ -302,8 +302,8 @@ class StaffInput(Input):
     email: str = Field(min_length=3,max_length=160)
     name: str = Field(min_length=1,max_length=120)
     role: Literal['admin','doctor','assistant','therapist','reception','billing']
-    password: str = Field(min_length=12,max_length=200)
-    facility_ids: list[str] = Field(min_length=1)
+    password: str = Field(min_length=6,max_length=200)
+    facility_ids: list[str] = Field(default_factory=list)
 
 
 class FacilityInput(Input):
