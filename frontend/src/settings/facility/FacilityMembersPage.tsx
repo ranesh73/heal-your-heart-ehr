@@ -67,6 +67,8 @@ export function FacilityMembersPage() {
       setShowAddModal(false);
       setNewMember({ name: "", email: "", role: "assistant", phone: "", password: "", title: "Physician Assistant" });
       await loadData();
+      window.dispatchEvent(new CustomEvent("hyh_staff_updated"));
+      window.dispatchEvent(new CustomEvent("hyh_setting_updated"));
     } catch (err: any) {
       alert(err.message || "Failed to create staff member");
     }
@@ -341,10 +343,10 @@ export function FacilityMembersPage() {
                     type="password"
                     autoComplete="new-password"
                     required
-                    minLength={12}
+                    minLength={6}
                     value={newMember.password}
                     onChange={(e) => setNewMember({ ...newMember, password: e.target.value })}
-                    placeholder="At least 12 characters"
+                    placeholder="At least 6 characters"
                   />
                 </div>
                 <div className="charm-form-group">

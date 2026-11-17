@@ -44,8 +44,16 @@ def login(data: s.Login, request: Request, response: Response, db=Depends(get_db
 
 @router.get('/auth/me')
 def me(c=Depends(context)):
-    return {'user':serialize(c.user),'csrf':c.session.csrf,'facility_id':c.facility_id,
-        'facilities':[serialize(x) for x in c.db.scalars(select(m.Facility).where(m.Facility.id.in_(c.facility_ids)))]}
+    if c.user.role in {'admin', 'doctor'}:
+        facs = list(c.db.scalars(select(m.Facility).where(m.Facility.active == True).order_by(m.Facility.name)))
+    else:
+        facs = list(c.db.scalars(select(m.Facility).where(m.Facility.id.in_(c.facility_ids), m.Facility.active == True)))
+    return {
+        'user': serialize(c.user),
+        'csrf': c.session.csrf,
+        'facility_id': c.facility_id,
+        'facilities': [serialize(x) for x in facs]
+    }
 
 
 @router.post('/auth/logout')
@@ -75,26 +83,29 @@ def resources(c=Depends(context)):
 
 @router.post('/admin/users')
 def create_user(data:s.StaffInput,c=Depends(context)):
-    c.allow({'admin'})
-    if any(f not in c.facility_ids for f in data.facility_ids):
-        raise HTTPException(403,'Cannot grant access to an unauthorized branch')
+    c.allow({'admin', 'doctor'})
+    target_fids = data.facility_ids or [c.facility_id]
+    if c.user.role not in {'admin', 'doctor'}:
+        if any(f not in c.facility_ids for f in target_fids):
+            raise HTTPException(403,'Cannot grant access to an unauthorized branch')
     if c.db.scalar(select(m.User).where(m.User.email==data.email.lower())):
-        raise HTTPException(409,'Email already exists')
+        raise HTTPException(409,f'Email {data.email} already exists')
     row=m.User(email=data.email.lower(),name=data.name,role=data.role,password_hash=password_hash(data.password))
     c.db.add(row); c.db.flush()
-    for fid in set(data.facility_ids): c.db.add(m.UserFacility(user_id=row.id,facility_id=fid))
+    for fid in set(target_fids): c.db.add(m.UserFacility(user_id=row.id,facility_id=fid))
     c.audit('create_staff',row)
     return serialize(row)
 
 
 @router.post('/admin/users/{identifier}/deactivate')
 def deactivate_user(identifier:str,c=Depends(context)):
-    c.allow({'admin'})
+    c.allow({'admin', 'doctor'})
     row=c.staff(identifier)
     if row.id==c.user.id: raise HTTPException(409,'Cannot deactivate your own account')
     # A branch administrator may not deactivate staff with additional branch access.
     fids=list(c.db.scalars(select(m.UserFacility.facility_id).where(m.UserFacility.user_id==row.id)))
-    if not set(fids).issubset(c.facility_ids): raise HTTPException(403,'Staff has access outside your scope')
+    if c.user.role not in {'admin', 'doctor'} and not set(fids).issubset(c.facility_ids):
+        raise HTTPException(403,'Staff has access outside your scope')
     row.active=False; row.version+=1
     c.db.execute(delete(m.StaffSession).where(m.StaffSession.user_id==row.id))
     c.audit('deactivate_staff',row)
@@ -108,7 +119,7 @@ def list_facilities(c=Depends(context)):
 
 @router.post('/admin/facilities')
 def facility(data:s.FacilityInput,c=Depends(context)):
-    c.allow({'admin'})
+    c.allow({'admin', 'doctor'})
     d = data.model_dump()
     # Filter out extra schema fields that are not in m.Facility table
     facility_fields = {'code', 'name', 'address', 'phone', 'mobile', 'active'}
@@ -121,7 +132,7 @@ def facility(data:s.FacilityInput,c=Depends(context)):
 
 @router.put('/admin/facilities/{identifier}')
 def update_facility(identifier:str, data:s.FacilityInput, c=Depends(context)):
-    c.allow({'admin'})
+    c.allow({'admin', 'doctor'})
     row = c.db.get(m.Facility, identifier)
     if not row: raise HTTPException(404, 'Facility not found')
     d = data.model_dump()
@@ -142,7 +153,7 @@ def update_facility(identifier:str, data:s.FacilityInput, c=Depends(context)):
 
 @router.post('/admin/facilities/{identifier}/status')
 def toggle_facility_status(identifier:str, c=Depends(context)):
-    c.allow({'admin'})
+    c.allow({'admin', 'doctor'})
     row = c.db.get(m.Facility, identifier)
     if not row: raise HTTPException(404, 'Facility not found')
     row.active = not row.active
@@ -163,7 +174,7 @@ def facility_members(identifier:str, c=Depends(context)):
 
 @router.post('/admin/facilities/{identifier}/members')
 def update_facility_members(identifier:str, data:dict, c=Depends(context)):
-    c.allow({'admin'})
+    c.allow({'admin', 'doctor'})
     user_ids = set(data.get('user_ids', []))
     # Remove existing associations for this facility
     c.db.execute(delete(m.UserFacility).where(m.UserFacility.facility_id==identifier))
@@ -192,7 +203,7 @@ def list_facility_resources(c=Depends(context)):
 
 @router.post('/admin/facility-resources')
 def add_facility_resource(data:dict, c=Depends(context)):
-    c.allow({'admin'})
+    c.allow({'admin', 'doctor'})
     fid = data.get('facility_id') or c.facility_id
     row = m.Resource(
         facility_id=fid,
@@ -207,7 +218,7 @@ def add_facility_resource(data:dict, c=Depends(context)):
 
 @router.post('/admin/resources')
 def resource(data:s.ResourceInput,c=Depends(context)):
-    c.allow({'admin'})
+    c.allow({'admin', 'doctor'})
     row=m.Resource(**data.model_dump(),facility_id=c.facility_id); c.db.add(row); c.audit('create_resource',row)
     return serialize(row)
 
@@ -219,7 +230,7 @@ def availability(c=Depends(context)):
 
 @router.post('/admin/availability')
 def create_availability(data:s.AvailabilityInput,c=Depends(context)):
-    c.allow({'admin'}); c.staff(data.user_id,{'doctor','therapist'})
+    c.allow({'admin', 'doctor'}); c.staff(data.user_id,{'doctor','therapist'})
     if data.start_minute>=data.end_minute: raise HTTPException(422,'End must follow start')
     row=m.Availability(**data.model_dump(),facility_id=c.facility_id); c.db.add(row); c.audit('create_availability',row)
     return serialize(row)
@@ -227,7 +238,7 @@ def create_availability(data:s.AvailabilityInput,c=Depends(context)):
 
 @router.delete('/admin/availability/{identifier}')
 def remove_availability(identifier:str,c=Depends(context)):
-    c.allow({'admin'}); row=c.record(m.Availability,identifier); c.audit('remove_availability',row); c.db.delete(row)
+    c.allow({'admin', 'doctor'}); row=c.record(m.Availability,identifier); c.audit('remove_availability',row); c.db.delete(row)
     return {'ok':True}
 
 
