@@ -761,3 +761,17 @@ class UserPreference(Entity, Base):
     updated_at = Column(DateTime, default=now, onupdate=now)
     __table_args__ = (UniqueConstraint('user_id', 'section'),)
 
+
+class AppSetting(Entity, Base):
+    __tablename__ = 'app_settings'
+    scope = Column(String(30), nullable=False, default='global', index=True)
+    facility_id = Column(ForeignKey('facilities.id'), nullable=True, index=True)
+    user_id = Column(ForeignKey('users.id'), nullable=True, index=True)
+    category = Column(String(60), nullable=False, index=True)
+    option = Column(String(80), nullable=False, index=True)
+    setting_key = Column(String(140), nullable=False, index=True)
+    value = Column(Text, nullable=False, default='{}')
+    updated_by = Column(String(120), nullable=True)
+    updated_at = Column(DateTime, default=now, onupdate=now)
+    __table_args__ = (UniqueConstraint('scope', 'facility_id', 'user_id', 'setting_key', name='uq_app_setting'),)
+

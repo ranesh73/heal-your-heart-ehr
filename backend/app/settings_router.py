@@ -529,8 +529,41 @@ def list_practice_members(c=Depends(context)):
 
 @router.get('/settings/{category}/{option}')
 def get_setting_option(category: str, option: str, c=Depends(context)):
-    store = load_store()
     key = f"{category}:{option}"
+    # 1. Query database AppSetting
+    try:
+        row = None
+        if c.facility_id:
+            row = c.db.scalar(
+                select(m.AppSetting).where(
+                    m.AppSetting.facility_id == c.facility_id,
+                    m.AppSetting.setting_key == key
+                )
+            )
+        if not row and c.user_id:
+            row = c.db.scalar(
+                select(m.AppSetting).where(
+                    m.AppSetting.user_id == c.user_id,
+                    m.AppSetting.setting_key == key
+                )
+            )
+        if not row:
+            row = c.db.scalar(
+                select(m.AppSetting).where(
+                    m.AppSetting.scope == 'global',
+                    m.AppSetting.setting_key == key
+                )
+            )
+        if row and row.value:
+            try:
+                return json.loads(row.value)
+            except Exception:
+                pass
+    except Exception:
+        pass
+
+    # 2. Check JSON store as fallback
+    store = load_store()
     saved = store.get("custom_settings", {}).get(key)
     if saved is not None:
         return saved
@@ -583,11 +616,135 @@ def save_setting_option(category: str, option: str, data: dict, c=Depends(contex
             except (ValueError, TypeError):
                 raise HTTPException(422, 'Days before expiry warning alert must be a positive number or zero')
 
+    # Determine scope: user, facility, or global
+    scope = 'global'
+    user_id = None
+    facility_id = None
+    if category in ['account', 'security'] or option in ['my-profile', 'appearance', 'account-preferences']:
+        scope = 'user'
+        user_id = c.user_id
+    elif category in ['facility', 'calendar', 'inventory']:
+        scope = 'facility'
+        facility_id = c.facility_id
+
+    # Persist in database AppSetting
+    try:
+        query = select(m.AppSetting).where(
+            m.AppSetting.scope == scope,
+            m.AppSetting.setting_key == key
+        )
+        if facility_id:
+            query = query.where(m.AppSetting.facility_id == facility_id)
+        if user_id:
+            query = query.where(m.AppSetting.user_id == user_id)
+        
+        row = c.db.scalar(query)
+        if row:
+            row.value = json.dumps(data)
+            row.updated_by = c.user.email if c.user else 'system'
+            row.version += 1
+        else:
+            row = m.AppSetting(
+                id=str(uuid4()),
+                scope=scope,
+                facility_id=facility_id,
+                user_id=user_id,
+                category=category,
+                option=option,
+                setting_key=key,
+                value=json.dumps(data),
+                updated_by=c.user.email if c.user else 'system'
+            )
+            c.db.add(row)
+        c.db.flush()
+    except Exception:
+        pass
+
     store = load_store()
     custom = store.setdefault("custom_settings", {})
     custom[key] = data
     save_store(store)
+    c.audit(f'save_setting_{category}_{option}', {'key': key, 'scope': scope})
     return data
+
+
+@router.get('/settings/appearance')
+def get_appearance(c=Depends(context)):
+    if c.user_id:
+        pref = c.db.scalar(
+            select(m.UserPreference).where(
+                m.UserPreference.user_id == c.user_id,
+                m.UserPreference.section == 'appearance'
+            )
+        )
+        if pref and pref.data:
+            try:
+                return json.loads(pref.data)
+            except Exception:
+                pass
+    row = c.db.scalar(
+        select(m.AppSetting).where(
+            m.AppSetting.setting_key == 'account:appearance'
+        )
+    )
+    if row and row.value:
+        try:
+            return json.loads(row.value)
+        except Exception:
+            pass
+    return {"theme": "Light Mode", "compactMode": False, "highContrast": False}
+
+
+@router.put('/settings/appearance')
+def save_appearance(data: dict, c=Depends(context)):
+    c.allow({'admin', 'doctor', 'reception', 'therapist', 'billing', 'assistant'})
+    theme = data.get("theme", "Light Mode")
+    compact = bool(data.get("compactMode", False))
+    high_contrast = bool(data.get("highContrast", False))
+    payload = {"theme": theme, "compactMode": compact, "highContrast": high_contrast}
+    payload_str = json.dumps(payload)
+
+    if c.user_id:
+        pref = c.db.scalar(
+            select(m.UserPreference).where(
+                m.UserPreference.user_id == c.user_id,
+                m.UserPreference.section == 'appearance'
+            )
+        )
+        if pref:
+            pref.data = payload_str
+            pref.version += 1
+        else:
+            c.db.add(m.UserPreference(
+                id=str(uuid4()),
+                user_id=c.user_id,
+                section='appearance',
+                data=payload_str
+            ))
+
+    row = c.db.scalar(
+        select(m.AppSetting).where(
+            m.AppSetting.setting_key == 'account:appearance',
+            m.AppSetting.scope == 'global'
+        )
+    )
+    if row:
+        row.value = payload_str
+        row.updated_by = c.user.email if c.user else 'system'
+        row.version += 1
+    else:
+        c.db.add(m.AppSetting(
+            id=str(uuid4()),
+            scope='global',
+            category='account',
+            option='appearance',
+            setting_key='account:appearance',
+            value=payload_str,
+            updated_by=c.user.email if c.user else 'system'
+        ))
+    c.db.flush()
+    c.audit('update_appearance_settings', payload)
+    return payload
 
 
 # --- Calendar: Facility Timings & Time Zone ---
