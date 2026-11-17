@@ -204,6 +204,26 @@ class CreditInput(Input):
     reason: str = Field(min_length=3, max_length=2000)
 
 
+class InvoiceAllocationInput(Input):
+    invoice_id: str
+    amount_paise: int = Field(default=0, ge=0, le=1000000000)
+    write_off_paise: int = Field(default=0, ge=0, le=1000000000)
+    write_off_reason: str = Field(default='', max_length=2000)
+    comments: str = Field(default='', max_length=2000)
+
+
+class PatientPaymentInput(Input):
+    patient_id: str
+    amount_paise: int = Field(gt=0, le=1000000000)
+    payment_date: str | None = None
+    mode: str = Field(default='Cash', max_length=50)
+    reference: str = Field(default='', max_length=100)
+    other_reference: str = Field(default='', max_length=100)
+    description: str = Field(default='', max_length=2000)
+    allocations: list[InvoiceAllocationInput] = Field(default_factory=list)
+    idempotency_key: str | None = None
+
+
 # Field metadata drives consistent, accessible input forms without exposing arbitrary DB writes.
 def field(name, label, kind='text', required=False, options=None, minimum=None, maximum=None):
     return dict(name=name, label=label, type=kind, required=required, options=options, min=minimum, max=maximum)

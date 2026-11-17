@@ -24,7 +24,7 @@ import {
   SettingCategory,
   SettingOption,
 } from "./settingsData";
-import { api } from "../api";
+import { api, navigate } from "../api";
 import { PatientNotificationsSubpage } from "./subpages/PatientNotificationsSubpage";
 import { PatientCategoriesSubpage } from "./subpages/PatientCategoriesSubpage";
 import { QuestionnairesSubpage } from "./subpages/QuestionnairesSubpage";

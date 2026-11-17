@@ -540,6 +540,30 @@ class Credit(Entity, Base):
     __table_args__ = (CheckConstraint('amount_paise > 0'),)
 
 
+class BillingReceipt(PatientRecord, Base):
+    __tablename__ = 'billing_receipts'
+    receipt_number = Column(String(50), unique=True, nullable=False, index=True)
+    amount_paise = Column(Integer, nullable=False)
+    unused_paise = Column(Integer, default=0, nullable=False)
+    mode = Column(String(50), default='Cash', nullable=False)
+    reference = Column(String(100), default='', nullable=False)
+    other_reference = Column(String(100), default='', nullable=False)
+    description = Column(Text, default='', nullable=False)
+    payment_from = Column(String(50), default='Patient', nullable=False)
+    is_void = Column(Boolean, default=False, nullable=False)
+    idempotency_key = Column(String(80), unique=True, nullable=True)
+
+
+class ReceiptAllocation(Entity, Base):
+    __tablename__ = 'receipt_allocations'
+    receipt_id = Column(ForeignKey('billing_receipts.id', ondelete='CASCADE'), nullable=False, index=True)
+    invoice_id = Column(ForeignKey('invoices.id'), nullable=False, index=True)
+    amount_paise = Column(Integer, default=0, nullable=False)
+    write_off_paise = Column(Integer, default=0, nullable=False)
+    write_off_reason = Column(Text, default='', nullable=False)
+    comments = Column(Text, default='', nullable=False)
+
+
 class Task(PatientRecord, Base):
     __tablename__ = 'tasks'
     kind = Column(String(30), default='task', nullable=False)

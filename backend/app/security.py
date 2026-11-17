@@ -99,10 +99,27 @@ def check_version(row, version):
 
 
 def next_number(db, prefix):
-    seq = db.get(Sequence,prefix)
+    from sqlalchemy import select, func
+    from . import models as m
+    seq = db.get(Sequence, prefix)
     if not seq:
-        seq = Sequence(key=prefix,value=0)
+        seq = Sequence(key=prefix, value=0)
         db.add(seq)
-    seq.value += 1
+
+    while True:
+        seq.value += 1
+        candidate = f'{prefix}-{seq.value:06d}'
+        if prefix.endswith('-MR'):
+            if db.scalar(select(m.Patient.id).where(m.Patient.mrn == candidate)):
+                continue
+        elif prefix.endswith('-INV'):
+            if db.scalar(select(m.Invoice.id).where(m.Invoice.number == candidate)):
+                continue
+        elif prefix.endswith('-REC'):
+            if db.scalar(select(m.Payment.id).where(m.Payment.receipt_number == candidate)) or \
+               db.scalar(select(m.BillingReceipt.id).where(m.BillingReceipt.receipt_number == candidate)):
+                continue
+        break
+
     db.flush()
-    return f'{prefix}-{seq.value:06d}'
+    return candidate
