@@ -1,4 +1,4 @@
-import { ReactNode, useState, useRef, useEffect } from "react";
+import React, { ReactNode, useState, useRef, useEffect, Children } from "react";
 import * as Dialog from "@radix-ui/react-dialog";
 import { useForm } from "react-hook-form";
 import { X, Plus, LoaderCircle, Inbox, ChevronRight } from "lucide-react";
@@ -157,6 +157,23 @@ export function Modal({
     }
   }, []);
 
+  const isClinicalModal =
+    Boolean(className?.includes("charm-modal")) ||
+    Boolean(className?.includes("charm-clinical")) ||
+    React.Children.toArray(children).some((child: any) => {
+      if (!child || !child.props) return false;
+      const c = child.props.className;
+      if (typeof c === "string") {
+        return (
+          c.includes("charm-modal-form") ||
+          c.includes("charm-modal-scroll-body") ||
+          c.includes("charm-modal-footer") ||
+          c.includes("charm-dialog-body")
+        );
+      }
+      return false;
+    });
+
   return (
     <Dialog.Root
       open
@@ -168,7 +185,12 @@ export function Modal({
         <Dialog.Overlay className="overlay" />
         <Dialog.Content
           ref={contentRef}
-          className={cn("modal", wide && "wide", className)}
+          className={cn(
+            "modal",
+            wide && "wide",
+            isClinicalModal && "charm-clinical-modal charm-modal-container",
+            className
+          )}
           onPointerDownOutside={(e) => e.preventDefault()}
           onOpenAutoFocus={(e) => {
             e.preventDefault();

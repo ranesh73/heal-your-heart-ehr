@@ -161,6 +161,108 @@ def cancel(identifier:str,data:s.Version,c=Depends(context)):
     return invoice_out(c.db,row)
 
 
+@router.delete('/invoices/{identifier}')
+def delete_invoice(identifier: str, c=Depends(context)):
+    c.allow(BILLING)
+    row = c.record(m.Invoice, identifier)
+    if row.status != 'draft':
+        raise HTTPException(409, f"Only Draft invoices can be deleted. Invoice '{row.number}' is in '{row.status}' status.")
+    c.db.execute(delete(m.InvoiceLine).where(m.InvoiceLine.invoice_id == row.id))
+    c.db.delete(row)
+    c.audit('delete_invoice', row, f"Deleted draft invoice {row.number}")
+    return {'status': 'deleted', 'id': identifier, 'number': row.number}
+
+
+@router.post('/invoices/bulk-action')
+def invoice_bulk_action(data: s.InvoiceBulkActionInput, c=Depends(context)):
+    c.allow(BILLING)
+    affected = []
+    
+    if data.action == 'delete':
+        for inv_id in data.invoice_ids:
+            inv = c.db.get(m.Invoice, inv_id)
+            if not inv:
+                continue
+            if inv.facility_id != c.facility_id:
+                raise HTTPException(403, f"Cannot delete invoice {inv.number} from another facility")
+            if inv.status != 'draft':
+                raise HTTPException(409, f"Only Draft invoices can be deleted. Invoice '{inv.number}' is in '{inv.status}' status.")
+            affected.append(inv)
+        
+        for inv in affected:
+            c.audit('delete_draft_invoice', inv, f"Deleted draft invoice {inv.number}")
+            c.db.execute(delete(m.InvoiceLine).where(m.InvoiceLine.invoice_id == inv.id))
+            c.db.delete(inv)
+        
+        return {'action': 'delete', 'count': len(affected), 'affected_ids': [x.id for x in affected]}
+
+    for inv_id in data.invoice_ids:
+        inv = c.db.get(m.Invoice, inv_id)
+        if not inv or inv.facility_id != c.facility_id:
+            continue
+        
+        if data.action == 'mark_as_mailed':
+            inv.is_mailed = True
+            inv.mailed_at = m.now()
+            inv.version += 1
+            affected.append(inv)
+        elif data.action == 'flag':
+            inv.is_flagged = True
+            inv.version += 1
+            affected.append(inv)
+        elif data.action == 'clear_flags':
+            inv.is_flagged = False
+            inv.version += 1
+            affected.append(inv)
+        elif data.action == 'sent_for_collection':
+            inv.sent_for_collection = True
+            inv.collection_at = m.now()
+            inv.version += 1
+            affected.append(inv)
+        elif data.action == 'clear_collection':
+            inv.sent_for_collection = False
+            inv.collection_at = None
+            inv.version += 1
+            affected.append(inv)
+        elif data.action == 'add_notes':
+            new_note = (data.notes or '').strip()
+            if new_note:
+                existing = inv.notes or ''
+                inv.notes = f"{existing}\n{new_note}".strip() if existing else new_note
+                inv.version += 1
+                affected.append(inv)
+        elif data.action == 'set_follow_up':
+            if data.follow_up_date:
+                from datetime import date as dt_date
+                inv.follow_up_date = dt_date.fromisoformat(data.follow_up_date)
+                inv.version += 1
+                affected.append(inv)
+        elif data.action == 'add_procedure':
+            if data.procedure and inv.status not in ('paid', 'cancelled'):
+                proc = data.procedure
+                qty = int(proc.get('quantity', 1))
+                unit_paise = int(proc.get('unit_paise', 0))
+                line_entry = m.InvoiceLine(
+                    invoice_id=inv.id,
+                    code=str(proc.get('code', '')),
+                    description=str(proc.get('description', 'Procedure Item')),
+                    quantity=max(1, qty),
+                    unit_paise=max(0, unit_paise)
+                )
+                c.db.add(line_entry)
+                c.db.flush()
+                lines = list(c.db.scalars(select(m.InvoiceLine).where(m.InvoiceLine.invoice_id == inv.id)))
+                inv.total_paise = max(0, sum(l.quantity * l.unit_paise for l in lines) - (inv.discount_paise or 0))
+                update_invoice(c, inv)
+                affected.append(inv)
+        else:
+            raise HTTPException(400, f"Unsupported bulk action '{data.action}'")
+
+    for inv in affected:
+        c.audit(f"invoice_{data.action}", inv, json.dumps({'action': data.action}))
+    return {'action': data.action, 'count': len(affected), 'affected_ids': [x.id for x in affected]}
+
+
 def serialize_billing_receipt(db, rec: m.BillingReceipt):
     pat = db.get(m.Patient, rec.patient_id)
     fac = db.get(m.Facility, rec.facility_id)

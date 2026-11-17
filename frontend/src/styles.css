@@ -1237,17 +1237,23 @@ main.main-patient-chart {
 }
 
 /* Modals with pinned headers and footers (Charm EHR Clinical Modals) */
+.modal.charm-clinical-modal,
+.modal.charm-modal-container,
 .modal:has(.charm-modal-footer),
 .modal:has(.charm-modal-scroll-body),
-.modal:has(.charm-modal-form),
-.modal.charm-modal-container {
+.modal:has(.charm-modal-form) {
+  height: min(88vh, 820px) !important;
+  max-height: 88vh !important;
   overflow: hidden !important;
-  max-height: 90vh !important;
   display: flex !important;
   flex-direction: column !important;
   padding: 0 !important;
 }
 
+.modal.charm-clinical-modal > form,
+.modal.charm-clinical-modal > div,
+.modal.charm-modal-container > form,
+.modal.charm-modal-container > div,
 .modal:has(.charm-modal-footer) > form,
 .modal:has(.charm-modal-footer) > div.charm-modal-form,
 .modal > form.charm-modal-form,
@@ -1256,35 +1262,37 @@ main.main-patient-chart {
   margin: 0 !important;
   display: flex !important;
   flex-direction: column !important;
-  flex: 1 1 auto !important;
+  flex: 1 1 0% !important;
   min-height: 0 !important;
+  height: 100% !important;
   overflow: hidden !important;
 }
 
 .charm-modal-scroll-body {
-  flex: 1 1 auto !important;
+  flex: 1 1 0% !important;
   overflow-y: auto !important;
   overflow-x: hidden !important;
   min-height: 0 !important;
-  padding: 18px 22px 24px 22px !important;
+  padding: 18px 24px 22px 24px !important;
   box-sizing: border-box !important;
 }
 
 .charm-modal-scroll-body::-webkit-scrollbar {
-  width: 6px;
+  width: 7px;
 }
 
 .charm-modal-scroll-body::-webkit-scrollbar-track {
-  background: transparent;
+  background: #f1f5f9;
+  border-radius: 4px;
 }
 
 .charm-modal-scroll-body::-webkit-scrollbar-thumb {
-  background: #cbd5e1;
+  background: #94a3b8;
   border-radius: 4px;
 }
 
 .charm-modal-scroll-body::-webkit-scrollbar-thumb:hover {
-  background: #94a3b8;
+  background: #64748b;
 }
 
 .charm-modal-footer {
@@ -1292,11 +1300,11 @@ main.main-patient-chart {
   align-items: center !important;
   justify-content: flex-end !important;
   gap: 12px !important;
-  padding: 12px 22px !important;
+  padding: 12px 24px !important;
   background: #f8fafc !important;
   border-top: 1px solid #e2e8f0 !important;
   position: relative !important;
-  bottom: auto !important;
+  bottom: 0 !important;
   margin-top: auto !important;
   flex-shrink: 0 !important;
   box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.04) !important;

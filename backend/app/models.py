@@ -529,6 +529,14 @@ class Invoice(PatientRecord, Base):
     discount_paise = Column(Integer, default=0, nullable=False)
     total_paise = Column(Integer, nullable=False)
     status = Column(String(30), default='unpaid', nullable=False)
+    is_flagged = Column(Boolean, default=False, nullable=False)
+    is_mailed = Column(Boolean, default=False, nullable=False)
+    mailed_at = Column(DateTime, nullable=True)
+    sent_for_collection = Column(Boolean, default=False, nullable=False)
+    collection_at = Column(DateTime, nullable=True)
+    notes = Column(Text, default='', nullable=False)
+    follow_up_date = Column(Date, nullable=True)
+    due_date = Column(Date, nullable=True)
     __table_args__ = (CheckConstraint('total_paise >= 0 AND discount_paise >= 0'),)
 
 

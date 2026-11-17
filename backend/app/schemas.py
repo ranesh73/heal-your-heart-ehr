@@ -224,6 +224,14 @@ class PatientPaymentInput(Input):
     idempotency_key: str | None = None
 
 
+class InvoiceBulkActionInput(Input):
+    invoice_ids: list[str] = Field(min_length=1, max_length=500)
+    action: str = Field(min_length=1, max_length=50)
+    notes: str | None = None
+    follow_up_date: str | None = None
+    procedure: dict[str, Any] | None = None
+
+
 # Field metadata drives consistent, accessible input forms without exposing arbitrary DB writes.
 def field(name, label, kind='text', required=False, options=None, minimum=None, maximum=None):
     return dict(name=name, label=label, type=kind, required=required, options=options, min=minimum, max=maximum)

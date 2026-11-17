@@ -1324,6 +1324,7 @@ export function AddInjectionModal({
       description="Record injection administration with master catalogue link, batch/lot tracking, anatomical site, and nurse notes."
       onClose={onClose}
       wide
+      className="charm-clinical-modal charm-modal-container"
     >
       <form onSubmit={handleSave} className="charm-modal-form">
         <div className="charm-modal-scroll-body">
@@ -1663,6 +1664,7 @@ export function AddPatientInjectionOrderModal({
       description="Create a physician injection order linked to the master formulary catalogue."
       onClose={onClose}
       wide
+      className="charm-clinical-modal charm-modal-container"
     >
       <form onSubmit={handleSave} className="charm-modal-form">
         <div className="charm-modal-scroll-body">
@@ -2434,6 +2436,7 @@ export function AddVaccineModal({
       description="Record CDC/CVX-coded immunizations with lot numbers, VIS documentation, and dose series."
       onClose={onClose}
       wide
+      className="charm-clinical-modal charm-modal-container"
     >
       <div className="charm-modal-form">
         <div className="charm-modal-scroll-body">
@@ -2614,33 +2617,49 @@ export function AddVaccineModal({
               </select>
             </div>
 
-            <div className="charm-form-group">
-              <label>Administered Date & Time</label>
-              <input
-                type="datetime-local"
-                value={administeredAt}
-                onChange={(e) => setAdministeredAt(e.target.value)}
-                className="charm-input"
-              />
-            </div>
+            {status === "administered" && (
+              <>
+                <div className="charm-form-group">
+                  <label>Administered Date & Time</label>
+                  <input
+                    type="datetime-local"
+                    value={administeredAt}
+                    onChange={(e) => setAdministeredAt(e.target.value)}
+                    className="charm-input"
+                  />
+                </div>
+
+                <div className="charm-form-group">
+                  <label>Administered By</label>
+                  <select
+                    value={administeredBy}
+                    onChange={(e) => setAdministeredBy(e.target.value)}
+                    className="charm-select"
+                  >
+                    {staff.map((s) => (
+                      <option key={s.id} value={s.id}>
+                        {formatDoctorName(s.name)} ({s.role})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </>
+            )}
+
+            {status === "historical" && (
+              <div className="charm-form-group">
+                <label>Date Administered (Historical)</label>
+                <input
+                  type="date"
+                  value={administeredAt?.slice(0, 10) || ""}
+                  onChange={(e) => setAdministeredAt(e.target.value)}
+                  className="charm-input"
+                />
+              </div>
+            )}
 
             <div className="charm-form-group">
-              <label>Administered By</label>
-              <select
-                value={administeredBy}
-                onChange={(e) => setAdministeredBy(e.target.value)}
-                className="charm-select"
-              >
-                {staff.map((s) => (
-                  <option key={s.id} value={s.id}>
-                    {formatDoctorName(s.name)} ({s.role})
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div className="charm-form-group">
-              <label>Ordered By (Clinician)</label>
+              <label>Ordered By (Clinician) {status === "ordered" && <span style={{ color: "#ef4444" }}>*</span>}</label>
               <select
                 value={orderedBy}
                 onChange={(e) => setOrderedBy(e.target.value)}
@@ -2656,21 +2675,31 @@ export function AddVaccineModal({
               </select>
             </div>
 
-            <div className="charm-form-group">
-              <label>VIS Date Provided</label>
-              <input
-                type="date"
-                value={visGivenDate}
-                onChange={(e) => setVisGivenDate(e.target.value)}
-                className="charm-input"
-              />
-            </div>
+            {status === "administered" && (
+              <div className="charm-form-group">
+                <label>VIS Date Provided</label>
+                <input
+                  type="date"
+                  value={visGivenDate}
+                  onChange={(e) => setVisGivenDate(e.target.value)}
+                  className="charm-input"
+                />
+              </div>
+            )}
 
             <div className="charm-form-group" style={{ gridColumn: "1 / -1" }}>
-              <label>Adverse Reaction / Clinical Notes</label>
+              <label>
+                {status === "ordered"
+                  ? "Order Instructions / Clinical Indications for Nurse"
+                  : "Adverse Reaction / Clinical Notes"}
+              </label>
               <textarea
                 rows={2}
-                placeholder="e.g. VIS information sheet handed to patient. No immediate acute allergic symptoms observed during 15-min waiting window."
+                placeholder={
+                  status === "ordered"
+                    ? "e.g. Administer prior to cardiology discharge. Check vitals post-vaccination."
+                    : "e.g. VIS information sheet handed to patient. No immediate acute allergic symptoms observed during 15-min waiting window."
+                }
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
                 className="charm-input"
@@ -3064,6 +3093,7 @@ export function AddVitalsModal({
       description="Record multi-metric vitals with live dynamic BMI auto-calculation and cardiology hemodynamics."
       onClose={onClose}
       wide
+      className="charm-clinical-modal charm-modal-container"
     >
       <div className="charm-modal-form">
         <div className="charm-modal-scroll-body">

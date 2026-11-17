@@ -24,9 +24,13 @@ import {
   GripVertical,
   Eye,
   FolderOpen,
-  RotateCcw
+  RotateCcw,
+  Flag,
+  Mail,
+  Clock,
+  Tag
 } from "lucide-react";
-import { api } from "./api";
+import { api, today } from "./api";
 import { useApp } from "./context";
 
 // Format currency as Indian Rupee (INR)
@@ -94,8 +98,10 @@ export function CharmPatientBilling({
     "invoices" | "receipts" | "balance_due" | "family_balance_due"
   >("invoices");
 
-  // View Mode: 'list' | 'create' | 'detail' | 'edit' | 'payment'
-  const [viewMode, setViewMode] = useState<"list" | "create" | "detail" | "edit" | "payment">("list");
+  // View Mode: 'list' | 'create' | 'detail' | 'edit' | 'payment' | 'collect_payments'
+  const [viewMode, setViewMode] = useState<
+    "list" | "create" | "detail" | "edit" | "payment" | "collect_payments"
+  >("list");
   const [invoiceTypeMode, setInvoiceTypeMode] = useState<
     "Invoice" | "Pre-Payment Invoice"
   >("Invoice");
@@ -106,7 +112,10 @@ export function CharmPatientBilling({
   const [loading, setLoading] = useState(false);
   const [selectedInvoice, setSelectedInvoice] = useState<any | null>(null);
 
-  // Filters (CharmHealth 3-Box Filter Layout)
+  // Filters (Phase 2: Status Dropdown Filter: All, Partially Paid, Unpaid, Overdue, Paid)
+  const [statusFilter, setStatusFilter] = useState<
+    "All" | "Partially Paid" | "Unpaid" | "Overdue" | "Paid"
+  >("All");
   const [dateRangeFilter, setDateRangeFilter] = useState("All");
   const [searchInvoiceNo, setSearchInvoiceNo] = useState("");
   const [searchOption2Type, setSearchOption2Type] = useState("");
@@ -115,6 +124,54 @@ export function CharmPatientBilling({
   const [activeMenuId, setActiveMenuId] = useState<string | null>(null);
   const [showCptDetails, setShowCptDetails] = useState(false);
   const [selectedInvoiceIds, setSelectedInvoiceIds] = useState<Record<string, boolean>>({});
+
+  // Dropdown States for Actions and Print (Phase 5 & Phase 6)
+  const [actionsDropdownOpen, setActionsDropdownOpen] = useState(false);
+  const [printDropdownOpen, setPrintDropdownOpen] = useState(false);
+  const actionsMenuRef = useRef<HTMLDivElement>(null);
+  const printMenuRef = useRef<HTMLDivElement>(null);
+
+  // Modals for Actions Dropdown
+  const [addNotesModalOpen, setAddNotesModalOpen] = useState(false);
+  const [bulkNoteText, setBulkNoteText] = useState("");
+  const [followUpModalOpen, setFollowUpModalOpen] = useState(false);
+  const [bulkFollowUpDate, setBulkFollowUpDate] = useState("");
+  const [addProcedureModalOpen, setAddProcedureModalOpen] = useState(false);
+  const [bulkProcCode, setBulkProcCode] = useState("");
+  const [bulkProcDesc, setBulkProcDesc] = useState("");
+  const [bulkProcQty, setBulkProcQty] = useState(1);
+  const [bulkProcPrice, setBulkProcPrice] = useState(0);
+  const [actionSubmitting, setActionSubmitting] = useState(false);
+  const [confirmModal, setConfirmModal] = useState<{
+    open: boolean;
+    title: string;
+    message: string;
+    confirmLabel?: string;
+    onConfirm: () => void;
+    isDestructive?: boolean;
+  } | null>(null);
+
+  // Print Template Modal (Phase 6: Superbill PDF, Invoice PDF, Invoice PDF for Double Window Envelope)
+  const [printTemplateModal, setPrintTemplateModal] = useState<{
+    open: boolean;
+    templateType: "superbill" | "standard" | "envelope";
+    invoice: any;
+  } | null>(null);
+
+  // Phase 3: Individual Invoice Payment State
+  const [individualPayInvoice, setIndividualPayInvoice] = useState<any | null>(null);
+  const [indivPayAmount, setIndivPayAmount] = useState<number>(0);
+  const [indivPayMethod, setIndivPayMethod] = useState<string>("Cash");
+  const [indivPayDate, setIndivPayDate] = useState<string>(
+    new Date().toISOString().split("T")[0]
+  );
+  const [indivPayRef, setIndivPayRef] = useState<string>("");
+  const [indivPayOtherRef, setIndivPayOtherRef] = useState<string>("");
+  const [indivPayDescription, setIndivPayDescription] = useState<string>("");
+  const [indivWriteOffAmount, setIndivWriteOffAmount] = useState<number>(0);
+  const [indivWriteOffReason, setIndivWriteOffReason] = useState<string>("");
+  const [indivWriteOffComments, setIndivWriteOffComments] = useState<string>("");
+  const [indivPaySubmitting, setIndivPaySubmitting] = useState<boolean>(false);
 
   // Patient Encounters for linking
   const [patientEncounters, setPatientEncounters] = useState<any[]>([]);
@@ -242,6 +299,12 @@ export function CharmPatientBilling({
       }
       if (splitBtnRef.current && !splitBtnRef.current.contains(e.target as Node)) {
         setShowInvoiceSplitMenu(false);
+      }
+      if (actionsMenuRef.current && !actionsMenuRef.current.contains(e.target as Node)) {
+        setActionsDropdownOpen(false);
+      }
+      if (printMenuRef.current && !printMenuRef.current.contains(e.target as Node)) {
+        setPrintDropdownOpen(false);
       }
     };
     document.addEventListener("mousedown", handleOutsideClick);
@@ -895,6 +958,274 @@ export function CharmPatientBilling({
     setViewMode("payment");
   };
 
+  // -------------------------------------------------------------
+  // PHASE 3: INDIVIDUAL INVOICE PAYMENT HELPERS
+  // -------------------------------------------------------------
+  const openIndividualPaymentModal = (inv: any) => {
+    setIndividualPayInvoice(inv);
+    const due = Math.max(0, (inv.balance_paise || 0) / 100);
+    setIndivPayAmount(due);
+    setIndivPayDate(new Date().toISOString().split("T")[0]);
+    setIndivPayMethod("Cash");
+    setIndivPayRef("");
+    setIndivPayOtherRef("");
+    setIndivPayDescription("");
+    setIndivWriteOffAmount(0);
+    setIndivWriteOffReason("");
+    setIndivWriteOffComments("");
+  };
+
+  const handleSaveIndividualPayment = async () => {
+    if (!individualPayInvoice) return;
+    const inv = individualPayInvoice;
+    const due = (inv.balance_paise || 0) / 100;
+
+    if (indivPayAmount <= 0 && indivWriteOffAmount <= 0) {
+      notify("Please enter a payment amount or write-off amount greater than zero");
+      return;
+    }
+    if (indivPayAmount < 0 || indivWriteOffAmount < 0) {
+      notify("Payment and write-off amounts cannot be negative");
+      return;
+    }
+    if (indivPayAmount > due + 0.001) {
+      notify(`Payment amount (Rs. ${indivPayAmount.toFixed(2)}) cannot exceed outstanding due (Rs. ${due.toFixed(2)})`);
+      return;
+    }
+    if (indivWriteOffAmount > 0) {
+      if (!indivWriteOffReason || indivWriteOffReason === "--Select--" || !indivWriteOffReason.trim()) {
+        notify("Write-off reason is required when a write-off amount is specified");
+        return;
+      }
+      if (indivWriteOffAmount > (due - indivPayAmount + 0.001)) {
+        notify(`Write-off amount exceeds remaining balance after payment on invoice ${inv.number}`);
+        return;
+      }
+    }
+
+    setIndivPaySubmitting(true);
+    try {
+      const totalAmountPaise = Math.round(indivPayAmount * 100);
+      const writeOffPaise = Math.round(indivWriteOffAmount * 100);
+
+      const res = await api<any>("/billing/payments", "POST", {
+        patient_id: inv.patient_id,
+        amount_paise: totalAmountPaise,
+        payment_date: indivPayDate,
+        mode: indivPayMethod,
+        reference: indivPayRef,
+        other_reference: indivPayOtherRef,
+        description: indivPayDescription,
+        allocations: [
+          {
+            invoice_id: inv.id,
+            amount_paise: totalAmountPaise,
+            write_off_paise: writeOffPaise,
+            write_off_reason: indivWriteOffReason,
+            comments: indivWriteOffComments,
+          },
+        ],
+      });
+
+      const recNo = res?.receipt?.receipt_number || "REC";
+      notify(`Payment of Rs. ${indivPayAmount.toFixed(2)} recorded successfully for Invoice ${inv.number} (Receipt #${recNo})`);
+      setIndividualPayInvoice(null);
+      await loadData();
+      if (onRefreshChart) onRefreshChart();
+      if (refresh) refresh();
+
+      if (selectedInvoice && selectedInvoice.id === inv.id) {
+        const updated = await api<any>(`/invoices/${inv.id}`);
+        setSelectedInvoice(updated);
+      }
+    } catch (err: any) {
+      notify(err?.message || "Failed to record payment");
+    } finally {
+      setIndivPaySubmitting(false);
+    }
+  };
+
+  // -------------------------------------------------------------
+  // PHASE 4: COLLECT PAYMENTS (MULTIPLE INVOICE PAYMENT ENTRY)
+  // -------------------------------------------------------------
+  const openCollectPaymentsScreen = () => {
+    const targetPatId = isPracticeView
+      ? paymentPatientId || (patients && patients.length > 0 ? patients[0].id : "")
+      : patientId || paymentPatientId;
+
+    if (!targetPatId) {
+      notify("Please select a patient to collect payments");
+      return;
+    }
+
+    setPaymentPatientId(targetPatId);
+    setPaymentDate(new Date().toISOString().split("T")[0]);
+    setPaymentMethod("Cash");
+    setPaymentRef("");
+    setPaymentOtherRef("");
+    setPaymentDescription("");
+    setShowOnlyDueInvoices(true);
+
+    const openInvs = invoices.filter(
+      (inv) =>
+        inv.patient_id === targetPatId &&
+        inv.status !== "cancelled" &&
+        (inv.balance_paise || 0) > 0
+    );
+
+    const initialAlloc: Record<string, any> = {};
+    openInvs.forEach((inv) => {
+      initialAlloc[inv.id] = {
+        applied: 0,
+        writeOff: 0,
+        writeOffReason: "",
+        comments: "",
+      };
+    });
+    setPaymentAllocations(initialAlloc);
+    setViewMode("collect_payments");
+  };
+
+  const handleSaveCollectPayments = async () => {
+    const targetPatId = isPracticeView
+      ? paymentPatientId
+      : patientId || paymentPatientId;
+
+    if (!targetPatId) {
+      notify("Please select a patient");
+      return;
+    }
+
+    const openInvs = invoices.filter(
+      (inv) =>
+        inv.patient_id === targetPatId &&
+        inv.status !== "cancelled" &&
+        (inv.balance_paise || 0) > 0
+    );
+
+    let totalApplied = 0;
+    let totalWriteOff = 0;
+    const allocationsPayload: any[] = [];
+
+    for (const inv of openInvs) {
+      const alloc = paymentAllocations[inv.id];
+      if (!alloc) continue;
+      const applied = Number(alloc.applied) || 0;
+      const writeOff = Number(alloc.writeOff) || 0;
+      const due = (inv.balance_paise || 0) / 100;
+
+      if (applied < 0 || writeOff < 0) {
+        notify("Payment applied and write-off amounts cannot be negative");
+        return;
+      }
+      if (applied > due + 0.001) {
+        notify(
+          `Payment applied to invoice ${inv.number} (Rs. ${applied.toFixed(
+            2
+          )}) cannot exceed outstanding due (Rs. ${due.toFixed(2)})`
+        );
+        return;
+      }
+      if (writeOff > 0) {
+        if (!alloc.writeOffReason || !alloc.writeOffReason.trim() || alloc.writeOffReason === "--Select--") {
+          notify(`Write-off reason is required for invoice ${inv.number}`);
+          return;
+        }
+        if (writeOff > (due - applied + 0.001)) {
+          notify(
+            `Write-off amount exceeds remaining balance after payment on invoice ${inv.number}`
+          );
+          return;
+        }
+      }
+
+      totalApplied += applied;
+      totalWriteOff += writeOff;
+
+      if (applied > 0 || writeOff > 0) {
+        allocationsPayload.push({
+          invoice_id: inv.id,
+          amount_paise: Math.round(applied * 100),
+          write_off_paise: Math.round(writeOff * 100),
+          write_off_reason: alloc.writeOffReason === "--Select--" ? "" : alloc.writeOffReason,
+          comments: alloc.comments || "",
+        });
+      }
+    }
+
+    if (totalApplied <= 0 && totalWriteOff <= 0) {
+      notify("Please enter at least one payment applied or write-off amount across the invoices.");
+      return;
+    }
+
+    setPaymentSubmitting(true);
+    try {
+      const totalPaise = Math.round(totalApplied * 100);
+      const res = await api<any>("/billing/payments", "POST", {
+        patient_id: targetPatId,
+        amount_paise: totalPaise > 0 ? totalPaise : 1,
+        payment_date: paymentDate,
+        mode: paymentMethod || "Cash",
+        reference: paymentRef,
+        other_reference: paymentOtherRef,
+        description: paymentDescription || "Multiple invoice payment collection",
+        allocations: allocationsPayload,
+      });
+
+      const recNo = res?.receipt?.receipt_number || "REC";
+      notify(
+        `Payments recorded successfully across ${allocationsPayload.length} invoice(s) (Receipt #${recNo})`
+      );
+
+      setViewMode("list");
+      setActiveSubtab("invoices");
+      await loadData();
+      if (onRefreshChart) onRefreshChart();
+      if (refresh) refresh();
+    } catch (err: any) {
+      notify(err?.message || "Failed to record payments");
+    } finally {
+      setPaymentSubmitting(false);
+    }
+  };
+
+  // -------------------------------------------------------------
+  // PHASE 5: BULK ACTIONS HANDLER
+  // -------------------------------------------------------------
+  const handleExecuteBulkAction = async (
+    action: string,
+    payload: { notes?: string; follow_up_date?: string; procedure?: any } = {}
+  ) => {
+    const selectedIds = Object.keys(selectedInvoiceIds).filter((id) => selectedInvoiceIds[id]);
+    if (selectedIds.length === 0) {
+      notify("Please select at least one invoice to perform this action.");
+      return;
+    }
+
+    setActionSubmitting(true);
+    try {
+      const res = await api<any>("/invoices/bulk-action", "POST", {
+        invoice_ids: selectedIds,
+        action,
+        ...payload,
+      });
+      notify(`Action '${action}' completed successfully on ${res.count || selectedIds.length} invoice(s).`);
+      setSelectedInvoiceIds({});
+      setActionsDropdownOpen(false);
+      setAddNotesModalOpen(false);
+      setFollowUpModalOpen(false);
+      setAddProcedureModalOpen(false);
+      setConfirmModal(null);
+      await loadData();
+      if (onRefreshChart) onRefreshChart();
+      if (refresh) refresh();
+    } catch (err: any) {
+      notify(err?.message || "Failed to perform action");
+    } finally {
+      setActionSubmitting(false);
+    }
+  };
+
   const handleSavePayment = async () => {
     const targetPatId = isPracticeView
       ? paymentPatientId
@@ -1109,15 +1440,53 @@ export function CharmPatientBilling({
     }
   };
 
-  // Filter Invoices
+  // Filter Invoices (Phase 2: All, Partially Paid, Unpaid, Overdue, Paid)
   const filteredInvoices = invoices.filter((inv) => {
+    // Status Filter (Phase 2)
+    if (statusFilter !== "All") {
+      const isCanceled = inv.status === "cancelled";
+      if (isCanceled) return false;
+
+      const isPaid =
+        (inv.status === "paid" || (inv.balance_paise || 0) === 0) &&
+        ((inv.paid_paise || 0) > 0 || (inv.total_paise || 0) === 0);
+      const isPartial =
+        (inv.status === "partial" ||
+          ((inv.paid_paise || 0) > 0 || (inv.credited_paise || 0) > 0)) &&
+        (inv.balance_paise || 0) > 0;
+      const isOverdue = Boolean(
+        inv.is_overdue ||
+          ((inv.balance_paise || 0) > 0 &&
+            inv.due_date &&
+            new Date().toISOString().split("T")[0] > inv.due_date)
+      );
+      const isUnpaid =
+        !isPaid && !isPartial && (inv.balance_paise || 0) > 0 && !isOverdue;
+
+      if (statusFilter === "Paid" && !isPaid) return false;
+      if (statusFilter === "Partially Paid" && !isPartial) return false;
+      if (statusFilter === "Unpaid" && !isUnpaid) return false;
+      if (statusFilter === "Overdue" && !isOverdue) return false;
+    }
+
     // Date Range
+    const invDate = inv.date || inv.invoice_date || (inv.created_at ? inv.created_at.split("T")[0] : "");
+    const todayStr = new Date().toISOString().split("T")[0];
+
     if (dateRangeFilter === "Today") {
-      const today = new Date().toISOString().split("T")[0];
-      if (inv.date !== today) return false;
+      if (invDate !== todayStr) return false;
+    } else if (dateRangeFilter === "Yesterday") {
+      const y = new Date(Date.now() - 86400000).toISOString().split("T")[0];
+      if (invDate !== y) return false;
     } else if (dateRangeFilter === "This Month") {
-      const monthPrefix = new Date().toISOString().substring(0, 7);
-      if (!inv.date || !inv.date.startsWith(monthPrefix)) return false;
+      const monthPrefix = todayStr.substring(0, 7);
+      if (!invDate || !invDate.startsWith(monthPrefix)) return false;
+    } else if (dateRangeFilter === "Last 30 Days") {
+      const past30 = new Date(Date.now() - 30 * 86400000).toISOString().split("T")[0];
+      if (invDate < past30 || invDate > todayStr) return false;
+    } else if (dateRangeFilter === "Last 90 Days") {
+      const past90 = new Date(Date.now() - 90 * 86400000).toISOString().split("T")[0];
+      if (invDate < past90 || invDate > todayStr) return false;
     }
 
     // Search Option 1: Invoice Number
@@ -3136,7 +3505,7 @@ export function CharmPatientBilling({
           {!isCancelled && (selectedInvoice.balance_paise || 0) > 0 && (
             <button
               type="button"
-              onClick={() => openAddPaymentScreen(selectedInvoice)}
+              onClick={() => openIndividualPaymentModal(selectedInvoice)}
               style={{
                 background: "#0f766e",
                 border: "none",
@@ -4275,7 +4644,29 @@ export function CharmPatientBilling({
             <Plus size={16} /> Payment
           </button>
         ) : (
-          <div style={{ position: "relative" }} ref={splitBtnRef}>
+          <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+            <button
+              type="button"
+              onClick={openCollectPaymentsScreen}
+              style={{
+                background: "#f59e0b",
+                color: "#ffffff",
+                border: "none",
+                borderRadius: "4px",
+                padding: "8px 16px",
+                fontSize: "13px",
+                fontWeight: 600,
+                cursor: "pointer",
+                display: "inline-flex",
+                alignItems: "center",
+                gap: "6px",
+                boxShadow: "0 1px 2px rgba(0,0,0,0.05)",
+              }}
+            >
+              <Plus size={16} /> Collect Payments
+            </button>
+
+            <div style={{ position: "relative" }} ref={splitBtnRef}>
             <div
               style={{
                 display: "inline-flex",
@@ -4368,6 +4759,7 @@ export function CharmPatientBilling({
               </div>
             )}
           </div>
+        </div>
         )}
       </div>
 
@@ -4376,7 +4768,7 @@ export function CharmPatientBilling({
       {/* =================================================================== */}
       {activeSubtab === "invoices" && (
         <div>
-          {/* CHARMHEALTH 3-BOX FILTER BAR */}
+          {/* CHARMHEALTH FILTER BAR (Status, Date Range, Search 1 & 2) */}
           <div
             style={{
               display: "flex",
@@ -4386,6 +4778,41 @@ export function CharmPatientBilling({
               flexWrap: "wrap",
             }}
           >
+            {/* Box 0: Invoice Status */}
+            <div>
+              <label
+                style={{
+                  display: "block",
+                  fontSize: "12px",
+                  fontWeight: 500,
+                  color: "#64748b",
+                  marginBottom: "4px",
+                }}
+              >
+                Status
+              </label>
+              <select
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value as any)}
+                style={{
+                  width: "140px",
+                  padding: "6px 10px",
+                  fontSize: "12px",
+                  border: "1px solid #cbd5e1",
+                  borderRadius: "4px",
+                  background: "#ffffff",
+                  color: "#334155",
+                  fontWeight: 500,
+                }}
+              >
+                <option value="All">All</option>
+                <option value="Partially Paid">Partially Paid</option>
+                <option value="Unpaid">Unpaid</option>
+                <option value="Overdue">Overdue</option>
+                <option value="Paid">Paid</option>
+              </select>
+            </div>
+
             {/* Box 1: Date Range */}
             <div>
               <label
@@ -4551,39 +4978,250 @@ export function CharmPatientBilling({
             }}
           >
             {/* Left toolbar buttons */}
-            <div style={{ display: "flex", gap: "8px" }}>
-              <button
-                type="button"
-                style={{
-                  background: "#ffffff",
-                  border: "1px solid #cbd5e1",
-                  borderRadius: "4px",
-                  padding: "5px 12px",
-                  fontSize: "12px",
-                  fontWeight: 500,
-                  color: "#475569",
-                  cursor: "pointer",
-                }}
-              >
-                Actions ▾
-              </button>
+            <div style={{ display: "flex", gap: "8px", position: "relative" }}>
+              {/* Actions Dropdown */}
+              <div style={{ position: "relative" }} ref={actionsMenuRef}>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setActionsDropdownOpen(!actionsDropdownOpen);
+                    setPrintDropdownOpen(false);
+                  }}
+                  style={{
+                    background: "#ffffff",
+                    border: "1px solid #cbd5e1",
+                    borderRadius: "4px",
+                    padding: "5px 12px",
+                    fontSize: "12px",
+                    fontWeight: 500,
+                    color: "#475569",
+                    cursor: "pointer",
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: "4px",
+                  }}
+                >
+                  Actions ▾
+                </button>
 
-              <button
-                type="button"
-                onClick={() => window.print()}
-                style={{
-                  background: "#ffffff",
-                  border: "1px solid #cbd5e1",
-                  borderRadius: "4px",
-                  padding: "5px 12px",
-                  fontSize: "12px",
-                  fontWeight: 500,
-                  color: "#475569",
-                  cursor: "pointer",
-                }}
-              >
-                Print ▾
-              </button>
+                {actionsDropdownOpen && (
+                  <div
+                    style={{
+                      position: "absolute",
+                      left: 0,
+                      top: "30px",
+                      background: "#ffffff",
+                      border: "1px solid #cbd5e1",
+                      borderRadius: "4px",
+                      boxShadow: "0 4px 14px rgba(0,0,0,0.15)",
+                      zIndex: 100,
+                      width: "250px",
+                      padding: "4px 0",
+                    }}
+                  >
+                    <div
+                      onClick={() => handleExecuteBulkAction("edit")}
+                      style={{ padding: "7px 14px", fontSize: "12px", cursor: "pointer", color: "#334155" }}
+                      onMouseEnter={(e) => (e.currentTarget.style.background = "#f1f5f9")}
+                      onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+                    >
+                      Edit Invoices
+                    </div>
+                    <div
+                      onClick={() => handleExecuteBulkAction("mark_as_mailed")}
+                      style={{ padding: "7px 14px", fontSize: "12px", cursor: "pointer", color: "#334155" }}
+                      onMouseEnter={(e) => (e.currentTarget.style.background = "#f1f5f9")}
+                      onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+                    >
+                      Mark As Mailed
+                    </div>
+                    <div
+                      onClick={() => handleExecuteBulkAction("flag")}
+                      style={{ padding: "7px 14px", fontSize: "12px", cursor: "pointer", color: "#334155" }}
+                      onMouseEnter={(e) => (e.currentTarget.style.background = "#f1f5f9")}
+                      onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+                    >
+                      Flag Invoices
+                    </div>
+                    <div
+                      onClick={() => handleExecuteBulkAction("clear_flags")}
+                      style={{ padding: "7px 14px", fontSize: "12px", cursor: "pointer", color: "#334155" }}
+                      onMouseEnter={(e) => (e.currentTarget.style.background = "#f1f5f9")}
+                      onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+                    >
+                      Clear Flags
+                    </div>
+                    <div
+                      onClick={() => handleExecuteBulkAction("sent_for_collection")}
+                      style={{ padding: "7px 14px", fontSize: "12px", cursor: "pointer", color: "#334155" }}
+                      onMouseEnter={(e) => (e.currentTarget.style.background = "#f1f5f9")}
+                      onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+                    >
+                      Mark Invoice(s) as 'Sent for Collection'
+                    </div>
+                    <div
+                      onClick={() => handleExecuteBulkAction("clear_collection")}
+                      style={{ padding: "7px 14px", fontSize: "12px", cursor: "pointer", color: "#334155" }}
+                      onMouseEnter={(e) => (e.currentTarget.style.background = "#f1f5f9")}
+                      onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+                    >
+                      Clear 'Sent for Collection'
+                    </div>
+                    <div
+                      onClick={() => handleExecuteBulkAction("add_notes")}
+                      style={{ padding: "7px 14px", fontSize: "12px", cursor: "pointer", color: "#334155" }}
+                      onMouseEnter={(e) => (e.currentTarget.style.background = "#f1f5f9")}
+                      onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+                    >
+                      Add Notes
+                    </div>
+                    <div
+                      onClick={() => handleExecuteBulkAction("set_follow_up")}
+                      style={{ padding: "7px 14px", fontSize: "12px", cursor: "pointer", color: "#334155" }}
+                      onMouseEnter={(e) => (e.currentTarget.style.background = "#f1f5f9")}
+                      onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+                    >
+                      Set Invoice Follow-up
+                    </div>
+                    <div
+                      onClick={() => handleExecuteBulkAction("add_procedure")}
+                      style={{ padding: "7px 14px", fontSize: "12px", cursor: "pointer", color: "#334155" }}
+                      onMouseEnter={(e) => (e.currentTarget.style.background = "#f1f5f9")}
+                      onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+                    >
+                      Add Procedures to Invoices
+                    </div>
+                    <div
+                      onClick={() => handleExecuteBulkAction("delete")}
+                      style={{
+                        padding: "7px 14px",
+                        fontSize: "12px",
+                        cursor: "pointer",
+                        color: "#ef4444",
+                        borderTop: "1px solid #f1f5f9",
+                        fontWeight: 600,
+                      }}
+                      onMouseEnter={(e) => (e.currentTarget.style.background = "#fee2e2")}
+                      onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+                    >
+                      Delete Invoices (Only Draft Invoices will be deleted)
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Print Dropdown */}
+              <div style={{ position: "relative" }} ref={printMenuRef}>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setPrintDropdownOpen(!printDropdownOpen);
+                    setActionsDropdownOpen(false);
+                  }}
+                  style={{
+                    background: "#ffffff",
+                    border: "1px solid #cbd5e1",
+                    borderRadius: "4px",
+                    padding: "5px 12px",
+                    fontSize: "12px",
+                    fontWeight: 500,
+                    color: "#475569",
+                    cursor: "pointer",
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: "4px",
+                  }}
+                >
+                  Print ▾
+                </button>
+
+                {printDropdownOpen && (
+                  <div
+                    style={{
+                      position: "absolute",
+                      left: 0,
+                      top: "30px",
+                      background: "#ffffff",
+                      border: "1px solid #cbd5e1",
+                      borderRadius: "4px",
+                      boxShadow: "0 4px 14px rgba(0,0,0,0.15)",
+                      zIndex: 100,
+                      width: "240px",
+                      padding: "4px 0",
+                    }}
+                  >
+                    <div
+                      onClick={() => {
+                        setPrintDropdownOpen(false);
+                        const selectedIds = Object.keys(selectedInvoiceIds).filter((id) => selectedInvoiceIds[id]);
+                        const targetInv = selectedIds.length > 0
+                          ? filteredInvoices.find((i) => selectedIds.includes(i.id))
+                          : filteredInvoices[0];
+                        if (!targetInv) {
+                          notify("No invoice available to print");
+                          return;
+                        }
+                        setPrintTemplateModal({
+                          open: true,
+                          templateType: "superbill",
+                          invoice: targetInv,
+                        });
+                      }}
+                      style={{ padding: "7px 14px", fontSize: "12px", cursor: "pointer", color: "#334155" }}
+                      onMouseEnter={(e) => (e.currentTarget.style.background = "#f1f5f9")}
+                      onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+                    >
+                      Superbill PDF
+                    </div>
+                    <div
+                      onClick={() => {
+                        setPrintDropdownOpen(false);
+                        const selectedIds = Object.keys(selectedInvoiceIds).filter((id) => selectedInvoiceIds[id]);
+                        const targetInv = selectedIds.length > 0
+                          ? filteredInvoices.find((i) => selectedIds.includes(i.id))
+                          : filteredInvoices[0];
+                        if (!targetInv) {
+                          notify("No invoice available to print");
+                          return;
+                        }
+                        setPrintTemplateModal({
+                          open: true,
+                          templateType: "standard",
+                          invoice: targetInv,
+                        });
+                      }}
+                      style={{ padding: "7px 14px", fontSize: "12px", cursor: "pointer", color: "#334155" }}
+                      onMouseEnter={(e) => (e.currentTarget.style.background = "#f1f5f9")}
+                      onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+                    >
+                      Invoice PDF
+                    </div>
+                    <div
+                      onClick={() => {
+                        setPrintDropdownOpen(false);
+                        const selectedIds = Object.keys(selectedInvoiceIds).filter((id) => selectedInvoiceIds[id]);
+                        const targetInv = selectedIds.length > 0
+                          ? filteredInvoices.find((i) => selectedIds.includes(i.id))
+                          : filteredInvoices[0];
+                        if (!targetInv) {
+                          notify("No invoice available to print");
+                          return;
+                        }
+                        setPrintTemplateModal({
+                          open: true,
+                          templateType: "envelope",
+                          invoice: targetInv,
+                        });
+                      }}
+                      style={{ padding: "7px 14px", fontSize: "12px", cursor: "pointer", color: "#334155" }}
+                      onMouseEnter={(e) => (e.currentTarget.style.background = "#f1f5f9")}
+                      onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+                    >
+                      Invoice PDF for Double Window Envelope
+                    </div>
+                  </div>
+                )}
+              </div>
 
               <button
                 type="button"
@@ -4810,15 +5448,34 @@ export function CharmPatientBilling({
 
                         {/* Status */}
                         <td style={{ padding: "8px 12px", textAlign: "center" }}>
-                          {isDraft ? (
-                            <span style={{ color: "#2563eb", fontWeight: 600 }}>Draft</span>
-                          ) : isPaid ? (
-                            <span style={{ color: "#16a34a", fontWeight: 600 }}>Paid</span>
-                          ) : isCanceled ? (
-                            <span style={{ color: "#64748b", fontWeight: 600 }}>Canceled</span>
-                          ) : (
-                            <span style={{ color: "#d97706", fontWeight: 600 }}>Due</span>
-                          )}
+                          <div style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", gap: "6px", flexWrap: "wrap" }}>
+                            {inv.is_flagged && (
+                              <Flag size={13} color="#ef4444" fill="#ef4444" style={{ cursor: "help" }} />
+                            )}
+                            {inv.is_mailed && (
+                              <span style={{ fontSize: "10px", background: "#e0f2fe", color: "#0369a1", padding: "1px 5px", borderRadius: "3px", fontWeight: 600 }}>
+                                Mailed
+                              </span>
+                            )}
+                            {inv.sent_for_collection && (
+                              <span style={{ fontSize: "10px", background: "#fef3c7", color: "#b45309", padding: "1px 5px", borderRadius: "3px", fontWeight: 600 }}>
+                                Collections
+                              </span>
+                            )}
+                            {isDraft ? (
+                              <span style={{ color: "#2563eb", fontWeight: 600 }}>Draft</span>
+                            ) : isPaid ? (
+                              <span style={{ color: "#16a34a", fontWeight: 600 }}>Paid</span>
+                            ) : isCanceled ? (
+                              <span style={{ color: "#64748b", fontWeight: 600 }}>Canceled</span>
+                            ) : inv.is_overdue ? (
+                              <span style={{ color: "#dc2626", fontWeight: 700, background: "#fee2e2", padding: "1px 6px", borderRadius: "3px" }}>
+                                Overdue
+                              </span>
+                            ) : (
+                              <span style={{ color: "#d97706", fontWeight: 600 }}>Due</span>
+                            )}
+                          </div>
                         </td>
 
                         {/* Row Action Three Dots */}
@@ -4900,7 +5557,7 @@ export function CharmPatientBilling({
                                 <div
                                   onClick={() => {
                                     setActiveMenuId(null);
-                                    openAddPaymentScreen(inv);
+                                    openIndividualPaymentModal(inv);
                                   }}
                                   style={{
                                     padding: "7px 12px",
@@ -5717,7 +6374,7 @@ export function CharmPatientBilling({
                           <button
                             type="button"
                             onClick={() => {
-                              openAddPaymentScreen(inv);
+                              openIndividualPaymentModal(inv);
                             }}
                             style={{
                               background: "#0f766e",

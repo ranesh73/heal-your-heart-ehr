@@ -1437,3 +1437,114 @@ def test_billing_concurrent_payment_requests_do_not_double_allocate():
     assert final_inv['balance_paise'] == 0
     assert final_inv['paid_paise'] == 100000
     assert final_inv['status'] == 'paid'
+
+
+def test_invoice_bulk_actions_and_draft_only_deletion():
+    c = client('reception')
+    p = patient(c)
+
+    # 1. Create a draft invoice
+    draft_payload = {
+        'patient_id': p['id'],
+        'status': 'draft',
+        'lines': [{'description': 'Consultation Draft', 'quantity': 1, 'unit_paise': 50000}]
+    }
+    draft_inv = ok(c.post('/api/invoices', json=draft_payload))
+    assert draft_inv['status'] == 'draft'
+
+    # 2. Create an active unpaid invoice
+    active_inv = create_billing_test_invoice(c, p['id'], total_paise=120000)
+    assert active_inv['status'] == 'unpaid'
+
+    # 3. Test flag and clear_flags
+    flag_res = ok(c.post('/api/invoices/bulk-action', json={
+        'invoice_ids': [active_inv['id']],
+        'action': 'flag'
+    }))
+    assert flag_res['count'] == 1
+    fetch1 = ok(c.get(f"/api/invoices/{active_inv['id']}"))
+    assert fetch1['is_flagged'] is True
+
+    clear_flag_res = ok(c.post('/api/invoices/bulk-action', json={
+        'invoice_ids': [active_inv['id']],
+        'action': 'clear_flags'
+    }))
+    assert clear_flag_res['count'] == 1
+    fetch2 = ok(c.get(f"/api/invoices/{active_inv['id']}"))
+    assert fetch2['is_flagged'] is False
+
+    # 4. Test mark_as_mailed
+    mail_res = ok(c.post('/api/invoices/bulk-action', json={
+        'invoice_ids': [active_inv['id']],
+        'action': 'mark_as_mailed'
+    }))
+    assert mail_res['count'] == 1
+    fetch3 = ok(c.get(f"/api/invoices/{active_inv['id']}"))
+    assert fetch3['is_mailed'] is True
+    assert fetch3['mailed_at'] is not None
+
+    # 5. Test sent_for_collection and clear_collection
+    coll_res = ok(c.post('/api/invoices/bulk-action', json={
+        'invoice_ids': [active_inv['id']],
+        'action': 'sent_for_collection'
+    }))
+    assert coll_res['count'] == 1
+    fetch4 = ok(c.get(f"/api/invoices/{active_inv['id']}"))
+    assert fetch4['sent_for_collection'] is True
+
+    clear_coll = ok(c.post('/api/invoices/bulk-action', json={
+        'invoice_ids': [active_inv['id']],
+        'action': 'clear_collection'
+    }))
+    assert clear_coll['count'] == 1
+    fetch5 = ok(c.get(f"/api/invoices/{active_inv['id']}"))
+    assert fetch5['sent_for_collection'] is False
+
+    # 6. Test add_notes
+    notes_res = ok(c.post('/api/invoices/bulk-action', json={
+        'invoice_ids': [active_inv['id']],
+        'action': 'add_notes',
+        'notes': 'Called patient regarding balance due.'
+    }))
+    assert notes_res['count'] == 1
+    fetch6 = ok(c.get(f"/api/invoices/{active_inv['id']}"))
+    assert 'Called patient regarding balance due.' in fetch6['notes']
+
+    # 7. Test set_follow_up
+    fu_res = ok(c.post('/api/invoices/bulk-action', json={
+        'invoice_ids': [active_inv['id']],
+        'action': 'set_follow_up',
+        'follow_up_date': '2026-12-01'
+    }))
+    assert fu_res['count'] == 1
+    fetch7 = ok(c.get(f"/api/invoices/{active_inv['id']}"))
+    assert fetch7['follow_up_date'] == '2026-12-01'
+
+    # 8. Test add_procedure
+    proc_res = ok(c.post('/api/invoices/bulk-action', json={
+        'invoice_ids': [active_inv['id']],
+        'action': 'add_procedure',
+        'procedure': {'code': '93000', 'description': 'ECG 12-Lead', 'quantity': 1, 'unit_paise': 30000}
+    }))
+    assert proc_res['count'] == 1
+    fetch8 = ok(c.get(f"/api/invoices/{active_inv['id']}"))
+    assert fetch8['total_paise'] == 150000  # 120000 + 30000
+    assert any(line['code'] == '93000' for line in fetch8['lines'])
+
+    # 9. Test deleting active (non-draft) invoice is rejected with 409
+    del_active_err = ok(c.post('/api/invoices/bulk-action', json={
+        'invoice_ids': [active_inv['id']],
+        'action': 'delete'
+    }), 409)
+    assert 'Only Draft invoices can be deleted' in del_active_err['detail']
+
+    del_active_single_err = ok(c.delete(f"/api/invoices/{active_inv['id']}"), 409)
+    assert 'Only Draft invoices can be deleted' in del_active_single_err['detail']
+
+    # 10. Test deleting draft invoice succeeds
+    del_draft_res = ok(c.post('/api/invoices/bulk-action', json={
+        'invoice_ids': [draft_inv['id']],
+        'action': 'delete'
+    }))
+    assert del_draft_res['count'] == 1
+    ok(c.get(f"/api/invoices/{draft_inv['id']}"), 404)

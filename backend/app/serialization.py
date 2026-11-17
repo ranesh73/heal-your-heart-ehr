@@ -56,6 +56,18 @@ def invoice_out(db,row):
     result['paid_paise'] = sum(x['amount_paise'] for x in active_payments)
     result['credited_paise'] = sum(x['amount_paise'] for x in active_credits)
     result['balance_paise'] = 0 if row.status == 'cancelled' else max(0, row.total_paise-result['paid_paise']-result['credited_paise'])
+    if 'created_at' in result and result['created_at']:
+        result['date'] = result['created_at'].split('T')[0]
+        result['invoice_date'] = result['date']
+    from datetime import timedelta
+    if not result.get('due_date') and row.created_at:
+        result['due_date'] = (row.created_at + timedelta(days=30)).date().isoformat()
+    result['is_overdue'] = bool(
+        result['balance_paise'] > 0
+        and result.get('due_date')
+        and date.today().isoformat() > result['due_date']
+        and row.status != 'cancelled'
+    )
     fac = db.get(m.Facility, row.facility_id)
     result['facility_name'] = fac.name if fac else 'Heal Your Heart Neelankarai'
     pat = db.get(m.Patient, row.patient_id)
