@@ -124,6 +124,7 @@ export function AddPrescriptionModal({
   const [pharmacyNotes, setPharmacyNotes] = useState("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [showCardioHemodynamics, setShowCardioHemodynamics] = useState(false);
   const [activeSearchIdx, setActiveSearchIdx] = useState<number | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
 
@@ -1262,6 +1263,7 @@ export function AddInjectionModal({
   const [status, setStatus] = useState("administered");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [showCardioHemodynamics, setShowCardioHemodynamics] = useState(false);
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -1321,7 +1323,7 @@ export function AddInjectionModal({
       onClose={onClose}
       wide
     >
-      <form onSubmit={handleSave} className="charm-modal-form" style={{ maxHeight: "78vh", overflowY: "auto", paddingRight: 4 }}>
+      <form onSubmit={handleSave} className="charm-modal-form" style={{ padding: "16px 20px 0 20px", display: "flex", flexDirection: "column", flex: 1 }}>
         {error && (
           <div className="charm-alert charm-alert-danger" style={{ marginBottom: 14 }}>
             <AlertCircle size={16} /> {error}
@@ -1330,7 +1332,7 @@ export function AddInjectionModal({
 
         <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
           {/* SECTION A – INJECTION DETAILS */}
-          <div style={{ background: "#ffffff", padding: "16px 18px", borderRadius: 8, border: "1px solid #e2e8f0" }}>
+          <div style={{ background: "#ffffff", padding: "12px 14px", borderRadius: 6, border: "1px solid #e2e8f0" }}>
             <div style={{ fontSize: 13, fontWeight: 700, color: "#00838f", textTransform: "uppercase", letterSpacing: "0.5px", marginBottom: 12, display: "flex", alignItems: "center", gap: 6 }}>
               <Syringe size={16} /> Section A — Injection Details
             </div>
@@ -1422,7 +1424,7 @@ export function AddInjectionModal({
           </div>
 
           {/* SECTION B – BATCH AND EXPIRY DETAILS */}
-          <div style={{ background: "#ffffff", padding: "16px 18px", borderRadius: 8, border: "1px solid #e2e8f0" }}>
+          <div style={{ background: "#ffffff", padding: "12px 14px", borderRadius: 6, border: "1px solid #e2e8f0" }}>
             <div style={{ fontSize: 13, fontWeight: 700, color: "#00838f", textTransform: "uppercase", letterSpacing: "0.5px", marginBottom: 12 }}>
               Section B — Batch & Expiry Tracking
             </div>
@@ -1456,7 +1458,7 @@ export function AddInjectionModal({
           </div>
 
           {/* SECTION C – ADMINISTRATION DETAILS */}
-          <div style={{ background: "#ffffff", padding: "16px 18px", borderRadius: 8, border: "1px solid #e2e8f0" }}>
+          <div style={{ background: "#ffffff", padding: "12px 14px", borderRadius: 6, border: "1px solid #e2e8f0" }}>
             <div style={{ fontSize: 13, fontWeight: 700, color: "#00838f", textTransform: "uppercase", letterSpacing: "0.5px", marginBottom: 12 }}>
               Section C — Administration Details
             </div>
@@ -1543,7 +1545,7 @@ export function AddInjectionModal({
           </div>
 
           {/* SECTION D – NURSE NOTES AND OBSERVATIONS */}
-          <div style={{ background: "#ffffff", padding: "16px 18px", borderRadius: 8, border: "1px solid #e2e8f0" }}>
+          <div style={{ background: "#ffffff", padding: "12px 14px", borderRadius: 6, border: "1px solid #e2e8f0" }}>
             <div style={{ fontSize: 13, fontWeight: 700, color: "#00838f", textTransform: "uppercase", letterSpacing: "0.5px", marginBottom: 8 }}>
               Section D — Nurse Notes & Injection Reaction Observations
             </div>
@@ -1657,7 +1659,7 @@ export function AddPatientInjectionOrderModal({
       onClose={onClose}
       wide
     >
-      <form onSubmit={handleSave} className="charm-modal-form">
+      <form onSubmit={handleSave} className="charm-modal-form" style={{ padding: "14px 20px 0 20px", display: "flex", flexDirection: "column", flex: 1 }}>
         {error && (
           <div className="charm-alert charm-alert-danger" style={{ marginBottom: 12 }}>
             <AlertCircle size={16} /> {error}
@@ -2352,6 +2354,7 @@ export function AddVaccineModal({
   const [status, setStatus] = useState<string>(initialMode);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [showCardioHemodynamics, setShowCardioHemodynamics] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [showDropdown, setShowDropdown] = useState(false);
 
@@ -2416,7 +2419,7 @@ export function AddVaccineModal({
       onClose={onClose}
       wide
     >
-      <div className="charm-modal-form">
+      <div className="charm-modal-form" style={{ padding: "14px 20px 0 20px", display: "flex", flexDirection: "column", flex: 1 }}>
         {error && (
           <div className="charm-alert charm-alert-danger">
             <AlertCircle size={16} /> {error}
@@ -2947,6 +2950,7 @@ export function AddVitalsModal({
 
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [showCardioHemodynamics, setShowCardioHemodynamics] = useState(false);
 
   // Compute Height in CM
   const calculatedHeightCm = useMemo(() => {
@@ -3037,37 +3041,70 @@ export function AddVitalsModal({
       onClose={onClose}
       wide
     >
-      <div className="charm-modal-form">
+      <div className="charm-modal-form" style={{ padding: "16px 20px 0 20px", display: "flex", flexDirection: "column", flex: 1 }}>
         {error && (
-          <div className="charm-alert charm-alert-danger">
+          <div className="charm-alert charm-alert-danger" style={{ marginBottom: 12 }}>
             <AlertCircle size={16} /> {error}
           </div>
         )}
 
-        <div className="charm-vitals-datetime-bar">
-          <div className="charm-form-group">
-            <label>Observation Timestamp *</label>
+        {/* Observation Timestamp & Dynamic BMI Bar */}
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            background: "#f8fafc",
+            padding: "10px 14px",
+            borderRadius: "6px",
+            border: "1px solid #e2e8f0",
+            marginBottom: "12px",
+            flexWrap: "wrap",
+            gap: "10px",
+          }}
+        >
+          <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+            <label style={{ fontSize: "12px", fontWeight: 600, color: "#475569" }}>
+              Observation Timestamp <span style={{ color: "#ef4444" }}>*</span>
+            </label>
             <input
               type="datetime-local"
               value={observedAt}
               onChange={(e) => setObservedAt(e.target.value)}
               className="charm-input"
+              style={{ width: "210px", height: "34px", fontSize: "12px" }}
             />
           </div>
 
-          {/* Dynamic Live BMI Card */}
-          <div className="charm-live-bmi-card">
-            <div>
-              <span className="charm-live-bmi-label">Calculated BMI</span>
-              <div className="charm-live-bmi-val">
-                {computedBmi > 0 ? computedBmi.toFixed(1) : "—"}
-                <small>kg/m²</small>
-              </div>
-            </div>
+          {/* Dynamic Live BMI Badge */}
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: "8px",
+              background: "#ffffff",
+              padding: "4px 12px",
+              borderRadius: "6px",
+              border: "1px solid #cbd5e1",
+            }}
+          >
+            <span style={{ fontSize: "11px", fontWeight: 600, color: "#64748b", textTransform: "uppercase" }}>
+              Calculated BMI:
+            </span>
+            <span style={{ fontSize: "16px", fontWeight: 800, color: "#0f172a" }}>
+              {computedBmi > 0 ? computedBmi.toFixed(1) : "—"}{" "}
+              <small style={{ fontSize: "11px", fontWeight: "normal", color: "#64748b" }}>kg/m²</small>
+            </span>
             {bmiClassification && (
               <span
-                className="charm-bmi-pill"
-                style={{ backgroundColor: bmiClassification.color }}
+                style={{
+                  backgroundColor: bmiClassification.color,
+                  color: "#ffffff",
+                  fontSize: "11px",
+                  fontWeight: 700,
+                  padding: "2px 8px",
+                  borderRadius: "10px",
+                }}
               >
                 {bmiClassification.label}
               </span>
@@ -3075,25 +3112,45 @@ export function AddVitalsModal({
           </div>
         </div>
 
-        <div className="charm-vitals-groups">
-          {/* Physical Measurements */}
-          <div className="charm-vitals-panel">
-            <h4 className="charm-vitals-group-title">Height & Weight</h4>
-            <div className="charm-form-grid">
-              <div className="charm-form-group">
-                <div className="charm-label-row">
-                  <label>Height</label>
-                  <div className="charm-toggle-btns">
+        {/* Core Vitals Grid */}
+        <div style={{ display: "flex", flexDirection: "column", gap: "12px", marginBottom: "14px" }}>
+          {/* Card 1: Height & Weight */}
+          <div style={{ background: "#ffffff", border: "1px solid #e2e8f0", borderRadius: "6px", padding: "12px 14px" }}>
+            <div style={{ fontSize: "12.5px", fontWeight: 700, color: "#334155", marginBottom: "8px" }}>
+              Physical Measurements
+            </div>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "14px" }}>
+              {/* Height */}
+              <div>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "4px" }}>
+                  <label style={{ fontSize: "12px", fontWeight: 600, color: "#475569" }}>Height</label>
+                  <div style={{ display: "flex", border: "1px solid #cbd5e1", borderRadius: "4px", overflow: "hidden" }}>
                     <button
                       type="button"
-                      className={`charm-mini-btn ${heightUnit === "cm" ? "active" : ""}`}
+                      style={{
+                        padding: "2px 8px",
+                        fontSize: "11px",
+                        fontWeight: 600,
+                        border: "none",
+                        cursor: "pointer",
+                        background: heightUnit === "cm" ? "#0f766e" : "#f8fafc",
+                        color: heightUnit === "cm" ? "#ffffff" : "#475569",
+                      }}
                       onClick={() => setHeightUnit("cm")}
                     >
                       cm
                     </button>
                     <button
                       type="button"
-                      className={`charm-mini-btn ${heightUnit === "ft_in" ? "active" : ""}`}
+                      style={{
+                        padding: "2px 8px",
+                        fontSize: "11px",
+                        fontWeight: 600,
+                        border: "none",
+                        cursor: "pointer",
+                        background: heightUnit === "ft_in" ? "#0f766e" : "#f8fafc",
+                        color: heightUnit === "ft_in" ? "#ffffff" : "#475569",
+                      }}
                       onClick={() => setHeightUnit("ft_in")}
                     >
                       ft / in
@@ -3106,16 +3163,18 @@ export function AddVitalsModal({
                     value={heightCm}
                     onChange={(e) => setHeightCm(e.target.value)}
                     className="charm-input"
-                    placeholder="cm"
+                    placeholder="Height in cm"
+                    style={{ width: "100%", height: "34px" }}
                   />
                 ) : (
-                  <div className="charm-input-group">
+                  <div style={{ display: "flex", gap: "6px" }}>
                     <input
                       type="number"
                       value={heightFt}
                       onChange={(e) => setHeightFt(e.target.value)}
                       className="charm-input"
                       placeholder="ft"
+                      style={{ flex: 1, height: "34px" }}
                     />
                     <input
                       type="number"
@@ -3123,25 +3182,43 @@ export function AddVitalsModal({
                       onChange={(e) => setHeightIn(e.target.value)}
                       className="charm-input"
                       placeholder="in"
+                      style={{ flex: 1, height: "34px" }}
                     />
                   </div>
                 )}
               </div>
 
-              <div className="charm-form-group">
-                <div className="charm-label-row">
-                  <label>Weight</label>
-                  <div className="charm-toggle-btns">
+              {/* Weight */}
+              <div>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "4px" }}>
+                  <label style={{ fontSize: "12px", fontWeight: 600, color: "#475569" }}>Weight</label>
+                  <div style={{ display: "flex", border: "1px solid #cbd5e1", borderRadius: "4px", overflow: "hidden" }}>
                     <button
                       type="button"
-                      className={`charm-mini-btn ${weightUnit === "kg" ? "active" : ""}`}
+                      style={{
+                        padding: "2px 8px",
+                        fontSize: "11px",
+                        fontWeight: 600,
+                        border: "none",
+                        cursor: "pointer",
+                        background: weightUnit === "kg" ? "#0f766e" : "#f8fafc",
+                        color: weightUnit === "kg" ? "#ffffff" : "#475569",
+                      }}
                       onClick={() => setWeightUnit("kg")}
                     >
                       kg
                     </button>
                     <button
                       type="button"
-                      className={`charm-mini-btn ${weightUnit === "lbs" ? "active" : ""}`}
+                      style={{
+                        padding: "2px 8px",
+                        fontSize: "11px",
+                        fontWeight: 600,
+                        border: "none",
+                        cursor: "pointer",
+                        background: weightUnit === "lbs" ? "#0f766e" : "#f8fafc",
+                        color: weightUnit === "lbs" ? "#ffffff" : "#475569",
+                      }}
                       onClick={() => setWeightUnit("lbs")}
                     >
                       lbs
@@ -3155,7 +3232,8 @@ export function AddVitalsModal({
                     value={weightKg}
                     onChange={(e) => setWeightKg(e.target.value)}
                     className="charm-input"
-                    placeholder="kg"
+                    placeholder="Weight in kg"
+                    style={{ width: "100%", height: "34px" }}
                   />
                 ) : (
                   <input
@@ -3164,46 +3242,58 @@ export function AddVitalsModal({
                     value={weightLbs}
                     onChange={(e) => setWeightLbs(e.target.value)}
                     className="charm-input"
-                    placeholder="lbs"
+                    placeholder="Weight in lbs"
+                    style={{ width: "100%", height: "34px" }}
                   />
                 )}
               </div>
             </div>
           </div>
 
-          {/* Blood Pressure & Hemodynamics */}
-          <div className="charm-vitals-panel">
-            <h4 className="charm-vitals-group-title">Blood Pressure & Position</h4>
-            <div className="charm-form-grid">
-              <div className="charm-form-group">
-                <label>BP (Systolic / Diastolic) *</label>
-                <div className="charm-input-group">
+          {/* Card 2: Blood Pressure & Position */}
+          <div style={{ background: "#ffffff", border: "1px solid #e2e8f0", borderRadius: "6px", padding: "12px 14px" }}>
+            <div style={{ fontSize: "12.5px", fontWeight: 700, color: "#334155", marginBottom: "8px" }}>
+              Blood Pressure & Position
+            </div>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "14px" }}>
+              <div>
+                <label style={{ display: "block", fontSize: "12px", fontWeight: 600, color: "#475569", marginBottom: "4px" }}>
+                  BP (Systolic / Diastolic) <span style={{ color: "#ef4444" }}>*</span>
+                </label>
+                <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
                   <input
                     type="number"
                     placeholder="Sys (120)"
                     value={bpSys}
                     onChange={(e) => setBpSys(e.target.value)}
                     className="charm-input"
+                    style={{ flex: 1, height: "34px" }}
                   />
-                  <span className="charm-maen-sep">/</span>
+                  <span style={{ color: "#94a3b8", fontWeight: 600 }}>/</span>
                   <input
                     type="number"
                     placeholder="Dia (80)"
                     value={bpDia}
                     onChange={(e) => setBpDia(e.target.value)}
                     className="charm-input"
+                    style={{ flex: 1, height: "34px" }}
                   />
-                  <span className="charm-input-addon">mmHg</span>
+                  <span style={{ background: "#f1f5f9", padding: "6px 8px", fontSize: "11px", color: "#64748b", borderRadius: "4px", border: "1px solid #cbd5e1" }}>
+                    mmHg
+                  </span>
                 </div>
               </div>
 
-              <div className="charm-form-group">
-                <label>Position & Site</label>
-                <div className="charm-input-group">
+              <div>
+                <label style={{ display: "block", fontSize: "12px", fontWeight: 600, color: "#475569", marginBottom: "4px" }}>
+                  Position & Anatomical Site
+                </label>
+                <div style={{ display: "flex", gap: "6px" }}>
                   <select
                     value={bpPosition}
                     onChange={(e) => setBpPosition(e.target.value)}
                     className="charm-select"
+                    style={{ flex: 1, height: "34px" }}
                   >
                     <option value="Sitting">Sitting</option>
                     <option value="Standing">Standing</option>
@@ -3213,6 +3303,7 @@ export function AddVitalsModal({
                     value={bpSite}
                     onChange={(e) => setBpSite(e.target.value)}
                     className="charm-select"
+                    style={{ flex: 1, height: "34px" }}
                   >
                     <option value="Left Arm">Left Arm</option>
                     <option value="Right Arm">Right Arm</option>
@@ -3224,24 +3315,31 @@ export function AddVitalsModal({
             </div>
           </div>
 
-          {/* Pulse, Respiration & SpO2 */}
-          <div className="charm-vitals-panel">
-            <h4 className="charm-vitals-group-title">Pulse, Respiration & Oxygen</h4>
-            <div className="charm-form-grid">
-              <div className="charm-form-group">
-                <label>Pulse (Heart Rate)</label>
-                <div className="charm-input-group">
+          {/* Card 3: Pulse, SpO2, Respiration, Temp */}
+          <div style={{ background: "#ffffff", border: "1px solid #e2e8f0", borderRadius: "6px", padding: "12px 14px" }}>
+            <div style={{ fontSize: "12.5px", fontWeight: 700, color: "#334155", marginBottom: "8px" }}>
+              Pulse, Respiration, Oxygen & Temperature
+            </div>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "14px", rowGap: "12px" }}>
+              {/* Pulse */}
+              <div>
+                <label style={{ display: "block", fontSize: "12px", fontWeight: 600, color: "#475569", marginBottom: "4px" }}>
+                  Pulse (Heart Rate)
+                </label>
+                <div style={{ display: "flex", gap: "6px" }}>
                   <input
                     type="number"
                     value={pulse}
                     onChange={(e) => setPulse(e.target.value)}
                     className="charm-input"
                     placeholder="bpm"
+                    style={{ width: "90px", height: "34px" }}
                   />
                   <select
                     value={pulseRhythm}
                     onChange={(e) => setPulseRhythm(e.target.value)}
                     className="charm-select"
+                    style={{ flex: 1, height: "34px" }}
                   >
                     <option value="Regular">Regular</option>
                     <option value="Irregular">Irregular</option>
@@ -3252,9 +3350,12 @@ export function AddVitalsModal({
                 </div>
               </div>
 
-              <div className="charm-form-group">
-                <label>SpO₂ Oxygen Saturation</label>
-                <div className="charm-input-group">
+              {/* SpO2 */}
+              <div>
+                <label style={{ display: "block", fontSize: "12px", fontWeight: 600, color: "#475569", marginBottom: "4px" }}>
+                  SpO₂ Oxygen Saturation
+                </label>
+                <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
                   <input
                     type="number"
                     min={50}
@@ -3262,25 +3363,33 @@ export function AddVitalsModal({
                     value={spo2}
                     onChange={(e) => setSpo2(e.target.value)}
                     className="charm-input"
+                    style={{ flex: 1, height: "34px" }}
                   />
-                  <span className="charm-input-addon">% (Room Air)</span>
+                  <span style={{ background: "#f1f5f9", padding: "6px 8px", fontSize: "11px", color: "#64748b", borderRadius: "4px", border: "1px solid #cbd5e1", whiteSpace: "nowrap" }}>
+                    % (Room Air)
+                  </span>
                 </div>
               </div>
 
-              <div className="charm-form-group">
-                <label>Respiration Rate</label>
-                <div className="charm-input-group">
+              {/* Respiration */}
+              <div>
+                <label style={{ display: "block", fontSize: "12px", fontWeight: 600, color: "#475569", marginBottom: "4px" }}>
+                  Respiration Rate
+                </label>
+                <div style={{ display: "flex", gap: "6px" }}>
                   <input
                     type="number"
                     value={respiration}
                     onChange={(e) => setRespiration(e.target.value)}
                     className="charm-input"
                     placeholder="breaths/min"
+                    style={{ width: "90px", height: "34px" }}
                   />
                   <select
                     value={respirationPattern}
                     onChange={(e) => setRespirationPattern(e.target.value)}
                     className="charm-select"
+                    style={{ flex: 1, height: "34px" }}
                   >
                     <option value="Normal">Normal</option>
                     <option value="Shallow">Shallow</option>
@@ -3290,38 +3399,57 @@ export function AddVitalsModal({
                 </div>
               </div>
 
-              <div className="charm-form-group">
-                <div className="charm-label-row">
-                  <label>Temperature</label>
-                  <div className="charm-toggle-btns">
+              {/* Temperature */}
+              <div>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "4px" }}>
+                  <label style={{ fontSize: "12px", fontWeight: 600, color: "#475569" }}>Temperature</label>
+                  <div style={{ display: "flex", border: "1px solid #cbd5e1", borderRadius: "4px", overflow: "hidden" }}>
                     <button
                       type="button"
-                      className={`charm-mini-btn ${tempUnit === "F" ? "active" : ""}`}
+                      style={{
+                        padding: "2px 8px",
+                        fontSize: "11px",
+                        fontWeight: 600,
+                        border: "none",
+                        cursor: "pointer",
+                        background: tempUnit === "F" ? "#0f766e" : "#f8fafc",
+                        color: tempUnit === "F" ? "#ffffff" : "#475569",
+                      }}
                       onClick={() => setTempUnit("F")}
                     >
                       °F
                     </button>
                     <button
                       type="button"
-                      className={`charm-mini-btn ${tempUnit === "C" ? "active" : ""}`}
+                      style={{
+                        padding: "2px 8px",
+                        fontSize: "11px",
+                        fontWeight: 600,
+                        border: "none",
+                        cursor: "pointer",
+                        background: tempUnit === "C" ? "#0f766e" : "#f8fafc",
+                        color: tempUnit === "C" ? "#ffffff" : "#475569",
+                      }}
                       onClick={() => setTempUnit("C")}
                     >
                       °C
                     </button>
                   </div>
                 </div>
-                <div className="charm-input-group">
+                <div style={{ display: "flex", gap: "6px" }}>
                   <input
                     type="number"
                     step="0.1"
                     value={tempVal}
                     onChange={(e) => setTempVal(e.target.value)}
                     className="charm-input"
+                    style={{ flex: 1, height: "34px" }}
                   />
                   <select
                     value={tempSite}
                     onChange={(e) => setTempSite(e.target.value)}
                     className="charm-select"
+                    style={{ width: "120px", height: "34px" }}
                   >
                     <option value="Oral">Oral</option>
                     <option value="Axillary">Axillary</option>
@@ -3333,17 +3461,27 @@ export function AddVitalsModal({
             </div>
           </div>
 
-          {/* Pain Score */}
-          <div className="charm-vitals-panel">
-            <h4 className="charm-vitals-group-title">Pain Severity (0 - 10 Numeric Scale)</h4>
-            <div className="charm-pain-scale">
+          {/* Card 4: Pain Severity Scale */}
+          <div style={{ background: "#ffffff", border: "1px solid #e2e8f0", borderRadius: "6px", padding: "10px 14px" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "6px" }}>
+              <div style={{ fontSize: "12.5px", fontWeight: 700, color: "#334155" }}>
+                Pain Severity (0 - 10 Numeric Scale)
+              </div>
+              <span style={{ fontSize: "12px", fontWeight: 700, color: painScore === 0 ? "#16a34a" : painScore <= 3 ? "#ca8a04" : painScore <= 6 ? "#ea580c" : "#dc2626" }}>
+                {painScore === 0 ? "0 — No Pain" : painScore <= 3 ? `${painScore} — Mild Pain` : painScore <= 6 ? `${painScore} — Moderate Pain` : `${painScore} — Severe Pain`}
+              </span>
+            </div>
+            <div style={{ display: "flex", gap: "6px", alignItems: "center", flexWrap: "wrap" }}>
               {[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((num) => (
                 <button
                   key={num}
                   type="button"
-                  className={`charm-pain-btn ${painScore === num ? "active" : ""}`}
                   style={{
-                    backgroundColor:
+                    width: "32px",
+                    height: "30px",
+                    borderRadius: "4px",
+                    border: painScore === num ? "none" : "1px solid #cbd5e1",
+                    background:
                       painScore === num
                         ? num === 0
                           ? "#16a34a"
@@ -3352,146 +3490,191 @@ export function AddVitalsModal({
                           : num <= 6
                           ? "#ea580c"
                           : "#dc2626"
-                        : undefined,
+                        : "#ffffff",
+                    color: painScore === num ? "#ffffff" : "#334155",
+                    fontWeight: 700,
+                    fontSize: "12px",
+                    cursor: "pointer",
                   }}
                   onClick={() => setPainScore(num)}
                 >
                   {num}
                 </button>
               ))}
-              <span className="charm-pain-label">
-                {painScore === 0
-                  ? "No Pain"
-                  : painScore <= 3
-                  ? "Mild Pain"
-                  : painScore <= 6
-                  ? "Moderate Pain"
-                  : "Severe Pain"}
-              </span>
             </div>
           </div>
 
-          {/* Cardiology & Sphygmocor Parameters */}
-          <div className="charm-vitals-panel charm-vitals-panel-cardio">
-            <h4 className="charm-vitals-group-title">
-              <Activity size={15} style={{ marginRight: 6, color: "#0284c7" }} />
-              Cardiology & Sphygmocor Hemodynamics
-            </h4>
-            <div className="charm-form-grid">
-              <div className="charm-form-group">
-                <label>Central BP (Sys / Dia)</label>
-                <div className="charm-input-group">
-                  <input
-                    type="number"
-                    value={centralSys}
-                    onChange={(e) => setCentralSys(e.target.value)}
-                    className="charm-input"
-                    placeholder="Sys"
-                  />
-                  <span className="charm-maen-sep">/</span>
-                  <input
-                    type="number"
-                    value={centralDia}
-                    onChange={(e) => setCentralDia(e.target.value)}
-                    className="charm-input"
-                    placeholder="Dia"
-                  />
-                  <span className="charm-input-addon">mmHg</span>
-                </div>
+          {/* Card 5: Collapsible Cardiology & SphygmoCor Hemodynamics */}
+          <div style={{ border: "1px solid #bae6fd", borderRadius: "6px", background: "#f0f9ff", overflow: "hidden" }}>
+            <button
+              type="button"
+              onClick={() => setShowCardioHemodynamics(!showCardioHemodynamics)}
+              style={{
+                width: "100%",
+                padding: "10px 14px",
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+                background: "transparent",
+                border: "none",
+                cursor: "pointer",
+                textAlign: "left",
+              }}
+            >
+              <div style={{ display: "flex", alignItems: "center", gap: "8px", fontSize: "12.5px", fontWeight: 700, color: "#0369a1" }}>
+                <Activity size={16} />
+                <span>Cardiology & SphygmoCor Hemodynamics (Optional)</span>
               </div>
+              <div style={{ display: "flex", alignItems: "center", gap: "6px", fontSize: "11px", color: "#0284c7" }}>
+                <span>{showCardioHemodynamics ? "Hide Parameters" : "Show 8 Parameters (crPWV, Aix, MAP...)"}</span>
+                <ChevronDown size={14} style={{ transform: showCardioHemodynamics ? "rotate(180deg)" : "none", transition: "transform 0.2s" }} />
+              </div>
+            </button>
 
-              <div className="charm-form-group">
-                <label>crPWV (Pulse Wave Velocity)</label>
-                <div className="charm-input-group">
-                  <input
-                    type="number"
-                    step="0.1"
-                    value={crPwv}
-                    onChange={(e) => setCrPwv(e.target.value)}
-                    className="charm-input"
-                  />
-                  <span className="charm-input-addon">m/s</span>
-                </div>
-              </div>
+            {showCardioHemodynamics && (
+              <div style={{ padding: "12px 14px", borderTop: "1px solid #e0f2fe", background: "#ffffff" }}>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
+                  <div>
+                    <label style={{ display: "block", fontSize: "11px", fontWeight: 600, color: "#475569", marginBottom: "4px" }}>
+                      Central BP (Sys / Dia)
+                    </label>
+                    <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                      <input
+                        type="number"
+                        value={centralSys}
+                        onChange={(e) => setCentralSys(e.target.value)}
+                        className="charm-input"
+                        placeholder="Sys"
+                        style={{ flex: 1, height: "32px" }}
+                      />
+                      <span>/</span>
+                      <input
+                        type="number"
+                        value={centralDia}
+                        onChange={(e) => setCentralDia(e.target.value)}
+                        className="charm-input"
+                        placeholder="Dia"
+                        style={{ flex: 1, height: "32px" }}
+                      />
+                      <span style={{ fontSize: "11px", color: "#64748b" }}>mmHg</span>
+                    </div>
+                  </div>
 
-              <div className="charm-form-group">
-                <label>cfPWV (Aortic PWV)</label>
-                <div className="charm-input-group">
-                  <input
-                    type="number"
-                    step="0.1"
-                    value={cfPwv}
-                    onChange={(e) => setCfPwv(e.target.value)}
-                    className="charm-input"
-                  />
-                  <span className="charm-input-addon">m/s</span>
-                </div>
-              </div>
+                  <div>
+                    <label style={{ display: "block", fontSize: "11px", fontWeight: 600, color: "#475569", marginBottom: "4px" }}>
+                      crPWV (Pulse Wave Velocity)
+                    </label>
+                    <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                      <input
+                        type="number"
+                        step="0.1"
+                        value={crPwv}
+                        onChange={(e) => setCrPwv(e.target.value)}
+                        className="charm-input"
+                        style={{ flex: 1, height: "32px" }}
+                      />
+                      <span style={{ fontSize: "11px", color: "#64748b" }}>m/s</span>
+                    </div>
+                  </div>
 
-              <div className="charm-form-group">
-                <label>Estimated Vascular Age</label>
-                <div className="charm-input-group">
-                  <input
-                    type="number"
-                    value={vascularAge}
-                    onChange={(e) => setVascularAge(e.target.value)}
-                    className="charm-input"
-                  />
-                  <span className="charm-input-addon">Years</span>
-                </div>
-              </div>
+                  <div>
+                    <label style={{ display: "block", fontSize: "11px", fontWeight: 600, color: "#475569", marginBottom: "4px" }}>
+                      cfPWV (Aortic PWV)
+                    </label>
+                    <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                      <input
+                        type="number"
+                        step="0.1"
+                        value={cfPwv}
+                        onChange={(e) => setCfPwv(e.target.value)}
+                        className="charm-input"
+                        style={{ flex: 1, height: "32px" }}
+                      />
+                      <span style={{ fontSize: "11px", color: "#64748b" }}>m/s</span>
+                    </div>
+                  </div>
 
-              <div className="charm-form-group">
-                <label>Augmentation Index (AIx)</label>
-                <div className="charm-input-group">
-                  <input
-                    type="number"
-                    step="0.1"
-                    value={aix}
-                    onChange={(e) => setAix(e.target.value)}
-                    className="charm-input"
-                  />
-                  <span className="charm-input-addon">%</span>
-                </div>
-              </div>
+                  <div>
+                    <label style={{ display: "block", fontSize: "11px", fontWeight: 600, color: "#475569", marginBottom: "4px" }}>
+                      Estimated Vascular Age
+                    </label>
+                    <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                      <input
+                        type="number"
+                        value={vascularAge}
+                        onChange={(e) => setVascularAge(e.target.value)}
+                        className="charm-input"
+                        style={{ flex: 1, height: "32px" }}
+                      />
+                      <span style={{ fontSize: "11px", color: "#64748b" }}>Years</span>
+                    </div>
+                  </div>
 
-              <div className="charm-form-group">
-                <label>Blood Sugar (Glucose)</label>
-                <div className="charm-input-group">
-                  <input
-                    type="number"
-                    value={bloodSugar}
-                    onChange={(e) => setBloodSugar(e.target.value)}
-                    className="charm-input"
-                  />
-                  <select
-                    value={bloodSugarContext}
-                    onChange={(e) => setBloodSugarContext(e.target.value)}
-                    className="charm-select"
-                  >
-                    <option value="Fasting">Fasting (FBS)</option>
-                    <option value="Post-Prandial">Post-Prandial (PPBS)</option>
-                    <option value="Random">Random (RBS)</option>
-                  </select>
+                  <div>
+                    <label style={{ display: "block", fontSize: "11px", fontWeight: 600, color: "#475569", marginBottom: "4px" }}>
+                      Augmentation Index (AIx)
+                    </label>
+                    <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                      <input
+                        type="number"
+                        step="0.1"
+                        value={aix}
+                        onChange={(e) => setAix(e.target.value)}
+                        className="charm-input"
+                        style={{ flex: 1, height: "32px" }}
+                      />
+                      <span style={{ fontSize: "11px", color: "#64748b" }}>%</span>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label style={{ display: "block", fontSize: "11px", fontWeight: 600, color: "#475569", marginBottom: "4px" }}>
+                      Blood Sugar (Glucose)
+                    </label>
+                    <div style={{ display: "flex", gap: "6px" }}>
+                      <input
+                        type="number"
+                        value={bloodSugar}
+                        onChange={(e) => setBloodSugar(e.target.value)}
+                        className="charm-input"
+                        style={{ flex: 1, height: "32px" }}
+                      />
+                      <select
+                        value={bloodSugarContext}
+                        onChange={(e) => setBloodSugarContext(e.target.value)}
+                        className="charm-select"
+                        style={{ width: "110px", height: "32px", fontSize: "11px" }}
+                      >
+                        <option value="Fasting">FBS</option>
+                        <option value="Post-Prandial">PPBS</option>
+                        <option value="Random">RBS</option>
+                      </select>
+                    </div>
+                  </div>
                 </div>
               </div>
-            </div>
+            )}
           </div>
 
-          <div className="charm-form-group" style={{ gridColumn: "1 / -1" }}>
-            <label>Clinician Notes / Remarks</label>
+          {/* Clinician Notes */}
+          <div>
+            <label style={{ display: "block", fontSize: "12px", fontWeight: 600, color: "#475569", marginBottom: "4px" }}>
+              Clinician Notes / Remarks
+            </label>
             <input
               type="text"
               placeholder="e.g. Pre-EECP session vitals. Patient comfortable, resting seated for 10 minutes prior."
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
               className="charm-input"
+              style={{ width: "100%", height: "34px" }}
             />
           </div>
         </div>
 
+        {/* Sticky Pinned Footer */}
         <div className="charm-modal-footer">
-          <Button variant="secondary" onClick={onClose} disabled={saving}>
+          <Button variant="secondary" onClick={onClose} disabled={saving} type="button">
             Cancel
           </Button>
           <Button variant="primary" onClick={handleSave} disabled={saving}>
