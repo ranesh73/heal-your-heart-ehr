@@ -1236,6 +1236,75 @@ main.main-patient-chart {
   width: min(940px, 95vw);
 }
 
+/* Modals with pinned headers and footers (Charm EHR Clinical Modals) */
+.modal:has(.charm-modal-footer),
+.modal:has(.charm-modal-scroll-body),
+.modal:has(.charm-modal-form),
+.modal.charm-modal-container {
+  overflow: hidden !important;
+  max-height: 90vh !important;
+  display: flex !important;
+  flex-direction: column !important;
+  padding: 0 !important;
+}
+
+.modal:has(.charm-modal-footer) > form,
+.modal:has(.charm-modal-footer) > div.charm-modal-form,
+.modal > form.charm-modal-form,
+.modal > div.charm-modal-form {
+  padding: 0 !important;
+  margin: 0 !important;
+  display: flex !important;
+  flex-direction: column !important;
+  flex: 1 1 auto !important;
+  min-height: 0 !important;
+  overflow: hidden !important;
+}
+
+.charm-modal-scroll-body {
+  flex: 1 1 auto !important;
+  overflow-y: auto !important;
+  overflow-x: hidden !important;
+  min-height: 0 !important;
+  padding: 18px 22px 24px 22px !important;
+  box-sizing: border-box !important;
+}
+
+.charm-modal-scroll-body::-webkit-scrollbar {
+  width: 6px;
+}
+
+.charm-modal-scroll-body::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.charm-modal-scroll-body::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 4px;
+}
+
+.charm-modal-scroll-body::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
+
+.charm-modal-footer {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: flex-end !important;
+  gap: 12px !important;
+  padding: 12px 22px !important;
+  background: #f8fafc !important;
+  border-top: 1px solid #e2e8f0 !important;
+  position: relative !important;
+  bottom: auto !important;
+  margin-top: auto !important;
+  flex-shrink: 0 !important;
+  box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.04) !important;
+  z-index: 20 !important;
+  border-bottom-left-radius: inherit;
+  border-bottom-right-radius: inherit;
+}
+
 .charm-modal-backdrop {
   position: fixed !important;
   inset: 0 !important;
@@ -11108,29 +11177,41 @@ textarea.charm-input {
 
 .charm-mode-selector {
   display: flex;
-  gap: 8px;
+  gap: 6px;
   background: #f1f5f9;
   padding: 4px;
-  border-radius: 6px;
+  border-radius: 8px;
+  border: 1px solid #e2e8f0;
 }
 
 .charm-mode-pill {
   flex: 1;
-  padding: 6px 12px;
-  border: none;
+  padding: 8px 14px;
+  border: 1px solid transparent;
   background: transparent;
-  border-radius: 4px;
-  font-size: 12.5px;
+  border-radius: 6px;
+  font-size: 13px;
   font-weight: 500;
-  color: #475569;
+  color: #64748b;
   cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  transition: all 0.15s ease-in-out;
+}
+
+.charm-mode-pill:hover {
+  color: #1e293b;
+  background: rgba(255, 255, 255, 0.6);
 }
 
 .charm-mode-pill.active {
   background: #ffffff;
   color: #006699;
   font-weight: 600;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+  border-color: #cbd5e1;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
 }
 
 .charm-alert {

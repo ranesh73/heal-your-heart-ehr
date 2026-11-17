@@ -94,8 +94,8 @@ export function CharmPatientBilling({
     "invoices" | "receipts" | "balance_due" | "family_balance_due"
   >("invoices");
 
-  // View Mode: 'list' | 'create' | 'detail' | 'edit'
-  const [viewMode, setViewMode] = useState<"list" | "create" | "detail" | "edit">("list");
+  // View Mode: 'list' | 'create' | 'detail' | 'edit' | 'payment'
+  const [viewMode, setViewMode] = useState<"list" | "create" | "detail" | "edit" | "payment">("list");
   const [invoiceTypeMode, setInvoiceTypeMode] = useState<
     "Invoice" | "Pre-Payment Invoice"
   >("Invoice");
@@ -125,6 +125,30 @@ export function CharmPatientBilling({
   const [quickPayMethod, setQuickPayMethod] = useState("UPI");
   const [quickPayRef, setQuickPayRef] = useState("");
   const [quickPaySubmitting, setQuickPaySubmitting] = useState(false);
+
+  // CharmHealth Add Payment Workflow State (Scenario A & Scenario B)
+  const [paymentPatientId, setPaymentPatientId] = useState<string>(patientId || "");
+  const [paymentAmount, setPaymentAmount] = useState<number>(0);
+  const [paymentDate, setPaymentDate] = useState<string>(
+    new Date().toISOString().split("T")[0]
+  );
+  const [paymentMethod, setPaymentMethod] = useState<string>("");
+  const [paymentRef, setPaymentRef] = useState<string>("");
+  const [paymentOtherRef, setPaymentOtherRef] = useState<string>("");
+  const [paymentDescription, setPaymentDescription] = useState<string>("");
+  const [showOnlyDueInvoices, setShowOnlyDueInvoices] = useState<boolean>(true);
+  const [paymentAllocations, setPaymentAllocations] = useState<
+    Record<
+      string,
+      {
+        applied: number;
+        writeOff: number;
+        writeOffReason: string;
+        comments: string;
+      }
+    >
+  >({});
+  const [paymentSubmitting, setPaymentSubmitting] = useState<boolean>(false);
 
   const [addPaymentModalOpen, setAddPaymentModalOpen] = useState(false);
   const [directPaymentPatientId, setDirectPaymentPatientId] = useState(patientId || "");
@@ -833,6 +857,159 @@ export function CharmPatientBilling({
       notify(err?.message || "Payment recording failed");
     } finally {
       setQuickPaySubmitting(false);
+    }
+  };
+
+  // -------------------------------------------------------------
+  // CHARMHEALTH ADD PAYMENT WORKFLOW HELPERS
+  // -------------------------------------------------------------
+  const openAddPaymentScreen = (targetInvoice?: any) => {
+    const targetPatId =
+      targetInvoice?.patient_id ||
+      patientId ||
+      (patients && patients.length > 0 ? patients[0].id : "");
+
+    setPaymentPatientId(targetPatId);
+    setPaymentDate(new Date().toISOString().split("T")[0]);
+    setPaymentMethod("");
+    setPaymentRef("");
+    setPaymentOtherRef("");
+    setPaymentDescription("");
+    setShowOnlyDueInvoices(true);
+
+    if (targetInvoice && (targetInvoice.balance_paise || 0) > 0) {
+      const due = (targetInvoice.balance_paise || 0) / 100;
+      setPaymentAmount(due);
+      setPaymentAllocations({
+        [targetInvoice.id]: {
+          applied: due,
+          writeOff: 0,
+          writeOffReason: "",
+          comments: "",
+        },
+      });
+    } else {
+      setPaymentAmount(0);
+      setPaymentAllocations({});
+    }
+    setViewMode("payment");
+  };
+
+  const handleSavePayment = async () => {
+    const targetPatId = isPracticeView
+      ? paymentPatientId
+      : patientId || paymentPatientId;
+
+    if (!targetPatId) {
+      notify("Please select a patient");
+      return;
+    }
+    if (!paymentAmount || paymentAmount <= 0) {
+      notify("Please enter a valid payment amount greater than zero");
+      return;
+    }
+    if (!paymentMethod || paymentMethod === "--Select--") {
+      notify("Please select a payment method");
+      return;
+    }
+
+    const openInvs = invoices.filter(
+      (inv) =>
+        inv.patient_id === targetPatId &&
+        inv.status !== "cancelled" &&
+        (inv.balance_paise || 0) > 0
+    );
+
+    let totalApplied = 0;
+    const allocationsPayload: any[] = [];
+
+    for (const inv of openInvs) {
+      const alloc = paymentAllocations[inv.id];
+      if (!alloc) continue;
+      const applied = Number(alloc.applied) || 0;
+      const writeOff = Number(alloc.writeOff) || 0;
+      const due = (inv.balance_paise || 0) / 100;
+
+      if (applied < 0 || writeOff < 0) {
+        notify("Allocation and write-off amounts cannot be negative");
+        return;
+      }
+      if (applied > due + 0.001) {
+        notify(
+          `Payment applied to invoice ${inv.number} (Rs. ${applied.toFixed(
+            2
+          )}) cannot exceed outstanding due (Rs. ${due.toFixed(2)})`
+        );
+        return;
+      }
+      if (writeOff > 0) {
+        if (
+          !alloc.writeOffReason ||
+          !alloc.writeOffReason.trim() ||
+          alloc.writeOffReason === "--Select--"
+        ) {
+          notify(`Write-off reason is required for invoice ${inv.number}`);
+          return;
+        }
+        if (writeOff > due - applied + 0.001) {
+          notify(
+            `Write-off amount exceeds remaining balance after payment on invoice ${inv.number}`
+          );
+          return;
+        }
+      }
+
+      totalApplied += applied;
+      if (applied > 0 || writeOff > 0) {
+        allocationsPayload.push({
+          invoice_id: inv.id,
+          amount_paise: Math.round(applied * 100),
+          write_off_paise: Math.round(writeOff * 100),
+          write_off_reason:
+            alloc.writeOffReason === "--Select--" ? "" : alloc.writeOffReason,
+          comments: alloc.comments || "",
+        });
+      }
+    }
+
+    if (totalApplied > paymentAmount + 0.001) {
+      notify(
+        `Total payment applied (Rs. ${totalApplied.toFixed(
+          2
+        )}) exceeds received payment amount (Rs. ${paymentAmount.toFixed(2)})`
+      );
+      return;
+    }
+
+    setPaymentSubmitting(true);
+    try {
+      const res = await api<any>("/billing/payments", "POST", {
+        patient_id: targetPatId,
+        amount_paise: Math.round(paymentAmount * 100),
+        payment_date: paymentDate,
+        mode: paymentMethod,
+        reference: paymentRef,
+        other_reference: paymentOtherRef,
+        description: paymentDescription,
+        allocations: allocationsPayload,
+      });
+
+      const recNo = res?.receipt?.receipt_number || "REC";
+      notify(
+        `Payment of Rs. ${paymentAmount.toFixed(
+          2
+        )} recorded successfully (Receipt #${recNo})`
+      );
+
+      setViewMode("list");
+      setActiveSubtab("receipts");
+      await loadData();
+      if (onRefreshChart) onRefreshChart();
+      if (refresh) refresh();
+    } catch (err: any) {
+      notify(err?.message || "Failed to record payment");
+    } finally {
+      setPaymentSubmitting(false);
     }
   };
 
@@ -2959,10 +3136,7 @@ export function CharmPatientBilling({
           {!isCancelled && (selectedInvoice.balance_paise || 0) > 0 && (
             <button
               type="button"
-              onClick={() => {
-                setQuickPayInvoice(selectedInvoice);
-                setQuickPayAmount((selectedInvoice.balance_paise || 0) / 100);
-              }}
+              onClick={() => openAddPaymentScreen(selectedInvoice)}
               style={{
                 background: "#0f766e",
                 border: "none",
@@ -3295,6 +3469,666 @@ export function CharmPatientBilling({
   }
 
   // -------------------------------------------------------------
+  // RENDER VIEW: CHARMHEALTH ADD PAYMENT (SCENARIO A & SCENARIO B)
+  // -------------------------------------------------------------
+  if (viewMode === "payment") {
+    const targetPatId = isPracticeView
+      ? paymentPatientId
+      : patientId || paymentPatientId;
+    const currentPatient =
+      patient ||
+      patients?.find((p: any) => p.id === targetPatId) ||
+      (patients && patients.length > 0 ? patients[0] : null);
+
+    const patientName = currentPatient
+      ? currentPatient.name ||
+        `${currentPatient.first_name || ""} ${currentPatient.last_name || ""}`.trim()
+      : "—";
+    const recordId =
+      currentPatient?.mrn ||
+      currentPatient?.record_id ||
+      currentPatient?.id?.slice(0, 8) ||
+      "—";
+
+    // Outstanding invoices for this patient
+    const patientInvoices = invoices.filter(
+      (inv) => inv.patient_id === targetPatId && inv.status !== "cancelled"
+    );
+    const dueInvoices = patientInvoices.filter(
+      (inv) => (inv.balance_paise || 0) > 0
+    );
+    const hasOutstandingBalance = dueInvoices.length > 0;
+    const displayedInvoices = showOnlyDueInvoices ? dueInvoices : patientInvoices;
+
+    // Dynamically calculate totals
+    const totalPaymentApplied = Object.values(paymentAllocations).reduce(
+      (sum, a) => sum + (Number(a.applied) || 0),
+      0
+    );
+    const unusedPayment = Math.max(0, (paymentAmount || 0) - totalPaymentApplied);
+
+    return (
+      <div
+        className="charm-patient-payment-screen"
+        style={{
+          padding: "16px 24px 80px 24px",
+          background: "#ffffff",
+          fontFamily: "Inter, system-ui, -apple-system, sans-serif",
+          color: "#334155",
+          minHeight: "100vh",
+        }}
+      >
+        {/* Top Header Bar with Title on left, [ Add ] and [ Cancel ] on right */}
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            borderBottom: "1px solid #e2e8f0",
+            paddingBottom: "12px",
+            marginBottom: "20px",
+          }}
+        >
+          <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+            <h2 style={{ fontSize: "18px", fontWeight: 700, color: "#1e293b", margin: 0 }}>
+              Payment
+            </h2>
+          </div>
+          <div style={{ display: "flex", gap: "10px" }}>
+            <button
+              type="button"
+              onClick={handleSavePayment}
+              disabled={paymentSubmitting}
+              style={{
+                background: "#f2711c",
+                color: "#ffffff",
+                border: "none",
+                borderRadius: "4px",
+                padding: "6px 22px",
+                fontSize: "13px",
+                fontWeight: 600,
+                cursor: paymentSubmitting ? "not-allowed" : "pointer",
+                opacity: paymentSubmitting ? 0.7 : 1,
+                boxShadow: "0 1px 2px rgba(0,0,0,0.08)",
+              }}
+            >
+              {paymentSubmitting ? "Saving..." : "Add"}
+            </button>
+            <button
+              type="button"
+              onClick={() => setViewMode("list")}
+              disabled={paymentSubmitting}
+              style={{
+                background: "#ffffff",
+                color: "#475569",
+                border: "1px solid #cbd5e1",
+                borderRadius: "4px",
+                padding: "6px 16px",
+                fontSize: "13px",
+                fontWeight: 500,
+                cursor: "pointer",
+              }}
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+
+        {/* Top Card: Payment Details (Exact CharmHealth Design) */}
+        <div
+          style={{
+            border: "1px solid #cce2f0",
+            borderRadius: "6px",
+            padding: "20px 24px",
+            background: "#ffffff",
+            marginBottom: "20px",
+          }}
+        >
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "1.2fr 1fr",
+              gap: "36px",
+            }}
+          >
+            {/* Left Column */}
+            <div style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
+              {/* Patient Name */}
+              <div style={{ display: "grid", gridTemplateColumns: "140px 1fr", alignItems: "center" }}>
+                <label style={{ fontSize: "13px", fontWeight: 500, color: "#1e293b" }}>
+                  Patient Name <span style={{ color: "#ef4444" }}>*</span>
+                </label>
+                {isPracticeView ? (
+                  <select
+                    value={paymentPatientId}
+                    onChange={(e) => {
+                      const newId = e.target.value;
+                      setPaymentPatientId(newId);
+                      setPaymentAllocations({});
+                    }}
+                    style={{
+                      padding: "6px 10px",
+                      fontSize: "13px",
+                      border: "1px solid #cbd5e1",
+                      borderRadius: "4px",
+                      background: "#ffffff",
+                      width: "100%",
+                      maxWidth: "280px",
+                    }}
+                  >
+                    {patients?.map((p: any) => (
+                      <option key={p.id} value={p.id}>
+                        {p.name || `${p.first_name || ""} ${p.last_name || ""}`.trim()} ({p.mrn || p.record_id || p.id.slice(0, 6)})
+                      </option>
+                    ))}
+                  </select>
+                ) : (
+                  <span style={{ fontSize: "13px", fontWeight: 600, color: "#0f172a" }}>
+                    {patientName}
+                  </span>
+                )}
+              </div>
+
+              {/* Record ID */}
+              <div style={{ display: "grid", gridTemplateColumns: "140px 1fr", alignItems: "center" }}>
+                <label style={{ fontSize: "13px", fontWeight: 500, color: "#1e293b" }}>
+                  Record ID
+                </label>
+                <div>
+                  <span
+                    style={{
+                      background: "#e2e8f0",
+                      padding: "4px 10px",
+                      borderRadius: "3px",
+                      fontSize: "12.5px",
+                      fontWeight: 600,
+                      color: "#334155",
+                      letterSpacing: "0.5px",
+                      display: "inline-block",
+                    }}
+                  >
+                    {recordId}
+                  </span>
+                </div>
+              </div>
+
+              {/* Payment Amount */}
+              <div style={{ display: "grid", gridTemplateColumns: "140px 1fr", alignItems: "center" }}>
+                <label style={{ fontSize: "13px", fontWeight: 500, color: "#1e293b" }}>
+                  Payment Amount <span style={{ color: "#ef4444" }}>*</span>
+                </label>
+                <div>
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    value={paymentAmount === 0 ? "" : paymentAmount}
+                    onChange={(e) => {
+                      const val = parseFloat(e.target.value) || 0;
+                      setPaymentAmount(val);
+                    }}
+                    placeholder="0.00"
+                    style={{
+                      width: "160px",
+                      height: "32px",
+                      padding: "4px 10px",
+                      fontSize: "13px",
+                      border: "1px solid #cbd5e1",
+                      borderRadius: "4px",
+                      fontWeight: 600,
+                      background: "#ffffff",
+                    }}
+                  />
+                </div>
+              </div>
+
+              {/* Payment Date */}
+              <div style={{ display: "grid", gridTemplateColumns: "140px 1fr", alignItems: "center" }}>
+                <label style={{ fontSize: "13px", fontWeight: 500, color: "#1e293b" }}>
+                  Payment Date <span style={{ color: "#ef4444" }}>*</span>
+                </label>
+                <div>
+                  <input
+                    type="date"
+                    value={paymentDate}
+                    onChange={(e) => setPaymentDate(e.target.value)}
+                    style={{
+                      width: "160px",
+                      height: "32px",
+                      padding: "4px 10px",
+                      fontSize: "12.5px",
+                      border: "1px solid #cbd5e1",
+                      borderRadius: "4px",
+                      background: "#ffffff",
+                    }}
+                  />
+                </div>
+              </div>
+
+              {/* Payment Method */}
+              <div style={{ display: "grid", gridTemplateColumns: "140px 1fr", alignItems: "center" }}>
+                <label style={{ fontSize: "13px", fontWeight: 500, color: "#1e293b" }}>
+                  Payment Method <span style={{ color: "#ef4444" }}>*</span>
+                </label>
+                <div>
+                  <select
+                    value={paymentMethod}
+                    onChange={(e) => setPaymentMethod(e.target.value)}
+                    style={{
+                      width: "160px",
+                      height: "32px",
+                      padding: "4px 8px",
+                      fontSize: "12.5px",
+                      border: "1px solid #cbd5e1",
+                      borderRadius: "4px",
+                      background: "#ffffff",
+                    }}
+                  >
+                    <option value="">--Select--</option>
+                    <option value="Cash">Cash</option>
+                    <option value="UPI">UPI</option>
+                    <option value="Credit Card">Credit Card</option>
+                    <option value="Debit Card">Debit Card</option>
+                    <option value="Net Banking">Net Banking</option>
+                    <option value="Cheque / DD">Cheque / DD</option>
+                    <option value="Insurance / TPA">Insurance / TPA</option>
+                    <option value="NEFT / RTGS">NEFT / RTGS</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+
+            {/* Right Column */}
+            <div style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
+              {/* Reference # */}
+              <div style={{ display: "grid", gridTemplateColumns: "140px 1fr", alignItems: "center" }}>
+                <label style={{ fontSize: "13px", fontWeight: 500, color: "#1e293b" }}>
+                  Reference #
+                </label>
+                <input
+                  type="text"
+                  placeholder="e.g. UPI Ref / Cheque No"
+                  value={paymentRef}
+                  onChange={(e) => setPaymentRef(e.target.value)}
+                  style={{
+                    width: "100%",
+                    maxWidth: "260px",
+                    height: "32px",
+                    padding: "4px 10px",
+                    fontSize: "12.5px",
+                    border: "1px solid #cbd5e1",
+                    borderRadius: "4px",
+                  }}
+                />
+              </div>
+
+              {/* Other Reference # */}
+              <div style={{ display: "grid", gridTemplateColumns: "140px 1fr", alignItems: "center" }}>
+                <label style={{ fontSize: "13px", fontWeight: 500, color: "#1e293b" }}>
+                  Other Reference #
+                </label>
+                <input
+                  type="text"
+                  value={paymentOtherRef}
+                  onChange={(e) => setPaymentOtherRef(e.target.value)}
+                  style={{
+                    width: "100%",
+                    maxWidth: "260px",
+                    height: "32px",
+                    padding: "4px 10px",
+                    fontSize: "12.5px",
+                    border: "1px solid #cbd5e1",
+                    borderRadius: "4px",
+                  }}
+                />
+              </div>
+
+              {/* Description */}
+              <div style={{ display: "grid", gridTemplateColumns: "140px 1fr", alignItems: "start" }}>
+                <label style={{ fontSize: "13px", fontWeight: 500, color: "#1e293b", marginTop: "4px" }}>
+                  Description
+                </label>
+                <textarea
+                  rows={3}
+                  value={paymentDescription}
+                  onChange={(e) => setPaymentDescription(e.target.value)}
+                  placeholder="Payment remarks or patient notes..."
+                  style={{
+                    width: "100%",
+                    maxWidth: "260px",
+                    padding: "6px 10px",
+                    fontSize: "12.5px",
+                    border: "1px solid #cbd5e1",
+                    borderRadius: "4px",
+                    boxSizing: "border-box",
+                  }}
+                />
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* ------------------------------------------------------------- */}
+        {/* CONDITIONAL INVOICES ALLOCATION SECTION (SCENARIO B ONLY)     */}
+        {/* ------------------------------------------------------------- */}
+        {hasOutstandingBalance && (
+          <div>
+            {/* Centered Title */}
+            <div
+              style={{
+                textAlign: "center",
+                fontSize: "17px",
+                fontWeight: 700,
+                color: "#1e293b",
+                margin: "24px 0 14px 0",
+              }}
+            >
+              Invoices
+            </div>
+
+            {/* Checkbox: Show Invoices with Due and Patient Responsibility */}
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: "8px",
+                marginBottom: "14px",
+              }}
+            >
+              <input
+                type="checkbox"
+                id="showInvoicesDueToggle"
+                checked={showOnlyDueInvoices}
+                onChange={(e) => setShowOnlyDueInvoices(e.target.checked)}
+                style={{ width: "16px", height: "16px", cursor: "pointer", accentColor: "#006699" }}
+              />
+              <label
+                htmlFor="showInvoicesDueToggle"
+                style={{ fontSize: "13px", fontWeight: 500, color: "#334155", cursor: "pointer" }}
+              >
+                Show Invoices with Due and Patient Responsibility
+              </label>
+            </div>
+
+            {/* List of Invoices Cards */}
+            {displayedInvoices.map((inv) => {
+              const invTotal = ((inv.total_paise || 0) / 100).toFixed(2);
+              const invPaid = (((inv.paid_paise || 0) + (inv.credited_paise || 0)) / 100).toFixed(2);
+              const invDueNum = (inv.balance_paise || 0) / 100;
+              const invDue = invDueNum.toFixed(2);
+
+              const currentAlloc = paymentAllocations[inv.id] || {
+                applied: 0,
+                writeOff: 0,
+                writeOffReason: "",
+                comments: "",
+              };
+
+              return (
+                <div
+                  key={inv.id}
+                  style={{
+                    border: "1px solid #cce2f0",
+                    borderRadius: "4px",
+                    overflow: "hidden",
+                    marginBottom: "16px",
+                    background: "#ffffff",
+                  }}
+                >
+                  {/* Top Bar: #eaf3fa light blue */}
+                  <div
+                    style={{
+                      background: "#eaf3fa",
+                      padding: "12px 18px",
+                      borderBottom: "1px solid #d0e4f5",
+                      display: "grid",
+                      gridTemplateColumns: "1.4fr 1.2fr 1.4fr 1.6fr",
+                      alignItems: "center",
+                      gap: "16px",
+                    }}
+                  >
+                    {/* Invoice # & Facility */}
+                    <div>
+                      <div style={{ fontSize: "15px", fontWeight: 700, color: "#1e293b" }}>
+                        {inv.number}
+                      </div>
+                      <div style={{ fontSize: "12px", color: "#64748b", marginTop: "2px" }}>
+                        {inv.facility_name || user?.facility_name || "Heal Your Heart"}
+                      </div>
+                    </div>
+
+                    {/* Amount & Due */}
+                    <div>
+                      <div style={{ fontSize: "13px", color: "#334155" }}>
+                        Amount <span style={{ fontWeight: 600 }}>{invTotal}</span>
+                      </div>
+                      <div style={{ fontSize: "13.5px", color: "#0f172a", marginTop: "2px" }}>
+                        Due <span style={{ fontWeight: 700, color: "#dc2626" }}>{invDue}</span>
+                      </div>
+                    </div>
+
+                    {/* Invoice Date & Encounter Date */}
+                    <div>
+                      <div style={{ fontSize: "12.5px", color: "#334155" }}>
+                        Invoice Date <span style={{ fontWeight: 600 }}>{inv.invoice_date || inv.date || "—"}</span>
+                      </div>
+                      <div style={{ fontSize: "12.5px", color: "#64748b", marginTop: "2px" }}>
+                        Encounter Date <span style={{ fontWeight: 500 }}>{inv.encounter_date || inv.invoice_date || "—"}</span>
+                      </div>
+                    </div>
+
+                    {/* Payment Applied Input */}
+                    <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end" }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                        <label style={{ fontSize: "13px", fontWeight: 600, color: "#1e293b" }}>
+                          Payment Applied
+                        </label>
+                        <input
+                          type="number"
+                          step="0.01"
+                          min="0"
+                          max={invDueNum}
+                          value={currentAlloc.applied === 0 ? "" : currentAlloc.applied}
+                          onChange={(e) => {
+                            const val = parseFloat(e.target.value) || 0;
+                            setPaymentAllocations((prev) => ({
+                              ...prev,
+                              [inv.id]: {
+                                ...currentAlloc,
+                                applied: val,
+                              },
+                            }));
+                          }}
+                          placeholder="0.00"
+                          style={{
+                            width: "110px",
+                            height: "32px",
+                            padding: "4px 8px",
+                            fontSize: "13px",
+                            fontWeight: 700,
+                            textAlign: "right",
+                            border: "1px solid #94a3b8",
+                            borderRadius: "4px",
+                            background: "#ffffff",
+                          }}
+                        />
+                      </div>
+                      <div style={{ fontSize: "11px", color: "#64748b", marginTop: "3px" }}>
+                        <span>({invPaid})</span>
+                        {invDueNum > 0 && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setPaymentAllocations((prev) => ({
+                                ...prev,
+                                [inv.id]: {
+                                  ...currentAlloc,
+                                  applied: invDueNum,
+                                },
+                              }));
+                              if (paymentAmount < invDueNum) {
+                                setPaymentAmount(invDueNum);
+                              }
+                            }}
+                            style={{
+                              border: "none",
+                              background: "transparent",
+                              color: "#0284c7",
+                              fontSize: "11px",
+                              fontWeight: 600,
+                              cursor: "pointer",
+                              textDecoration: "underline",
+                              marginLeft: "8px",
+                            }}
+                          >
+                            Pay Due
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Body Row: Write-off & Comments */}
+                  <div
+                    style={{
+                      padding: "12px 18px",
+                      display: "grid",
+                      gridTemplateColumns: "1.2fr 1.6fr",
+                      gap: "24px",
+                      alignItems: "center",
+                      background: "#ffffff",
+                    }}
+                  >
+                    {/* Left: Write-off Amount & Reason */}
+                    <div style={{ display: "flex", alignItems: "center", gap: "12px", flexWrap: "wrap" }}>
+                      <label style={{ fontSize: "12.5px", fontWeight: 500, color: "#334155" }}>
+                        Write-off
+                      </label>
+                      <input
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        value={currentAlloc.writeOff === 0 ? "" : currentAlloc.writeOff}
+                        onChange={(e) => {
+                          const val = parseFloat(e.target.value) || 0;
+                          setPaymentAllocations((prev) => ({
+                            ...prev,
+                            [inv.id]: {
+                              ...currentAlloc,
+                              writeOff: val,
+                            },
+                          }));
+                        }}
+                        placeholder="0.00"
+                        style={{
+                          width: "90px",
+                          height: "30px",
+                          padding: "4px 8px",
+                          fontSize: "12.5px",
+                          border: "1px solid #cbd5e1",
+                          borderRadius: "4px",
+                          textAlign: "right",
+                        }}
+                      />
+                      <select
+                        value={currentAlloc.writeOffReason || ""}
+                        onChange={(e) => {
+                          setPaymentAllocations((prev) => ({
+                            ...prev,
+                            [inv.id]: {
+                              ...currentAlloc,
+                              writeOffReason: e.target.value,
+                            },
+                          }));
+                        }}
+                        style={{
+                          height: "30px",
+                          padding: "2px 8px",
+                          fontSize: "12px",
+                          border: "1px solid #cbd5e1",
+                          borderRadius: "4px",
+                          background: "#ffffff",
+                          minWidth: "140px",
+                        }}
+                      >
+                        <option value="">--Select--</option>
+                        <option value="Bad Debt">Bad Debt</option>
+                        <option value="Dispute Settlement">Dispute Settlement</option>
+                        <option value="Charity / Hardship">Charity / Hardship</option>
+                        <option value="Rounding Adjustment">Rounding Adjustment</option>
+                        <option value="Professional Courtesy">Professional Courtesy</option>
+                        <option value="Insurance Write-off">Insurance Write-off</option>
+                      </select>
+                    </div>
+
+                    {/* Right: Comments */}
+                    <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+                      <label style={{ fontSize: "12.5px", fontWeight: 500, color: "#334155", whiteSpace: "nowrap" }}>
+                        Comments
+                      </label>
+                      <input
+                        type="text"
+                        value={currentAlloc.comments || ""}
+                        onChange={(e) => {
+                          setPaymentAllocations((prev) => ({
+                            ...prev,
+                            [inv.id]: {
+                              ...currentAlloc,
+                              comments: e.target.value,
+                            },
+                          }));
+                        }}
+                        placeholder="Allocation notes / write-off remarks..."
+                        style={{
+                          width: "100%",
+                          height: "30px",
+                          padding: "4px 8px",
+                          fontSize: "12px",
+                          border: "1px solid #cbd5e1",
+                          borderRadius: "4px",
+                        }}
+                      />
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+
+            {/* Bottom Summary Section (Total Payment Applied & Unused Payment) */}
+            <div
+              style={{
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "flex-end",
+                marginTop: "20px",
+                paddingRight: "12px",
+                gap: "8px",
+              }}
+            >
+              <div style={{ display: "flex", gap: "32px", alignItems: "center" }}>
+                <span style={{ fontSize: "15px", fontWeight: 700, color: "#006699" }}>
+                  Total Payment Applied
+                </span>
+                <span style={{ fontSize: "16px", fontWeight: 700, color: "#006699", minWidth: "110px", textAlign: "right" }}>
+                  {totalPaymentApplied.toFixed(2)}
+                </span>
+              </div>
+              <div style={{ display: "flex", gap: "32px", alignItems: "center" }}>
+                <span style={{ fontSize: "15px", fontWeight: 700, color: "#0f172a" }}>
+                  Unused Payment
+                </span>
+                <span style={{ fontSize: "16px", fontWeight: 700, color: "#0f172a", minWidth: "110px", textAlign: "right" }}>
+                  {unusedPayment.toFixed(2)}
+                </span>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  // -------------------------------------------------------------
   // RENDER VIEW: LIST SUBTABS (INVOICES / RECEIPTS / BALANCE DUE)
   // -------------------------------------------------------------
   return (
@@ -3422,7 +4256,7 @@ export function CharmPatientBilling({
         {activeSubtab === "receipts" ? (
           <button
             type="button"
-            onClick={() => setAddPaymentModalOpen(true)}
+            onClick={() => openAddPaymentScreen()}
             style={{
               background: "#f97316",
               color: "#ffffff",
@@ -4066,8 +4900,7 @@ export function CharmPatientBilling({
                                 <div
                                   onClick={() => {
                                     setActiveMenuId(null);
-                                    setQuickPayInvoice(inv);
-                                    setQuickPayAmount((inv.balance_paise || 0) / 100);
+                                    openAddPaymentScreen(inv);
                                   }}
                                   style={{
                                     padding: "7px 12px",
@@ -4808,8 +5641,7 @@ export function CharmPatientBilling({
                     type="button"
                     onClick={() => {
                       if (outstandingInvoices.length > 0) {
-                        setQuickPayInvoice(outstandingInvoices[0]);
-                        setQuickPayAmount((outstandingInvoices[0].balance_paise || 0) / 100);
+                        openAddPaymentScreen(outstandingInvoices[0]);
                       }
                     }}
                     style={{
@@ -4885,8 +5717,7 @@ export function CharmPatientBilling({
                           <button
                             type="button"
                             onClick={() => {
-                              setQuickPayInvoice(inv);
-                              setQuickPayAmount((inv.balance_paise || 0) / 100);
+                              openAddPaymentScreen(inv);
                             }}
                             style={{
                               background: "#0f766e",
