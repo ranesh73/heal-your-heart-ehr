@@ -1,8 +1,9 @@
 """Relational domain model. Timestamps are UTC; money is integer paise."""
 from datetime import datetime, timezone
 from uuid import uuid4
-from sqlalchemy import (Boolean, CheckConstraint, Column, Date, DateTime, Float,
+from sqlalchemy import (Boolean, CheckConstraint, Column, Date, DateTime, Float, JSON,
                         ForeignKey, Integer, String, Text, UniqueConstraint)
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import DeclarativeBase
 
 
@@ -564,6 +565,52 @@ class Message(PatientRecord, Base):
     subject = Column(String(200), nullable=False)
     body = Column(Text, nullable=False)
     read_at = Column(DateTime)
+
+
+class FlowsheetTemplate(Base):
+    __tablename__ = 'flowsheet_templates'
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid4()))
+    name = Column(String(150), nullable=False, unique=True)
+    slug = Column(String(100), nullable=False, unique=True)
+    schema_json = Column(JSON().with_variant(JSONB, 'postgresql'), nullable=False)
+    display_order = Column(Integer, nullable=False, default=0, server_default='0')
+    is_active = Column(Boolean, nullable=False, default=True)
+
+
+class FlowsheetStaffRoster(Base):
+    __tablename__ = 'flowsheet_staff_roster'
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid4()))
+    role = Column(String(20), nullable=False)
+    name = Column(String(120), nullable=False)
+    display_order = Column(Integer, nullable=False, default=0)
+    is_active = Column(Boolean, nullable=False, default=True)
+    __table_args__ = (
+        UniqueConstraint('role', 'name', name='uq_flowsheet_staff_role_name'),
+        CheckConstraint("role IN ('therapist','physician')"),
+    )
+
+
+class PatientFlowsheetTemplate(Base):
+    __tablename__ = 'patient_flowsheet_templates'
+    patient_id = Column(ForeignKey('patients.id'), primary_key=True)
+    template_id = Column(ForeignKey('flowsheet_templates.id'), primary_key=True)
+    assigned_at = Column(DateTime(timezone=True), nullable=False, default=lambda: datetime.now(timezone.utc))
+
+
+class PatientFlowsheetEntry(Base):
+    __tablename__ = 'patient_flowsheet_entries'
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid4()))
+    patient_id = Column(ForeignKey('patients.id'), nullable=False, index=True)
+    template_id = Column(ForeignKey('flowsheet_templates.id'), nullable=False, index=True)
+    recorded_at = Column(DateTime(timezone=True), nullable=False, index=True)
+    values_json = Column(JSON().with_variant(JSONB, 'postgresql'), nullable=False, default=dict)
+    therapist_id = Column(ForeignKey('users.id'))
+    physician_id = Column(ForeignKey('users.id'))
+    therapist_name = Column(String(120))
+    physician_name = Column(String(120))
+    created_by = Column(ForeignKey('users.id'), nullable=True)
+    created_at = Column(DateTime(timezone=True), nullable=False, default=lambda: datetime.now(timezone.utc))
+    updated_at = Column(DateTime(timezone=True), nullable=False, default=lambda: datetime.now(timezone.utc))
 
 
 class Catalog(Entity, Base):

@@ -87,13 +87,13 @@ import {
   InjectionsSection,
   VaccinesSection,
   VitalsSection,
-  FlowsheetSection,
   AddPrescriptionModal,
   AddInjectionModal,
   AddVaccineModal,
   AddVitalsModal,
   formatDoctorName,
 } from "./clinicalWorkflows";
+import { ClinicalFlowsheets } from "./clinicalFlowsheets";
 import {
   DiagnosisTemplatesModal,
   PrescriptionTemplatesModal,
@@ -962,7 +962,7 @@ export function PatientChart({ id }: { id: string }) {
                     <div className="charm-subtabs-left">
                       {[
                         "Face Sheet",
-                        "Flowsheet",
+                        ...(clinical ? ["Flowsheet"] : []),
                         "Treatment Plan",
                         "Health Screening",
                         "Timeline",
@@ -1173,12 +1173,7 @@ export function PatientChart({ id }: { id: string }) {
                   )}
 
                   {subTab === "Flowsheet" && (
-                    <FlowsheetSection
-                      patient={p}
-                      vitals={chart.vitals || []}
-                      writable={writable("vitals")}
-                      onRefresh={() => refetch()}
-                    />
+                    <ClinicalFlowsheets patientId={id} writable={clinical} />
                   )}
 
                   {subTab === "Treatment Plan" && (

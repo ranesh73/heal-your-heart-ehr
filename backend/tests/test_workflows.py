@@ -103,6 +103,138 @@ def test_reception_registration_search_booking_checkin():
     assert 'encounters' not in chart and 'vitals' not in chart
 
 
+def test_patient_flowsheet_templates_create_update_order_and_delete():
+    c=client()
+    p=patient(c)
+    templates=ok(c.get('/api/flowsheets/templates'))
+    assert [item['name'] for item in templates[:4]] == [
+        'Sphygmocor Report',
+        'Vaso-Meditech Blood Sugar Chart',
+        'Vaso-Meditech EECP Daily Chart',
+        'Vaso-Meditech EECP Weekly Chart',
+    ]
+    staff_roster=ok(c.get('/api/flowsheets/staff'))
+    assert len(staff_roster['therapists'])==60
+    assert staff_roster['therapists'][0]=='Divya A'
+    assert staff_roster['therapists'][-1]=='Vidhya R'
+    assert staff_roster['physicians']==[
+        'Dr.Ramya R','Dr.Aravind K','Dr.Deepika S','Dr.Karthik M',
+        'Dr.Meenakshi V','Dr.Nithya R','Dr.Prakash S','Dr.Priya M',
+        'Dr.Ramasamy S','Dr.Sathish K','Dr.Suresh Babu','Dr.Vidhya S',
+    ]
+    sphygmocor=templates[0]
+    aix=next(field for section in sphygmocor['schema_json']['sections'] for field in section['fields'] if field['key']=='pre_augmentation_index')
+    assert len(aix['options'])==101 and aix['options'][0]=='0' and aix['options'][-1]=='100'
+    daily=next(item for item in templates if item['slug']=='vaso-meditech-eecp-daily-chart')
+    bp=next(field for section in daily['schema_json']['sections'] for field in section['fields'] if field['key']=='pre_bp')
+    assert bp['format']=='blood-pressure' and bp['unit']=='mmHg'
+    slug='vaso-meditech-eecp-weekly-chart'
+    invalid=ok(c.post(f"/api/patients/{p['id']}/flowsheets/{slug}/entries",json={
+        'recorded_at':'2032-03-02T10:00:00+05:30',
+        'values_json':{'nyha':'Class V'},
+    }),422)
+    created=ok(c.post(f"/api/patients/{p['id']}/flowsheets/{slug}/entries",json={
+        'recorded_at':'2032-03-02T10:00:00+05:30',
+        'values_json':{'week_no':2,'weight':60,'height':160,'nyha':'Class II'},
+        'therapist_name':'Divya A',
+        'physician_name':'Dr.Ramya R',
+    }))
+    assert created['values_json']['bmi']==23.4
+    assert created['therapist_name']=='Divya A'
+    assert created['physician_name']=='Dr.Ramya R'
+    older=ok(c.post(f"/api/patients/{p['id']}/flowsheets/{slug}/entries",json={
+        'recorded_at':'2032-03-01T10:00:00+05:30',
+        'values_json':{'week_no':1},
+    }))
+    chart=ok(c.get(f"/api/patients/{p['id']}/flowsheets/{slug}"))
+    assert [entry['id'] for entry in chart['entries']]==[older['id'],created['id']]
+    updated=ok(c.put(f"/api/flowsheets/entries/{created['id']}",json={
+        'values_json':{'week_no':2,'weight':60,'height':150},
+        'therapist_name':None,
+        'physician_name':None,
+    }))
+    assert updated['values_json']['bmi']==26.7
+    assert updated['therapist_name'] is None
+    manual_bmi=ok(c.put(f"/api/flowsheets/entries/{created['id']}",json={
+        'values_json':{'weight':60,'height':150,'bmi':24.2},
+    }))
+    assert manual_bmi['values_json']['bmi']==24.2
+    ok(c.delete(f"/api/flowsheets/entries/{created['id']}"))
+    chart=ok(c.get(f"/api/patients/{p['id']}/flowsheets/{slug}"))
+    assert [entry['id'] for entry in chart['entries']]==[older['id']]
+
+
+def test_daily_flowsheet_accepts_blood_pressure_format_and_rejects_invalid_values():
+    c=client()
+    p=patient(c)
+    slug='vaso-meditech-eecp-daily-chart'
+    created=ok(c.post(f"/api/patients/{p['id']}/flowsheets/{slug}/entries",json={
+        'recorded_at':'2032-03-02T10:00:00+05:30',
+        'values_json':{'pre_bp':'120/70'},
+    }))
+    assert created['values_json']['pre_bp']=='120/70'
+    ok(c.post(f"/api/patients/{p['id']}/flowsheets/{slug}/entries",json={
+        'recorded_at':'2032-03-03T10:00:00+05:30',
+        'values_json':{'pre_bp':'120-70'},
+    }),422)
+
+
+def test_patient_flowsheet_catalog_selection_and_inpatient_values():
+    c=client()
+    p=patient(c)
+    catalog_url=f"/api/patients/{p['id']}/flowsheets/templates"
+    catalog=ok(c.get(catalog_url))
+    assert [item['name'] for item in catalog['available']]==[
+        'Admission Flowsheet Nursing',
+        'Admission Treatment &Progress',
+        'ER Flowsheet',
+        'Follow up',
+        'Heart Failure Patient 6 min Walk Test',
+        'Patient Flowsheet',
+    ]
+    assert all(item['name']!='Potassium Diet Recommendation' for item in catalog['available'])
+    selected=ok(c.put(catalog_url,json={
+        'slugs':['admission-flowsheet-nursing','heart-failure-6-min-walk-test'],
+    }))
+    assert [item['slug'] for item in selected['templates'][-2:]]==[
+        'admission-flowsheet-nursing','heart-failure-6-min-walk-test',
+    ]
+    ok(c.put(catalog_url,json={'slugs':['not-a-flowsheet']}),422)
+
+    admission_url=f"/api/patients/{p['id']}/flowsheets/admission-flowsheet-nursing/entries"
+    entry=ok(c.post(admission_url,json={
+        'recorded_at':'2032-03-02T10:00:00+05:30',
+        'values_json':{
+            'temperature':36.6,
+            'temperature_unit':'°C',
+            'bp':'120/80',
+            'iv_fluids':['IV Adrenaline','IV RL -500 ml'],
+            'spo2':98,
+        },
+    }))
+    assert entry['values_json']['temperature']==36.6
+    assert entry['values_json']['temperature_unit']=='°C'
+    assert entry['values_json']['iv_fluids']==['IV Adrenaline','IV RL -500 ml']
+    default_unit=ok(c.post(admission_url,json={
+        'recorded_at':'2032-03-04T10:00:00+05:30',
+        'values_json':{'temperature':98.6},
+    }))
+    assert default_unit['values_json']['temperature_unit']=='°F'
+    ok(c.post(admission_url,json={
+        'recorded_at':'2032-03-03T10:00:00+05:30',
+        'values_json':{'iv_fluids':['Unknown Fluid']},
+    }),422)
+    ok(c.get(f"/api/patients/{p['id']}/flowsheets/er-flowsheet"),404)
+
+    cleared=ok(c.put(catalog_url,json={'slugs':[]}))
+    assert [item['slug'] for item in cleared['templates']]==[
+        'sphygmocor-report',
+        'vaso-meditech-blood-sugar-chart',
+        'vaso-meditech-eecp-daily-chart',
+        'vaso-meditech-eecp-weekly-chart',
+    ]
+
+
 def test_appointment_label_is_saved_without_changing_lifecycle_status():
     c=client('reception');p=patient(c)
     a=ok(c.post('/api/appointments',json=booking(c,p,day=10,hour=19)))[0]
