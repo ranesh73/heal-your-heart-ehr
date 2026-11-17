@@ -1,11 +1,12 @@
 import csv
 import io
 import json
+import uuid
 from datetime import date, datetime, timedelta, timezone
 from zoneinfo import ZoneInfo
 from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import Response
-from sqlalchemy import select, func, or_
+from sqlalchemy import select, func, or_, delete
 from . import models as m, schemas as s
 from .security import context, BILLING, CLINICAL, next_number
 from .serialization import serialize, invoice_out, plan_out
@@ -14,9 +15,21 @@ router=APIRouter(prefix='/api')
 
 
 @router.get('/invoices')
-def invoices(c=Depends(context)):
+def invoices(patient_id: str | None = None, c=Depends(context)):
     c.allow(BILLING)
-    return [invoice_out(c.db,x) for x in c.db.scalars(select(m.Invoice).where(m.Invoice.facility_id==c.facility_id).order_by(m.Invoice.created_at.desc()).limit(1000))]
+    stmt = select(m.Invoice)
+    if patient_id:
+        stmt = stmt.where(m.Invoice.patient_id == patient_id)
+    else:
+        stmt = stmt.where(m.Invoice.facility_id == c.facility_id)
+    return [invoice_out(c.db, x) for x in c.db.scalars(stmt.order_by(m.Invoice.created_at.desc()).limit(1000))]
+
+
+@router.get('/invoices/{identifier}')
+def get_single_invoice(identifier: str, c=Depends(context)):
+    c.allow(BILLING)
+    row = c.record(m.Invoice, identifier)
+    return invoice_out(c.db, row)
 
 
 @router.post('/invoices')
@@ -29,12 +42,74 @@ def create_invoice(data:s.InvoiceInput,c=Depends(context)):
     if total<0: raise HTTPException(422,'Discount exceeds invoice subtotal')
     if total>10000000000: raise HTTPException(422,'Invoice total exceeds supported amount')
     branch=c.db.get(m.Facility,c.facility_id)
-    row=m.Invoice(patient_id=data.patient_id,facility_id=c.facility_id,author_id=c.user.id,encounter_id=data.encounter_id,
-        number=next_number(c.db,branch.code+'-INV'),discount_paise=data.discount_paise,total_paise=total,status='paid' if total==0 else 'unpaid')
+    author_id = data.doctor_id if (data.doctor_id and c.db.get(m.User, data.doctor_id)) else c.user.id
+    init_status = 'draft' if data.status == 'draft' else ('paid' if total == 0 else 'unpaid')
+
+    row=m.Invoice(patient_id=data.patient_id,facility_id=c.facility_id,author_id=author_id,encounter_id=data.encounter_id,
+        number=next_number(c.db,branch.code+'-INV'),discount_paise=data.discount_paise,total_paise=total,status=init_status)
     c.db.add(row); c.db.flush()
-    for line in data.lines: c.db.add(m.InvoiceLine(invoice_id=row.id,**line.model_dump()))
+    for line in data.lines:
+        line_data = line.model_dump()
+        c.db.add(m.InvoiceLine(invoice_id=row.id,**line_data))
+
+    if data.payment and data.payment.amount_paise > 0 and init_status != 'draft':
+        pay_amount = min(data.payment.amount_paise, total)
+        idem = f"inv_pay_{row.id}_{uuid.uuid4().hex[:12]}"
+        receipt = m.Payment(
+            invoice_id=row.id,
+            receipt_number=next_number(c.db, branch.code+'-REC'),
+            actor_id=c.user.id,
+            amount_paise=pay_amount,
+            mode=data.payment.mode or 'Cash',
+            idempotency_key=idem,
+            simulated=True
+        )
+        c.db.add(receipt)
+        update_invoice(c, row)
+
     c.audit('create_invoice',row)
     return invoice_out(c.db,row)
+
+
+@router.put('/invoices/{identifier}')
+def update_invoice_details(identifier: str, data: s.InvoiceInput, c=Depends(context)):
+    c.allow(BILLING)
+    row = c.record(m.Invoice, identifier)
+    if row.status in ('paid', 'cancelled'):
+        raise HTTPException(400, f"Cannot edit an invoice in '{row.status}' status")
+
+    c.db.execute(delete(m.InvoiceLine).where(m.InvoiceLine.invoice_id == row.id))
+    total = sum(x.quantity * x.unit_paise for x in data.lines) - data.discount_paise
+    if total < 0: raise HTTPException(422, 'Discount exceeds invoice subtotal')
+    row.total_paise = total
+    row.discount_paise = data.discount_paise
+    if data.doctor_id and c.db.get(m.User, data.doctor_id):
+        row.author_id = data.doctor_id
+    if data.encounter_id:
+        row.encounter_id = data.encounter_id
+    if data.status:
+        row.status = data.status
+    for line in data.lines:
+        c.db.add(m.InvoiceLine(invoice_id=row.id, **line.model_dump()))
+
+    if data.payment and data.payment.amount_paise > 0 and row.status != 'draft':
+        branch = c.db.get(m.Facility, c.facility_id)
+        pay_amount = min(data.payment.amount_paise, total)
+        idem = f"inv_pay_{row.id}_{uuid.uuid4().hex[:12]}"
+        receipt = m.Payment(
+            invoice_id=row.id,
+            receipt_number=next_number(c.db, branch.code+'-REC'),
+            actor_id=c.user.id,
+            amount_paise=pay_amount,
+            mode=data.payment.mode or 'Cash',
+            idempotency_key=idem,
+            simulated=True
+        )
+        c.db.add(receipt)
+
+    update_invoice(c, row)
+    c.audit('update_invoice', row)
+    return invoice_out(c.db, row)
 
 
 def update_invoice(c,row):
@@ -46,14 +121,23 @@ def update_invoice(c,row):
 @router.post('/invoices/{identifier}/payments')
 def payment(identifier:str,data:s.PaymentInput,c=Depends(context)):
     c.allow(BILLING); row=c.record(m.Invoice,identifier)
-    existing=c.db.scalar(select(m.Payment).where(m.Payment.idempotency_key==data.idempotency_key))
+    idem = data.idempotency_key or f"pay_{row.id}_{uuid.uuid4().hex[:16]}"
+    existing=c.db.scalar(select(m.Payment).where(m.Payment.idempotency_key==idem))
     if existing:
         if existing.invoice_id!=row.id or existing.amount_paise!=data.amount_paise or existing.mode!=data.mode: raise HTTPException(409,'Payment key was already used with different details')
         return {'receipt':serialize(existing),'invoice':invoice_out(c.db,row),'replayed':True}
     balance=invoice_out(c.db,row)['balance_paise']
     if row.status=='cancelled' or data.amount_paise>balance: raise HTTPException(409,'Payment exceeds the outstanding invoice balance')
     branch=c.db.get(m.Facility,c.facility_id)
-    receipt=m.Payment(invoice_id=row.id,receipt_number=next_number(c.db,branch.code+'-REC'),actor_id=c.user.id,**data.model_dump())
+    receipt=m.Payment(
+        invoice_id=row.id,
+        receipt_number=next_number(c.db,branch.code+'-REC'),
+        actor_id=c.user.id,
+        amount_paise=data.amount_paise,
+        mode=data.mode,
+        idempotency_key=idem,
+        simulated=data.simulated
+    )
     c.db.add(receipt); update_invoice(c,row); c.audit('simulated_payment',row)
     return {'receipt':serialize(receipt),'invoice':invoice_out(c.db,row),'replayed':False}
 
@@ -75,6 +159,53 @@ def cancel(identifier:str,data:s.Version,c=Depends(context)):
     if row.status=='cancelled' or ledger['paid_paise'] or ledger['credited_paise']: raise HTTPException(409,'Only unpaid, uncredited invoices can be cancelled')
     row.status='cancelled'; row.version+=1; c.audit('cancel_invoice',row)
     return invoice_out(c.db,row)
+
+
+@router.get('/receipts')
+def receipts(patient_id: str | None = None, c=Depends(context)):
+    c.allow(BILLING)
+    stmt = select(m.Payment, m.Invoice, m.Patient, m.Facility)\
+        .join(m.Invoice, m.Payment.invoice_id == m.Invoice.id)\
+        .join(m.Patient, m.Invoice.patient_id == m.Patient.id)\
+        .outerjoin(m.Facility, m.Invoice.facility_id == m.Facility.id)
+    if patient_id:
+        stmt = stmt.where(m.Invoice.patient_id == patient_id)
+    else:
+        stmt = stmt.where(m.Invoice.facility_id == c.facility_id)
+    
+    records = c.db.execute(stmt.order_by(m.Payment.created_at.desc()).limit(1000)).all()
+    out = []
+    for pay, inv, pat, fac in records:
+        out.append({
+            "id": pay.id,
+            "receipt_number": pay.receipt_number,
+            "invoice_id": inv.id,
+            "invoice_number": inv.number,
+            "patient_id": pat.id,
+            "patient_name": f"{pat.first_name} {pat.last_name}".strip(),
+            "patient_mrn": pat.mrn,
+            "facility_name": fac.name if fac else "Heal Your Heart · Neelankarai",
+            "receipt_date": pay.created_at.isoformat() if pay.created_at else "",
+            "amount_paise": pay.amount_paise,
+            "mode": pay.mode,
+            "simulated": pay.simulated,
+            "is_void": inv.status == 'cancelled',
+            "payment_from": "Patient",
+            "refund_paise": 0,
+            "unused_paise": 0
+        })
+    return out
+
+
+@router.post('/receipts/{identifier}/void')
+def void_receipt(identifier: str, c=Depends(context)):
+    c.allow(BILLING)
+    pay = c.record(m.Payment, identifier)
+    inv = c.db.get(m.Invoice, pay.invoice_id)
+    c.db.delete(pay)
+    if inv:
+        update_invoice(c, inv)
+    return {"message": "Receipt voided successfully"}
 
 
 # --- INVENTORY ENGINE ---

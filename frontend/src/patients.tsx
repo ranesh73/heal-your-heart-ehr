@@ -104,6 +104,7 @@ import {
 } from "./charmTemplates";
 import { EECPPatient } from "./eecp";
 import { BillingTable, AppointmentTable } from "./operations";
+import { CharmPatientBilling } from "./charmPatientBilling";
 import { CharmLabOrders } from "./charmLabOrders";
 import { CharmImages } from "./charmImages";
 import {
@@ -1880,7 +1881,13 @@ export function PatientChart({ id }: { id: string }) {
             }
 
             if (resolvedSection === "Billing") {
-              return <BillingTable patientId={id} rows={chart.invoices || []} />;
+              return (
+                <CharmPatientBilling
+                  patientId={id}
+                  patient={p}
+                  onRefreshChart={refresh}
+                />
+              );
             }
 
             if (resolvedSection === "Customize") {
