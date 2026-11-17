@@ -440,7 +440,7 @@ export function FacilityTimingsPage() {
         <div style={{ marginLeft: "126px" }}>
           <button
             onClick={handleSaveTimezone}
-            disabled={savingTz || loading}
+            disabled={savingTz}
             style={{
               background: "#ea8b0d",
               color: "#ffffff",
@@ -449,8 +449,7 @@ export function FacilityTimingsPage() {
               padding: "5px 18px",
               fontSize: "13px",
               fontWeight: 600,
-              cursor: savingTz || loading ? "not-allowed" : "pointer",
-              opacity: savingTz || loading ? 0.7 : 1,
+              cursor: savingTz ? "wait" : "pointer",
               boxShadow: "0 1px 2px rgba(0,0,0,0.08)",
             }}
           >
@@ -770,7 +769,7 @@ export function FacilityTimingsPage() {
           >
             <button
               onClick={handleSaveTimings}
-              disabled={savingHours || loading}
+              disabled={savingHours}
               style={{
                 background: "#ea8b0d",
                 color: "#ffffff",
@@ -779,8 +778,7 @@ export function FacilityTimingsPage() {
                 padding: "6px 20px",
                 fontSize: "13px",
                 fontWeight: 600,
-                cursor: savingHours || loading ? "not-allowed" : "pointer",
-                opacity: savingHours || loading ? 0.7 : 1,
+                cursor: savingHours ? "wait" : "pointer",
                 boxShadow: "0 1px 2px rgba(0,0,0,0.08)",
               }}
             >
@@ -788,7 +786,6 @@ export function FacilityTimingsPage() {
             </button>
             <button
               onClick={handleCancel}
-              disabled={savingHours || loading}
               style={{
                 background: "#f8fafc",
                 color: "#475569",

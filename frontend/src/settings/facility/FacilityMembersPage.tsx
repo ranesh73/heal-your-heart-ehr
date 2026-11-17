@@ -86,6 +86,8 @@ export function FacilityMembersPage() {
       setShowAddModal(false);
       setFormData({ name: "", email: "", role: "assistant", title: "Physician Assistant", phone: "", password: "password123" });
       await loadData();
+      window.dispatchEvent(new CustomEvent("hyh_staff_updated"));
+      window.dispatchEvent(new CustomEvent("hyh_setting_updated"));
     } catch (err: any) {
       alert(err.message || "Failed to create staff member");
     }
@@ -659,6 +661,18 @@ export function FacilityMembersPage() {
                     value={formData.title}
                     onChange={(e) => setFormData({ ...formData, title: e.target.value })}
                     placeholder="e.g. Therapist, Lab Technician"
+                  />
+                </div>
+                <div className="charm-form-group">
+                  <label>Initial Password <span className="req">*</span></label>
+                  <input
+                    type="password"
+                    autoComplete="new-password"
+                    required
+                    minLength={6}
+                    value={formData.password}
+                    onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                    placeholder="At least 6 characters"
                   />
                 </div>
                 <div className="charm-form-group">

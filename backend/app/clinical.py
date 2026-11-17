@@ -375,7 +375,9 @@ def create_encounter(data:s.EncounterInput,c=Depends(context)):
         appointment=c.record(m.Appointment,data.appointment_id)
         if appointment.patient_id!=data.patient_id or appointment.provider_id!=data.provider_id: raise HTTPException(422,'Appointment does not match patient and provider')
         if appointment.status in ('cancelled','missed'): raise HTTPException(409,'Appointment is inactive')
-    row=m.Encounter(**data.model_dump(),facility_id=c.facility_id,author_id=c.user.id)
+    enc_data = data.model_dump()
+    facility_id = enc_data.pop('facility_id', None) or c.facility_id
+    row=m.Encounter(**enc_data,facility_id=facility_id,author_id=c.user.id)
     c.db.add(row); c.audit('create_encounter',row)
     return encounter_out(c.db,row)
 

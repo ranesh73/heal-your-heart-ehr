@@ -11,14 +11,14 @@ from sqlalchemy.engine.reflection import Inspector
 
 # revision identifiers, used by Alembic.
 revision = '20261117_auth_staff_and_otp'
-down_revision = 'fee202569492'
+down_revision = '20261117_billing_receipts_allocations'
 branch_labels = None
 depends_on = None
 
 
 def upgrade():
     conn = op.get_bind()
-    inspector = Inspector.from_engine(conn)
+    inspector = sa.inspect(conn)
     user_cols = [c['name'] for c in inspector.get_columns('users')]
     
     if 'phone' not in user_cols:

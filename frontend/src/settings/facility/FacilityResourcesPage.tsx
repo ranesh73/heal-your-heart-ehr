@@ -45,6 +45,8 @@ export function FacilityResourcesPage() {
       setShowAddModal(false);
       setResourceName("");
       await loadData();
+      window.dispatchEvent(new CustomEvent("hyh_resource_updated"));
+      window.dispatchEvent(new CustomEvent("hyh_setting_updated"));
     } catch (err: any) {
       alert(err.message || "Failed to create resource");
     } finally {

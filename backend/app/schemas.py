@@ -1,5 +1,6 @@
 """Shared validation and form definitions. Bounds are data sanity checks, not treatment advice."""
 from datetime import date, datetime
+import uuid
 from typing import Literal, Any
 from pydantic import BaseModel, ConfigDict, Field, create_model, field_validator
 
@@ -105,6 +106,7 @@ class AppointmentLabelChange(Version):
 class EncounterInput(Input):
     patient_id: str
     provider_id: str
+    facility_id: str | None = None
     assistant_id: str | None = None
     appointment_id: str | None = None
     visit_type: str = Field(default='Consultation', max_length=80)
@@ -171,23 +173,55 @@ class InvoiceLineInput(Input):
     unit_paise: int = Field(ge=0, le=100000000)
 
 
+class InvoicePaymentInput(Input):
+    amount_paise: int = Field(default=0, ge=0, le=100000000)
+    mode: str = Field(default='Cash', max_length=50)
+    reference: str = Field(default='', max_length=100)
+
+
 class InvoiceInput(Input):
     patient_id: str
     encounter_id: str | None = None
+    doctor_id: str | None = None
+    status: str = Field(default='unpaid', max_length=30)
     lines: list[InvoiceLineInput] = Field(min_length=1, max_length=100)
     discount_paise: int = Field(default=0, ge=0, le=100000000)
+    payment: InvoicePaymentInput | None = None
+    notes: str = Field(default='', max_length=2000)
+    terms: str = Field(default='', max_length=2000)
 
 
 class PaymentInput(Input):
     amount_paise: int = Field(gt=0, le=100000000)
-    mode: Literal['Cash', 'UPI', 'Card', 'Bank transfer']
-    idempotency_key: str = Field(min_length=16, max_length=80)
+    mode: str = Field(default='Cash', max_length=50)
+    reference: str = Field(default='', max_length=100)
+    idempotency_key: str = Field(default_factory=lambda: uuid.uuid4().hex, min_length=16, max_length=80)
     simulated: Literal[True] = True
 
 
 class CreditInput(Input):
     amount_paise: int = Field(gt=0, le=100000000)
     reason: str = Field(min_length=3, max_length=2000)
+
+
+class InvoiceAllocationInput(Input):
+    invoice_id: str
+    amount_paise: int = Field(default=0, ge=0, le=1000000000)
+    write_off_paise: int = Field(default=0, ge=0, le=1000000000)
+    write_off_reason: str = Field(default='', max_length=2000)
+    comments: str = Field(default='', max_length=2000)
+
+
+class PatientPaymentInput(Input):
+    patient_id: str
+    amount_paise: int = Field(gt=0, le=1000000000)
+    payment_date: str | None = None
+    mode: str = Field(default='Cash', max_length=50)
+    reference: str = Field(default='', max_length=100)
+    other_reference: str = Field(default='', max_length=100)
+    description: str = Field(default='', max_length=2000)
+    allocations: list[InvoiceAllocationInput] = Field(default_factory=list)
+    idempotency_key: str | None = None
 
 
 # Field metadata drives consistent, accessible input forms without exposing arbitrary DB writes.
@@ -289,7 +323,7 @@ class StaffInput(Input):
     name: str = Field(min_length=1,max_length=120)
     role: Literal['admin','doctor','assistant','therapist','reception','billing']
     password: str = Field(min_length=6,max_length=200)
-    facility_ids: list[str] = Field(min_length=1)
+    facility_ids: list[str] = Field(default_factory=list)
     phone: str | None = None
     title: str | None = None
 

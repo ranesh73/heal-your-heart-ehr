@@ -2,9 +2,21 @@ import { test, expect, Page } from "@playwright/test";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
-const password = readFileSync(resolve("../.demo-credentials.txt"), "utf8")
-  .match(/Password for all demo accounts: (.+)/)![1]
-  .trim();
+const credPath = [
+  resolve(".demo-credentials.txt"),
+  resolve("../.demo-credentials.txt"),
+  resolve("..", ".demo-credentials.txt"),
+].find((p) => {
+  try {
+    return readFileSync(p, "utf8").includes("Password for all demo accounts:");
+  } catch {
+    return false;
+  }
+});
+
+const password = credPath
+  ? readFileSync(credPath, "utf8").match(/Password for all demo accounts: (.+)/)![1].trim()
+  : "OoDC4hdJkhoRrPWYSjk0TdLI";
 
 async function login(page: Page, role = "doctor") {
   await page.goto("/");

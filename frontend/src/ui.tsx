@@ -141,12 +141,14 @@ export function Modal({
   children,
   onClose,
   wide = false,
+  className,
 }: {
   title: string;
   description?: string;
   children: ReactNode;
   onClose: () => void;
   wide?: boolean;
+  className?: string;
 }) {
   const contentRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -166,7 +168,7 @@ export function Modal({
         <Dialog.Overlay className="overlay" />
         <Dialog.Content
           ref={contentRef}
-          className={cn("modal", wide && "wide")}
+          className={cn("modal", wide && "wide", className)}
           onPointerDownOutside={(e) => e.preventDefault()}
           onOpenAutoFocus={(e) => {
             e.preventDefault();

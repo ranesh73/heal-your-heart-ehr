@@ -16,6 +16,8 @@ from typing import Optional, List, Dict, Any
 import json
 import uuid
 import re
+import os
+import csv
 
 from .identity import context
 from . import models as m
@@ -26,6 +28,36 @@ router = APIRouter(prefix="", tags=["billing-settings"])
 # ----------------------------------------------------------------------------
 # SEED CONSTANTS FROM CHARMHEALTH REFERENCE
 # ----------------------------------------------------------------------------
+
+def load_cpt_codes_from_csv():
+    csv_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'seed_data', 'CPT_Codes.csv')
+    if not os.path.exists(csv_path):
+        return SEED_PROCEDURES
+    procs = []
+    with open(csv_path, encoding='utf-8') as f:
+        reader = csv.DictReader(f)
+        for row in reader:
+            code = (row.get('#Code') or row.get('Code') or '').strip()
+            desc = (row.get('Description') or '').strip()
+            cat = (row.get('Category') or 'Procedure').strip()
+            charge_str = (row.get('Charge') or '0').strip()
+            try:
+                charge = float(charge_str)
+            except ValueError:
+                charge = 0.0
+            is_lab = cat in ('HUH Labs', 'Lab', 'HUH-O', 'BNP Test', 'ECHO TEST', 'ECG', 'SphygmoCor Test', 'Master Health Checkup') or any(kw in desc.lower() for kw in ('test', 'antigen', 'antibody', 'culture', 'panel', 'profile', 'screening'))
+            sac = "999312" if is_lab or "hc" in cat.lower() or "emergency" in cat.lower() else ""
+            pos = "12 - Home" if "home" in cat.lower() or "-hc" in desc.lower() else ("23 - Emergency Room" if "emergency" in cat.lower() else "11 - Office")
+            procs.append({
+                "code": code,
+                "desc": desc,
+                "sac": sac,
+                "charge": charge,
+                "is_lab": is_lab,
+                "cat": cat,
+                "pos": pos
+            })
+    return procs if procs else SEED_PROCEDURES
 
 SEED_PROCEDURES = [
     {"desc": "CA 15-3 Cancer Antigen", "code": "86300", "sac": "999312", "charge": 1200.00, "is_lab": True, "cat": "HUH-O", "pos": "11 - Office"},
@@ -165,8 +197,9 @@ def ensure_billing_defaults(c):
         ).limit(1)
     )
     if not has_procs:
+        procs_list = load_cpt_codes_from_csv()
         seen_codes = set()
-        for idx, p in enumerate(SEED_PROCEDURES):
+        for idx, p in enumerate(procs_list):
             base_code = p['code']
             cat_code = base_code
             if cat_code in seen_codes:
@@ -406,6 +439,91 @@ def list_procedure_codes(q: Optional[str] = None, category: Optional[str] = None
             "active": item.active
         })
     return sorted(results, key=lambda x: x["description"].lower())
+
+
+@router.get("/api/billing/procedure-codes/search")
+@router.get("/billing/procedure-codes/search")
+def search_procedure_codes(
+    q: Optional[str] = Query(None, description="Search term for code or description"),
+    category: Optional[str] = Query(None, description="Category filter"),
+    is_lab: Optional[bool] = Query(None, description="Filter for lab test codes"),
+    limit: int = Query(50, ge=1, le=200),
+    c: context = Depends(context)
+):
+    ensure_billing_defaults(c)
+    stmt = select(m.Catalog).where(
+        m.Catalog.facility_id == c.facility_id,
+        m.Catalog.kind == 'procedure_code',
+        m.Catalog.active == True
+    )
+    items = c.db.scalars(stmt).all()
+    q_term = (q or "").strip().lower()
+    cat_term = (category or "").strip().lower()
+
+    results = []
+    for item in items:
+        data = json.loads(item.content) if item.content else {}
+        item_is_lab = bool(data.get("is_lab_code", False))
+        if is_lab is not None and item_is_lab != is_lab:
+            continue
+        cat = data.get("category", "")
+        if cat_term and cat_term != "all" and cat.lower() != cat_term:
+            continue
+        code = str(data.get("code") or item.code or "")
+        desc = str(data.get("description") or item.name or "")
+        if q_term:
+            if q_term not in code.lower() and q_term not in desc.lower() and q_term not in cat.lower():
+                continue
+        results.append({
+            "id": item.id,
+            "code": code,
+            "description": desc,
+            "category": cat,
+            "charge": float(data.get("charge", (item.price_paise or 0) / 100)),
+            "sac_code": data.get("sac_code", "999312" if item_is_lab else ""),
+            "is_lab": item_is_lab
+        })
+        if len(results) >= limit:
+            break
+    return sorted(results, key=lambda x: x["description"].lower())
+
+
+@router.get("/api/billing/products/search")
+@router.get("/billing/products/search")
+def search_billing_products(
+    q: Optional[str] = Query(None, description="Search term for product name"),
+    limit: int = Query(50, ge=1, le=100),
+    c: context = Depends(context)
+):
+    from .operations import compute_item_details
+    stmt = select(m.InventoryItem).where(
+        m.InventoryItem.facility_id == c.facility_id,
+        m.InventoryItem.is_active == True
+    )
+    if q and q.strip():
+        term = f"%{q.strip()}%"
+        stmt = stmt.where(or_(
+            m.InventoryItem.name.ilike(term),
+            m.InventoryItem.trade_name.ilike(term),
+            m.InventoryItem.product_code.ilike(term)
+        ))
+    items = list(c.db.scalars(stmt.order_by(m.InventoryItem.name).limit(limit)).all())
+    out = []
+    for item in items:
+        det = compute_item_details(c, item)
+        price = (item.mrp_paise or item.purchase_price_paise or 0) / 100.0
+        batch_no = det["batches"][0]["batch_number"] if det.get("batches") else "BATCH-01"
+        out.append({
+            "id": item.id,
+            "name": item.name,
+            "trade_name": item.trade_name or item.name,
+            "category": item.category,
+            "price": price,
+            "stock_qty": det.get("stock_balance", 100),
+            "batch_number": batch_no,
+            "expiry_date": det["batches"][0]["expiry_date"] if det.get("batches") else ""
+        })
+    return out
 
 
 @router.post("/api/settings/billing/procedure-codes")

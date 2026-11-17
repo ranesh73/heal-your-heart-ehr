@@ -412,18 +412,25 @@ function Workspace() {
   };
 
   useEffect(() => {
-    const handleSettingUpdated = () => {
-      refresh();
+    const handleSettingUpdated = async () => {
+      await qc.invalidateQueries();
+      await qc.refetchQueries({ queryKey: ["me"] });
     };
     window.addEventListener("hyh_setting_updated", handleSettingUpdated);
+    window.addEventListener("hyh_facility_updated", handleSettingUpdated);
+    window.addEventListener("hyh_staff_updated", handleSettingUpdated);
+    window.addEventListener("hyh_resource_updated", handleSettingUpdated);
     window.addEventListener("hyh_appointment_statuses_updated", handleSettingUpdated);
     window.addEventListener("hyh_visit_types_updated", handleSettingUpdated);
     return () => {
       window.removeEventListener("hyh_setting_updated", handleSettingUpdated);
+      window.removeEventListener("hyh_facility_updated", handleSettingUpdated);
+      window.removeEventListener("hyh_staff_updated", handleSettingUpdated);
+      window.removeEventListener("hyh_resource_updated", handleSettingUpdated);
       window.removeEventListener("hyh_appointment_statuses_updated", handleSettingUpdated);
       window.removeEventListener("hyh_visit_types_updated", handleSettingUpdated);
     };
-  }, []);
+  }, [qc]);
 
   // Global Keyboard Shortcuts (Shift + K, Alt navigation, Escape)
   useKeyboardShortcuts({

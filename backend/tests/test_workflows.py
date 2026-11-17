@@ -85,6 +85,138 @@ def test_reception_registration_search_booking_checkin():
     assert 'encounters' not in chart and 'vitals' not in chart
 
 
+def test_patient_flowsheet_templates_create_update_order_and_delete():
+    c=client()
+    p=patient(c)
+    templates=ok(c.get('/api/flowsheets/templates'))
+    assert [item['name'] for item in templates[:4]] == [
+        'Sphygmocor Report',
+        'Vaso-Meditech Blood Sugar Chart',
+        'Vaso-Meditech EECP Daily Chart',
+        'Vaso-Meditech EECP Weekly Chart',
+    ]
+    staff_roster=ok(c.get('/api/flowsheets/staff'))
+    assert len(staff_roster['therapists'])==60
+    assert staff_roster['therapists'][0]=='Divya A'
+    assert staff_roster['therapists'][-1]=='Vidhya R'
+    assert staff_roster['physicians']==[
+        'Dr.Ramya R','Dr.Aravind K','Dr.Deepika S','Dr.Karthik M',
+        'Dr.Meenakshi V','Dr.Nithya R','Dr.Prakash S','Dr.Priya M',
+        'Dr.Ramasamy S','Dr.Sathish K','Dr.Suresh Babu','Dr.Vidhya S',
+    ]
+    sphygmocor=templates[0]
+    aix=next(field for section in sphygmocor['schema_json']['sections'] for field in section['fields'] if field['key']=='pre_augmentation_index')
+    assert len(aix['options'])==101 and aix['options'][0]=='0' and aix['options'][-1]=='100'
+    daily=next(item for item in templates if item['slug']=='vaso-meditech-eecp-daily-chart')
+    bp=next(field for section in daily['schema_json']['sections'] for field in section['fields'] if field['key']=='pre_bp')
+    assert bp['format']=='blood-pressure' and bp['unit']=='mmHg'
+    slug='vaso-meditech-eecp-weekly-chart'
+    invalid=ok(c.post(f"/api/patients/{p['id']}/flowsheets/{slug}/entries",json={
+        'recorded_at':'2032-03-02T10:00:00+05:30',
+        'values_json':{'nyha':'Class V'},
+    }),422)
+    created=ok(c.post(f"/api/patients/{p['id']}/flowsheets/{slug}/entries",json={
+        'recorded_at':'2032-03-02T10:00:00+05:30',
+        'values_json':{'week_no':2,'weight':60,'height':160,'nyha':'Class II'},
+        'therapist_name':'Divya A',
+        'physician_name':'Dr.Ramya R',
+    }))
+    assert created['values_json']['bmi']==23.4
+    assert created['therapist_name']=='Divya A'
+    assert created['physician_name']=='Dr.Ramya R'
+    older=ok(c.post(f"/api/patients/{p['id']}/flowsheets/{slug}/entries",json={
+        'recorded_at':'2032-03-01T10:00:00+05:30',
+        'values_json':{'week_no':1},
+    }))
+    chart=ok(c.get(f"/api/patients/{p['id']}/flowsheets/{slug}"))
+    assert [entry['id'] for entry in chart['entries']]==[older['id'],created['id']]
+    updated=ok(c.put(f"/api/flowsheets/entries/{created['id']}",json={
+        'values_json':{'week_no':2,'weight':60,'height':150},
+        'therapist_name':None,
+        'physician_name':None,
+    }))
+    assert updated['values_json']['bmi']==26.7
+    assert updated['therapist_name'] is None
+    manual_bmi=ok(c.put(f"/api/flowsheets/entries/{created['id']}",json={
+        'values_json':{'weight':60,'height':150,'bmi':24.2},
+    }))
+    assert manual_bmi['values_json']['bmi']==24.2
+    ok(c.delete(f"/api/flowsheets/entries/{created['id']}"))
+    chart=ok(c.get(f"/api/patients/{p['id']}/flowsheets/{slug}"))
+    assert [entry['id'] for entry in chart['entries']]==[older['id']]
+
+
+def test_daily_flowsheet_accepts_blood_pressure_format_and_rejects_invalid_values():
+    c=client()
+    p=patient(c)
+    slug='vaso-meditech-eecp-daily-chart'
+    created=ok(c.post(f"/api/patients/{p['id']}/flowsheets/{slug}/entries",json={
+        'recorded_at':'2032-03-02T10:00:00+05:30',
+        'values_json':{'pre_bp':'120/70'},
+    }))
+    assert created['values_json']['pre_bp']=='120/70'
+    ok(c.post(f"/api/patients/{p['id']}/flowsheets/{slug}/entries",json={
+        'recorded_at':'2032-03-03T10:00:00+05:30',
+        'values_json':{'pre_bp':'120-70'},
+    }),422)
+
+
+def test_patient_flowsheet_catalog_selection_and_inpatient_values():
+    c=client()
+    p=patient(c)
+    catalog_url=f"/api/patients/{p['id']}/flowsheets/templates"
+    catalog=ok(c.get(catalog_url))
+    assert [item['name'] for item in catalog['available']]==[
+        'Admission Flowsheet Nursing',
+        'Admission Treatment &Progress',
+        'ER Flowsheet',
+        'Follow up',
+        'Heart Failure Patient 6 min Walk Test',
+        'Patient Flowsheet',
+    ]
+    assert all(item['name']!='Potassium Diet Recommendation' for item in catalog['available'])
+    selected=ok(c.put(catalog_url,json={
+        'slugs':['admission-flowsheet-nursing','heart-failure-6-min-walk-test'],
+    }))
+    assert [item['slug'] for item in selected['templates'][-2:]]==[
+        'admission-flowsheet-nursing','heart-failure-6-min-walk-test',
+    ]
+    ok(c.put(catalog_url,json={'slugs':['not-a-flowsheet']}),422)
+
+    admission_url=f"/api/patients/{p['id']}/flowsheets/admission-flowsheet-nursing/entries"
+    entry=ok(c.post(admission_url,json={
+        'recorded_at':'2032-03-02T10:00:00+05:30',
+        'values_json':{
+            'temperature':36.6,
+            'temperature_unit':'°C',
+            'bp':'120/80',
+            'iv_fluids':['IV Adrenaline','IV RL -500 ml'],
+            'spo2':98,
+        },
+    }))
+    assert entry['values_json']['temperature']==36.6
+    assert entry['values_json']['temperature_unit']=='°C'
+    assert entry['values_json']['iv_fluids']==['IV Adrenaline','IV RL -500 ml']
+    default_unit=ok(c.post(admission_url,json={
+        'recorded_at':'2032-03-04T10:00:00+05:30',
+        'values_json':{'temperature':98.6},
+    }))
+    assert default_unit['values_json']['temperature_unit']=='°F'
+    ok(c.post(admission_url,json={
+        'recorded_at':'2032-03-03T10:00:00+05:30',
+        'values_json':{'iv_fluids':['Unknown Fluid']},
+    }),422)
+    ok(c.get(f"/api/patients/{p['id']}/flowsheets/er-flowsheet"),404)
+
+    cleared=ok(c.put(catalog_url,json={'slugs':[]}))
+    assert [item['slug'] for item in cleared['templates']]==[
+        'sphygmocor-report',
+        'vaso-meditech-blood-sugar-chart',
+        'vaso-meditech-eecp-daily-chart',
+        'vaso-meditech-eecp-weekly-chart',
+    ]
+
+
 def test_appointment_label_is_saved_without_changing_lifecycle_status():
     c=client('reception');p=patient(c)
     a=ok(c.post('/api/appointments',json=booking(c,p,day=10,hour=19)))[0]
@@ -934,3 +1066,374 @@ def test_patient_import_workflow():
 
     res_inactive = c.get("/api/patients?active=false")
     assert res_inactive.status_code == 200, res_inactive.text
+
+
+# ==============================================================================
+# CHARMHEALTH PATIENT PAYMENT & INVOICE ALLOCATION SUITE
+# ==============================================================================
+
+def create_billing_test_invoice(c, pat_id, total_paise=100000, lines=None):
+    if lines is None:
+        lines = [{'description': 'Cardiology Consultation', 'quantity': 1, 'unit_paise': total_paise}]
+    return ok(c.post('/api/invoices', json={
+        'patient_id': pat_id,
+        'lines': lines,
+    }))
+
+
+def test_billing_scenario_a_patient_no_outstanding_invoices():
+    c = client('reception')
+    p = patient(c)
+
+    res = ok(c.post('/api/billing/payments', json={
+        'patient_id': p['id'],
+        'amount_paise': 500000,  # Rs. 5000.00
+        'mode': 'UPI',
+        'reference': 'UPI-ADV-12345',
+        'description': 'Advance deposit for cardiology package',
+        'allocations': []
+    }))
+
+    receipt = res['receipt']
+    assert receipt['amount_paise'] == 500000
+    assert receipt['unused_paise'] == 500000
+    assert receipt['mode'] == 'UPI'
+    assert receipt['reference'] == 'UPI-ADV-12345'
+    assert receipt['receipt_number'].startswith('HYN-REC')
+    assert len(receipt['allocations']) == 0
+
+    all_recs = ok(c.get(f'/api/receipts?patient_id={p["id"]}'))
+    assert any(r['receipt_number'] == receipt['receipt_number'] and r['unused_paise'] == 500000 for r in all_recs)
+
+
+def test_billing_scenario_b_full_invoice_payment():
+    c = client('reception')
+    p = patient(c)
+    inv = create_billing_test_invoice(c, p['id'], total_paise=150000)
+
+    res = ok(c.post('/api/billing/payments', json={
+        'patient_id': p['id'],
+        'amount_paise': 150000,
+        'mode': 'Cash',
+        'allocations': [
+            {'invoice_id': inv['id'], 'amount_paise': 150000}
+        ]
+    }))
+
+    receipt = res['receipt']
+    assert receipt['amount_paise'] == 150000
+    assert receipt['unused_paise'] == 0
+
+    updated_inv = ok(c.get(f'/api/invoices/{inv["id"]}'))
+    assert updated_inv['balance_paise'] == 0
+    assert updated_inv['paid_paise'] == 150000
+    assert updated_inv['status'] == 'paid'
+
+
+def test_billing_scenario_b_partial_invoice_payment():
+    c = client('reception')
+    p = patient(c)
+    inv = create_billing_test_invoice(c, p['id'], total_paise=200000)
+
+    res = ok(c.post('/api/billing/payments', json={
+        'patient_id': p['id'],
+        'amount_paise': 80000,
+        'mode': 'Debit Card',
+        'allocations': [
+            {'invoice_id': inv['id'], 'amount_paise': 80000}
+        ]
+    }))
+
+    receipt = res['receipt']
+    assert receipt['unused_paise'] == 0
+
+    updated_inv = ok(c.get(f'/api/invoices/{inv["id"]}'))
+    assert updated_inv['balance_paise'] == 120000
+    assert updated_inv['paid_paise'] == 80000
+    assert updated_inv['status'] == 'partial'
+
+
+def test_billing_payment_across_multiple_invoices():
+    c = client('reception')
+    p = patient(c)
+    inv1 = create_billing_test_invoice(c, p['id'], total_paise=100000)
+    inv2 = create_billing_test_invoice(c, p['id'], total_paise=250000)
+
+    res = ok(c.post('/api/billing/payments', json={
+        'patient_id': p['id'],
+        'amount_paise': 300000,
+        'mode': 'Net Banking',
+        'allocations': [
+            {'invoice_id': inv1['id'], 'amount_paise': 100000},
+            {'invoice_id': inv2['id'], 'amount_paise': 200000},
+        ]
+    }))
+
+    receipt = res['receipt']
+    assert receipt['amount_paise'] == 300000
+    assert receipt['unused_paise'] == 0
+    assert len(receipt['allocations']) == 2
+
+    u1 = ok(c.get(f'/api/invoices/{inv1["id"]}'))
+    assert u1['balance_paise'] == 0 and u1['status'] == 'paid'
+
+    u2 = ok(c.get(f'/api/invoices/{inv2["id"]}'))
+    assert u2['balance_paise'] == 50000 and u2['status'] == 'partial'
+
+
+def test_billing_payment_greater_than_total_outstanding_excess_unused():
+    c = client('reception')
+    p = patient(c)
+    inv = create_billing_test_invoice(c, p['id'], total_paise=100000)
+
+    res = ok(c.post('/api/billing/payments', json={
+        'patient_id': p['id'],
+        'amount_paise': 350000,
+        'mode': 'Cash',
+        'allocations': [
+            {'invoice_id': inv['id'], 'amount_paise': 100000}
+        ]
+    }))
+
+    receipt = res['receipt']
+    assert receipt['amount_paise'] == 350000
+    assert receipt['unused_paise'] == 250000
+
+    u = ok(c.get(f'/api/invoices/{inv["id"]}'))
+    assert u['balance_paise'] == 0 and u['status'] == 'paid'
+
+
+def test_billing_payment_without_allocation_when_invoices_exist():
+    c = client('reception')
+    p = patient(c)
+    inv = create_billing_test_invoice(c, p['id'], total_paise=500000)
+
+    res = ok(c.post('/api/billing/payments', json={
+        'patient_id': p['id'],
+        'amount_paise': 200000,
+        'mode': 'UPI',
+        'allocations': []
+    }))
+
+    receipt = res['receipt']
+    assert receipt['unused_paise'] == 200000
+
+    u = ok(c.get(f'/api/invoices/{inv["id"]}'))
+    assert u['balance_paise'] == 500000 and u['status'] == 'unpaid'
+
+
+def test_billing_write_off_with_valid_reason():
+    c = client('reception')
+    p = patient(c)
+    inv = create_billing_test_invoice(c, p['id'], total_paise=100000)
+
+    res = ok(c.post('/api/billing/payments', json={
+        'patient_id': p['id'],
+        'amount_paise': 80000,
+        'mode': 'Cash',
+        'allocations': [
+            {
+                'invoice_id': inv['id'],
+                'amount_paise': 80000,
+                'write_off_paise': 20000,
+                'write_off_reason': 'Rounding Adjustment',
+                'comments': 'Approved by clinic manager'
+            }
+        ]
+    }))
+
+    receipt = res['receipt']
+    assert receipt['amount_paise'] == 80000
+    assert receipt['unused_paise'] == 0
+
+    u = ok(c.get(f'/api/invoices/{inv["id"]}'))
+    assert u['paid_paise'] == 80000
+    assert u['credited_paise'] == 20000
+    assert u['balance_paise'] == 0
+    assert u['status'] == 'paid'
+
+
+def test_billing_write_off_without_reason_rejected():
+    c = client('reception')
+    p = patient(c)
+    inv = create_billing_test_invoice(c, p['id'], total_paise=100000)
+
+    ok(c.post('/api/billing/payments', json={
+        'patient_id': p['id'],
+        'amount_paise': 80000,
+        'allocations': [
+            {
+                'invoice_id': inv['id'],
+                'amount_paise': 80000,
+                'write_off_paise': 20000,
+                'write_off_reason': ''
+            }
+        ]
+    }), 422)
+
+
+def test_billing_invalid_negative_allocation_rejected():
+    c = client('reception')
+    p = patient(c)
+    inv = create_billing_test_invoice(c, p['id'], total_paise=100000)
+
+    ok(c.post('/api/billing/payments', json={
+        'patient_id': p['id'],
+        'amount_paise': 50000,
+        'allocations': [{'invoice_id': inv['id'], 'amount_paise': -1000}]
+    }), 422)
+
+
+def test_billing_allocation_exceeds_invoice_due_rejected():
+    c = client('reception')
+    p = patient(c)
+    inv = create_billing_test_invoice(c, p['id'], total_paise=100000)
+
+    ok(c.post('/api/billing/payments', json={
+        'patient_id': p['id'],
+        'amount_paise': 200000,
+        'allocations': [{'invoice_id': inv['id'], 'amount_paise': 150000}]
+    }), 409)
+
+
+def test_billing_payment_for_another_patient_invoice_rejected():
+    c = client('reception')
+    p1 = patient(c, 'PatientOne')
+    p2 = patient(c, 'PatientTwo')
+    inv2 = create_billing_test_invoice(c, p2['id'], total_paise=100000)
+
+    ok(c.post('/api/billing/payments', json={
+        'patient_id': p1['id'],
+        'amount_paise': 100000,
+        'allocations': [{'invoice_id': inv2['id'], 'amount_paise': 100000}]
+    }), 422)
+
+
+def test_billing_cross_facility_invoice_allocation_rejected():
+    c1 = client('reception')
+    c2 = client('doctor')
+    me = c2.get('/api/auth/me').json()
+    roy_id = next(x['id'] for x in me['facilities'] if x['code'] == 'HYR')
+    hyn_id = c1.headers['X-Facility-ID']
+
+    p1 = ok(c1.post('/api/patients', json={
+        'first_name': 'MultiBranch' + uuid4().hex[:6],
+        'last_name': 'Patient',
+        'dob': '1985-05-20',
+        'sex': 'Male',
+        'facility_ids': [hyn_id, roy_id]
+    }))
+
+    inv1 = create_billing_test_invoice(c1, p1['id'], total_paise=100000)
+
+    c2.headers['X-Facility-ID'] = roy_id
+
+    ok(c2.post('/api/billing/payments', json={
+        'patient_id': p1['id'],
+        'amount_paise': 100000,
+        'allocations': [{'invoice_id': inv1['id'], 'amount_paise': 100000}]
+    }), 403)
+
+
+def test_billing_cancelled_invoice_allocation_rejected():
+    c = client('reception')
+    p = patient(c)
+    inv = create_billing_test_invoice(c, p['id'], total_paise=100000)
+
+    ok(c.post(f'/api/invoices/{inv["id"]}/cancel', json={'version': inv['version']}))
+
+    ok(c.post('/api/billing/payments', json={
+        'patient_id': p['id'],
+        'amount_paise': 100000,
+        'allocations': [{'invoice_id': inv['id'], 'amount_paise': 100000}]
+    }), 409)
+
+
+def test_billing_receipt_voiding_restores_balances():
+    c = client('reception')
+    p = patient(c)
+    inv = create_billing_test_invoice(c, p['id'], total_paise=250000)
+
+    res = ok(c.post('/api/billing/payments', json={
+        'patient_id': p['id'],
+        'amount_paise': 200000,
+        'allocations': [
+            {'invoice_id': inv['id'], 'amount_paise': 150000}
+        ]
+    }))
+    receipt = res['receipt']
+    assert receipt['unused_paise'] == 50000
+
+    u = ok(c.get(f'/api/invoices/{inv["id"]}'))
+    assert u['balance_paise'] == 100000 and u['status'] == 'partial'
+
+    void_res = ok(c.post(f'/api/receipts/{receipt["id"]}/void'))
+    assert 'voided' in void_res['message'].lower()
+
+    restored_inv = ok(c.get(f'/api/invoices/{inv["id"]}'))
+    assert restored_inv['balance_paise'] == 250000
+    assert restored_inv['paid_paise'] == 0
+    assert restored_inv['status'] == 'unpaid'
+
+    recs = ok(c.get(f'/api/receipts?patient_id={p["id"]}'))
+    voided_rec = next(r for r in recs if r['receipt_number'] == receipt['receipt_number'])
+    assert voided_rec['is_void'] is True
+    assert voided_rec['unused_paise'] == 0
+
+
+def test_billing_idempotent_duplicate_submission():
+    c = client('reception')
+    p = patient(c)
+    inv = create_billing_test_invoice(c, p['id'], total_paise=100000)
+
+    idem_key = f"test_idem_{uuid4().hex}"
+    payload = {
+        'patient_id': p['id'],
+        'amount_paise': 100000,
+        'mode': 'Cash',
+        'idempotency_key': idem_key,
+        'allocations': [{'invoice_id': inv['id'], 'amount_paise': 100000}]
+    }
+
+    first = ok(c.post('/api/billing/payments', json=payload))
+    assert first['replayed'] is False
+
+    second = ok(c.post('/api/billing/payments', json=payload))
+    assert second['replayed'] is True
+    assert second['receipt']['id'] == first['receipt']['id']
+
+    ok(c.post('/api/billing/payments', json={**payload, 'amount_paise': 50000}), 409)
+
+
+def test_billing_concurrent_payment_requests_do_not_double_allocate():
+    c1 = client('reception')
+    c2 = client('reception')
+    p = patient(c1)
+    inv = create_billing_test_invoice(c1, p['id'], total_paise=100000)
+
+    req1 = {
+        'patient_id': p['id'],
+        'amount_paise': 100000,
+        'idempotency_key': f"c1_{uuid4().hex}",
+        'allocations': [{'invoice_id': inv['id'], 'amount_paise': 100000}]
+    }
+    req2 = {
+        'patient_id': p['id'],
+        'amount_paise': 100000,
+        'idempotency_key': f"c2_{uuid4().hex}",
+        'allocations': [{'invoice_id': inv['id'], 'amount_paise': 100000}]
+    }
+
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        responses = list(pool.map(
+            lambda r: (c1 if r == 0 else c2).post('/api/billing/payments', json=req1 if r == 0 else req2),
+            [0, 1]
+        ))
+
+    codes = sorted(r.status_code for r in responses)
+    assert codes == [200, 409]
+
+    final_inv = ok(c1.get(f'/api/invoices/{inv["id"]}'))
+    assert final_inv['balance_paise'] == 0
+    assert final_inv['paid_paise'] == 100000
+    assert final_inv['status'] == 'paid'
