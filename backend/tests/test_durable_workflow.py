@@ -786,3 +786,365 @@ def test_step_3_invalid_transitions_and_permissions():
     c_asst_hyr = client("assistant", facility=facility_hyr)
     cross_resp = c_asst_hyr.post(f"/api/ai/workflow/steps/{vitals_step_id}/complete")
     assert cross_resp.status_code == 404
+
+
+# ===========================================================================
+# PHASE 2B GAPS & EXTENDED COVERAGE
+# ===========================================================================
+
+def test_phase2b_step_1_migration_fresh_db_schema_parity():
+    """
+    STEP 1: Migration integrity test.
+    Runs all migrations from scratch on a fresh empty SQLite file outside the repo,
+    and confirms the resulting schema has all workflow tables and columns matching
+    Base.metadata models.
+    """
+    import tempfile, os
+    from alembic.config import Config
+    from alembic import command
+    from sqlalchemy import create_engine, inspect
+
+    tmp_dir = tempfile.mkdtemp(prefix="alembic_parity_")
+    tmp_db_path = os.path.join(tmp_dir, "parity.db")
+    test_url = f"sqlite:///{tmp_db_path}"
+
+    cfg = Config("alembic.ini")
+    cfg.set_main_option("sqlalchemy.url", test_url)
+
+    # Run upgrade head from scratch
+    command.upgrade(cfg, "head")
+
+    test_engine = create_engine(test_url)
+    insp = inspect(test_engine)
+    table_names = set(insp.get_table_names())
+
+    # All workflow tables must exist
+    workflow_tables = {
+        "workflow_instances",
+        "workflow_steps",
+        "step_dependencies",
+        "workflow_events"
+    }
+    for wt in workflow_tables:
+        assert wt in table_names, f"Table {wt} must exist after upgrade head on fresh DB"
+
+    # Verify column presence on each workflow table
+    inst_cols = {c["name"] for c in insp.get_columns("workflow_instances")}
+    assert {"id", "created_at", "version", "facility_id", "patient_id", "appointment_id", "template_key", "status", "created_by"}.issubset(inst_cols)
+
+    step_cols = {c["name"] for c in insp.get_columns("workflow_steps")}
+    assert {"id", "created_at", "version", "instance_id", "step_key", "step_type", "assignee_role", "status", "required", "task_id"}.issubset(step_cols)
+
+    dep_cols = {c["name"] for c in insp.get_columns("step_dependencies")}
+    assert {"id", "created_at", "version", "step_id", "depends_on_step_id"}.issubset(dep_cols)
+
+    event_cols = {c["name"] for c in insp.get_columns("workflow_events")}
+    assert {"id", "created_at", "version", "instance_id", "step_id", "event_type", "actor_id", "actor_type", "timestamp"}.issubset(event_cols)
+
+
+def test_phase2b_step_2_task_step_synchronization_lifecycle():
+    """
+    STEP 2: Task <-> Step Synchronization test.
+    Tests completing, reopening, reassigning, and attempting deletion of a mirrored task
+    via the existing EHR tasks endpoints:
+    - Completing via legacy /api/records/tasks/{id}/status transitions step to completed
+      and automatically activates downstream dependent steps.
+    - Reopening via legacy endpoint transitions step back to in_progress/pending.
+    - Reassigning via legacy PUT /api/records/tasks/{id} updates step.assigned_user_id.
+    - Deleting via legacy DELETE /api/records/tasks/{id} is rejected with HTTP 409.
+    """
+    c_rec = client("reception")
+    c_asst = client("assistant")
+    c_doc = client("doctor")
+    p = patient(c_rec)
+    appt = ok(c_rec.post("/api/appointments", json=booking(c_rec, p, day=19, hour=10)))[0]
+
+    # Check-in appointment triggers workflow
+    c_rec.post(f"/api/appointments/{appt['id']}/status", json={
+        "status": "checked-in",
+        "version": appt["version"]
+    })
+
+    with SessionLocal() as db:
+        inst = db.scalar(select(m.WorkflowInstance).where(m.WorkflowInstance.appointment_id == appt["id"]))
+        v_step = db.scalar(select(m.WorkflowStep).where(
+            m.WorkflowStep.instance_id == inst.id,
+            m.WorkflowStep.step_key == "step_triage_vitals"
+        ))
+        r_step = db.scalar(select(m.WorkflowStep).where(
+            m.WorkflowStep.instance_id == inst.id,
+            m.WorkflowStep.step_key == "step_doctor_chart_review"
+        ))
+        assert v_step is not None
+        assert v_step.task_id is not None
+        assert r_step.task_id is None, "Chart review must not be activated yet"
+        v_task_id = v_step.task_id
+
+    # 1. Complete mirrored task through legacy tasks status endpoint
+    complete_resp = c_asst.post(f"/api/records/tasks/{v_task_id}/status", json={
+        "version": 1,
+        "status": "completed"
+    })
+    assert complete_resp.status_code == 200
+    assert complete_resp.json()["status"] == "completed"
+
+    # Verify workflow step is mirrored to completed and downstream chart review is activated!
+    with SessionLocal() as db:
+        v_step = db.get(m.WorkflowStep, v_step.id)
+        assert v_step.status == "completed", "Workflow step must synchronize to completed"
+
+        r_step = db.get(m.WorkflowStep, r_step.id)
+        assert r_step.task_id is not None, "Downstream chart review must activate upon vitals completion via legacy endpoint"
+
+    # 2. Reopen mirrored task through legacy tasks status endpoint
+    reopen_resp = c_asst.post(f"/api/records/tasks/{v_task_id}/status", json={
+        "version": 2,
+        "status": "pending"
+    })
+    assert reopen_resp.status_code == 200
+    assert reopen_resp.json()["status"] == "pending"
+
+    with SessionLocal() as db:
+        v_step = db.get(m.WorkflowStep, v_step.id)
+        assert v_step.status in ("in_progress", "pending"), "Workflow step must synchronize upon reopen"
+
+    # 3. Reassign mirrored task through legacy PUT /records/tasks/{id}
+    me_doc = c_doc.get("/api/auth/me").json()
+    new_assignee_id = me_doc["user"]["id"]
+    put_resp = c_asst.put(f"/api/records/tasks/{v_task_id}", json={
+        "assignee_id": new_assignee_id,
+        "version": 3
+    })
+    assert put_resp.status_code == 200
+
+    with SessionLocal() as db:
+        v_step = db.get(m.WorkflowStep, v_step.id)
+        assert v_step.assigned_user_id == new_assignee_id, "Workflow step assignee must synchronize with task assignee"
+
+    # 4. Attempt to delete mirrored task through legacy DELETE endpoint -> must return 409
+    del_resp = c_asst.delete(f"/api/records/tasks/{v_task_id}")
+    assert del_resp.status_code == 409
+    assert "Cannot delete a task linked to an active workflow step" in del_resp.json()["detail"]
+
+
+def test_phase2b_step_3_provider_assignment_and_notifications():
+    """
+    STEP 3: Verify appointment-specific provider assignment and notification delivery.
+    - Chart review step is assigned to the appointment's own provider (provider_id).
+    - advance() creates a notification Message for the assignee whenever a step activates.
+    """
+    c_admin = client("admin")
+    c_rec = client("reception")
+    p = patient(c_rec)
+
+    # Fetch provider ID for doctor
+    me_doc = client("doctor").get("/api/auth/me").json()
+    doc_id = me_doc["user"]["id"]
+
+    # Book appointment with this specific doctor
+    booking_data = booking(c_rec, p, day=20, hour=11)
+    booking_data["provider_id"] = doc_id
+    appt = ok(c_rec.post("/api/appointments", json=booking_data))[0]
+    assert appt["provider_id"] == doc_id
+
+    # Check-in triggers arrival workflow
+    c_rec.post(f"/api/appointments/{appt['id']}/status", json={
+        "status": "checked-in",
+        "version": appt["version"]
+    })
+
+    with SessionLocal() as db:
+        inst = db.scalar(select(m.WorkflowInstance).where(m.WorkflowInstance.appointment_id == appt["id"]))
+        v_step = db.scalar(select(m.WorkflowStep).where(m.WorkflowStep.instance_id == inst.id, m.WorkflowStep.step_key == "step_triage_vitals"))
+        # Verify notification was created for initial activated step (vitals)
+        msg_vitals = db.scalar(select(m.Message).where(
+            m.Message.recipient_id == v_step.assigned_user_id,
+            m.Message.patient_id == p["id"]
+        ))
+        assert msg_vitals is not None, "advance() must create a notification for the assignee"
+        assert "Record Pre-Consultation Vitals" in msg_vitals.subject or "Workflow Step Activated" in msg_vitals.subject
+
+    # Complete vitals to activate chart review
+    c_asst = client("assistant")
+    c_asst.post(f"/api/workflows/steps/{v_step.id}/start")
+    c_asst.post(f"/api/workflows/steps/{v_step.id}/complete")
+
+    # Verify chart review step is assigned strictly to the appointment's provider (doc_id)
+    with SessionLocal() as db:
+        r_step = db.scalar(select(m.WorkflowStep).where(
+            m.WorkflowStep.instance_id == inst.id,
+            m.WorkflowStep.step_key == "step_doctor_chart_review"
+        ))
+        assert r_step.assigned_user_id == doc_id, "Chart review must be assigned to appointment's provider"
+
+        # Verify notification was created for provider
+        msg_review = db.scalar(select(m.Message).where(
+            m.Message.recipient_id == doc_id,
+            m.Message.patient_id == p["id"],
+            m.Message.subject.like("%Review Patient Chart%")
+        ))
+        assert msg_review is not None, "Notification must be sent to appointment provider upon chart review activation"
+
+
+def test_phase2b_step_3_real_multithreaded_concurrency_file_sqlite():
+    """
+    STEP 3: Real multi-threaded concurrency test against a file-based SQLite database.
+    Verifies WAL mode, busy_timeout, and race-safe IntegrityError handling across
+    concurrent threads checking in simultaneously.
+    """
+    import concurrent.futures
+    import sqlite3
+    from app.db import DB_FILE
+
+    # 1. Report PRAGMA settings on the database file
+    con = sqlite3.connect(str(DB_FILE))
+    journal_mode = con.execute("PRAGMA journal_mode").fetchone()[0]
+    busy_timeout = con.execute("PRAGMA busy_timeout").fetchone()[0]
+    con.close()
+
+    assert journal_mode.lower() == "wal", f"Database must be in WAL mode, found {journal_mode}"
+    assert busy_timeout >= 5000, f"busy_timeout must be at least 5000ms, found {busy_timeout}"
+
+    # 2. Book appointment for concurrent check-in (day=29 is Monday)
+    c = client("reception")
+    p = patient(c)
+    appt = ok(c.post("/api/appointments", json=booking(c, p, day=29, hour=10)))[0]
+    facility_id = c.headers["X-Facility-ID"]
+    actor_id = c.get("/api/auth/me").json()["user"]["id"]
+
+    # 3. Execute 5 simultaneous threads calling trigger_patient_arrival
+    def concurrent_trigger():
+        with SessionLocal() as thread_db:
+            engine = WorkflowEngine()
+            ret = engine.trigger_patient_arrival(
+                db=thread_db,
+                facility_id=facility_id,
+                appointment_id=appt["id"],
+                actor_id=actor_id
+            )
+            thread_db.commit()
+            return ret
+
+    with concurrent.futures.ThreadPoolExecutor(max_workers=5) as executor:
+        futures = [executor.submit(concurrent_trigger) for _ in range(5)]
+        results = [f.result() for f in futures]
+
+    # Exactly one workflow instance created, others return already_executed or success
+    with SessionLocal() as db:
+        instances = db.scalars(
+            select(m.WorkflowInstance).where(m.WorkflowInstance.appointment_id == appt["id"])
+        ).all()
+        assert len(instances) == 1, "Exactly one WorkflowInstance must be created under concurrency"
+
+        tasks = db.scalars(
+            select(m.Task).where(m.Task.patient_id == p["id"], m.Task.kind == "workflow_step")
+        ).all()
+        assert len(tasks) == 2, "Exactly two initial tasks must be created under concurrency"
+
+
+def test_phase2b_step_4_read_scope_derived_from_existing_ehr_rules():
+    """
+    STEP 4: Cross-API parity test across all six roles (doctor, assistant, therapist, admin, reception, billing).
+    Verifies that the AI read tool read_patient_summary derives its scope directly from
+    existing EHR permission rules (CLINICAL set in security.py):
+    - The AI never returns any clinical field that the existing EHR chart API hides from that role.
+    - Explicitly proves 'therapist' has clinical access in both existing API and AI tool.
+    - Proves 'reception' and 'billing' receive zero clinical data in both.
+    """
+    c_admin = client("admin")
+    p = patient(c_admin)
+
+    # Seed clinical data
+    doc_id = client("doctor").get("/api/auth/me").json()["user"]["id"]
+    fac_id = c_admin.headers["X-Facility-ID"]
+    with SessionLocal() as db:
+        db.add(m.Diagnosis(patient_id=p["id"], facility_id=fac_id, author_id=doc_id, code="I25.10", description="Heart disease", status="active"))
+        db.add(m.Vital(patient_id=p["id"], facility_id=fac_id, author_id=doc_id, bp_sys=120.0, bp_dia=80.0, pulse_bpm=72.0))
+        db.add(m.Medication(patient_id=p["id"], facility_id=fac_id, author_id=doc_id, trade_name="Aspirin", dose="75mg", route="oral", maen="0-0-1-0", duration_days=30, quantity=30, status="active"))
+        db.commit()
+
+    all_six_roles = ["doctor", "assistant", "therapist", "admin", "reception", "billing"]
+
+    for role in all_six_roles:
+        c_role = client(role)
+        me = c_role.get("/api/auth/me").json()
+
+        # 1. Existing EHR API response
+        api_chart = c_role.get(f"/api/patients/{p['id']}").json()
+        api_has_clinical = "diagnoses" in api_chart
+
+        # 2. AI read tool response
+        with SessionLocal() as db:
+            ctx = ToolContext(db=db, user_id=me["user"]["id"], role=role, facility_id=c_role.headers["X-Facility-ID"])
+            ai_summary = execute_tool(ctx, "read_patient_summary", ReadPatientSummaryArgs(patient_id=p["id"]))
+
+        # AI tool clinical_access must strictly match existing EHR API visibility
+        assert ai_summary["clinical_access"] == api_has_clinical, f"Role {role}: AI clinical_access ({ai_summary['clinical_access']}) must match API ({api_has_clinical})"
+
+        if not api_has_clinical:
+            # Non-clinical roles (reception, billing): AI tool must hide all clinical fields
+            assert ai_summary["diagnoses"] == []
+            assert ai_summary["latest_vitals"] is None
+            assert ai_summary["active_medications"] == []
+        else:
+            # Clinical roles (doctor, assistant, therapist, admin): AI tool provides clinical fields
+            assert len(ai_summary["diagnoses"]) >= 1
+            assert ai_summary["latest_vitals"] is not None
+            assert len(ai_summary["active_medications"]) >= 1
+
+        # Explicit check for therapist role
+        if role == "therapist":
+            assert api_has_clinical is True, "Therapist must have clinical access in existing EHR API"
+            assert ai_summary["clinical_access"] is True, "Therapist must have clinical access in AI summary"
+
+
+def test_phase2b_step_5_workflow_router_and_ollama_unreachable():
+    """
+    STEP 5: Dedicated workflow router test (/api/workflows) and Ollama offline test.
+    Verifies that step actions execute deterministically via /api/workflows without
+    any LLM involvement, functioning identically when Ollama is completely offline.
+    """
+    import unittest.mock
+    c_rec = client("reception")
+    c_asst = client("assistant")
+    p = patient(c_rec)
+    appt = ok(c_rec.post("/api/appointments", json=booking(c_rec, p, day=22, hour=9)))[0]
+
+    # Trigger arrival
+    c_rec.post(f"/api/appointments/{appt['id']}/status", json={"status": "checked-in", "version": appt["version"]})
+
+    with SessionLocal() as db:
+        inst = db.scalar(select(m.WorkflowInstance).where(m.WorkflowInstance.appointment_id == appt["id"]))
+        v_step = db.scalar(select(m.WorkflowStep).where(m.WorkflowStep.instance_id == inst.id, m.WorkflowStep.step_key == "step_triage_vitals"))
+        instance_id = inst.id
+        v_step_id = v_step.id
+
+    # 1. Query instance via dedicated /api/workflows router
+    inst_resp = c_rec.get(f"/api/workflows/instances/{instance_id}")
+    assert inst_resp.status_code == 200
+    assert inst_resp.json()["id"] == instance_id
+
+    # 2. Query step via dedicated /api/workflows router
+    step_resp = c_rec.get(f"/api/workflows/steps/{v_step_id}")
+    assert step_resp.status_code == 200
+    assert step_resp.json()["id"] == v_step_id
+
+    # 3. Simulate Ollama completely offline / unreachable
+    with unittest.mock.patch("httpx.get", side_effect=Exception("Ollama unreachable")), \
+         unittest.mock.patch("httpx.post", side_effect=Exception("Ollama unreachable")):
+
+        # Step acknowledge via /api/workflows
+        ack_res = c_asst.post(f"/api/workflows/steps/{v_step_id}/acknowledge")
+        assert ack_res.status_code == 200
+        assert ack_res.json()["new_status"] == "acknowledged"
+
+        # Step start via /api/workflows
+        start_res = c_asst.post(f"/api/workflows/steps/{v_step_id}/start")
+        assert start_res.status_code == 200
+        assert start_res.json()["new_status"] == "in_progress"
+
+        # Step complete via /api/workflows
+        comp_res = c_asst.post(f"/api/workflows/steps/{v_step_id}/complete")
+        assert comp_res.status_code == 200
+        assert comp_res.json()["new_status"] == "completed"
+

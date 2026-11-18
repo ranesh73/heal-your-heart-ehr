@@ -30,7 +30,7 @@ VALID_STEP_TRANSITIONS: Dict[str, Set[str]] = {
     'acknowledged': {'in_progress', 'completed', 'blocked', 'cancelled', 'skipped'},
     'in_progress': {'completed', 'blocked', 'cancelled', 'skipped'},
     'blocked': {'pending', 'acknowledged', 'in_progress', 'cancelled'},
-    'completed': set(),
+    'completed': {'in_progress', 'pending'},
     'skipped': set(),
     'cancelled': set(),
 }
@@ -404,7 +404,7 @@ class WorkflowEngine:
         current_status = step.status
 
         # 1. Terminal status check
-        if current_status in ('completed', 'skipped', 'cancelled'):
+        if current_status in ('skipped', 'cancelled'):
             raise HTTPException(
                 status_code=409,
                 detail=f"Cannot transition step from terminal status '{current_status}'"
@@ -413,10 +413,20 @@ class WorkflowEngine:
         # 2. State machine transition check
         valid_targets = VALID_STEP_TRANSITIONS.get(current_status, set())
         if target_status not in valid_targets:
+            if current_status == 'completed':
+                raise HTTPException(
+                    status_code=409,
+                    detail=f"Cannot transition step from terminal status '{current_status}'"
+                )
             raise HTTPException(
                 status_code=409,
                 detail=f"Invalid transition from '{current_status}' to '{target_status}'"
             )
+
+        # Reopen workflow instance if a completed step is reopened
+        if current_status == 'completed' and target_status in ('in_progress', 'pending'):
+            if instance.status == 'completed':
+                instance.status = 'active'
 
         # 3. Role restrictions for cancellation
         if target_status == 'cancelled' and actor_role not in ('admin', 'doctor'):

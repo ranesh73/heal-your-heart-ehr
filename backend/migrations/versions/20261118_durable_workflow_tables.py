@@ -84,6 +84,39 @@ def upgrade():
             sa.Column('timestamp', sa.DateTime(), nullable=False)
         )
 
+    # 5. facility_working_hours
+    if 'facility_working_hours' not in existing_tables:
+        op.create_table(
+            'facility_working_hours',
+            sa.Column('id', sa.String(36), primary_key=True),
+            sa.Column('created_at', sa.DateTime(), nullable=False),
+            sa.Column('version', sa.Integer(), nullable=False, server_default='1'),
+            sa.Column('facility_id', sa.String(36), sa.ForeignKey('facilities.id'), nullable=False, index=True),
+            sa.Column('timezone', sa.String(100), nullable=False, server_default='( GMT 5:30 ) India Standard Time ( Asia/Kolkata )'),
+            sa.Column('day_of_week', sa.String(20), nullable=False),
+            sa.Column('is_working_day', sa.Boolean(), nullable=False, server_default=sa.true()),
+            sa.Column('start_time', sa.String(20), nullable=False, server_default='12:00 am'),
+            sa.Column('end_time', sa.String(20), nullable=False, server_default='11:45 pm')
+        )
+
+    # 6. app_settings
+    if 'app_settings' not in existing_tables:
+        op.create_table(
+            'app_settings',
+            sa.Column('id', sa.String(36), primary_key=True),
+            sa.Column('created_at', sa.DateTime(), nullable=False),
+            sa.Column('version', sa.Integer(), nullable=False, server_default='1'),
+            sa.Column('scope', sa.String(30), nullable=False, server_default='global', index=True),
+            sa.Column('facility_id', sa.String(36), sa.ForeignKey('facilities.id'), nullable=True, index=True),
+            sa.Column('user_id', sa.String(36), sa.ForeignKey('users.id'), nullable=True, index=True),
+            sa.Column('category', sa.String(60), nullable=False, index=True),
+            sa.Column('option', sa.String(80), nullable=False, index=True),
+            sa.Column('setting_key', sa.String(140), nullable=False, index=True),
+            sa.Column('value', sa.Text(), nullable=False, server_default='{}'),
+            sa.Column('updated_by', sa.String(120), nullable=True),
+            sa.Column('updated_at', sa.DateTime(), nullable=True)
+        )
+
 
 def downgrade():
     pass

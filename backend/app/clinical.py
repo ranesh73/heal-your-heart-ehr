@@ -344,6 +344,37 @@ def record_status(kind:str,identifier:str,data:s.StatusChange,c=Depends(context)
              'injections':{'administered','ordered','cancelled'},'vaccines':{'administered','ordered','refused','historical'}}
     if data.status not in allowed[kind]: raise HTTPException(422,'Invalid status')
     if kind in ('medications','diagnoses') and row.encounter_id: draft_encounter(c,row.encounter_id,write=True)
+    if kind == 'tasks':
+        step = c.db.scalar(select(m.WorkflowStep).where(m.WorkflowStep.task_id == row.id))
+        if step:
+            from .workflow_engine import WorkflowEngine
+            engine = WorkflowEngine()
+            if data.status == 'completed':
+                if step.status == 'pending':
+                    engine.transition_step(
+                        db=c.db,
+                        step_id=step.id,
+                        target_status='in_progress',
+                        actor_id=c.user.id,
+                        actor_role=c.user.role,
+                        facility_id=c.facility_id
+                    )
+                target_status = 'completed'
+            else:
+                target_status = 'in_progress' if step.status == 'completed' else 'pending'
+            if step.status != target_status:
+                engine.transition_step(
+                    db=c.db,
+                    step_id=step.id,
+                    target_status=target_status,
+                    actor_id=c.user.id,
+                    actor_role=c.user.role,
+                    facility_id=c.facility_id
+                )
+            row.status = data.status
+            row.version += 1
+            c.audit('status_' + kind, row)
+            return serialize(row)
     row.status=data.status; row.version+=1; c.audit('status_'+kind,row)
     return serialize(row)
 
@@ -516,6 +547,41 @@ def update_record(kind:str,identifier:str,data:dict,c=Depends(context)):
         for k, v in data.items():
             if k not in ('id','version','facility_id','author_id','created_at','updated_at') and hasattr(row,k):
                 setattr(row,k,v)
+
+    if kind == 'tasks':
+        step = c.db.scalar(select(m.WorkflowStep).where(m.WorkflowStep.task_id == row.id))
+        if step:
+            # Reassigning the task must update the step's assigned_user_id
+            if 'assignee_id' in data and data['assignee_id']:
+                step.assigned_user_id = data['assignee_id']
+                step.updated_at = m.now()
+            # If status updated directly in update payload
+            if 'status' in data and data['status'] and data['status'] != step.status:
+                from .workflow_engine import WorkflowEngine
+                engine = WorkflowEngine()
+                if data['status'] == 'completed':
+                    if step.status == 'pending':
+                        engine.transition_step(
+                            db=c.db,
+                            step_id=step.id,
+                            target_status='in_progress',
+                            actor_id=c.user.id,
+                            actor_role=c.user.role,
+                            facility_id=c.facility_id
+                        )
+                    target_status = 'completed'
+                else:
+                    target_status = 'in_progress' if step.status == 'completed' else 'pending'
+                if step.status != target_status:
+                    engine.transition_step(
+                        db=c.db,
+                        step_id=step.id,
+                        target_status=target_status,
+                        actor_id=c.user.id,
+                        actor_role=c.user.role,
+                        facility_id=c.facility_id
+                    )
+
     row.version+=1; c.audit('update_'+kind,row)
     return serialize(row)
 
@@ -524,6 +590,10 @@ def update_record(kind:str,identifier:str,data:dict,c=Depends(context)):
 def delete_record(kind:str,identifier:str,c=Depends(context)):
     if kind not in RECORDS: raise HTTPException(404,'Unknown record type')
     c.allow(WRITE_ROLES[kind]); row=c.record(RECORDS[kind],identifier)
+    if kind == 'tasks':
+        step = c.db.scalar(select(m.WorkflowStep).where(m.WorkflowStep.task_id == row.id))
+        if step:
+            raise HTTPException(409, 'Cannot delete a task linked to an active workflow step')
     if kind=='orders':
         c.db.execute(delete(m.LabValue).where(m.LabValue.order_id==row.id))
         c.db.execute(delete(m.Document).where(m.Document.order_id==row.id))

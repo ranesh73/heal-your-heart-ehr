@@ -270,7 +270,9 @@ def test_audit_event_creation():
 
 
 # 10. Ollama unavailable scenario (deterministic fallback)
-def test_ollama_unavailable_graceful_fallback():
+def test_ollama_unavailable_graceful_fallback(monkeypatch):
+    import app.ai_service
+    monkeypatch.setattr(app.ai_service, "call_ollama_generate", lambda prompt: None)
     c = client("doctor")
     p = patient(c)
 
