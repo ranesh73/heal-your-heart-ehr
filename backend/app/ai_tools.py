@@ -76,6 +76,8 @@ class ToolContext:
     role: str
     facility_id: str
     user_name: Optional[str] = None
+    actor_type: str = "user"  # 'user' | 'automation'
+    is_automation: bool = False
 
 
 # ---------------------------------------------------------------------------
@@ -125,11 +127,46 @@ class TriggerPatientArrivalWorkflowArgs(ToolArgs):
 # ---------------------------------------------------------------------------
 
 def _handle_read_patient_summary(ctx: ToolContext, args: ReadPatientSummaryArgs) -> Dict[str, Any]:
+    from .security import CLINICAL
     patient = ctx.db.get(m.Patient, args.patient_id)
     today = date.today()
     age = None
     if patient.dob:
         age = today.year - patient.dob.year - ((today.month, today.day) < (patient.dob.month, patient.dob.day))
+
+    demographics = {
+        "id": patient.id,
+        "mrn": patient.mrn,
+        "name": f"{patient.first_name} {patient.last_name}".strip(),
+        "sex": patient.sex,
+        "age": age,
+        "blood_group": patient.blood_group,
+        "phone": patient.phone[-4:].rjust(len(patient.phone), "*") if patient.phone else ""
+    }
+
+    pending_tasks = ctx.db.scalars(
+        select(m.Task).where(
+            m.Task.patient_id == args.patient_id,
+            m.Task.facility_id == ctx.facility_id,
+            m.Task.status == "pending"
+        ).order_by(m.Task.due_date.asc().nullslast()).limit(10)
+    ).all()
+    tasks_data = [
+        {"id": t.id, "title": t.title, "priority": t.priority, "due_date": str(t.due_date) if t.due_date else None}
+        for t in pending_tasks
+    ]
+
+    # Clinical records are strictly restricted to CLINICAL roles (doctor, assistant, therapist, admin)
+    has_clinical_access = ctx.role in CLINICAL
+    if not has_clinical_access:
+        return {
+            "patient": demographics,
+            "clinical_access": False,
+            "diagnoses": [],
+            "latest_vitals": None,
+            "active_medications": [],
+            "pending_tasks": tasks_data
+        }
 
     diagnoses = ctx.db.scalars(
         select(m.Diagnosis).where(
@@ -154,14 +191,6 @@ def _handle_read_patient_summary(ctx: ToolContext, args: ReadPatientSummaryArgs)
         ).order_by(m.Medication.created_at.desc()).limit(10)
     ).all()
 
-    pending_tasks = ctx.db.scalars(
-        select(m.Task).where(
-            m.Task.patient_id == args.patient_id,
-            m.Task.facility_id == ctx.facility_id,
-            m.Task.status == "pending"
-        ).order_by(m.Task.due_date.asc().nullslast()).limit(10)
-    ).all()
-
     vitals_data = None
     if latest_vital:
         vitals_data = {
@@ -174,15 +203,8 @@ def _handle_read_patient_summary(ctx: ToolContext, args: ReadPatientSummaryArgs)
         }
 
     return {
-        "patient": {
-            "id": patient.id,
-            "mrn": patient.mrn,
-            "name": f"{patient.first_name} {patient.last_name}".strip(),
-            "sex": patient.sex,
-            "age": age,
-            "blood_group": patient.blood_group,
-            "phone": patient.phone[-4:].rjust(len(patient.phone), "*") if patient.phone else ""
-        },
+        "patient": demographics,
+        "clinical_access": True,
         "diagnoses": [
             {"code": d.code, "description": d.description, "onset": str(d.onset) if d.onset else None}
             for d in diagnoses
@@ -192,17 +214,17 @@ def _handle_read_patient_summary(ctx: ToolContext, args: ReadPatientSummaryArgs)
             {"name": m_row.trade_name, "dose": m_row.dose, "route": m_row.route, "frequency": m_row.frequency}
             for m_row in medications
         ],
-        "pending_tasks": [
-            {"id": t.id, "title": t.title, "priority": t.priority, "due_date": str(t.due_date) if t.due_date else None}
-            for t in pending_tasks
-        ]
+        "pending_tasks": tasks_data
     }
 
 
 def _handle_get_appointment_details(ctx: ToolContext, args: GetAppointmentDetailsArgs) -> Dict[str, Any]:
+    from .security import CLINICAL, SCHEDULING
     appt = ctx.db.get(m.Appointment, args.appointment_id)
     patient = ctx.db.get(m.Patient, appt.patient_id)
     provider = ctx.db.get(m.User, appt.provider_id)
+    can_view_reason = (ctx.role in CLINICAL) or (ctx.role in SCHEDULING)
+    reason = appt.reason if can_view_reason else ""
     return {
         "id": appt.id,
         "patient_id": appt.patient_id,
@@ -215,7 +237,7 @@ def _handle_get_appointment_details(ctx: ToolContext, args: GetAppointmentDetail
         "visit_type": appt.visit_type,
         "start_at": appt.start_at.isoformat() if appt.start_at else None,
         "checked_in_at": appt.checked_in_at.isoformat() if appt.checked_in_at else None,
-        "reason": appt.reason
+        "reason": reason
     }
 
 
@@ -470,6 +492,15 @@ def execute_tool(
 
     tool_def = TOOL_REGISTRY.get(name)
     if not tool_def:
+        ctx.db.add(m.AuditEvent(
+            facility_id=ctx.facility_id,
+            actor_id=ctx.user_id,
+            action="ai_tool_rejected",
+            entity_type="ai_tool",
+            entity_id=name,
+            detail=f"Tool: {name}; Status: rejected; Reason: Unknown tool; ActorType: {ctx.actor_type}"
+        ))
+        ctx.db.flush()
         raise HTTPException(status_code=404, detail=f"Tool '{name}' not found in registered tools")
 
     if ctx.role not in tool_def.allowed_roles:
@@ -497,8 +528,26 @@ def execute_tool(
         try:
             validated_args = tool_def.args_schema(**args)
         except ValidationError as ve:
+            ctx.db.add(m.AuditEvent(
+                facility_id=ctx.facility_id,
+                actor_id=ctx.user_id,
+                action="ai_tool_rejected",
+                entity_type="ai_tool",
+                entity_id=name,
+                detail=f"Tool: {name}; Status: rejected; Reason: Validation error 422; ActorType: {ctx.actor_type}"
+            ))
+            ctx.db.flush()
             raise HTTPException(status_code=422, detail=f"Tool argument validation failed: {ve.errors()}")
     else:
+        ctx.db.add(m.AuditEvent(
+            facility_id=ctx.facility_id,
+            actor_id=ctx.user_id,
+            action="ai_tool_rejected",
+            entity_type="ai_tool",
+            entity_id=name,
+            detail=f"Tool: {name}; Status: rejected; Reason: Validation error 422; ActorType: {ctx.actor_type}"
+        ))
+        ctx.db.flush()
         raise HTTPException(status_code=422, detail="Tool arguments must be a dictionary or schema instance")
 
     # -----------------------------------------------------------------------
@@ -515,6 +564,15 @@ def execute_tool(
             )
         )
         if not patient or (not affiliation and patient.primary_facility_id != ctx.facility_id):
+            ctx.db.add(m.AuditEvent(
+                facility_id=ctx.facility_id,
+                actor_id=ctx.user_id,
+                action="ai_tool_rejected",
+                entity_type="patients",
+                entity_id=str(patient_id),
+                detail=f"Tool: {name}; Status: rejected; Reason: Cross-facility patient not found; patient_id: {patient_id}; ActorType: {ctx.actor_type}"
+            ))
+            ctx.db.flush()
             raise HTTPException(
                 status_code=404,
                 detail=f"Patient not found or not affiliated with facility {ctx.facility_id}"
@@ -525,6 +583,15 @@ def execute_tool(
     if appointment_id:
         appt = ctx.db.get(m.Appointment, appointment_id)
         if not appt or appt.facility_id != ctx.facility_id:
+            ctx.db.add(m.AuditEvent(
+                facility_id=ctx.facility_id,
+                actor_id=ctx.user_id,
+                action="ai_tool_rejected",
+                entity_type="appointments",
+                entity_id=str(appointment_id),
+                detail=f"Tool: {name}; Status: rejected; Reason: Cross-facility appointment not found; appointment_id: {appointment_id}; ActorType: {ctx.actor_type}"
+            ))
+            ctx.db.flush()
             raise HTTPException(
                 status_code=404,
                 detail=f"Appointment not found in facility {ctx.facility_id}"
@@ -535,6 +602,15 @@ def execute_tool(
     if task_id:
         task = ctx.db.get(m.Task, task_id)
         if not task or task.facility_id != ctx.facility_id:
+            ctx.db.add(m.AuditEvent(
+                facility_id=ctx.facility_id,
+                actor_id=ctx.user_id,
+                action="ai_tool_rejected",
+                entity_type="tasks",
+                entity_id=str(task_id),
+                detail=f"Tool: {name}; Status: rejected; Reason: Cross-facility task not found; task_id: {task_id}; ActorType: {ctx.actor_type}"
+            ))
+            ctx.db.flush()
             raise HTTPException(
                 status_code=404,
                 detail=f"Task not found in facility {ctx.facility_id}"
@@ -551,6 +627,15 @@ def execute_tool(
             )
         )
         if not target_staff or not target_fac or not target_staff.active:
+            ctx.db.add(m.AuditEvent(
+                facility_id=ctx.facility_id,
+                actor_id=ctx.user_id,
+                action="ai_tool_rejected",
+                entity_type="users",
+                entity_id=str(target_staff_id),
+                detail=f"Tool: {name}; Status: rejected; Reason: Target staff not affiliated or inactive 400; ActorType: {ctx.actor_type}"
+            ))
+            ctx.db.flush()
             raise HTTPException(
                 status_code=400,
                 detail=f"Target staff member is not an active member of facility {ctx.facility_id}"
@@ -564,13 +649,34 @@ def execute_tool(
     # -----------------------------------------------------------------------
     # Step 6: Structured Audit Logging (Zero clinical free text)
     # -----------------------------------------------------------------------
+    target_patient_id = patient_id
+    target_appointment_id = appointment_id
+    target_task_id = task_id
+    if isinstance(result, m.Task):
+        target_task_id = result.id
+    elif isinstance(result, dict) and "task_id" in result:
+        target_task_id = result["task_id"]
+
+    if target_patient_id:
+        res_entity_type = "patients"
+        res_entity_id = str(target_patient_id)
+    elif target_appointment_id:
+        res_entity_type = "appointments"
+        res_entity_id = str(target_appointment_id)
+    elif target_task_id:
+        res_entity_type = "tasks"
+        res_entity_id = str(target_task_id)
+    else:
+        res_entity_type = "ai_tool"
+        res_entity_id = name
+
     ctx.db.add(m.AuditEvent(
         facility_id=ctx.facility_id,
         actor_id=ctx.user_id,
         action=f"ai_tool_executed:{name}",
-        entity_type="ai_tool",
-        entity_id=name,
-        detail=f"Tool: {name}; Status: success; Risk: {tool_def.risk_class}"
+        entity_type=res_entity_type,
+        entity_id=res_entity_id,
+        detail=f"Tool: {name}; Status: success; Risk: {tool_def.risk_class}; patient_id: {target_patient_id or ''}; appointment_id: {target_appointment_id or ''}; task_id: {target_task_id or ''}; ActorType: {ctx.actor_type}"
     ))
     ctx.db.flush()
     return result

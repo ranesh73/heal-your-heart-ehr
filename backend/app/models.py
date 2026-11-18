@@ -877,3 +877,52 @@ class AppSetting(Entity, Base):
     updated_at = Column(DateTime, default=now, onupdate=now)
     __table_args__ = (UniqueConstraint('scope', 'facility_id', 'user_id', 'setting_key', name='uq_app_setting'),)
 
+
+class WorkflowInstance(Entity, Base):
+    __tablename__ = 'workflow_instances'
+    facility_id = Column(ForeignKey('facilities.id'), nullable=False, index=True)
+    patient_id = Column(ForeignKey('patients.id'), nullable=False, index=True)
+    appointment_id = Column(ForeignKey('appointments.id'), nullable=False, index=True)
+    template_key = Column(String(50), nullable=False)
+    template_version = Column(Integer, nullable=False, default=1)
+    status = Column(String(30), nullable=False, default='active')  # 'active', 'completed', 'cancelled'
+    created_by = Column(ForeignKey('users.id'), nullable=False)
+    updated_at = Column(DateTime, default=now, onupdate=now)
+    __table_args__ = (
+        UniqueConstraint('appointment_id', 'template_key', name='uq_wf_instance_appointment_template'),
+    )
+
+
+class WorkflowStep(Entity, Base):
+    __tablename__ = 'workflow_steps'
+    instance_id = Column(ForeignKey('workflow_instances.id', ondelete='CASCADE'), nullable=False, index=True)
+    step_key = Column(String(50), nullable=False)
+    step_type = Column(String(30), nullable=False)  # 'vitals', 'intake', 'review', 'custom'
+    assignee_role = Column(String(30), nullable=False)
+    assigned_user_id = Column(ForeignKey('users.id'), nullable=True)
+    status = Column(String(30), nullable=False, default='pending')  # pending, acknowledged, in_progress, blocked, completed, skipped, cancelled
+    required = Column(Boolean, nullable=False, default=True)
+    due_at = Column(DateTime, nullable=True)
+    task_id = Column(ForeignKey('tasks.id'), nullable=True)
+    updated_at = Column(DateTime, default=now, onupdate=now)
+
+
+class StepDependency(Entity, Base):
+    __tablename__ = 'step_dependencies'
+    step_id = Column(ForeignKey('workflow_steps.id', ondelete='CASCADE'), nullable=False, index=True)
+    depends_on_step_id = Column(ForeignKey('workflow_steps.id', ondelete='CASCADE'), nullable=False, index=True)
+    __table_args__ = (
+        UniqueConstraint('step_id', 'depends_on_step_id', name='uq_step_dependencies'),
+    )
+
+
+class WorkflowEvent(Entity, Base):
+    __tablename__ = 'workflow_events'
+    instance_id = Column(ForeignKey('workflow_instances.id'), nullable=False, index=True)
+    step_id = Column(ForeignKey('workflow_steps.id'), nullable=True, index=True)
+    event_type = Column(String(50), nullable=False)  # created, activated, acknowledged, started, blocked, unblocked, completed, skipped, cancelled
+    actor_id = Column(ForeignKey('users.id'), nullable=False)
+    actor_type = Column(String(20), nullable=False)  # 'user' or 'automation'
+    timestamp = Column(DateTime, nullable=False, default=now)
+
+
