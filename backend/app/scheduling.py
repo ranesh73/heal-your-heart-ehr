@@ -103,10 +103,23 @@ def status(identifier:str,data:s.StatusChange,c=Depends(context)):
     if data.status not in transitions.get(row.status,set()): raise HTTPException(409,'Invalid appointment status transition')
     if row.plan_id and data.status=='completed': raise HTTPException(409,'Complete EECP through the daily treatment chart')
     if data.status in ('cancelled','missed') and not data.reason: raise HTTPException(422,'A reason is required')
+    previous_status = row.status
     row.status=data.status; row.status_label=None; row.version+=1
     if data.status=='checked-in': row.checked_in_at=m.now()
     if data.reason: row.reason=data.reason
     c.audit('appointment_'+data.status,row)
+    if data.status == 'checked-in' and previous_status != 'checked-in':
+        try:
+            from .workflow_engine import WorkflowEngine
+            WorkflowEngine().trigger_patient_arrival(
+                db=c.db,
+                facility_id=c.facility_id,
+                appointment_id=row.id,
+                actor_id=c.user.id
+            )
+        except Exception as e:
+            import logging
+            logging.getLogger('ehr').warning('Patient arrival workflow trigger error: %s', e)
     return serialize(row)
 
 
@@ -122,6 +135,7 @@ def appointment_label(identifier:str,data:s.AppointmentLabelChange,c=Depends(con
 @router.put('/{identifier}')
 def update_appointment(identifier:str, data:s.AppointmentPatch, c=Depends(context)):
     c.allow(SCHEDULING|{'assistant'}); row=c.record(m.Appointment,identifier)
+    previous_status = row.status
     if data.resource_id is not None:
         row.resource_id = data.resource_id if data.resource_id else None
     if data.token_number is not None:
@@ -136,6 +150,18 @@ def update_appointment(identifier:str, data:s.AppointmentPatch, c=Depends(contex
         row.checked_in_at = data.checked_in_at
     row.version += 1
     c.audit('update_appointment', row)
+    if data.status == 'checked-in' and previous_status != 'checked-in':
+        try:
+            from .workflow_engine import WorkflowEngine
+            WorkflowEngine().trigger_patient_arrival(
+                db=c.db,
+                facility_id=c.facility_id,
+                appointment_id=row.id,
+                actor_id=c.user.id
+            )
+        except Exception as e:
+            import logging
+            logging.getLogger('ehr').warning('Patient arrival workflow trigger error: %s', e)
     return serialize(row)
 
 

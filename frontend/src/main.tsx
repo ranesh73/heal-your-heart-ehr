@@ -9,6 +9,7 @@ import {
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { AICopilotDrawer } from "./AICopilotDrawer";
 import {
   HeartPulse,
   LayoutDashboard,
@@ -1144,6 +1145,10 @@ function Workspace() {
       {modal === "appointment" && (
         <AppointmentForm onClose={() => setModal("")} />
       )}
+      <AICopilotDrawer
+        currentUser={user}
+        activeFacilityId={branch}
+      />
       {toast && (
         <div className="toast" role="status">
           <ShieldCheck size={17} />

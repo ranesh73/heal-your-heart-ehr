@@ -42,6 +42,8 @@ open-debug-chrome.bat
 test_*.js
 test_*.cjs
 test_*.py
+!backend/tests/**
+backend/tests/__pycache__/
 verify_*.cjs
 seed_images.py
 scripts/record_charmhealth.mjs
