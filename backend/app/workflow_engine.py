@@ -30,9 +30,20 @@ VALID_STEP_TRANSITIONS: Dict[str, Set[str]] = {
     'acknowledged': {'in_progress', 'completed', 'blocked', 'cancelled', 'skipped'},
     'in_progress': {'completed', 'blocked', 'cancelled', 'skipped'},
     'blocked': {'pending', 'acknowledged', 'in_progress', 'cancelled'},
-    'completed': {'in_progress', 'pending'},
+    'completed': set(),
     'skipped': set(),
     'cancelled': set(),
+}
+
+
+# Phase 3: Code-level map from order type to step type and assignee_role
+ORDER_TYPE_MAP: Dict[str, Dict[str, str]] = {
+    "Lab": {"step_type": "order_lab", "assignee_role": "assistant", "prefix": "Fulfill Lab Order"},
+    "Imaging": {"step_type": "order_imaging", "assignee_role": "assistant", "prefix": "Fulfill Imaging Order"},
+    "Image": {"step_type": "order_imaging", "assignee_role": "assistant", "prefix": "Fulfill Imaging Order"},
+    "Injection": {"step_type": "order_injection", "assignee_role": "assistant", "prefix": "Administer Injection"},
+    "Vaccine": {"step_type": "order_vaccine", "assignee_role": "assistant", "prefix": "Administer Vaccine"},
+    "Referral": {"step_type": "order_referral", "assignee_role": "reception", "prefix": "Process Referral"},
 }
 
 
@@ -302,16 +313,30 @@ class WorkflowEngine:
                 assignee_id = assignee.id if assignee else (actor_id or instance.created_by)
                 step.assigned_user_id = assignee_id
 
-                step_tmpl = ARRIVAL_STEPS_BY_KEY.get(step.step_key)
-                title = f"{step_tmpl.title if step_tmpl else step.step_key}{token_info}"
-                desc = step_tmpl.description if step_tmpl else ""
+                if step.order_id:
+                    order = db.get(m.ClinicalOrder, step.order_id)
+                    if order:
+                        order_info = ORDER_TYPE_MAP.get(order.kind, {})
+                        prefix = order_info.get("prefix", "Fulfill Order")
+                        title = f"{prefix}: {order.name}{token_info}"
+                        desc = f"Order: {order.kind} - {order.name}\nInstructions: {order.instructions or 'None'}"
+                        priority = "high"
+                    else:
+                        title = f"{step.step_key}{token_info}"
+                        desc = ""
+                        priority = "normal"
+                else:
+                    step_tmpl = ARRIVAL_STEPS_BY_KEY.get(step.step_key)
+                    title = f"{step_tmpl.title if step_tmpl else step.step_key}{token_info}"
+                    desc = step_tmpl.description if step_tmpl else ""
+                    priority = step_tmpl.priority if step_tmpl else "normal"
+
                 body = (
                     f"{desc}\n"
                     f"Patient: {patient_name} (MRN: {patient.mrn if patient else ''})\n"
                     f"Appointment: {appt.visit_type if appt else 'Visit'}\n"
                     f"Workflow: {instance.template_key}"
                 ).strip()
-                priority = step_tmpl.priority if step_tmpl else "normal"
 
                 # Create task via audited path
                 task = create_administrative_task(
@@ -394,17 +419,25 @@ class WorkflowEngine:
         if not instance or instance.facility_id != facility_id:
             raise HTTPException(status_code=404, detail="Step not available in this facility")
 
-        # Role authorization check: actor must have step.assignee_role, be assigned, or be admin
-        if actor_role != 'admin' and actor_role != step.assignee_role and step.assigned_user_id != actor_id:
-            raise HTTPException(
-                status_code=403,
-                detail=f"Role '{actor_role}' is not authorized to act on step requiring '{step.assignee_role}'"
-            )
+        # Role authorization check:
+        # Cancellation is restricted to doctor or admin; other actions require assignee_role, assigned user, or admin
+        if target_status == 'cancelled':
+            if actor_role not in ('admin', 'doctor'):
+                raise HTTPException(
+                    status_code=403,
+                    detail="Only doctors or administrators may cancel workflow steps"
+                )
+        else:
+            if actor_role != 'admin' and actor_role != step.assignee_role and step.assigned_user_id != actor_id:
+                raise HTTPException(
+                    status_code=403,
+                    detail=f"Role '{actor_role}' is not authorized to act on step requiring '{step.assignee_role}'"
+                )
 
         current_status = step.status
 
         # 1. Terminal status check
-        if current_status in ('skipped', 'cancelled'):
+        if current_status in ('completed', 'skipped', 'cancelled'):
             raise HTTPException(
                 status_code=409,
                 detail=f"Cannot transition step from terminal status '{current_status}'"
@@ -413,20 +446,10 @@ class WorkflowEngine:
         # 2. State machine transition check
         valid_targets = VALID_STEP_TRANSITIONS.get(current_status, set())
         if target_status not in valid_targets:
-            if current_status == 'completed':
-                raise HTTPException(
-                    status_code=409,
-                    detail=f"Cannot transition step from terminal status '{current_status}'"
-                )
             raise HTTPException(
                 status_code=409,
                 detail=f"Invalid transition from '{current_status}' to '{target_status}'"
             )
-
-        # Reopen workflow instance if a completed step is reopened
-        if current_status == 'completed' and target_status in ('in_progress', 'pending'):
-            if instance.status == 'completed':
-                instance.status = 'active'
 
         # 3. Role restrictions for cancellation
         if target_status == 'cancelled' and actor_role not in ('admin', 'doctor'):
@@ -589,3 +612,123 @@ class WorkflowEngine:
                 m.User.active == True
             ).limit(1)
         )
+
+    def handle_order_created(
+        self,
+        db: Session,
+        order: m.ClinicalOrder,
+        actor_id: str
+    ) -> Optional[m.WorkflowStep]:
+        """
+        Phase 3: Order expansion hook.
+        When a clinician places an order that requires staff work (lab, imaging, injection, etc.),
+        the engine adds a required workflow step to the active workflow instance for that appointment.
+        - Idempotent: Unique on (instance_id, order_id) ensures repeated hooks never duplicate steps.
+        - If no active instance exists, records a workflow event and returns None without failing.
+        """
+        order_info = ORDER_TYPE_MAP.get(order.kind)
+        if not order_info:
+            return None
+
+        # 1. Resolve active workflow instance for this appointment
+        instance = None
+        if order.encounter_id:
+            enc = db.get(m.Encounter, order.encounter_id)
+            if enc and enc.appointment_id:
+                instance = db.scalar(
+                    select(m.WorkflowInstance).where(
+                        m.WorkflowInstance.appointment_id == enc.appointment_id,
+                        m.WorkflowInstance.status == 'active'
+                    )
+                )
+
+        if not instance:
+            # Fallback to active instance for this patient & facility
+            instance = db.scalar(
+                select(m.WorkflowInstance).where(
+                    m.WorkflowInstance.patient_id == order.patient_id,
+                    m.WorkflowInstance.facility_id == order.facility_id,
+                    m.WorkflowInstance.status == 'active'
+                ).order_by(m.WorkflowInstance.created_at.desc())
+            )
+
+        # 2. If no active instance exists, do nothing and record a workflow event; never fail order creation
+        if not instance:
+            db.add(m.WorkflowEvent(
+                instance_id=None,
+                step_id=None,
+                event_type="order_unlinked",
+                actor_id=actor_id,
+                actor_type="user",
+                timestamp=m.now()
+            ))
+            db.flush()
+            return None
+
+        # 3. Check for existing step for this order in this instance (deduplication)
+        existing_step = db.scalar(
+            select(m.WorkflowStep).where(
+                m.WorkflowStep.instance_id == instance.id,
+                m.WorkflowStep.order_id == order.id
+            )
+        )
+        if existing_step:
+            return existing_step
+
+        # 4. Create new required workflow step for the order
+        step_key = f"step_order_{order.id[:8]}"
+        step = m.WorkflowStep(
+            instance_id=instance.id,
+            order_id=order.id,
+            step_key=step_key,
+            step_type=order_info["step_type"],
+            assignee_role=order_info["assignee_role"],
+            required=True,
+            status="pending"
+        )
+        db.add(step)
+        db.flush()
+
+        db.add(m.WorkflowEvent(
+            instance_id=instance.id,
+            step_id=step.id,
+            event_type="step_added_from_order",
+            actor_id=actor_id,
+            actor_type="user",
+            timestamp=m.now()
+        ))
+        db.flush()
+
+        # 5. Advance instance to immediately activate this step (assign staff, create task, notify)
+        self.advance(db, instance.id, actor_id=actor_id)
+        return step
+
+    def handle_order_cancelled(
+        self,
+        db: Session,
+        order: m.ClinicalOrder,
+        actor_id: str,
+        actor_role: str
+    ) -> Optional[m.WorkflowStep]:
+        """
+        When an order is cancelled or discontinued, cancel its linked workflow step.
+        If the step is completed, do not change the order.
+        """
+        step = db.scalar(
+            select(m.WorkflowStep).where(
+                m.WorkflowStep.order_id == order.id
+            )
+        )
+        if not step:
+            return None
+
+        if step.status not in ('completed', 'skipped', 'cancelled'):
+            self.transition_step(
+                db=db,
+                step_id=step.id,
+                target_status='cancelled',
+                actor_id=actor_id,
+                actor_role=actor_role if actor_role in ('admin', 'doctor') else 'doctor',
+                facility_id=order.facility_id
+            )
+        return step

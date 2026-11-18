@@ -103,6 +103,51 @@ def status(identifier:str,data:s.StatusChange,c=Depends(context)):
     if data.status not in transitions.get(row.status,set()): raise HTTPException(409,'Invalid appointment status transition')
     if row.plan_id and data.status=='completed': raise HTTPException(409,'Complete EECP through the daily treatment chart')
     if data.status in ('cancelled','missed') and not data.reason: raise HTTPException(422,'A reason is required')
+
+    # CHECKOUT GATE: Verify no required workflow steps remain open for this appointment
+    if data.status == 'completed':
+        instance = c.db.scalar(
+            select(m.WorkflowInstance).where(
+                m.WorkflowInstance.appointment_id == row.id,
+                m.WorkflowInstance.facility_id == c.facility_id
+            )
+        )
+        if instance:
+            open_steps = c.db.scalars(
+                select(m.WorkflowStep).where(
+                    m.WorkflowStep.instance_id == instance.id,
+                    m.WorkflowStep.required == True,
+                    m.WorkflowStep.status.notin_(['completed', 'skipped'])
+                )
+            ).all()
+            if open_steps:
+                open_keys = [s.step_key for s in open_steps]
+                # Allow override only for admin or doctor, requiring a written reason
+                if c.user.role in ('admin', 'doctor') and data.reason and data.reason.strip():
+                    reason_clean = data.reason.strip()
+                    c.db.add(m.WorkflowEvent(
+                        instance_id=instance.id,
+                        step_id=None,
+                        event_type="checkout_override",
+                        actor_id=c.user.id,
+                        actor_type="user",
+                        timestamp=m.now()
+                    ))
+                    c.db.add(m.AuditEvent(
+                        facility_id=c.facility_id,
+                        actor_id=c.user.id,
+                        action="workflow_checkout_override",
+                        entity_type="appointments",
+                        entity_id=row.id,
+                        detail=f"Checkout override by {c.user.role}: {reason_clean}; Open steps: {', '.join(open_keys)}"
+                    ))
+                else:
+                    role_msg = " Written override reason required from doctor or admin." if c.user.role in ('admin', 'doctor') else " Only doctors or administrators may override."
+                    raise HTTPException(
+                        409,
+                        f"Cannot complete appointment: workflow has open required steps: {', '.join(open_keys)}.{role_msg}"
+                    )
+
     previous_status = row.status
     row.status=data.status; row.status_label=None; row.version+=1
     if data.status=='checked-in': row.checked_in_at=m.now()

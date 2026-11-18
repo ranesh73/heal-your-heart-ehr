@@ -83,6 +83,29 @@ def run_once() -> bool:
                     job.result = json.dumps(wf_result)
                     job.completed_at = now()
 
+            elif job.kind == 'workflow_order_hook_retry':
+                from .workflow_engine import WorkflowEngine
+                from . import models as m
+                payload = {}
+                if job.result:
+                    try:
+                        payload = json.loads(job.result)
+                    except Exception:
+                        pass
+                order_id = payload.get('order_id')
+                actor_id = payload.get('actor_id', job.id)
+                order = db.get(m.ClinicalOrder, order_id) if order_id else None
+                if order:
+                    engine = WorkflowEngine()
+                    step = engine.handle_order_created(db, order, actor_id)
+                    job.status = 'completed'
+                    job.result = json.dumps({'status': 'success', 'step_id': step.id if step else None})
+                    job.completed_at = now()
+                else:
+                    job.status = 'failed'
+                    job.result = json.dumps({'error': 'Order not found for retry'})
+                    job.completed_at = now()
+
             else:
                 # Unknown job kind: mark failed safely to prevent infinite loops
                 logger.warning(f"Unknown job kind: {job.kind} (id: {job.id})")

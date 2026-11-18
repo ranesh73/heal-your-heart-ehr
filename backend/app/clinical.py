@@ -330,6 +330,28 @@ def create_record(kind:str,data:dict,c=Depends(context)):
                     reason=f"Dispensed for injection administration to patient{p_mrn}",
                     actor_id=c.user.id
                 ))
+    if kind == 'orders':
+        try:
+            with c.db.begin_nested():
+                from .workflow_engine import WorkflowEngine
+                WorkflowEngine().handle_order_created(c.db, row, c.user.id)
+        except Exception as hook_err:
+            import logging
+            logging.getLogger('ehr.workflow').warning('Order workflow hook failed: %s', hook_err)
+            c.db.add(m.AuditEvent(
+                facility_id=c.facility_id,
+                actor_id=c.user.id,
+                action="workflow_order_hook_failed",
+                entity_type="clinical_orders",
+                entity_id=row.id,
+                detail=f"Order workflow hook failed: {str(hook_err)[:500]}"
+            ))
+            c.db.add(m.Job(
+                facility_id=c.facility_id,
+                kind="workflow_order_hook_retry",
+                status="pending",
+                result=json.dumps({"order_id": row.id, "facility_id": c.facility_id, "actor_id": c.user.id})
+            ))
     c.audit('create_'+kind, row)
     return serialize(row)
 
@@ -347,6 +369,8 @@ def record_status(kind:str,identifier:str,data:s.StatusChange,c=Depends(context)
     if kind == 'tasks':
         step = c.db.scalar(select(m.WorkflowStep).where(m.WorkflowStep.task_id == row.id))
         if step:
+            if data.status == 'pending' and step.status in ('completed', 'cancelled'):
+                raise HTTPException(409, f"Cannot reopen a task linked to a {step.status} workflow step")
             from .workflow_engine import WorkflowEngine
             engine = WorkflowEngine()
             if data.status == 'completed':
@@ -375,6 +399,13 @@ def record_status(kind:str,identifier:str,data:s.StatusChange,c=Depends(context)
             row.version += 1
             c.audit('status_' + kind, row)
             return serialize(row)
+    if kind == 'orders' and str(data.status).lower() in ('cancelled', 'expired', 'discontinued'):
+        try:
+            from .workflow_engine import WorkflowEngine
+            WorkflowEngine().handle_order_cancelled(c.db, row, c.user.id, c.user.role)
+        except Exception as cancel_err:
+            import logging
+            logging.getLogger('ehr.workflow').warning('Order cancellation hook failed: %s', cancel_err)
     row.status=data.status; row.version+=1; c.audit('status_'+kind,row)
     return serialize(row)
 
@@ -557,6 +588,8 @@ def update_record(kind:str,identifier:str,data:dict,c=Depends(context)):
                 step.updated_at = m.now()
             # If status updated directly in update payload
             if 'status' in data and data['status'] and data['status'] != step.status:
+                if data['status'] == 'pending' and step.status in ('completed', 'cancelled'):
+                    raise HTTPException(409, f"Cannot reopen a task linked to a {step.status} workflow step")
                 from .workflow_engine import WorkflowEngine
                 engine = WorkflowEngine()
                 if data['status'] == 'completed':
@@ -581,6 +614,14 @@ def update_record(kind:str,identifier:str,data:dict,c=Depends(context)):
                         actor_role=c.user.role,
                         facility_id=c.facility_id
                     )
+
+    if kind == 'orders' and str(data.get('status', '')).lower() in ('cancelled', 'expired', 'discontinued'):
+        try:
+            from .workflow_engine import WorkflowEngine
+            WorkflowEngine().handle_order_cancelled(c.db, row, c.user.id, c.user.role)
+        except Exception as cancel_err:
+            import logging
+            logging.getLogger('ehr.workflow').warning('Order cancellation hook failed: %s', cancel_err)
 
     row.version+=1; c.audit('update_'+kind,row)
     return serialize(row)

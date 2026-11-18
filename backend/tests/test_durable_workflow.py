@@ -25,6 +25,7 @@ STEP 3 Step Action Endpoints:
   - Zero LLM involvement.
 """
 import json
+import unittest.mock
 from datetime import date
 from uuid import uuid4
 import pytest
@@ -833,7 +834,7 @@ def test_phase2b_step_1_migration_fresh_db_schema_parity():
     assert {"id", "created_at", "version", "facility_id", "patient_id", "appointment_id", "template_key", "status", "created_by"}.issubset(inst_cols)
 
     step_cols = {c["name"] for c in insp.get_columns("workflow_steps")}
-    assert {"id", "created_at", "version", "instance_id", "step_key", "step_type", "assignee_role", "status", "required", "task_id"}.issubset(step_cols)
+    assert {"id", "created_at", "version", "instance_id", "order_id", "step_key", "step_type", "assignee_role", "status", "required", "task_id"}.issubset(step_cols)
 
     dep_cols = {c["name"] for c in insp.get_columns("step_dependencies")}
     assert {"id", "created_at", "version", "step_id", "depends_on_step_id"}.issubset(dep_cols)
@@ -896,24 +897,20 @@ def test_phase2b_step_2_task_step_synchronization_lifecycle():
         r_step = db.get(m.WorkflowStep, r_step.id)
         assert r_step.task_id is not None, "Downstream chart review must activate upon vitals completion via legacy endpoint"
 
-    # 2. Reopen mirrored task through legacy tasks status endpoint
+    # 2. Attempt to reopen task linked to completed workflow step -> Must return 409 (A1 reopen rule)
     reopen_resp = c_asst.post(f"/api/records/tasks/{v_task_id}/status", json={
         "version": 2,
         "status": "pending"
     })
-    assert reopen_resp.status_code == 200
-    assert reopen_resp.json()["status"] == "pending"
-
-    with SessionLocal() as db:
-        v_step = db.get(m.WorkflowStep, v_step.id)
-        assert v_step.status in ("in_progress", "pending"), "Workflow step must synchronize upon reopen"
+    assert reopen_resp.status_code == 409
+    assert "Cannot reopen a task linked to a completed workflow step" in reopen_resp.json()["detail"]
 
     # 3. Reassign mirrored task through legacy PUT /records/tasks/{id}
     me_doc = c_doc.get("/api/auth/me").json()
     new_assignee_id = me_doc["user"]["id"]
     put_resp = c_asst.put(f"/api/records/tasks/{v_task_id}", json={
         "assignee_id": new_assignee_id,
-        "version": 3
+        "version": 2
     })
     assert put_resp.status_code == 200
 
@@ -1147,4 +1144,377 @@ def test_phase2b_step_5_workflow_router_and_ollama_unreachable():
         comp_res = c_asst.post(f"/api/workflows/steps/{v_step_id}/complete")
         assert comp_res.status_code == 200
         assert comp_res.json()["new_status"] == "completed"
+
+
+# ===========================================================================
+# PART A4: Staff Assignment Fallback Resilience
+# ===========================================================================
+
+def test_phase2c_a4_step_with_no_available_staff_does_not_fail_workflow():
+    """
+    A4: Verifies that when no active staff member exists for a step's target role,
+    WorkflowEngine._resolve_assignee cleanly falls back to actor_id / created_by,
+    and workflow instance creation and step activation do NOT fail or raise 500.
+    """
+    engine = WorkflowEngine()
+    c_admin = client("admin")
+    admin_id = c_admin.get("/api/auth/me").json()["user"]["id"]
+    facility_id = c_admin.headers["X-Facility-ID"]
+
+    with SessionLocal() as db:
+        # Request assignee for a non-existent role e.g. "specialist_cardiac_surgeon"
+        assignee = engine._resolve_assignee(
+            db=db,
+            facility_id=facility_id,
+            role="non_existent_role_xyz",
+            appointment_id=None,
+            actor_id=admin_id
+        )
+        # Fallback to actor_id must succeed
+        assert assignee is not None
+        assert assignee.id == admin_id
+
+
+# ===========================================================================
+# PART B: Phase 3 Orders to Workflow Steps & Checkout Gate
+# ===========================================================================
+
+def test_phase3_b1_order_expansion_lifecycle_and_parallel_steps():
+    """
+    B1: When a human clinician places an order (lab, imaging, injection, vaccine, referral),
+    the engine adds a required workflow step linked to order_id on the active workflow instance.
+    Two orders create two parallel steps without interdependencies.
+    Running hook twice on same order is idempotent and does not duplicate step.
+    """
+    c_rec = client("reception")
+    c_doc = client("doctor")
+    p = patient(c_rec)
+    appt = ok(c_rec.post("/api/appointments", json=booking(c_rec, p, day=26, hour=10)))[0]
+
+    # Check-in triggers arrival workflow
+    c_rec.post(f"/api/appointments/{appt['id']}/status", json={
+        "status": "checked-in",
+        "version": appt["version"]
+    })
+
+    # Doctor drafts encounter linked to appointment
+    enc = ok(c_doc.post("/api/encounters", json={
+        "patient_id": p["id"],
+        "provider_id": c_doc.get("/api/auth/me").json()["user"]["id"],
+        "appointment_id": appt["id"]
+    }))
+
+    # 1. Doctor places a Lab order
+    lab_order = ok(c_doc.post("/api/records/orders", json={
+        "patient_id": p["id"],
+        "encounter_id": enc["id"],
+        "kind": "Lab",
+        "name": "Lipid Profile Panel",
+        "instructions": "Fasting 12 hours required"
+    }))
+    assert lab_order["kind"] == "Lab"
+
+    # 2. Doctor places an Imaging order
+    img_order = ok(c_doc.post("/api/records/orders", json={
+        "patient_id": p["id"],
+        "encounter_id": enc["id"],
+        "kind": "Imaging",
+        "name": "Echocardiogram 2D",
+        "instructions": "Assess LVEF"
+    }))
+    assert img_order["kind"] in ("Image", "Imaging")
+
+    with SessionLocal() as db:
+        inst = db.scalar(select(m.WorkflowInstance).where(m.WorkflowInstance.appointment_id == appt["id"]))
+        assert inst is not None
+
+        # Verify lab step created and linked
+        lab_step = db.scalar(select(m.WorkflowStep).where(
+            m.WorkflowStep.instance_id == inst.id,
+            m.WorkflowStep.order_id == lab_order["id"]
+        ))
+        assert lab_step is not None
+        assert lab_step.step_type == "order_lab"
+        assert lab_step.assignee_role == "assistant"
+        assert lab_step.required is True
+        assert lab_step.task_id is not None, "Step must be activated with durable Task"
+
+        # Verify imaging step created and linked
+        img_step = db.scalar(select(m.WorkflowStep).where(
+            m.WorkflowStep.instance_id == inst.id,
+            m.WorkflowStep.order_id == img_order["id"]
+        ))
+        assert img_step is not None
+        assert img_step.step_type == "order_imaging"
+        assert img_step.assignee_role == "assistant"
+        assert img_step.required is True
+        assert img_step.task_id is not None
+
+        # Verify parallel execution: neither order step depends on any parent
+        lab_deps = db.scalars(select(m.StepDependency).where(m.StepDependency.step_id == lab_step.id)).all()
+        img_deps = db.scalars(select(m.StepDependency).where(m.StepDependency.step_id == img_step.id)).all()
+        assert len(lab_deps) == 0
+        assert len(img_deps) == 0
+
+        # Idempotency / deduplication: running hook again on lab_order does not duplicate step
+        engine = WorkflowEngine()
+        dup_step = engine.handle_order_created(
+            db=db,
+            order=db.get(m.ClinicalOrder, lab_order["id"]),
+            actor_id=c_doc.get("/api/auth/me").json()["user"]["id"]
+        )
+        assert dup_step.id == lab_step.id
+        all_lab_steps = db.scalars(select(m.WorkflowStep).where(
+            m.WorkflowStep.instance_id == inst.id,
+            m.WorkflowStep.order_id == lab_order["id"]
+        )).all()
+        assert len(all_lab_steps) == 1, "Deduplication must prevent duplicate steps for same order"
+
+
+def test_phase3_b1_cancelled_order_cancels_step_and_completed_step_leaves_order_intact():
+    """
+    B1: If order is cancelled/discontinued, cancel its workflow step.
+    If the workflow step is completed, the order is not mutated.
+    """
+    c_rec = client("reception")
+    c_doc = client("doctor")
+    c_asst = client("assistant")
+    p = patient(c_rec)
+    appt = ok(c_rec.post("/api/appointments", json=booking(c_rec, p, day=26, hour=11)))[0]
+
+    c_rec.post(f"/api/appointments/{appt['id']}/status", json={
+        "status": "checked-in",
+        "version": appt["version"]
+    })
+
+    enc = ok(c_doc.post("/api/encounters", json={
+        "patient_id": p["id"],
+        "provider_id": c_doc.get("/api/auth/me").json()["user"]["id"],
+        "appointment_id": appt["id"]
+    }))
+
+    order = ok(c_doc.post("/api/records/orders", json={
+        "patient_id": p["id"],
+        "encounter_id": enc["id"],
+        "kind": "Lab",
+        "name": "Serum Creatinine"
+    }))
+
+    with SessionLocal() as db:
+        inst = db.scalar(select(m.WorkflowInstance).where(m.WorkflowInstance.appointment_id == appt["id"]))
+        step = db.scalar(select(m.WorkflowStep).where(m.WorkflowStep.order_id == order["id"]))
+        step_id = step.id
+        assert step.status == "pending"
+
+    # Cancel order via legacy status endpoint
+    c_doc.post(f"/api/records/orders/{order['id']}/status", json={
+        "version": order["version"],
+        "status": "cancelled"
+    })
+
+    with SessionLocal() as db:
+        step_after = db.get(m.WorkflowStep, step_id)
+        assert step_after.status == "cancelled", "Cancelling order must cancel linked workflow step"
+
+    # Place a second order and complete its step
+    order2 = ok(c_doc.post("/api/records/orders", json={
+        "patient_id": p["id"],
+        "encounter_id": enc["id"],
+        "kind": "Injection",
+        "name": "Vitamin B12"
+    }))
+
+    with SessionLocal() as db:
+        step2 = db.scalar(select(m.WorkflowStep).where(m.WorkflowStep.order_id == order2["id"]))
+        step2_id = step2.id
+
+    c_asst.post(f"/api/workflows/steps/{step2_id}/start")
+    c_asst.post(f"/api/workflows/steps/{step2_id}/complete")
+
+    with SessionLocal() as db:
+        step2_done = db.get(m.WorkflowStep, step2_id)
+        assert step2_done.status == "completed"
+        # Order status must remain intact (not changed by step completion)
+        order2_record = db.get(m.ClinicalOrder, order2["id"])
+        assert order2_record.status == order2["status"]
+
+
+def test_phase3_b1_order_without_instance_and_hook_failure_resilience():
+    """
+    B1: If no active instance exists, order creation does nothing and records a workflow event;
+    never fails or slows order creation.
+    When hook fails, order still saves, an audit event is written, and retry is enqueued in worker jobs.
+    """
+    c_doc = client("doctor")
+    c_rec = client("reception")
+    p = patient(c_rec)
+
+    # 1. Order without any active workflow instance
+    order_no_wf = ok(c_doc.post("/api/records/orders", json={
+        "patient_id": p["id"],
+        "kind": "Lab",
+        "name": "Routine Urinalysis"
+    }))
+    assert order_no_wf["id"] is not None
+
+    with SessionLocal() as db:
+        event = db.scalar(select(m.WorkflowEvent).where(
+            m.WorkflowEvent.event_type == "order_unlinked"
+        ).order_by(m.WorkflowEvent.timestamp.desc()))
+        assert event is not None, "WorkflowEvent 'order_unlinked' must be recorded when no instance exists"
+
+    # 2. Hook failure resilience: patch handle_order_created to raise an unexpected error
+    with unittest.mock.patch.object(WorkflowEngine, "handle_order_created", side_effect=Exception("Database lock failure simulation")):
+        order_err = ok(c_doc.post("/api/records/orders", json={
+            "patient_id": p["id"],
+            "kind": "Lab",
+            "name": "HbA1c Glycated Hemoglobin"
+        }))
+        assert order_err["id"] is not None, "Order must save cleanly even if workflow hook fails"
+
+    with SessionLocal() as db:
+        audit = db.scalar(select(m.AuditEvent).where(
+            m.AuditEvent.action == "workflow_order_hook_failed",
+            m.AuditEvent.entity_id == order_err["id"]
+        ))
+        assert audit is not None, "Audit event must be recorded on hook failure"
+
+        job = db.scalar(select(m.Job).where(
+            m.Job.kind == "workflow_order_hook_retry",
+            m.Job.status == "pending"
+        ))
+        assert job is not None, "Retry job must be enqueued on hook failure"
+
+        # Worker processes retry job cleanly
+        from app.worker import run_once
+        for _ in range(10):
+            db.expire_all()
+            job_check = db.get(m.Job, job.id)
+            if job_check.status != "pending":
+                break
+            run_once()
+
+        db.expire_all()
+        job_after = db.get(m.Job, job.id)
+        assert job_after.status == "completed"
+
+
+def test_phase3_b2_checkout_gate_enforcement_and_override():
+    """
+    B2: Checkout gate blocks appointment completion (409) while workflow instance has
+    open required steps, listing them.
+    Allows override only for doctor or admin with a written reason, recorded in audit and workflow_events.
+    """
+    c_rec = client("reception")
+    c_doc = client("doctor")
+    c_asst = client("assistant")
+    p = patient(c_rec)
+    appt = ok(c_rec.post("/api/appointments", json=booking(c_rec, p, day=26, hour=14)))[0]
+
+    # Check-in triggers arrival workflow
+    c_rec.post(f"/api/appointments/{appt['id']}/status", json={
+        "status": "checked-in",
+        "version": appt["version"]
+    })
+
+    # 1. Reception tries to complete appointment while required steps are open -> 409
+    rec_blocked = c_rec.post(f"/api/appointments/{appt['id']}/status", json={
+        "status": "completed",
+        "version": 2
+    })
+    assert rec_blocked.status_code == 409
+    assert "workflow has open required steps" in rec_blocked.json()["detail"]
+    assert "step_triage_vitals" in rec_blocked.json()["detail"]
+
+    # 2. Doctor tries to complete appointment WITHOUT reason -> 409
+    doc_no_reason = c_doc.post(f"/api/appointments/{appt['id']}/status", json={
+        "status": "completed",
+        "version": 2
+    })
+    assert doc_no_reason.status_code == 409
+    assert "Written override reason required" in doc_no_reason.json()["detail"]
+
+    # 3. Doctor completes appointment WITH written reason -> 200 (Authorized Override)
+    override_reason = "Urgent transfer to cardiac ICU; vitals taken in ambulance"
+    doc_override = c_doc.post(f"/api/appointments/{appt['id']}/status", json={
+        "status": "completed",
+        "version": 2,
+        "reason": override_reason
+    })
+    assert doc_override.status_code == 200
+    assert doc_override.json()["status"] == "completed"
+
+    with SessionLocal() as db:
+        inst = db.scalar(select(m.WorkflowInstance).where(m.WorkflowInstance.appointment_id == appt["id"]))
+        event = db.scalar(select(m.WorkflowEvent).where(
+            m.WorkflowEvent.instance_id == inst.id,
+            m.WorkflowEvent.event_type == "checkout_override"
+        ))
+        assert event is not None, "WorkflowEvent 'checkout_override' must be recorded"
+
+        audit = db.scalar(select(m.AuditEvent).where(
+            m.AuditEvent.action == "workflow_checkout_override",
+            m.AuditEvent.entity_id == appt["id"]
+        ))
+        assert audit is not None, "AuditEvent 'workflow_checkout_override' must be recorded"
+        assert override_reason in audit.detail
+
+
+def test_phase3_b2_checkout_allowed_after_all_steps_completed_and_instance_completes():
+    """
+    B2 & B3: When all required steps are completed or skipped, the instance is closed ('completed'),
+    and appointment checkout succeeds without requiring override.
+    Appointment without workflow instance behaves normally.
+    """
+    c_rec = client("reception")
+    c_doc = client("doctor")
+    c_asst = client("assistant")
+    p = patient(c_rec)
+    appt = ok(c_rec.post("/api/appointments", json=booking(c_rec, p, day=27, hour=10)))[0]
+
+    c_rec.post(f"/api/appointments/{appt['id']}/status", json={
+        "status": "checked-in",
+        "version": appt["version"]
+    })
+
+    with SessionLocal() as db:
+        inst = db.scalar(select(m.WorkflowInstance).where(m.WorkflowInstance.appointment_id == appt["id"]))
+        steps = db.scalars(select(m.WorkflowStep).where(m.WorkflowStep.instance_id == inst.id)).all()
+        steps_map = {s.step_key: s.id for s in steps}
+
+    # Complete vitals
+    c_asst.post(f"/api/workflows/steps/{steps_map['step_triage_vitals']}/start")
+    c_asst.post(f"/api/workflows/steps/{steps_map['step_triage_vitals']}/complete")
+
+    # Skip optional intake
+    c_rec.post(f"/api/workflows/steps/{steps_map['step_reception_verify']}/skip")
+
+    # Complete doctor chart review
+    c_doc.post(f"/api/workflows/steps/{steps_map['step_doctor_chart_review']}/start")
+    c_doc.post(f"/api/workflows/steps/{steps_map['step_doctor_chart_review']}/complete")
+
+    with SessionLocal() as db:
+        inst_done = db.get(m.WorkflowInstance, inst.id)
+        assert inst_done.status == "completed", "Instance must close when all required steps are completed/skipped"
+
+    # Now checkout appointment without any override -> Succeeds with 200!
+    checkout_res = c_rec.post(f"/api/appointments/{appt['id']}/status", json={
+        "status": "completed",
+        "version": 2
+    })
+    assert checkout_res.status_code == 200
+    assert checkout_res.json()["status"] == "completed"
+
+    # Appointment without workflow instance can transition normally
+    p2 = patient(c_rec)
+    appt_no_wf = ok(c_rec.post("/api/appointments", json=booking(c_rec, p2, day=27, hour=11)))[0]
+    # Cancel directly from confirmed
+    cancel_res = c_rec.post(f"/api/appointments/{appt_no_wf['id']}/status", json={
+        "status": "cancelled",
+        "version": appt_no_wf["version"],
+        "reason": "Patient requested postponement"
+    })
+    assert cancel_res.status_code == 200
+    assert cancel_res.json()["status"] == "cancelled"
+
 

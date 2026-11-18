@@ -895,9 +895,13 @@ class WorkflowInstance(Entity, Base):
 
 class WorkflowStep(Entity, Base):
     __tablename__ = 'workflow_steps'
+    __table_args__ = (
+        UniqueConstraint('instance_id', 'order_id', name='uq_workflow_steps_instance_order'),
+    )
     instance_id = Column(ForeignKey('workflow_instances.id', ondelete='CASCADE'), nullable=False, index=True)
+    order_id = Column(ForeignKey('clinical_orders.id', ondelete='SET NULL'), nullable=True, index=True)
     step_key = Column(String(50), nullable=False)
-    step_type = Column(String(30), nullable=False)  # 'vitals', 'intake', 'review', 'custom'
+    step_type = Column(String(30), nullable=False)  # 'vitals', 'intake', 'review', 'custom', 'order_lab', etc.
     assignee_role = Column(String(30), nullable=False)
     assigned_user_id = Column(ForeignKey('users.id'), nullable=True)
     status = Column(String(30), nullable=False, default='pending')  # pending, acknowledged, in_progress, blocked, completed, skipped, cancelled
@@ -918,7 +922,7 @@ class StepDependency(Entity, Base):
 
 class WorkflowEvent(Entity, Base):
     __tablename__ = 'workflow_events'
-    instance_id = Column(ForeignKey('workflow_instances.id'), nullable=False, index=True)
+    instance_id = Column(ForeignKey('workflow_instances.id'), nullable=True, index=True)
     step_id = Column(ForeignKey('workflow_steps.id'), nullable=True, index=True)
     event_type = Column(String(50), nullable=False)  # created, activated, acknowledged, started, blocked, unblocked, completed, skipped, cancelled
     actor_id = Column(ForeignKey('users.id'), nullable=False)
