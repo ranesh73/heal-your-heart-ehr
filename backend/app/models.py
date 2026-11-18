@@ -711,6 +711,94 @@ class TaskNotification(Base):
     created_at = Column(DateTime(timezone=True), nullable=False, default=now)
 
 
+class PatientAlert(Base):
+    __tablename__ = 'patient_alerts'
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid4()))
+    patient_id = Column(ForeignKey('patients.id', ondelete='CASCADE'), nullable=False, index=True)
+    alert_type = Column(String(40), nullable=False, default='medical_emergency')
+    description = Column(Text, nullable=False)
+    created_by_id = Column(ForeignKey('users.id'), nullable=False)
+    created_by_name = Column(String(120), nullable=False, default='')
+    is_active = Column(Boolean, nullable=False, default=True, index=True)
+    created_at = Column(DateTime(timezone=True), nullable=False, default=now)
+    updated_at = Column(DateTime(timezone=True), nullable=False, default=now, onupdate=now)
+    __table_args__ = (
+        CheckConstraint(
+            "alert_type IN ('medical_emergency','need_report','patient_status','contraindication')",
+            name='ck_patient_alerts_alert_type',
+        ),
+    )
+
+
+class RecallType(Base):
+    __tablename__ = 'recall_types'
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid4()))
+    name = Column(String(150), unique=True, nullable=False)
+    display_order = Column(Integer, nullable=False, default=0)
+    is_active = Column(Boolean, nullable=False, default=True)
+    created_at = Column(DateTime(timezone=True), nullable=False, default=now)
+    updated_at = Column(DateTime(timezone=True), nullable=False, default=now, onupdate=now)
+
+
+class RecallStatus(Base):
+    __tablename__ = 'recall_statuses'
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid4()))
+    name = Column(String(150), unique=True, nullable=False)
+    is_system_default = Column(Boolean, nullable=False, default=False)
+    display_order = Column(Integer, nullable=False, default=0)
+    is_active = Column(Boolean, nullable=False, default=True)
+    created_at = Column(DateTime(timezone=True), nullable=False, default=now)
+    updated_at = Column(DateTime(timezone=True), nullable=False, default=now, onupdate=now)
+
+
+class RecallPreference(Base):
+    __tablename__ = 'recall_preferences'
+    id = Column(Integer, primary_key=True, default=1)
+    default_email_enabled = Column(Boolean, nullable=False, default=True)
+    default_sms_enabled = Column(Boolean, nullable=False, default=True)
+    email_days_before = Column(Integer, nullable=False, default=3)
+    sms_days_before = Column(Integer, nullable=False, default=3)
+    sms_template_text = Column(
+        Text,
+        nullable=False,
+        default='Reminder from $PRACTICE to schedule for $NOTES. Please ignore, if already scheduled',
+    )
+    mark_complete_on_send = Column(Boolean, nullable=False, default=True)
+    updated_at = Column(DateTime(timezone=True), nullable=False, default=now, onupdate=now)
+
+
+class RecallTemplate(Base):
+    __tablename__ = 'recall_templates'
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid4()))
+    category = Column(String(20), nullable=False, default='PRACTICE')
+    name = Column(String(150), nullable=False)
+    items_json = Column(JSON().with_variant(JSONB, 'postgresql'), nullable=False, default=list)
+    created_by = Column(ForeignKey('users.id'), nullable=True)
+    created_at = Column(DateTime(timezone=True), nullable=False, default=now)
+    updated_at = Column(DateTime(timezone=True), nullable=False, default=now, onupdate=now)
+    __table_args__ = (CheckConstraint("category IN ('PRACTICE','MY')"),)
+
+
+class PatientRecall(Base):
+    __tablename__ = 'patient_recalls'
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid4()))
+    facility_id = Column(ForeignKey('facilities.id'), nullable=False, index=True)
+    patient_id = Column(ForeignKey('patients.id'), nullable=False, index=True)
+    recall_type_id = Column(ForeignKey('recall_types.id'), nullable=False, index=True)
+    status_id = Column(ForeignKey('recall_statuses.id'), nullable=False, index=True)
+    provider_id = Column(ForeignKey('users.id'), nullable=False, index=True)
+    notes = Column(Text, nullable=False, default='')
+    due_date = Column(Date, nullable=False, index=True)
+    visit_date = Column(Date, nullable=True)
+    auto_reminder_enabled = Column(Boolean, nullable=False, default=True)
+    email_reminder_days = Column(Integer, nullable=True)
+    sms_reminder_days = Column(Integer, nullable=True)
+    reminder_sent_at = Column(DateTime(timezone=True), nullable=True)
+    created_by = Column(ForeignKey('users.id'), nullable=True)
+    created_at = Column(DateTime(timezone=True), nullable=False, default=now)
+    updated_at = Column(DateTime(timezone=True), nullable=False, default=now, onupdate=now)
+
+
 class PatientEntry(PatientRecord, Base):
     __tablename__ = 'patient_entries'
     kind = Column(String(30), nullable=False)

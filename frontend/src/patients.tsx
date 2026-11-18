@@ -102,6 +102,12 @@ import {
 } from "./DischargeSummaryViewer";
 import { ClinicalTasksView, PatientWorkflowBanner } from "./clinicalTasks";
 import {
+  PatientAlertsTab,
+  PatientAlertBadgePopover,
+  PatientChartAlertsPopup,
+} from "./patientAlerts";
+import { PatientRecallsView } from "./patientRecalls";
+import {
   DiagnosisTemplatesModal,
   PrescriptionTemplatesModal,
   SupplementTemplatesModal,
@@ -411,7 +417,14 @@ export function PatientHeader({
         </div>
 
         <div className="charm-patient-identity-lines">
-          <h1 className="charm-pat-name">{p.name}</h1>
+          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+            <h1 className="charm-pat-name">{p.name}</h1>
+            <PatientAlertBadgePopover
+              alerts={chart.active_alerts || p.active_alerts}
+              patientId={p.id}
+              onManageAlerts={() => onSectionSelect?.("Alerts")}
+            />
+          </div>
           <div className="charm-pat-meta-line">
             <span>{p.sex || p.gender || "Male"}/ {age}</span>
             <span className="charm-id-inline">ID:{p.mrn || p.record_number || p.id?.slice(0, 8)}</span>
@@ -470,8 +483,16 @@ export function PatientHeader({
         </div>
       </div>
 
-      {/* 3. Right: (+) and (...) Action Buttons */}
+      {/* 3. Right: Alert badge + (+) and (...) Action Buttons */}
       <div className="charm-header-actions-group">
+        {(chart.active_alerts || p.active_alerts || []).length > 0 && (
+          <PatientAlertBadgePopover
+            alerts={chart.active_alerts || p.active_alerts}
+            patientId={p.id}
+            align="right"
+            onManageAlerts={() => onSectionSelect?.("Alerts")}
+          />
+        )}
         {/* Quick Action (+) button */}
         <div className="charm-header-popover-wrap">
           <button
@@ -767,6 +788,7 @@ export function PatientChart({ id }: { id: string }) {
   const [showConsultationAddendum, setShowConsultationAddendum] = useState(false);
   const [consultationAddendumText, setConsultationAddendumText] = useState("");
   const [consultationMenu, setConsultationMenu] = useState("");
+  const [dismissedAlertsPopupId, setDismissedAlertsPopupId] = useState<string | null>(null);
   const closePdfPreview = () => {
     setPdfPreview((current) => {
       if (current?.url) URL.revokeObjectURL(current.url);
@@ -795,6 +817,7 @@ export function PatientChart({ id }: { id: string }) {
     closePdfPreview();
     setShowConsultationAddendum(false);
     setConsultationMenu("");
+    setDismissedAlertsPopupId(null);
   }, [id]);
   if (isLoading) return <Loading />;
   if (queryError || !chart) return <ErrorBox error={queryError} />;
@@ -895,6 +918,7 @@ export function PatientChart({ id }: { id: string }) {
     { id: "Chat History", label: "Chat History", count: "" },
     { id: "Tasks", label: "Tasks", count: chart.tasks?.length || 0 },
     { id: "Recalls", label: "Recalls", count: "" },
+    { id: "Alerts", label: "Alerts", count: (chart.active_alerts || p.active_alerts || []).length || "" },
     { id: "Billing", label: "Billing", count: chart.invoices?.length || 0 },
     { id: "EECP Treatment", label: "EECP Treatment", count: chart.plans?.length || 0 },
     { id: "Customize", label: "+ Customize", count: "" },
@@ -2246,16 +2270,10 @@ export function PatientChart({ id }: { id: string }) {
 
             if (resolvedSection === "Recalls") {
               return (
-                <Panel
-                  title="Cardiology Recalls & Preventative Reviews"
-                  actions={
-                    <Button variant="ghost" onClick={() => setModal("tasks")}>
-                      <Plus size={15} /> Schedule Recall
-                    </Button>
-                  }
-                >
-                  <Empty title="No Scheduled Recalls" body="Preventative follow-up recalls for this patient will be listed here." />
-                </Panel>
+                <PatientRecallsView
+                  patientId={p.id}
+                  defaultProviderId={p.provider_id}
+                />
               );
             }
 

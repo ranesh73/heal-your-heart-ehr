@@ -20,6 +20,7 @@ import { ImmunizationSettingsPage } from "./immunization/ImmunizationSettingsPag
 import { MessageSettingsPage } from "./message/MessageSettingsPage";
 import { TaskPreferencesPage } from "./task/TaskPreferencesPage";
 import { BillingSettingsPage } from "./billing/BillingSettingsPage";
+import { PatientRecallSettingsPage } from "./subpages/PatientRecallSettingsPage";
 import { SettingContentView } from "./SettingContentView";
 import { SETTINGS_CATEGORIES, ALL_SETTING_OPTIONS } from "./settingsData";
 import { TemplatesModule } from "../templates/TemplatesModule";
@@ -294,6 +295,25 @@ export function IndividualSettingPage({
             onTabChange={handleTabChange}
           />
         </div>
+      </SettingsLayout>
+    );
+  }
+
+  // Specialized Patient Recall Subpages (Recall Types | Recall Status | Recall Preferences)
+  if (categoryId === "patient-recall") {
+    const recallTabs = category.options.map((opt) => ({
+      id: opt.id,
+      label: opt.name,
+      badge: opt.badge,
+    }));
+
+    return (
+      <SettingsLayout
+        activeTab={activeOptionId}
+        onTabChange={handleTabChange}
+        tabs={recallTabs}
+      >
+        <PatientRecallSettingsPage activeOptionId={activeOptionId} />
       </SettingsLayout>
     );
   }
