@@ -1728,3 +1728,100 @@ def test_invoice_pdf_generation_templates():
         assert res.headers['content-type'] == 'application/pdf'
         assert res.content.startswith(b'%PDF-1.4')
         assert len(res.content) > 500
+
+
+def test_consultation_reports_same_day_orders_and_send_summary():
+    c = client("doctor")
+    p = patient(c)
+    provider_id = staff(c, "doctor")["id"]
+    created = ok(c.post(f"/api/patients/{p['id']}/consultations", json={
+        "provider_id": provider_id,
+        "facility_id": c.headers["X-Facility-ID"],
+        "visit_type": "EECP Treatment Completed",
+        "visit_mode": "In Person",
+        "visit_date": "2032-05-16T11:30:00+05:30",
+        "soap_json": {
+            "subjective": {"chief_complaints": "POST EECP COMPLETE"},
+            "assessment": {"notes": "Improved exercise tolerance"},
+            "plan": {"notes": "Continue lifestyle modifications"},
+        },
+    }))
+
+    lab_empty = c.get(f"/api/consultations/{created['id']}/export/lab-order")
+    assert lab_empty.status_code == 404
+    assert lab_empty.json()["detail"] == "No Lab Orders found for this consultation date."
+
+    img_empty = c.get(f"/api/consultations/{created['id']}/export/image-order")
+    assert img_empty.status_code == 404
+    assert img_empty.json()["detail"] == "No Imaging Orders found for this consultation date."
+
+    rx_empty = c.get(f"/api/consultations/{created['id']}/export/rx")
+    assert rx_empty.status_code == 404
+    assert rx_empty.json()["detail"] == "No prescriptions found for this consultation date."
+
+    ok(c.post("/api/records/orders", json={
+        "patient_id": p["id"],
+        "kind": "Lab",
+        "name": "Lipid Profile (Other Day)",
+        "ordered_date": "May 10, 2032",
+    }))
+    assert c.get(f"/api/consultations/{created['id']}/export/lab-order").status_code == 404
+
+    ok(c.post("/api/records/orders", json={
+        "patient_id": p["id"],
+        "kind": "Lab",
+        "name": "Fasting Lipid Profile",
+        "ordered_date": "May 16, 2032",
+        "instructions": "12 hour fasting",
+    }))
+    ok(c.post("/api/records/orders", json={
+        "patient_id": p["id"],
+        "kind": "Imaging",
+        "name": "ECG - Resting",
+        "ordered_date": "May 16, 2032",
+        "instructions": "12-lead ECG",
+    }))
+    ok(c.post("/api/records/medications", json={
+        "patient_id": p["id"],
+        "encounter_id": created["id"],
+        "trade_name": "Pitavastatin",
+        "dose": "4mg",
+        "route": "Oral",
+        "maen": "0-0-0-1",
+        "duration_days": 30,
+        "quantity": 30,
+        "dispense_unit": "Tablets",
+        "substitution_allowed": False,
+        "instructions": "After dinner",
+        "start_date": "2032-05-16",
+    }))
+
+    for path in (
+        f"/api/consultations/{created['id']}/export/pdf?inline=1",
+        f"/api/consultations/{created['id']}/export/clinical-summary?inline=1",
+        f"/api/consultations/{created['id']}/export/lab-order?inline=1",
+        f"/api/consultations/{created['id']}/export/image-order?inline=1",
+        f"/api/consultations/{created['id']}/export/rx?inline=1",
+    ):
+        res = c.get(path)
+        assert res.status_code == 200, f"{path}: {res.status_code} {res.text}"
+        assert res.content.startswith(b"%PDF")
+        assert len(res.content) > 2000
+
+    summary = ok(c.get(f"/api/consultations/{created['id']}/clinical-summary"))
+    assert summary["patient"]["mrn"] == p["mrn"]
+    assert "[Substitution not allowed]" in summary["prescriptions"][0]["notes"]
+
+    sent_email = ok(c.post(f"/api/consultations/{created['id']}/send-summary", json={
+        "channel": "email",
+        "recipient": "patient@demo.local",
+    }))
+    assert sent_email["status"] in ("sent", "queued")
+    assert sent_email["pdf_size_bytes"] > 2000
+
+    sent_sms = ok(c.post(f"/api/consultations/{created['id']}/send-summary", json={
+        "channel": "sms",
+        "recipient": "+919003070065",
+    }))
+    assert sent_sms["status"] in ("sent", "queued")
+    assert sent_sms["pdf_size_bytes"] > 2000

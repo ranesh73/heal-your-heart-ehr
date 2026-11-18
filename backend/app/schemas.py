@@ -609,3 +609,8 @@ class InventoryReportExportInput(Input):
     record_count: int = Field(default=0, ge=0)
 
 
+class SendSummaryInput(Input):
+    channel: Literal['email', 'sms']
+    recipient: str = Field(default='', max_length=160)
+
+
