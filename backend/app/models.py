@@ -730,6 +730,24 @@ class PatientAlert(Base):
     )
 
 
+class PatientQuickNote(Base):
+    __tablename__ = 'patient_quick_notes'
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid4()))
+    patient_id = Column(ForeignKey('patients.id', ondelete='CASCADE'), nullable=False, index=True)
+    content = Column(Text, nullable=False)
+    color = Column(String(24), nullable=False, default='yellow')
+    created_by_id = Column(ForeignKey('users.id'), nullable=False)
+    created_by_name = Column(String(120), nullable=False, default='')
+    created_at = Column(DateTime(timezone=True), nullable=False, default=now)
+    updated_at = Column(DateTime(timezone=True), nullable=False, default=now, onupdate=now)
+    __table_args__ = (
+        CheckConstraint(
+            "color IN ('yellow','mint','blue','pink')",
+            name='ck_patient_quick_notes_color',
+        ),
+    )
+
+
 class RecallType(Base):
     __tablename__ = 'recall_types'
     id = Column(String(36), primary_key=True, default=lambda: str(uuid4()))

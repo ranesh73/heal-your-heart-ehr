@@ -19694,3 +19694,448 @@ textarea.charm-input {
 .pa-preset-option:hover {
   background: #f1f5f9;
 }
+
+
+/* ============================================================================
+   QUICK NOTES & ANIMATED CALENDAR STICKY NOTES
+   ============================================================================ */
+.qn-tab-shell {
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  min-height: 460px;
+  display: flex;
+  flex-direction: column;
+}
+
+.qn-tab-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 18px;
+  border-bottom: 1px solid #e2e8f0;
+  background: #fff;
+}
+
+.qn-tab-title {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+  color: #1e293b;
+}
+
+.qn-table-wrap {
+  overflow-x: auto;
+  flex: 1;
+}
+
+.qn-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+  color: #1e293b;
+}
+
+.qn-table thead th {
+  padding: 10px 14px;
+  text-align: left;
+  font-weight: 600;
+  color: #334155;
+  border-bottom: 1px solid #e2e8f0;
+  background: #fafafa;
+}
+
+.qn-table tbody td {
+  padding: 12px 14px;
+  border-bottom: 1px solid #f1f5f9;
+  vertical-align: top;
+}
+
+.qn-table tbody tr:hover {
+  background: #f8fafc;
+}
+
+.qn-note-cell {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.qn-note-color-swatch {
+  width: 12px;
+  height: 18px;
+  border-radius: 2px;
+  border: 1px solid #eab308;
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.qn-note-text {
+  white-space: pre-wrap;
+  line-height: 1.5;
+  color: #0f172a;
+}
+
+/* Add / Edit Note Modal (ChARM exact layout) */
+.qn-add-modal {
+  width: min(560px, 100%);
+}
+
+.qn-modal-form {
+  padding: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.qn-textarea {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid #60a5fa;
+  border-radius: 3px;
+  font-size: 13.5px;
+  font-family: inherit;
+  line-height: 1.5;
+  color: #0f172a;
+  resize: vertical;
+  background: #fff;
+}
+
+.qn-textarea:focus {
+  outline: 0;
+  border-color: #2563eb;
+  box-shadow: 0 0 0 2px rgb(59 130 246 / 18%);
+}
+
+.qn-color-bar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.qn-color-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: #475569;
+}
+
+.qn-color-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.qn-color-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 9px;
+  border: 1.5px solid transparent;
+  border-radius: 14px;
+  font-size: 11.5px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: transform 0.15s ease;
+}
+
+.qn-color-pill:hover {
+  transform: translateY(-1px);
+}
+
+.qn-color-pill.active {
+  font-weight: 700;
+  box-shadow: 0 2px 6px rgb(15 23 42 / 12%);
+}
+
+.qn-color-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+
+.qn-modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+/* Folded-Corner Calendar Sticky Note Badge + Peel/Wiggle Hover Animation */
+.qn-sticky-wrap {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.qn-sticky-badge {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 2px 7px 2px 5px;
+  border: 1px solid #eab308;
+  border-radius: 3px 6px 3px 3px;
+  background: #fef08a;
+  color: #713f12;
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: 0 1px 3px rgb(113 63 18 / 18%);
+  transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.2s ease;
+}
+
+.qn-sticky-badge:hover {
+  transform: rotate(-3deg) scale(1.06);
+  box-shadow: 0 4px 10px rgb(113 63 18 / 26%);
+}
+
+.qn-sticky-badge.compact {
+  padding: 1px 4px;
+  font-size: 10px;
+}
+
+.qn-badge-dogear {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 0;
+  height: 0;
+  border-style: solid;
+  border-width: 0 6px 6px 0;
+  border-color: transparent #fff transparent transparent;
+  pointer-events: none;
+}
+
+.qn-sticky-badge-count {
+  line-height: 1;
+}
+
+/* Paper-Unfold Spring Animation for Sticky Note Popover */
+@keyframes qnStickyUnfold {
+  0% {
+    opacity: 0;
+    transform: scale(0.92) translateY(-6px) rotate(-1.5deg);
+  }
+  70% {
+    opacity: 1;
+    transform: scale(1.015) translateY(1px) rotate(0.3deg);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1) translateY(0) rotate(0deg);
+  }
+}
+
+.qn-sticky-popover {
+  position: absolute;
+  top: calc(100% + 7px);
+  left: 0;
+  z-index: 1360;
+  width: 310px;
+  border: 1px solid #fde047;
+  border-radius: 4px 16px 6px 6px;
+  background: #fef9c3;
+  box-shadow: 0 14px 32px rgb(15 23 42 / 22%), 0 4px 10px rgb(161 98 7 / 14%);
+  overflow: hidden;
+  text-align: left;
+  font-weight: 400;
+  transform-origin: top left;
+  animation: qnStickyUnfold 0.24s cubic-bezier(0.22, 1.28, 0.36, 1) forwards;
+}
+
+.qn-sticky-popover.align-right {
+  left: auto;
+  right: 0;
+  transform-origin: top right;
+}
+
+.qn-popover-dogear {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 18px;
+  height: 18px;
+  pointer-events: none;
+  box-shadow: -2px 2px 3px rgb(15 23 42 / 12%);
+}
+
+.qn-sticky-popover-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 9px 22px 8px 12px;
+  border-bottom: 1px solid #fde047;
+  font-size: 12.5px;
+}
+
+.qn-sticky-pat-sub {
+  font-weight: 400;
+  font-size: 11.5px;
+  opacity: 0.8;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 120px;
+}
+
+.qn-sticky-close {
+  border: 0;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  padding: 2px;
+  opacity: 0.75;
+}
+
+.qn-sticky-close:hover {
+  opacity: 1;
+}
+
+.qn-sticky-list {
+  max-height: 240px;
+  overflow-y: auto;
+  padding: 8px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.qn-sticky-slip {
+  padding: 8px 10px;
+  border-radius: 4px;
+  border-left: 3px solid #eab308;
+  box-shadow: 0 1px 3px rgb(15 23 42 / 8%);
+}
+
+.qn-sticky-slip-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 6px;
+}
+
+.qn-sticky-slip-content {
+  font-size: 12.5px;
+  line-height: 1.45;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.qn-sticky-slip-del {
+  border: 0;
+  background: transparent;
+  color: inherit;
+  opacity: 0.55;
+  cursor: pointer;
+  padding: 2px;
+  flex-shrink: 0;
+}
+
+.qn-sticky-slip-del:hover {
+  opacity: 1;
+  color: #dc2626;
+}
+
+.qn-sticky-slip-meta {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 6px;
+  font-size: 10.5px;
+  opacity: 0.78;
+  font-weight: 500;
+}
+
+.qn-sticky-popover-foot {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 12px;
+  border-top: 1px solid #fde047;
+  background: rgb(255 255 255 / 45%);
+}
+
+.qn-sticky-add-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 9px;
+  border: 1px solid #d97706;
+  border-radius: 4px;
+  background: #f59e0b;
+  color: #fff;
+  font-size: 11.5px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.qn-sticky-add-btn:hover {
+  background: #d97706;
+}
+
+.qn-inline-form {
+  padding: 8px 10px 10px;
+  border-top: 1px dashed #eab308;
+  background: rgb(255 255 255 / 65%);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.qn-inline-form textarea {
+  width: 100%;
+  padding: 6px 8px;
+  border: 1px solid #cbd5e1;
+  border-radius: 4px;
+  font-size: 12px;
+  font-family: inherit;
+  color: #0f172a;
+  background: #fff;
+}
+
+.qn-inline-form-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.qn-inline-dots {
+  display: flex;
+  gap: 5px;
+}
+
+.qn-dot-btn {
+  width: 15px;
+  height: 15px;
+  border-radius: 50%;
+  border: 1.5px solid transparent;
+  cursor: pointer;
+}
+
+.qn-dot-btn.active {
+  transform: scale(1.2);
+  box-shadow: 0 0 0 2px #0f172a;
+}
+
+.qn-inline-save {
+  padding: 3px 10px;
+  border: 0;
+  border-radius: 4px;
+  background: #f59e0b;
+  color: #fff;
+  font-size: 11.5px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.qn-inline-cancel {
+  padding: 3px 8px;
+  border: 1px solid #cbd5e1;
+  border-radius: 4px;
+  background: #fff;
+  color: #475569;
+  font-size: 11.5px;
+  cursor: pointer;
+}

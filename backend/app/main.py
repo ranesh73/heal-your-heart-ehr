@@ -7,7 +7,7 @@ from fastapi.responses import JSONResponse, FileResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import ValidationError
 from sqlalchemy.exc import IntegrityError
-from . import identity, patients, scheduling, clinical, consultations, eecp, operations, settings_router, templates_router, catalogue_service, rx_service, immunization_service, settings_modules_service, billing_service, waiting_list, flowsheets, tasks_workflow, recalls, patient_alerts
+from . import identity, patients, scheduling, clinical, consultations, eecp, operations, settings_router, templates_router, catalogue_service, rx_service, immunization_service, settings_modules_service, billing_service, waiting_list, flowsheets, tasks_workflow, recalls, patient_alerts, quick_notes
 
 app=FastAPI(title='Heal Your Heart EHR',version='0.1.0',docs_url='/api/docs' if os.getenv('EHR_API_DOCS')=='1' else None,redoc_url=None,openapi_url='/api/openapi.json' if os.getenv('EHR_API_DOCS')=='1' else None)
 app.include_router(immunization_service.router, prefix="/api/settings/immunization")
@@ -15,7 +15,7 @@ app.include_router(immunization_service.router, prefix="/settings/immunization")
 app.include_router(settings_modules_service.router)
 app.include_router(billing_service.router)
 app.include_router(waiting_list.router)
-for router in (identity.router,patients.router,scheduling.router,clinical.router,consultations.router,eecp.router,operations.router,settings_router.router,templates_router.router,catalogue_service.router,rx_service.router,flowsheets.router,tasks_workflow.router,recalls.router,patient_alerts.router): app.include_router(router)
+for router in (identity.router,patients.router,scheduling.router,clinical.router,consultations.router,eecp.router,operations.router,settings_router.router,templates_router.router,catalogue_service.router,rx_service.router,flowsheets.router,tasks_workflow.router,recalls.router,patient_alerts.router,quick_notes.router): app.include_router(router)
 
 
 @app.middleware('http')

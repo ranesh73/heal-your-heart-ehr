@@ -5,6 +5,7 @@ from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Respons
 from sqlalchemy import select, or_, func, delete
 from . import models as m, schemas as s
 from .patient_alerts import active_alerts_for_patients
+from .quick_notes import quick_notes_for_patients
 from .security import context, CLINICAL, BILLING, check_version, next_number
 from .serialization import serialize, patient_out, encounter_out, invoice_out, plan_out
 
@@ -23,11 +24,14 @@ def patients(q:str='',offset:int=0,limit:int=100,active:bool|None=None,c=Depends
             (m.Patient.first_name+' '+m.Patient.last_name).ilike(pattern,escape='\\'),m.Patient.mrn.ilike(pattern,escape='\\'),m.Patient.phone.ilike(pattern,escape='\\')))
     total=c.db.scalar(select(func.count()).select_from(query.subquery()))
     rows = list(c.db.scalars(query.order_by(m.Patient.first_name).offset(offset).limit(limit)))
-    alerts_map = active_alerts_for_patients(c.db, [p.id for p in rows])
+    pids = [p.id for p in rows]
+    alerts_map = active_alerts_for_patients(c.db, pids)
+    notes_map = quick_notes_for_patients(c.db, pids)
     items = []
     for p in rows:
         item = patient_out(c.db, p)
         item['active_alerts'] = alerts_map.get(p.id, [])
+        item['quick_notes'] = notes_map.get(p.id, [])
         items.append(item)
     return {'total': total, 'items': items}
 
@@ -264,10 +268,13 @@ def edit(identifier:str,data:s.PatientInput,version:int,c=Depends(context)):
 def chart(identifier:str,c=Depends(context)):
     row=c.patient(identifier)
     alerts_map = active_alerts_for_patients(c.db, [row.id])
+    notes_map = quick_notes_for_patients(c.db, [row.id])
     patient_alerts = alerts_map.get(row.id, [])
+    patient_notes = notes_map.get(row.id, [])
     pat_payload = patient_out(c.db, row)
     pat_payload['active_alerts'] = patient_alerts
-    result={'patient': pat_payload, 'active_alerts': patient_alerts, 'scope': 'Current branch'}
+    pat_payload['quick_notes'] = patient_notes
+    result={'patient': pat_payload, 'active_alerts': patient_alerts, 'quick_notes': patient_notes, 'scope': 'Current branch'}
     def rows(model):
         return c.db.scalars(select(model).where(model.patient_id==row.id,model.facility_id==c.facility_id).order_by(model.created_at.desc())).all()
     result['appointments']=[serialize(x) for x in rows(m.Appointment)]

@@ -106,6 +106,11 @@ import {
   PatientAlertBadgePopover,
   PatientChartAlertsPopup,
 } from "./patientAlerts";
+import {
+  PatientQuickNotesTab,
+  QuickNoteFormModal,
+  CalendarStickyNotePopover,
+} from "./patientQuickNotes";
 import { PatientRecallsView } from "./patientRecalls";
 import {
   DiagnosisTemplatesModal,
@@ -424,6 +429,11 @@ export function PatientHeader({
               patientId={p.id}
               onManageAlerts={() => onSectionSelect?.("Alerts")}
             />
+            <CalendarStickyNotePopover
+              notes={chart.quick_notes || p.quick_notes}
+              patientId={p.id}
+              patientName={p.name}
+            />
           </div>
           <div className="charm-pat-meta-line">
             <span>{p.sex || p.gender || "Male"}/ {age}</span>
@@ -590,6 +600,16 @@ export function PatientHeader({
                 }}
               >
                 <MessageSquare size={14} /> Send message
+              </button>
+              <button
+                type="button"
+                className="charm-dropdown-item"
+                onClick={() => {
+                  setPlusOpen(false);
+                  onAction?.("quick-note");
+                }}
+              >
+                <FileText size={14} /> + Sticky / Quick Note
               </button>
               <button
                 type="button"
@@ -919,13 +939,26 @@ export function PatientChart({ id }: { id: string }) {
     { id: "Tasks", label: "Tasks", count: chart.tasks?.length || 0 },
     { id: "Recalls", label: "Recalls", count: "" },
     { id: "Alerts", label: "Alerts", count: (chart.active_alerts || p.active_alerts || []).length || "" },
+    { id: "Quick Notes", label: "Quick Notes", count: (chart.quick_notes || p.quick_notes || []).length || "" },
     { id: "Billing", label: "Billing", count: chart.invoices?.length || 0 },
     { id: "EECP Treatment", label: "EECP Treatment", count: chart.plans?.length || 0 },
     { id: "Customize", label: "+ Customize", count: "" },
   ];
 
+  const activePatientAlerts: Row[] = chart.active_alerts || p.active_alerts || [];
+
   return (
     <div className="charm-chart-page">
+      {activePatientAlerts.length > 0 && dismissedAlertsPopupId !== p.id && activeSection !== "Alerts" && (
+        <PatientChartAlertsPopup
+          alerts={activePatientAlerts}
+          onManageAlerts={() => {
+            setDismissedAlertsPopupId(p.id);
+            setActiveSection("Alerts");
+          }}
+          onDismiss={() => setDismissedAlertsPopupId(p.id)}
+        />
+      )}
       <PatientHeader
         p={p}
         chart={chart}
@@ -2279,25 +2312,20 @@ export function PatientChart({ id }: { id: string }) {
 
             if (resolvedSection === "Alerts") {
               return (
-                <Panel
-                  title="Clinical Alerts, Questionnaires & Additional Records"
-                  actions={
-                    ["doctor", "assistant", "therapist"].includes(user.role) && (
-                      <Button variant="ghost" onClick={() => setModal("entries")}>
-                        <Plus size={15} /> Add
-                      </Button>
-                    )
-                  }
-                >
-                  <RecordList
-                    kind="entries"
-                    rows={chart.entries || []}
-                    onSelect={(r) => {
-                      setSelected(r);
-                      setModal("entry-detail");
-                    }}
-                  />
-                </Panel>
+                <PatientAlertsTab
+                  patientId={p.id}
+                  onAlertsChanged={() => void refetch()}
+                />
+              );
+            }
+
+            if (resolvedSection === "Quick Notes") {
+              return (
+                <PatientQuickNotesTab
+                  patientId={p.id}
+                  patient={p}
+                  onNotesChanged={() => void refetch()}
+                />
               );
             }
 
@@ -2350,6 +2378,14 @@ export function PatientChart({ id }: { id: string }) {
           })()}
         </section>
       </div>
+
+      {modal === "quick-note" && (
+        <QuickNoteFormModal
+          patientId={p.id}
+          onClose={() => setModal("")}
+          onSaved={() => void refetch()}
+        />
+      )}
 
       {modal === "edit" && (
         <PatientForm

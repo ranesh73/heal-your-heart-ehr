@@ -23,6 +23,7 @@ import { formatDoctorName } from "./clinicalWorkflows";
 import { CharmPracticeBilling } from "./charmPatientBilling";
 import { PatientWorkflowProgressBar } from "./clinicalTasks";
 import { PatientAlertBadgePopover } from "./patientAlerts";
+import { CalendarStickyNotePopover } from "./patientQuickNotes";
 import {
   api,
   branch,
@@ -2838,6 +2839,12 @@ function Schedule() {
                                             patientId={appt.patient_id}
                                             compact
                                           />
+                                          <CalendarStickyNotePopover
+                                            notes={appt.quick_notes || pat?.quick_notes}
+                                            patientId={appt.patient_id}
+                                            patientName={patName}
+                                            compact
+                                          />
                                         </div>
                                         <div className="charm-matrix-card-sub">
                                           {prvName}
@@ -3013,6 +3020,12 @@ function Schedule() {
                                         patientId={appt.patient_id}
                                         compact
                                       />
+                                      <CalendarStickyNotePopover
+                                        notes={appt.quick_notes || pat?.quick_notes}
+                                        patientId={appt.patient_id}
+                                        patientName={patName}
+                                        compact
+                                      />
                                     </div>
                                     <div className="charm-matrix-card-sub">
                                       {dayViewMode === "Resource View" ? (
@@ -3138,6 +3151,11 @@ function Schedule() {
                           <PatientAlertBadgePopover
                             alerts={a.active_alerts || pat?.active_alerts}
                             patientId={a.patient_id}
+                          />
+                          <CalendarStickyNotePopover
+                            notes={a.quick_notes || pat?.quick_notes}
+                            patientId={a.patient_id}
+                            patientName={pat?.name || patientName(a.patient_id, patients)}
                           />
                           <span
                             className="charm-red-bubble"

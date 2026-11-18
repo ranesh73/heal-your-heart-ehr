@@ -2020,3 +2020,59 @@ def test_persistent_patient_alerts_lifecycle():
     assert ok(c.get(f"/api/patients/{p['id']}"))["active_alerts"] == []
     cal_after = next(x for x in ok(c.get("/api/appointments")) if x["id"] == appt["id"])
     assert cal_after["active_alerts"] == []
+
+
+def test_patient_quick_notes_and_calendar_sticky_notes():
+    c = client("doctor")
+    p = patient(c)
+
+    # 1. Empty initially
+    assert ok(c.get(f"/api/patients/{p['id']}/quick-notes")) == []
+
+    # 2. Add two quick notes with colors
+    n1 = ok(c.post(f"/api/patients/{p['id']}/quick-notes", json={
+        "content": "Patient prefers morning EECP bed near window.",
+        "color": "yellow",
+    }))
+    n2 = ok(c.post(f"/api/patients/{p['id']}/quick-notes", json={
+        "content": "Bring outside Echo report on next visit.",
+        "color": "mint",
+    }))
+    listed = ok(c.get(f"/api/patients/{p['id']}/quick-notes"))
+    assert len(listed) == 2
+    assert {x["id"] for x in listed} == {n1["id"], n2["id"]}
+    assert n2["color"] == "mint"
+
+    # 3. Verify quick_notes is embedded in Calendar Appointments AND Patient Chart (zero N+1)
+    chart_data = ok(c.get(f"/api/patients/{p['id']}"))
+    assert len(chart_data["quick_notes"]) == 2
+    assert len(chart_data["patient"]["quick_notes"]) == 2
+
+    appt = ok(c.post("/api/appointments", json={
+        "patient_id": p["id"],
+        "provider_id": staff(c, "doctor")["id"],
+        "start_at": "2032-07-20T10:00:00+05:30",
+        "duration_minutes": 30,
+        "visit_type": "Consultation",
+        "allow_outside_hours": True,
+    }))[0]
+    cal_appt = next(x for x in ok(c.get("/api/appointments")) if x["id"] == appt["id"])
+    assert len(cal_appt["quick_notes"]) == 2
+    assert any("Echo report" in qn["content"] for qn in cal_appt["quick_notes"])
+
+    # 4. Update note
+    updated = ok(c.put(f"/api/quick-notes/{n1['id']}", json={
+        "content": "Updated: prefers 9:00 AM slot.",
+        "color": "blue",
+    }))
+    assert updated["content"] == "Updated: prefers 9:00 AM slot."
+    assert updated["color"] == "blue"
+
+    # 5. Single delete & bulk delete
+    ok(c.delete(f"/api/quick-notes/{n1['id']}"))
+    assert len(ok(c.get(f"/api/patients/{p['id']}/quick-notes"))) == 1
+    res = ok(c.post("/api/quick-notes/bulk-delete", json={"note_ids": [n2["id"]]}))
+    assert res["deleted"] == 1
+    assert ok(c.get(f"/api/patients/{p['id']}/quick-notes")) == []
+    cal_after = next(x for x in ok(c.get("/api/appointments")) if x["id"] == appt["id"])
+    assert cal_after["quick_notes"] == []
