@@ -27,8 +27,8 @@ export async function api<T = any>(
     body === undefined
       ? undefined
       : isForm
-      ? body
-      : JSON.stringify(body);
+        ? body
+        : JSON.stringify(body);
 
   try {
     const response = await fetch(cleanPath, {
@@ -66,17 +66,35 @@ export async function api<T = any>(
   }
 }
 export async function download(path: string, filename: string) {
-  const r = await fetch("/api" + path, {
+  const cleanPath = path.startsWith("/api") ? path : "/api" + path;
+  const r = await fetch(cleanPath, {
     headers: { "X-Facility-ID": branch },
     credentials: "same-origin",
   });
-  if (!r.ok) throw new Error("Unable to download this file");
+  if (!r.ok) {
+    const data = await r.json().catch(() => null);
+    throw new Error(typeof data?.detail === "string" ? data.detail : "Unable to download this file");
+  }
   const url = URL.createObjectURL(await r.blob());
   const a = document.createElement("a");
   a.href = url;
   a.download = filename;
   a.click();
   setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+export async function fetchPdfBlobUrl(path: string): Promise<string> {
+  const cleanPath = path.startsWith("/api") ? path : "/api" + path;
+  const r = await fetch(cleanPath, {
+    headers: { "X-Facility-ID": branch },
+    credentials: "same-origin",
+  });
+  if (!r.ok) {
+    const data = await r.json().catch(() => null);
+    throw new Error(typeof data?.detail === "string" ? data.detail : `Request failed with status ${r.status}`);
+  }
+  const blob = await r.blob();
+  return URL.createObjectURL(blob);
 }
 export const money = (paise: number) =>
   new Intl.NumberFormat("en-IN", {

@@ -9,12 +9,12 @@ set "SCRIPT_DIR=%~dp0"
 cd /d "%SCRIPT_DIR%"
 
 echo [1/2] Starting FastAPI Backend on port 8000...
-start "HYH EHR Backend" cmd /k "cd /d ""%SCRIPT_DIR%"" && .venv\Scripts\uvicorn.exe backend.app.main:app --host 127.0.0.1 --port 8000 --reload"
+start "HYH EHR Backend" cmd /k "cd /d ""%SCRIPT_DIR%"" && .venv\Scripts\python.exe -m uvicorn backend.app.main:app --host 127.0.0.1 --port 8000 --reload"
 
 echo [2/2] Starting Frontend Vite Server on port 5173...
 start "HYH EHR Frontend" cmd /k "cd /d ""%SCRIPT_DIR%"" && npm --prefix frontend run dev -- --host 127.0.0.1"
 
-timeout /t 3 >nul
+ping 127.0.0.1 -n 3 >nul
 start "" "http://127.0.0.1:5173"
 
 echo.

@@ -21,6 +21,9 @@ import {
 import { ViewTemplateModal } from "./patients";
 import { formatDoctorName } from "./clinicalWorkflows";
 import { CharmPracticeBilling } from "./charmPatientBilling";
+import { PatientWorkflowProgressBar } from "./clinicalTasks";
+import { PatientAlertBadgePopover } from "./patientAlerts";
+import { CalendarStickyNotePopover } from "./patientQuickNotes";
 import {
   api,
   branch,
@@ -2089,6 +2092,22 @@ function Schedule() {
     return sorted;
   }, [searchAndStatusFiltered, calSortBy, resources, staff]);
 
+  const calendarPatientIds = useMemo(() => {
+    const unique = Array.from(new Set(displayedAppts.map((a) => a.patient_id).filter(Boolean)));
+    return unique.sort().join(",");
+  }, [displayedAppts]);
+
+  const calendarWorkflowsQuery = useQuery({
+    queryKey: ["calendar-workflow-progress", branch, calendarPatientIds],
+    queryFn: () =>
+      api<Record<string, Row[]>>(
+        `/clinical-tasks/workflow-progress-batch?patient_ids=${encodeURIComponent(calendarPatientIds)}`,
+      ),
+    enabled: Boolean(calendarPatientIds),
+    refetchInterval: 15000,
+  });
+  const calendarWorkflowMap = calendarWorkflowsQuery.data || {};
+
   const activeCalView = calSubtab === "Waiting List" ? waitingListView : view;
   const shift = (amount: number) => {
     if (activeCalView === "Month") {
@@ -2920,7 +2939,20 @@ function Schedule() {
                                         <div className="charm-matrix-card-time">
                                           {sTime} - {eTime}
                                         </div>
-                                        <div className="charm-matrix-card-pat">{patName}</div>
+                                        <div className="charm-matrix-card-pat" style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                                          <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{patName}</span>
+                                          <PatientAlertBadgePopover
+                                            alerts={appt.active_alerts || pat?.active_alerts}
+                                            patientId={appt.patient_id}
+                                            compact
+                                          />
+                                          <CalendarStickyNotePopover
+                                            notes={appt.quick_notes || pat?.quick_notes}
+                                            patientId={appt.patient_id}
+                                            patientName={patName}
+                                            compact
+                                          />
+                                        </div>
                                         <div className="charm-matrix-card-sub">
                                           {prvName}
                                           {rName && rName !== "-- Select --" ? ` · ${rName}` : ""}
@@ -3088,7 +3120,20 @@ function Schedule() {
                                         </button>
                                       )}
                                     </div>
-                                    <div className="charm-matrix-card-pat">{patName}</div>
+                                    <div className="charm-matrix-card-pat" style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                                      <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{patName}</span>
+                                      <PatientAlertBadgePopover
+                                        alerts={appt.active_alerts || pat?.active_alerts}
+                                        patientId={appt.patient_id}
+                                        compact
+                                      />
+                                      <CalendarStickyNotePopover
+                                        notes={appt.quick_notes || pat?.quick_notes}
+                                        patientId={appt.patient_id}
+                                        patientName={patName}
+                                        compact
+                                      />
+                                    </div>
                                     <div className="charm-matrix-card-sub">
                                       {dayViewMode === "Resource View" ? (
                                         <>{prvName}{sDay ? `, ${sDay}` : ""}</>
@@ -3210,6 +3255,15 @@ function Schedule() {
                           >
                             <strong>{pat?.name || patientName(a.patient_id, patients)} [ {pat?.mrn || "HUHNKR" + a.id.slice(0, 4)} ]</strong>
                           </button>
+                          <PatientAlertBadgePopover
+                            alerts={a.active_alerts || pat?.active_alerts}
+                            patientId={a.patient_id}
+                          />
+                          <CalendarStickyNotePopover
+                            notes={a.quick_notes || pat?.quick_notes}
+                            patientId={a.patient_id}
+                            patientName={pat?.name || patientName(a.patient_id, patients)}
+                          />
                           <span
                             className="charm-red-bubble"
                             title="Patient Chat / Notes"
@@ -3430,6 +3484,15 @@ function Schedule() {
                             </button>
                           </div>
                         </div>
+
+                        {/* Live Active Clinical Workflow Progress Tracker */}
+                        {calendarWorkflowMap[a.patient_id]?.length > 0 && (
+                          <PatientWorkflowProgressBar
+                            workflows={calendarWorkflowMap[a.patient_id]}
+                            compact
+                            onOpenTasks={() => navigate(`/patients/${a.patient_id}?section=Tasks`)}
+                          />
+                        )}
                       </div>
                     </div>
                   );

@@ -7,7 +7,7 @@ def seed_database():
 
     # Clear existing data
     cursor.execute("DELETE FROM template_responses;")
-    cursor.execute("DELETE FROM consultations;")
+    cursor.execute("DELETE FROM template_consultation_responses;")
     cursor.execute("DELETE FROM template_relationships;")
     cursor.execute("DELETE FROM template_options;")
     cursor.execute("DELETE FROM template_components;")
@@ -967,7 +967,7 @@ def seed_database():
         cp_id = cp_row["id"]
         p_id = p_row["id"]
         cursor.execute("""
-            INSERT INTO consultations (patient_id, template_id, doctor_name, status, notes)
+            INSERT INTO template_consultation_responses (patient_id, template_id, doctor_name, status, notes)
             VALUES (?, ?, 'Sanjana K', 'Completed', 'Patient evaluated for acute chest tightness. EECP recommended.');
         """, (p_id, cp_id))
         cons_id = cursor.lastrowid

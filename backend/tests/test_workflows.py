@@ -1068,6 +1068,173 @@ def test_patient_import_workflow():
     assert res_inactive.status_code == 200, res_inactive.text
 
 
+def test_consultation_and_discharge_summary_workflow():
+    c = client("doctor")
+    p = patient(c)
+    provider_id = staff(c, "doctor")["id"]
+    created = ok(c.post(f"/api/patients/{p['id']}/consultations", json={
+        "provider_id": provider_id,
+        "facility_id": c.headers["X-Facility-ID"],
+        "visit_type": "EECP Treatment Completed",
+        "visit_mode": "In Person",
+        "visit_date": "2032-03-01T10:00:00+05:30",
+        "soap_json": {
+            "subjective": {
+                "chief_complaints": "Training complaint",
+                "history_of_present_illness": "Training history",
+            },
+            "assessment": {"notes": "Training assessment"},
+            "plan": {"notes": "Training plan"},
+        },
+    }))
+    assert created["status"] == "unsigned"
+    assert created["encounter"]["chief_complaint"] == "Training complaint"
+    assert c.get("/api/template-responses").status_code == 200
+    assert ok(c.get(f"/api/patients/{p['id']}/consultations", params={"tab": "all"}))[0]["id"] == created["id"]
+    assert ok(c.get(f"/api/patients/{p['id']}/consultations", params={"tab": "last_visit"}))[0]["id"] == created["id"]
+
+    updated = ok(c.put(f"/api/consultations/{created['id']}", json={
+        "version": created["version"],
+        "status": "co_sign",
+        "soap_json": {
+            "subjective": {"chief_complaints": "Training complaint", "history_of_present_illness": "Training history"},
+            "assessment": {"notes": "Training assessment"},
+            "plan": {"notes": "Training plan"},
+        },
+    }))
+    assert updated["status"] == "co_sign"
+    assert len(ok(c.get(f"/api/patients/{p['id']}/consultations", params={"tab": "co_sign"}))) == 1
+
+    report = ok(c.get(f"/api/consultations/{created['id']}/discharge-summary"))
+    assert report["patient_information"]["registration_no"] == p["mrn"]
+    assert report["brief_history"] == "Training assessment"
+    assert len(report["investigation_tables"]) == 7
+    report["patient_information"]["name"] = "Incorrect patient"
+    report["treatment_information"]["sponsor"] = "Training sponsor"
+    report["investigation_tables"]["Vitals"][0]["pre"] = "64"
+    saved = ok(c.put(f"/api/consultations/{created['id']}/discharge-summary", json={
+        "version": report["version"],
+        "report_data_json": report,
+    }))
+    assert saved["treatment_information"]["sponsor"] == "Training sponsor"
+    assert saved["patient_information"]["name"] == p["name"]
+    assert saved["investigation_tables"]["Vitals"][0]["pre"] == "64"
+    revised_report = ok(c.put(f"/api/consultations/{created['id']}/discharge-summary", json={
+        "version": saved["version"],
+        "report_data_json": saved,
+    }))
+    assert revised_report["version"] == saved["version"] + 1
+    assert c.put(f"/api/consultations/{created['id']}/discharge-summary", json={
+        "version": report["version"],
+        "report_data_json": report,
+    }).status_code == 409
+    signed = ok(c.post(f"/api/consultations/{created['id']}/sign", json={"version": updated["version"]}))
+    assert signed["status"] == "signed"
+
+    addendum = ok(c.post(f"/api/consultations/{created['id']}/addendums", json={"note_text": "Training addendum"}))
+    assert addendum["note_text"] == "Training addendum"
+    assert len(ok(c.get(f"/api/consultations/{created['id']}/addendums"))) == 1
+    ccda = c.get(f"/api/consultations/{created['id']}/export/ccda")
+    assert ccda.status_code == 200 and b"ClinicalDocument" in ccda.content
+    pdf = c.get(f"/api/consultations/{created['id']}/export/pdf")
+    assert pdf.status_code == 200 and pdf.content.startswith(b"%PDF")
+
+    unauthorized = client("reception")
+    assert unauthorized.get(f"/api/patients/{p['id']}/consultations").status_code == 403
+
+
+def test_clinical_tasks_workflow_templates_lock_and_handoff():
+    creator = client("doctor")
+    p = patient(creator)
+
+    # 1. Verify all 4 seeded workflow templates
+    templates = ok(creator.get("/api/workflow-templates"))
+    names = [t["name"] for t in templates]
+    for required_name in ("EECP Lab + Demo", "Lab Alone", "Lab + Treatment Started", "Admission"):
+        assert required_name in names
+    admission = next(t for t in templates if t["name"] == "Admission")
+    assert admission["has_optional_lab_flow"] is True
+    assert len(admission["optional_lab_steps"]) == 2
+
+    # 2. Custom Template Builder
+    custom = ok(creator.post("/api/workflow-templates", json={
+        "name": "Custom Post-EECP Check",
+        "description": "Custom follow-up flow",
+        "steps": [
+            {"step_order": 1, "title": "Call patient after 1 week", "default_priority": "High", "allowed_assignees": ["Susan Sekar"]},
+        ],
+    }))
+    assert custom["name"] == "Custom Post-EECP Check"
+    assert custom["is_system"] is False
+
+    # 3. Resolve seeded staff users: Nathiya (Step 1), Sarala D (Step 2), Dr. Elakkiya M (Step 3), Susan Sekar (unrelated third party)
+    all_staff = ok(creator.get("/api/staff"))
+    nathiya = next(s for s in all_staff if s["name"] == "Nathiya")
+    sarala = next(s for s in all_staff if s["name"] == "Sarala D")
+    elakkiya = next(s for s in all_staff if s["name"] == "Dr. Elakkiya M")
+    susan = next(s for s in all_staff if s["name"] == "Susan Sekar")
+
+    eecp_tmpl = next(t for t in templates if t["name"] == "EECP Lab + Demo")
+    created_steps = ok(creator.post("/api/clinical-tasks", json={
+        "mode": "template",
+        "template_id": eecp_tmpl["id"],
+        "patient_id": p["id"],
+        "steps": [
+            {"step_order": 1, "title": "Check the billing and payment done", "short_label": "Billing", "priority": "High", "assigned_to_user_id": nathiya["id"], "due_date": "2020-01-01"},
+            {"step_order": 2, "title": "Complete the Laboratory Testing", "short_label": "Lab Test", "sub_type": "Lab Test", "priority": "Medium", "assigned_to_user_id": sarala["id"]},
+            {"step_order": 3, "title": "Verify Laboratory Report", "short_label": "Verify Lab", "priority": "Medium", "assigned_to_user_id": elakkiya["id"]},
+            {"step_order": 4, "title": "Arrange demo and treatment", "short_label": "Demo", "priority": "Medium", "assigned_to_user_id": susan["id"]},
+            {"step_order": 5, "title": "Complete patient counselling and treatment decision", "short_label": "Counselling", "priority": "Medium", "assigned_to_user_id": susan["id"]},
+        ],
+    }))
+    assert len(created_steps) == 5
+    step1 = created_steps[0]
+    assert step1["is_overdue"] is True
+
+    # 4. Login as Nathiya, Sarala D, and Susan Sekar to verify Notifications, Two-Person Edit Lock, and Auto-Handoff
+    def login_as(email: str):
+        cl = TestClient(app)
+        res = ok(cl.post("/api/auth/login", json={"email": email, "password": "password123"}))
+        cl.headers.update({"X-CSRF-Token": res["csrf"], "X-Facility-ID": creator.headers["X-Facility-ID"]})
+        return cl
+
+    nathiya_c = login_as("nathiya@healyourheart.local")
+    sarala_c = login_as("sarala.d@healyourheart.local")
+    susan_c = login_as("susan.sekar@healyourheart.local")
+
+    # Nathiya received instant assignment notification for Step 1
+    nathiya_notifs = ok(nathiya_c.get("/api/clinical-tasks/notifications"))
+    assert nathiya_notifs["unread_count"] >= 1
+    assert any(n["task"]["id"] == step1["id"] for n in nathiya_notifs["notifications"])
+
+    # STRICT TWO-PERSON EDIT LOCK: Susan Sekar (neither creator nor assignee of Step 1) MUST get 403 Forbidden!
+    forbidden = susan_c.patch(f"/api/clinical-tasks/{step1['id']}", json={"status": "Completed"})
+    assert forbidden.status_code == 403
+    assert "Editable only by" in forbidden.json()["detail"]
+
+    # Comments drawer works
+    cm = ok(susan_c.post(f"/api/clinical-tasks/{step1['id']}/comments", json={"body": "Patient waiting at billing counter"}))
+    assert cm["body"] == "Patient waiting at billing counter"
+    assert len(ok(nathiya_c.get(f"/api/clinical-tasks/{step1['id']}/comments"))) == 1
+
+    # Nathiya (Assignee) completes Step 1 -> Auto-Handoff notifies Sarala D (Step 2)!
+    completed_step1 = ok(nathiya_c.patch(f"/api/clinical-tasks/{step1['id']}", json={"status": "Completed"}))
+    assert completed_step1["status"] == "Completed"
+    assert completed_step1["handoff"]["next_assignee_name"] == "Sarala D"
+
+    sarala_notifs = ok(sarala_c.get("/api/clinical-tasks/notifications"))
+    assert any(n["kind"] == "handoff" and n["task"]["step_order"] == 2 for n in sarala_notifs["notifications"])
+
+    # Live Workflow Progress (Calendar batch & Patient Banner) reflects 1/5 completed and Step 2 as bottleneck!
+    batch = ok(creator.get("/api/clinical-tasks/workflow-progress-batch", params={"patient_ids": p["id"]}))
+    wf = batch[p["id"]][0]
+    assert wf["template_name"] == "EECP Lab + Demo"
+    assert wf["completed_count"] == 1
+    assert wf["total_count"] == 5
+    assert wf["bottleneck"]["title"] == "Complete the Laboratory Testing"
+    assert wf["bottleneck"]["assigned_to_name"] == "Sarala D"
+
+
 # ==============================================================================
 # CHARMHEALTH PATIENT PAYMENT & INVOICE ALLOCATION SUITE
 # ==============================================================================
@@ -1561,3 +1728,351 @@ def test_invoice_pdf_generation_templates():
         assert res.headers['content-type'] == 'application/pdf'
         assert res.content.startswith(b'%PDF-1.4')
         assert len(res.content) > 500
+
+
+def test_patient_recalls_and_settings_workflow():
+    c = client('doctor')
+    p = patient(c)
+    doc = staff(c, 'doctor')
+
+    # 1. Verify 6 seeded Recall Types in exact order
+    types = ok(c.get('/api/settings/recall-types'))
+    assert [t['name'] for t in types[:6]] == [
+        'Reassessment visit',
+        'Non EECP Reassessment Visit',
+        'Procedures',
+        'Lab test',
+        'Admission',
+        'No show',
+    ]
+
+    # 2. Verify 14 seeded Recall Statuses in exact order & system default protection (400)
+    statuses = ok(c.get('/api/settings/recall-statuses'))
+    assert [s['name'] for s in statuses[:14]] == [
+        'Pending',
+        'Completed',
+        'Not willing',
+        'Do not disturb',
+        'Bypass Surgery',
+        'Alternate medicine',
+        'Expired',
+        'Postponed Appointment',
+        'Patient Discontinued',
+        'Treatment Started',
+        'PTCA',
+        'Waitlisted',
+        'Willing to start',
+        'Received',
+    ]
+    pending = statuses[0]
+    completed = statuses[1]
+    assert pending['is_system_default'] is True
+    assert completed['is_system_default'] is True
+    assert c.put(f"/api/settings/recall-statuses/{pending['id']}", json={'name': 'Renamed'}).status_code == 400
+    assert c.delete(f"/api/settings/recall-statuses/{completed['id']}").status_code == 400
+
+    # 3. Custom Recall Type & Status CRUD
+    custom_type = ok(c.post('/api/settings/recall-types', json={'name': 'Annual Stress Echo'}))
+    updated_type = ok(c.put(f"/api/settings/recall-types/{custom_type['id']}", json={'name': 'Annual Echo Review'}))
+    assert updated_type['name'] == 'Annual Echo Review'
+    ok(c.delete(f"/api/settings/recall-types/{custom_type['id']}"))
+
+    custom_status = ok(c.post('/api/settings/recall-statuses', json={'name': 'Callback Requested'}))
+    ok(c.put(f"/api/settings/recall-statuses/{custom_status['id']}", json={'name': 'Callback Scheduled'}))
+    ok(c.delete(f"/api/settings/recall-statuses/{custom_status['id']}"))
+
+    # 4. Recall Preferences GET & PUT
+    prefs = ok(c.get('/api/settings/recall-preferences'))
+    assert prefs['default_email_enabled'] is True
+    assert prefs['default_sms_enabled'] is True
+    assert prefs['email_days_before'] == 3
+    assert prefs['mark_complete_on_send'] is True
+    updated_prefs = ok(c.put('/api/settings/recall-preferences', json={
+        'default_email_enabled': True,
+        'default_sms_enabled': False,
+        'email_days_before': 5,
+        'sms_days_before': 2,
+        'sms_template_text': 'Reminder from $PRACTICE to schedule for $NOTES. Please ignore, if already scheduled',
+        'mark_complete_on_send': False,
+    }))
+    assert updated_prefs['email_days_before'] == 5
+    assert updated_prefs['mark_complete_on_send'] is False
+
+    # 5. Follow-up Templates (seeded Vaso-Meditech Follow-up + custom MY template)
+    templates = ok(c.get('/api/recall-templates'))
+    vaso = next(t for t in templates if t['name'] == 'Vaso-Meditech Follow-up')
+    assert vaso['category'] == 'PRACTICE'
+    assert vaso['items'][0]['interval_value'] == 3
+    assert vaso['items'][0]['interval_unit'] == 'months'
+
+    my_tmpl = ok(c.post('/api/recall-templates', json={
+        'category': 'MY',
+        'name': 'Post-EECP 6M Check',
+        'items': [
+            {
+                'recall_type_name': 'Reassessment visit',
+                'notes': 'Bring fasting lipid profile.',
+                'date_direction': 'after',
+                'interval_value': 6,
+                'interval_unit': 'months',
+                'email_enabled': True,
+                'email_days_before': 3,
+                'sms_enabled': True,
+                'sms_days_before': 3,
+            }
+        ],
+    }))
+    assert my_tmpl['category'] == 'MY'
+
+    # 6. Instantiate from Template (batch) & create single Recall + inline PATCH + mark_completed + DELETE
+    from_tmpl = ok(c.post(f"/api/patients/{p['id']}/recalls", json={
+        'items': [
+            {
+                'recall_type_name': 'Reassessment visit',
+                'notes': 'Please bring the advised lab reports taken just before the follow-up visit.',
+                'date_direction': 'after',
+                'interval_value': 3,
+                'interval_unit': 'months',
+                'visit_date': '2026-11-18',
+                'provider_id': doc['id'],
+                'auto_reminder_enabled': True,
+                'email_enabled': True,
+                'email_reminder_days': 3,
+                'sms_enabled': True,
+                'sms_reminder_days': 3,
+            }
+        ],
+    }))
+    assert len(from_tmpl) == 1
+    recall = from_tmpl[0]
+    assert recall['due_date'] == '2027-02-18'
+    assert recall['status_name'] == 'Pending'
+    assert recall['auto_reminder_label'] == 'Enabled'
+
+    # Filter by status_id=Pending returns the recall
+    listed = ok(c.get(f"/api/patients/{p['id']}/recalls", params={'status_id': pending['id']}))
+    assert len(listed) == 1
+
+    # Mark as Completed via PATCH
+    done = ok(c.patch(f"/api/recalls/{recall['id']}", json={'mark_completed': True}))
+    assert done['status_name'] == 'Completed'
+    assert len(ok(c.get(f"/api/patients/{p['id']}/recalls", params={'status_id': pending['id']}))) == 0
+    assert len(ok(c.get(f"/api/patients/{p['id']}/recalls", params={'status_id': completed['id']}))) == 1
+
+    # Delete Recall
+    ok(c.delete(f"/api/recalls/{recall['id']}"))
+    assert len(ok(c.get(f"/api/patients/{p['id']}/recalls"))) == 0
+
+
+def test_consultation_reports_same_day_orders_and_send_summary():
+    c = client("doctor")
+    p = patient(c)
+    provider_id = staff(c, "doctor")["id"]
+    created = ok(c.post(f"/api/patients/{p['id']}/consultations", json={
+        "provider_id": provider_id,
+        "facility_id": c.headers["X-Facility-ID"],
+        "visit_type": "EECP Treatment Completed",
+        "visit_mode": "In Person",
+        "visit_date": "2032-05-16T11:30:00+05:30",
+        "soap_json": {
+            "subjective": {"chief_complaints": "POST EECP COMPLETE"},
+            "assessment": {"notes": "Improved exercise tolerance"},
+            "plan": {"notes": "Continue lifestyle modifications"},
+        },
+    }))
+
+    lab_empty = c.get(f"/api/consultations/{created['id']}/export/lab-order")
+    assert lab_empty.status_code == 404
+    assert lab_empty.json()["detail"] == "No Lab Orders found for this consultation date."
+
+    img_empty = c.get(f"/api/consultations/{created['id']}/export/image-order")
+    assert img_empty.status_code == 404
+    assert img_empty.json()["detail"] == "No Imaging Orders found for this consultation date."
+
+    rx_empty = c.get(f"/api/consultations/{created['id']}/export/rx")
+    assert rx_empty.status_code == 404
+    assert rx_empty.json()["detail"] == "No prescriptions found for this consultation date."
+
+    ok(c.post("/api/records/orders", json={
+        "patient_id": p["id"],
+        "kind": "Lab",
+        "name": "Lipid Profile (Other Day)",
+        "ordered_date": "May 10, 2032",
+    }))
+    assert c.get(f"/api/consultations/{created['id']}/export/lab-order").status_code == 404
+
+    ok(c.post("/api/records/orders", json={
+        "patient_id": p["id"],
+        "kind": "Lab",
+        "name": "Fasting Lipid Profile",
+        "ordered_date": "May 16, 2032",
+        "instructions": "12 hour fasting",
+    }))
+    ok(c.post("/api/records/orders", json={
+        "patient_id": p["id"],
+        "kind": "Imaging",
+        "name": "ECG - Resting",
+        "ordered_date": "May 16, 2032",
+        "instructions": "12-lead ECG",
+    }))
+    ok(c.post("/api/records/medications", json={
+        "patient_id": p["id"],
+        "encounter_id": created["id"],
+        "trade_name": "Pitavastatin",
+        "dose": "4mg",
+        "route": "Oral",
+        "maen": "0-0-0-1",
+        "duration_days": 30,
+        "quantity": 30,
+        "dispense_unit": "Tablets",
+        "substitution_allowed": False,
+        "instructions": "After dinner",
+        "start_date": "2032-05-16",
+    }))
+
+    for path in (
+        f"/api/consultations/{created['id']}/export/pdf?inline=1",
+        f"/api/consultations/{created['id']}/export/clinical-summary?inline=1",
+        f"/api/consultations/{created['id']}/export/lab-order?inline=1",
+        f"/api/consultations/{created['id']}/export/image-order?inline=1",
+        f"/api/consultations/{created['id']}/export/rx?inline=1",
+    ):
+        res = c.get(path)
+        assert res.status_code == 200, f"{path}: {res.status_code} {res.text}"
+        assert res.content.startswith(b"%PDF")
+        assert len(res.content) > 2000
+
+    summary = ok(c.get(f"/api/consultations/{created['id']}/clinical-summary"))
+    assert summary["patient"]["mrn"] == p["mrn"]
+    assert "[Substitution not allowed]" in summary["prescriptions"][0]["notes"]
+
+    sent_email = ok(c.post(f"/api/consultations/{created['id']}/send-summary", json={
+        "channel": "email",
+        "recipient": "patient@demo.local",
+    }))
+    assert sent_email["status"] in ("sent", "queued")
+    assert sent_email["pdf_size_bytes"] > 2000
+
+    sent_sms = ok(c.post(f"/api/consultations/{created['id']}/send-summary", json={
+        "channel": "sms",
+        "recipient": "+919003070065",
+    }))
+    assert sent_sms["status"] in ("sent", "queued")
+    assert sent_sms["pdf_size_bytes"] > 2000
+
+
+def test_persistent_patient_alerts_lifecycle():
+    c = client("doctor")
+    p = patient(c)
+
+    # 1. Empty initially
+    assert ok(c.get(f"/api/patients/{p['id']}/alerts")) == []
+
+    # 2. Add Need Report first, then Medical Emergency — severity order MUST place medical_emergency first!
+    a1 = ok(c.post(f"/api/patients/{p['id']}/alerts", json={
+        "alert_type": "need_report",
+        "description": "Need Report",
+    }))
+    a2 = ok(c.post(f"/api/patients/{p['id']}/alerts", json={
+        "alert_type": "medical_emergency",
+        "description": "Critical Heart Failure",
+    }))
+    listed = ok(c.get(f"/api/patients/{p['id']}/alerts"))
+    assert len(listed) == 2
+    assert listed[0]["id"] == a2["id"]
+    assert listed[0]["alert_type"] == "medical_emergency"
+    assert listed[1]["id"] == a1["id"]
+
+    # 3. Verify active_alerts is embedded in Patient Chart AND Patient Directory AND Calendar Appointments (zero N+1)
+    chart_data = ok(c.get(f"/api/patients/{p['id']}"))
+    assert len(chart_data["active_alerts"]) == 2
+    assert chart_data["patient"]["active_alerts"][0]["description"] == "Critical Heart Failure"
+
+    dir_items = ok(c.get("/api/patients", params={"q": p["mrn"]}))["items"]
+    assert len(dir_items[0]["active_alerts"]) == 2
+
+    # Book an appointment for this patient and verify Calendar API includes active_alerts
+    appt = ok(c.post("/api/appointments", json={
+        "patient_id": p["id"],
+        "provider_id": staff(c, "doctor")["id"],
+        "start_at": "2032-06-15T10:00:00+05:30",
+        "duration_minutes": 30,
+        "visit_type": "Consultation",
+        "allow_outside_hours": True,
+    }))[0]
+    cal_appts = ok(c.get("/api/appointments"))
+    matched_appt = next(x for x in cal_appts if x["id"] == appt["id"])
+    assert len(matched_appt["active_alerts"]) == 2
+    assert matched_appt["active_alerts"][0]["alert_type"] == "medical_emergency"
+
+    # 4. Update alert
+    updated = ok(c.put(f"/api/alerts/{a1['id']}", json={
+        "alert_type": "patient_status",
+        "description": "VIP / Priority Wheelchair Assistance",
+    }))
+    assert updated["alert_type"] == "patient_status"
+    assert updated["description"] == "VIP / Priority Wheelchair Assistance"
+
+    # 5. Delete alerts — must immediately disappear from alerts list, chart, and calendar
+    ok(c.delete(f"/api/alerts/{a2['id']}"))
+    ok(c.delete(f"/api/alerts/{a1['id']}"))
+    assert ok(c.get(f"/api/patients/{p['id']}/alerts")) == []
+    assert ok(c.get(f"/api/patients/{p['id']}"))["active_alerts"] == []
+    cal_after = next(x for x in ok(c.get("/api/appointments")) if x["id"] == appt["id"])
+    assert cal_after["active_alerts"] == []
+
+
+def test_patient_quick_notes_and_calendar_sticky_notes():
+    c = client("doctor")
+    p = patient(c)
+
+    # 1. Empty initially
+    assert ok(c.get(f"/api/patients/{p['id']}/quick-notes")) == []
+
+    # 2. Add two quick notes with colors
+    n1 = ok(c.post(f"/api/patients/{p['id']}/quick-notes", json={
+        "content": "Patient prefers morning EECP bed near window.",
+        "color": "yellow",
+    }))
+    n2 = ok(c.post(f"/api/patients/{p['id']}/quick-notes", json={
+        "content": "Bring outside Echo report on next visit.",
+        "color": "mint",
+    }))
+    listed = ok(c.get(f"/api/patients/{p['id']}/quick-notes"))
+    assert len(listed) == 2
+    assert {x["id"] for x in listed} == {n1["id"], n2["id"]}
+    assert n2["color"] == "mint"
+
+    # 3. Verify quick_notes is embedded in Calendar Appointments AND Patient Chart (zero N+1)
+    chart_data = ok(c.get(f"/api/patients/{p['id']}"))
+    assert len(chart_data["quick_notes"]) == 2
+    assert len(chart_data["patient"]["quick_notes"]) == 2
+
+    appt = ok(c.post("/api/appointments", json={
+        "patient_id": p["id"],
+        "provider_id": staff(c, "doctor")["id"],
+        "start_at": "2032-07-20T10:00:00+05:30",
+        "duration_minutes": 30,
+        "visit_type": "Consultation",
+        "allow_outside_hours": True,
+    }))[0]
+    cal_appt = next(x for x in ok(c.get("/api/appointments")) if x["id"] == appt["id"])
+    assert len(cal_appt["quick_notes"]) == 2
+    assert any("Echo report" in qn["content"] for qn in cal_appt["quick_notes"])
+
+    # 4. Update note
+    updated = ok(c.put(f"/api/quick-notes/{n1['id']}", json={
+        "content": "Updated: prefers 9:00 AM slot.",
+        "color": "blue",
+    }))
+    assert updated["content"] == "Updated: prefers 9:00 AM slot."
+    assert updated["color"] == "blue"
+
+    # 5. Single delete & bulk delete
+    ok(c.delete(f"/api/quick-notes/{n1['id']}"))
+    assert len(ok(c.get(f"/api/patients/{p['id']}/quick-notes"))) == 1
+    res = ok(c.post("/api/quick-notes/bulk-delete", json={"note_ids": [n2["id"]]}))
+    assert res["deleted"] == 1
+    assert ok(c.get(f"/api/patients/{p['id']}/quick-notes")) == []
+    cal_after = next(x for x in ok(c.get("/api/appointments")) if x["id"] == appt["id"])
+    assert cal_after["quick_notes"] == []

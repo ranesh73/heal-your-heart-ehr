@@ -4,6 +4,8 @@ from datetime import datetime
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Response
 from sqlalchemy import select, or_, func, delete
 from . import models as m, schemas as s
+from .patient_alerts import active_alerts_for_patients
+from .quick_notes import quick_notes_for_patients
 from .security import context, CLINICAL, BILLING, check_version, next_number
 from .serialization import serialize, patient_out, encounter_out, invoice_out, plan_out
 
@@ -21,7 +23,17 @@ def patients(q:str='',offset:int=0,limit:int=100,active:bool|None=None,c=Depends
         query=query.where(or_(m.Patient.first_name.ilike(pattern,escape='\\'),m.Patient.last_name.ilike(pattern,escape='\\'),
             (m.Patient.first_name+' '+m.Patient.last_name).ilike(pattern,escape='\\'),m.Patient.mrn.ilike(pattern,escape='\\'),m.Patient.phone.ilike(pattern,escape='\\')))
     total=c.db.scalar(select(func.count()).select_from(query.subquery()))
-    return {'total':total,'items':[patient_out(c.db,p) for p in c.db.scalars(query.order_by(m.Patient.first_name).offset(offset).limit(limit))]}
+    rows = list(c.db.scalars(query.order_by(m.Patient.first_name).offset(offset).limit(limit)))
+    pids = [p.id for p in rows]
+    alerts_map = active_alerts_for_patients(c.db, pids)
+    notes_map = quick_notes_for_patients(c.db, pids)
+    items = []
+    for p in rows:
+        item = patient_out(c.db, p)
+        item['active_alerts'] = alerts_map.get(p.id, [])
+        item['quick_notes'] = notes_map.get(p.id, [])
+        items.append(item)
+    return {'total': total, 'items': items}
 
 
 @router.get('/import/template')
@@ -255,7 +267,14 @@ def edit(identifier:str,data:s.PatientInput,version:int,c=Depends(context)):
 @router.get('/{identifier}')
 def chart(identifier:str,c=Depends(context)):
     row=c.patient(identifier)
-    result={'patient':patient_out(c.db,row),'scope':'Current branch'}
+    alerts_map = active_alerts_for_patients(c.db, [row.id])
+    notes_map = quick_notes_for_patients(c.db, [row.id])
+    patient_alerts = alerts_map.get(row.id, [])
+    patient_notes = notes_map.get(row.id, [])
+    pat_payload = patient_out(c.db, row)
+    pat_payload['active_alerts'] = patient_alerts
+    pat_payload['quick_notes'] = patient_notes
+    result={'patient': pat_payload, 'active_alerts': patient_alerts, 'quick_notes': patient_notes, 'scope': 'Current branch'}
     def rows(model):
         return c.db.scalars(select(model).where(model.patient_id==row.id,model.facility_id==c.facility_id).order_by(model.created_at.desc())).all()
     result['appointments']=[serialize(x) for x in rows(m.Appointment)]
@@ -290,6 +309,18 @@ def chart(identifier:str,c=Depends(context)):
             if not vac.get('name') and vac.get('vaccine_name'): vac['name'] = vac['vaccine_name']
             if not vac.get('dosage') and vac.get('dose'): vac['dosage'] = vac['dose']
         result['encounters']=[encounter_out(c.db,x) for x in rows(m.Encounter)]
+        for encounter in result['encounters']:
+            consultation = c.db.get(m.Consultation, encounter['id'])
+            encounter['consultation_status'] = consultation.status if consultation else (
+                'signed' if encounter['status'] == 'signed' else 'unsigned'
+            )
+            if consultation:
+                encounter['soap_json'] = consultation.soap_json
+                encounter['facility_name'] = consultation.facility_name
+                if consultation.signed_by:
+                    encounter['signed_by'] = consultation.signed_by
+                if consultation.signed_at:
+                    encounter['signed_at'] = consultation.signed_at.isoformat()
         result['plans']=[plan_out(c.db,x) for x in rows(m.Plan)]
         for order in result['orders']:
             order['values']=[serialize(x) for x in c.db.scalars(select(m.LabValue).where(m.LabValue.order_id==order['id']))]

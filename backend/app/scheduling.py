@@ -6,6 +6,8 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select, or_, func
 from sqlalchemy.orm import Session
 from . import models as m, schemas as s
+from .patient_alerts import active_alerts_for_patients
+from .quick_notes import quick_notes_for_patients
 from .security import context, SCHEDULING, check_version
 from .serialization import serialize
 
@@ -73,7 +75,17 @@ def appointments(start:str|None=None,end:str|None=None,c=Depends(context)):
             lower=utc(datetime.fromisoformat(start)); upper=utc(datetime.fromisoformat(end))
         except ValueError: raise HTTPException(422,'Invalid date range')
         query=query.where(m.Appointment.start_at>=lower,m.Appointment.start_at<upper)
-    return [serialize(x) for x in c.db.scalars(query.order_by(m.Appointment.start_at).limit(1000))]
+    appts = list(c.db.scalars(query.order_by(m.Appointment.start_at).limit(1000)))
+    patient_ids = [a.patient_id for a in appts]
+    alerts_map = active_alerts_for_patients(c.db, patient_ids)
+    notes_map = quick_notes_for_patients(c.db, patient_ids)
+    items = []
+    for x in appts:
+        row = serialize(x)
+        row['active_alerts'] = alerts_map.get(x.patient_id, [])
+        row['quick_notes'] = notes_map.get(x.patient_id, [])
+        items.append(row)
+    return items
 
 
 @router.post('')

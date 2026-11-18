@@ -11,6 +11,7 @@ from . import models as m, schemas as s
 from .db import DATA_DIR
 from .security import context, CLINICAL, check_version
 from .serialization import serialize, encounter_out
+from .consultations import sync_encounter
 
 router=APIRouter(prefix='/api')
 RECORDS={'history':m.History,'diagnoses':m.Diagnosis,'allergies':m.Allergy,'medications':m.Medication,
@@ -455,7 +456,7 @@ def create_encounter(data:s.EncounterInput,c=Depends(context)):
     enc_data = data.model_dump()
     facility_id = enc_data.pop('facility_id', None) or c.facility_id
     row=m.Encounter(**enc_data,facility_id=facility_id,author_id=c.user.id)
-    c.db.add(row); c.audit('create_encounter',row)
+    c.db.add(row); c.db.flush(); sync_encounter(c.db,row); c.audit('create_encounter',row)
     return encounter_out(c.db,row)
 
 
@@ -468,6 +469,8 @@ def delete_encounter(identifier:str,c=Depends(context)):
     c.db.execute(delete(m.NoteRevision).where(m.NoteRevision.encounter_id==row.id))
     c.db.execute(delete(m.CarryForward).where(m.CarryForward.encounter_id==row.id))
     c.db.execute(delete(m.Amendment).where(m.Amendment.encounter_id==row.id))
+    consultation=c.db.get(m.Consultation,row.id)
+    if consultation: c.db.delete(consultation)
     c.db.delete(row)
     c.audit('delete_encounter',row)
     return {'status':'deleted'}
@@ -489,7 +492,7 @@ def save_note(identifier:str,data:s.NoteInput,c=Depends(context)):
     if len(names)!=len(set(names)): raise HTTPException(422,'Duplicate symptom name')
     c.db.execute(delete(m.Symptom).where(m.Symptom.encounter_id==row.id))
     for symptom in data.symptoms: c.db.add(m.Symptom(encounter_id=row.id,**symptom.model_dump()))
-    row.version+=1; c.audit('save_draft',row)
+    row.version+=1; sync_encounter(c.db,row); c.audit('save_draft',row)
     return encounter_out(c.db,row)
 
 
@@ -506,6 +509,7 @@ def sign_note(identifier:str,data:s.Version,c=Depends(context)):
         content.pop('signature_digest',None)
         row.signature_digest=hashlib.sha256(json.dumps(content,sort_keys=True).encode()).hexdigest()
     revision(c,row,'signed')
+    sync_encounter(c.db,row)
     if row.appointment_id:
         appointment=c.record(m.Appointment,row.appointment_id)
         if not appointment.plan_id: appointment.status='completed'; appointment.status_label=None; appointment.version+=1

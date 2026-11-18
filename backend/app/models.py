@@ -186,6 +186,48 @@ class Encounter(PatientRecord, Base):
     __table_args__ = (CheckConstraint("status IN ('draft','signed')"),)
 
 
+class Consultation(Base):
+    __tablename__ = 'consultations'
+    id = Column(ForeignKey('encounters.id', ondelete='CASCADE'), primary_key=True)
+    patient_id = Column(ForeignKey('patients.id'), nullable=False, index=True)
+    provider_id = Column(ForeignKey('users.id'), nullable=False)
+    facility_id = Column(ForeignKey('facilities.id'), nullable=False, index=True)
+    facility_name = Column(String(150), nullable=False, default='')
+    visit_type = Column(String(80), nullable=False)
+    visit_mode = Column(String(50), nullable=False, default='In Person')
+    visit_date = Column(DateTime(timezone=True), nullable=False, index=True)
+    status = Column(String(20), nullable=False, default='unsigned')
+    signed_by = Column(ForeignKey('users.id'))
+    signed_at = Column(DateTime(timezone=True))
+    soap_json = Column(JSON().with_variant(JSONB, 'postgresql'), nullable=False, default=dict)
+    created_at = Column(DateTime(timezone=True), nullable=False, default=now)
+    updated_at = Column(DateTime(timezone=True), nullable=False, default=now, onupdate=now)
+    __table_args__ = (
+        CheckConstraint("status IN ('draft','unsigned','co_sign','signed')"),
+    )
+
+
+class ConsultationAddendum(Base):
+    __tablename__ = 'consultation_addendums'
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid4()))
+    consultation_id = Column(ForeignKey('consultations.id', ondelete='CASCADE'), nullable=False, index=True)
+    author_id = Column(ForeignKey('users.id'), nullable=False)
+    note_text = Column(Text, nullable=False)
+    created_at = Column(DateTime(timezone=True), nullable=False, default=now)
+
+
+class DischargeSummary(Base):
+    __tablename__ = 'discharge_summaries'
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid4()))
+    consultation_id = Column(ForeignKey('consultations.id', ondelete='CASCADE'), nullable=False, unique=True)
+    patient_id = Column(ForeignKey('patients.id'), nullable=False, index=True)
+    report_data_json = Column(JSON().with_variant(JSONB, 'postgresql'), nullable=False, default=dict)
+    updated_by = Column(ForeignKey('users.id'), nullable=False)
+    version = Column(Integer, nullable=False, default=1)
+    created_at = Column(DateTime(timezone=True), nullable=False, default=now)
+    updated_at = Column(DateTime(timezone=True), nullable=False, default=now, onupdate=now)
+
+
 class Symptom(Entity, Base):
     __tablename__ = 'encounter_symptoms'
     encounter_id = Column(ForeignKey('encounters.id'), nullable=False, index=True)
@@ -604,6 +646,175 @@ class Task(PatientRecord, Base):
     due_date = Column(Date)
     priority = Column(String(20), default='normal', nullable=False)
     status = Column(String(20), default='pending', nullable=False)
+
+
+class WorkflowTemplate(Base):
+    __tablename__ = 'workflow_templates'
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid4()))
+    facility_id = Column(ForeignKey('facilities.id'), nullable=True, index=True)
+    name = Column(String(150), nullable=False)
+    description = Column(Text, default='')
+    is_system = Column(Boolean, nullable=False, default=False)
+    has_optional_lab_flow = Column(Boolean, nullable=False, default=False)
+    steps_json = Column(JSON().with_variant(JSONB, 'postgresql'), nullable=False, default=list)
+    created_by = Column(ForeignKey('users.id'), nullable=True)
+    created_at = Column(DateTime(timezone=True), nullable=False, default=now)
+    updated_at = Column(DateTime(timezone=True), nullable=False, default=now, onupdate=now)
+
+
+class ClinicalTask(Base):
+    __tablename__ = 'clinical_tasks'
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid4()))
+    facility_id = Column(ForeignKey('facilities.id'), nullable=False, index=True)
+    patient_id = Column(ForeignKey('patients.id'), nullable=True, index=True)
+    workflow_instance_id = Column(String(36), nullable=True, index=True)
+    template_id = Column(ForeignKey('workflow_templates.id', ondelete='SET NULL'), nullable=True)
+    category = Column(String(150), nullable=False, default='General')
+    step_order = Column(Integer, nullable=False, default=1)
+    short_label = Column(String(80), nullable=False, default='')
+    title = Column(String(250), nullable=False)
+    sub_type = Column(String(80), nullable=False, default='')
+    priority = Column(String(20), nullable=False, default='Medium')
+    status = Column(String(20), nullable=False, default='Pending')
+    created_by_user_id = Column(ForeignKey('users.id'), nullable=False, index=True)
+    assigned_to_user_id = Column(ForeignKey('users.id'), nullable=False, index=True)
+    due_date = Column(Date, nullable=True, index=True)
+    comments = Column(Text, nullable=False, default='')
+    completed_at = Column(DateTime(timezone=True), nullable=True)
+    created_at = Column(DateTime(timezone=True), nullable=False, default=now)
+    updated_at = Column(DateTime(timezone=True), nullable=False, default=now, onupdate=now)
+    version = Column(Integer, nullable=False, default=1)
+    __table_args__ = (
+        CheckConstraint("priority IN ('High','Medium','Low')"),
+        CheckConstraint("status IN ('Pending','In-Progress','Completed')"),
+    )
+
+
+class ClinicalTaskComment(Base):
+    __tablename__ = 'clinical_task_comments'
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid4()))
+    task_id = Column(ForeignKey('clinical_tasks.id', ondelete='CASCADE'), nullable=False, index=True)
+    author_id = Column(ForeignKey('users.id'), nullable=False)
+    body = Column(Text, nullable=False)
+    created_at = Column(DateTime(timezone=True), nullable=False, default=now)
+
+
+class TaskNotification(Base):
+    __tablename__ = 'task_notifications'
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid4()))
+    facility_id = Column(ForeignKey('facilities.id'), nullable=False, index=True)
+    user_id = Column(ForeignKey('users.id'), nullable=False, index=True)
+    task_id = Column(ForeignKey('clinical_tasks.id', ondelete='CASCADE'), nullable=False, index=True)
+    kind = Column(String(40), nullable=False, default='assigned')
+    message = Column(Text, nullable=False)
+    is_read = Column(Boolean, nullable=False, default=False, index=True)
+    created_at = Column(DateTime(timezone=True), nullable=False, default=now)
+
+
+class PatientAlert(Base):
+    __tablename__ = 'patient_alerts'
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid4()))
+    patient_id = Column(ForeignKey('patients.id', ondelete='CASCADE'), nullable=False, index=True)
+    alert_type = Column(String(40), nullable=False, default='medical_emergency')
+    description = Column(Text, nullable=False)
+    created_by_id = Column(ForeignKey('users.id'), nullable=False)
+    created_by_name = Column(String(120), nullable=False, default='')
+    is_active = Column(Boolean, nullable=False, default=True, index=True)
+    created_at = Column(DateTime(timezone=True), nullable=False, default=now)
+    updated_at = Column(DateTime(timezone=True), nullable=False, default=now, onupdate=now)
+    __table_args__ = (
+        CheckConstraint(
+            "alert_type IN ('medical_emergency','need_report','patient_status','contraindication')",
+            name='ck_patient_alerts_alert_type',
+        ),
+    )
+
+
+class PatientQuickNote(Base):
+    __tablename__ = 'patient_quick_notes'
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid4()))
+    patient_id = Column(ForeignKey('patients.id', ondelete='CASCADE'), nullable=False, index=True)
+    content = Column(Text, nullable=False)
+    color = Column(String(24), nullable=False, default='yellow')
+    created_by_id = Column(ForeignKey('users.id'), nullable=False)
+    created_by_name = Column(String(120), nullable=False, default='')
+    created_at = Column(DateTime(timezone=True), nullable=False, default=now)
+    updated_at = Column(DateTime(timezone=True), nullable=False, default=now, onupdate=now)
+    __table_args__ = (
+        CheckConstraint(
+            "color IN ('yellow','mint','blue','pink')",
+            name='ck_patient_quick_notes_color',
+        ),
+    )
+
+
+class RecallType(Base):
+    __tablename__ = 'recall_types'
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid4()))
+    name = Column(String(150), unique=True, nullable=False)
+    display_order = Column(Integer, nullable=False, default=0)
+    is_active = Column(Boolean, nullable=False, default=True)
+    created_at = Column(DateTime(timezone=True), nullable=False, default=now)
+    updated_at = Column(DateTime(timezone=True), nullable=False, default=now, onupdate=now)
+
+
+class RecallStatus(Base):
+    __tablename__ = 'recall_statuses'
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid4()))
+    name = Column(String(150), unique=True, nullable=False)
+    is_system_default = Column(Boolean, nullable=False, default=False)
+    display_order = Column(Integer, nullable=False, default=0)
+    is_active = Column(Boolean, nullable=False, default=True)
+    created_at = Column(DateTime(timezone=True), nullable=False, default=now)
+    updated_at = Column(DateTime(timezone=True), nullable=False, default=now, onupdate=now)
+
+
+class RecallPreference(Base):
+    __tablename__ = 'recall_preferences'
+    id = Column(Integer, primary_key=True, default=1)
+    default_email_enabled = Column(Boolean, nullable=False, default=True)
+    default_sms_enabled = Column(Boolean, nullable=False, default=True)
+    email_days_before = Column(Integer, nullable=False, default=3)
+    sms_days_before = Column(Integer, nullable=False, default=3)
+    sms_template_text = Column(
+        Text,
+        nullable=False,
+        default='Reminder from $PRACTICE to schedule for $NOTES. Please ignore, if already scheduled',
+    )
+    mark_complete_on_send = Column(Boolean, nullable=False, default=True)
+    updated_at = Column(DateTime(timezone=True), nullable=False, default=now, onupdate=now)
+
+
+class RecallTemplate(Base):
+    __tablename__ = 'recall_templates'
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid4()))
+    category = Column(String(20), nullable=False, default='PRACTICE')
+    name = Column(String(150), nullable=False)
+    items_json = Column(JSON().with_variant(JSONB, 'postgresql'), nullable=False, default=list)
+    created_by = Column(ForeignKey('users.id'), nullable=True)
+    created_at = Column(DateTime(timezone=True), nullable=False, default=now)
+    updated_at = Column(DateTime(timezone=True), nullable=False, default=now, onupdate=now)
+    __table_args__ = (CheckConstraint("category IN ('PRACTICE','MY')"),)
+
+
+class PatientRecall(Base):
+    __tablename__ = 'patient_recalls'
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid4()))
+    facility_id = Column(ForeignKey('facilities.id'), nullable=False, index=True)
+    patient_id = Column(ForeignKey('patients.id'), nullable=False, index=True)
+    recall_type_id = Column(ForeignKey('recall_types.id'), nullable=False, index=True)
+    status_id = Column(ForeignKey('recall_statuses.id'), nullable=False, index=True)
+    provider_id = Column(ForeignKey('users.id'), nullable=False, index=True)
+    notes = Column(Text, nullable=False, default='')
+    due_date = Column(Date, nullable=False, index=True)
+    visit_date = Column(Date, nullable=True)
+    auto_reminder_enabled = Column(Boolean, nullable=False, default=True)
+    email_reminder_days = Column(Integer, nullable=True)
+    sms_reminder_days = Column(Integer, nullable=True)
+    reminder_sent_at = Column(DateTime(timezone=True), nullable=True)
+    created_by = Column(ForeignKey('users.id'), nullable=True)
+    created_at = Column(DateTime(timezone=True), nullable=False, default=now)
+    updated_at = Column(DateTime(timezone=True), nullable=False, default=now, onupdate=now)
 
 
 class PatientEntry(PatientRecord, Base):
