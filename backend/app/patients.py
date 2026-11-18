@@ -290,6 +290,18 @@ def chart(identifier:str,c=Depends(context)):
             if not vac.get('name') and vac.get('vaccine_name'): vac['name'] = vac['vaccine_name']
             if not vac.get('dosage') and vac.get('dose'): vac['dosage'] = vac['dose']
         result['encounters']=[encounter_out(c.db,x) for x in rows(m.Encounter)]
+        for encounter in result['encounters']:
+            consultation = c.db.get(m.Consultation, encounter['id'])
+            encounter['consultation_status'] = consultation.status if consultation else (
+                'signed' if encounter['status'] == 'signed' else 'unsigned'
+            )
+            if consultation:
+                encounter['soap_json'] = consultation.soap_json
+                encounter['facility_name'] = consultation.facility_name
+                if consultation.signed_by:
+                    encounter['signed_by'] = consultation.signed_by
+                if consultation.signed_at:
+                    encounter['signed_at'] = consultation.signed_at.isoformat()
         result['plans']=[plan_out(c.db,x) for x in rows(m.Plan)]
         for order in result['orders']:
             order['values']=[serialize(x) for x in c.db.scalars(select(m.LabValue).where(m.LabValue.order_id==order['id']))]

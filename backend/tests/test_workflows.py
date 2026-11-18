@@ -1084,3 +1084,170 @@ def test_patient_import_workflow():
 
     res_inactive = c.get("/api/patients?active=false")
     assert res_inactive.status_code == 200, res_inactive.text
+
+
+def test_consultation_and_discharge_summary_workflow():
+    c = client("doctor")
+    p = patient(c)
+    provider_id = staff(c, "doctor")["id"]
+    created = ok(c.post(f"/api/patients/{p['id']}/consultations", json={
+        "provider_id": provider_id,
+        "facility_id": c.headers["X-Facility-ID"],
+        "visit_type": "EECP Treatment Completed",
+        "visit_mode": "In Person",
+        "visit_date": "2032-03-01T10:00:00+05:30",
+        "soap_json": {
+            "subjective": {
+                "chief_complaints": "Training complaint",
+                "history_of_present_illness": "Training history",
+            },
+            "assessment": {"notes": "Training assessment"},
+            "plan": {"notes": "Training plan"},
+        },
+    }))
+    assert created["status"] == "unsigned"
+    assert created["encounter"]["chief_complaint"] == "Training complaint"
+    assert c.get("/api/template-responses").status_code == 200
+    assert ok(c.get(f"/api/patients/{p['id']}/consultations", params={"tab": "all"}))[0]["id"] == created["id"]
+    assert ok(c.get(f"/api/patients/{p['id']}/consultations", params={"tab": "last_visit"}))[0]["id"] == created["id"]
+
+    updated = ok(c.put(f"/api/consultations/{created['id']}", json={
+        "version": created["version"],
+        "status": "co_sign",
+        "soap_json": {
+            "subjective": {"chief_complaints": "Training complaint", "history_of_present_illness": "Training history"},
+            "assessment": {"notes": "Training assessment"},
+            "plan": {"notes": "Training plan"},
+        },
+    }))
+    assert updated["status"] == "co_sign"
+    assert len(ok(c.get(f"/api/patients/{p['id']}/consultations", params={"tab": "co_sign"}))) == 1
+
+    report = ok(c.get(f"/api/consultations/{created['id']}/discharge-summary"))
+    assert report["patient_information"]["registration_no"] == p["mrn"]
+    assert report["brief_history"] == "Training assessment"
+    assert len(report["investigation_tables"]) == 7
+    report["patient_information"]["name"] = "Incorrect patient"
+    report["treatment_information"]["sponsor"] = "Training sponsor"
+    report["investigation_tables"]["Vitals"][0]["pre"] = "64"
+    saved = ok(c.put(f"/api/consultations/{created['id']}/discharge-summary", json={
+        "version": report["version"],
+        "report_data_json": report,
+    }))
+    assert saved["treatment_information"]["sponsor"] == "Training sponsor"
+    assert saved["patient_information"]["name"] == p["name"]
+    assert saved["investigation_tables"]["Vitals"][0]["pre"] == "64"
+    revised_report = ok(c.put(f"/api/consultations/{created['id']}/discharge-summary", json={
+        "version": saved["version"],
+        "report_data_json": saved,
+    }))
+    assert revised_report["version"] == saved["version"] + 1
+    assert c.put(f"/api/consultations/{created['id']}/discharge-summary", json={
+        "version": report["version"],
+        "report_data_json": report,
+    }).status_code == 409
+    signed = ok(c.post(f"/api/consultations/{created['id']}/sign", json={"version": updated["version"]}))
+    assert signed["status"] == "signed"
+
+    addendum = ok(c.post(f"/api/consultations/{created['id']}/addendums", json={"note_text": "Training addendum"}))
+    assert addendum["note_text"] == "Training addendum"
+    assert len(ok(c.get(f"/api/consultations/{created['id']}/addendums"))) == 1
+    ccda = c.get(f"/api/consultations/{created['id']}/export/ccda")
+    assert ccda.status_code == 200 and b"ClinicalDocument" in ccda.content
+    pdf = c.get(f"/api/consultations/{created['id']}/export/pdf")
+    assert pdf.status_code == 200 and pdf.content.startswith(b"%PDF")
+
+    unauthorized = client("reception")
+    assert unauthorized.get(f"/api/patients/{p['id']}/consultations").status_code == 403
+
+
+def test_clinical_tasks_workflow_templates_lock_and_handoff():
+    creator = client("doctor")
+    p = patient(creator)
+
+    # 1. Verify all 4 seeded workflow templates
+    templates = ok(creator.get("/api/workflow-templates"))
+    names = [t["name"] for t in templates]
+    for required_name in ("EECP Lab + Demo", "Lab Alone", "Lab + Treatment Started", "Admission"):
+        assert required_name in names
+    admission = next(t for t in templates if t["name"] == "Admission")
+    assert admission["has_optional_lab_flow"] is True
+    assert len(admission["optional_lab_steps"]) == 2
+
+    # 2. Custom Template Builder
+    custom = ok(creator.post("/api/workflow-templates", json={
+        "name": "Custom Post-EECP Check",
+        "description": "Custom follow-up flow",
+        "steps": [
+            {"step_order": 1, "title": "Call patient after 1 week", "default_priority": "High", "allowed_assignees": ["Susan Sekar"]},
+        ],
+    }))
+    assert custom["name"] == "Custom Post-EECP Check"
+    assert custom["is_system"] is False
+
+    # 3. Resolve seeded staff users: Nathiya (Step 1), Sarala D (Step 2), Dr. Elakkiya M (Step 3), Susan Sekar (unrelated third party)
+    all_staff = ok(creator.get("/api/staff"))
+    nathiya = next(s for s in all_staff if s["name"] == "Nathiya")
+    sarala = next(s for s in all_staff if s["name"] == "Sarala D")
+    elakkiya = next(s for s in all_staff if s["name"] == "Dr. Elakkiya M")
+    susan = next(s for s in all_staff if s["name"] == "Susan Sekar")
+
+    eecp_tmpl = next(t for t in templates if t["name"] == "EECP Lab + Demo")
+    created_steps = ok(creator.post("/api/clinical-tasks", json={
+        "mode": "template",
+        "template_id": eecp_tmpl["id"],
+        "patient_id": p["id"],
+        "steps": [
+            {"step_order": 1, "title": "Check the billing and payment done", "short_label": "Billing", "priority": "High", "assigned_to_user_id": nathiya["id"], "due_date": "2020-01-01"},
+            {"step_order": 2, "title": "Complete the Laboratory Testing", "short_label": "Lab Test", "sub_type": "Lab Test", "priority": "Medium", "assigned_to_user_id": sarala["id"]},
+            {"step_order": 3, "title": "Verify Laboratory Report", "short_label": "Verify Lab", "priority": "Medium", "assigned_to_user_id": elakkiya["id"]},
+            {"step_order": 4, "title": "Arrange demo and treatment", "short_label": "Demo", "priority": "Medium", "assigned_to_user_id": susan["id"]},
+            {"step_order": 5, "title": "Complete patient counselling and treatment decision", "short_label": "Counselling", "priority": "Medium", "assigned_to_user_id": susan["id"]},
+        ],
+    }))
+    assert len(created_steps) == 5
+    step1 = created_steps[0]
+    assert step1["is_overdue"] is True
+
+    # 4. Login as Nathiya, Sarala D, and Susan Sekar to verify Notifications, Two-Person Edit Lock, and Auto-Handoff
+    def login_as(email: str):
+        cl = TestClient(app)
+        res = ok(cl.post("/api/auth/login", json={"email": email, "password": "password123"}))
+        cl.headers.update({"X-CSRF-Token": res["csrf"], "X-Facility-ID": creator.headers["X-Facility-ID"]})
+        return cl
+
+    nathiya_c = login_as("nathiya@healyourheart.local")
+    sarala_c = login_as("sarala.d@healyourheart.local")
+    susan_c = login_as("susan.sekar@healyourheart.local")
+
+    # Nathiya received instant assignment notification for Step 1
+    nathiya_notifs = ok(nathiya_c.get("/api/clinical-tasks/notifications"))
+    assert nathiya_notifs["unread_count"] >= 1
+    assert any(n["task"]["id"] == step1["id"] for n in nathiya_notifs["notifications"])
+
+    # STRICT TWO-PERSON EDIT LOCK: Susan Sekar (neither creator nor assignee of Step 1) MUST get 403 Forbidden!
+    forbidden = susan_c.patch(f"/api/clinical-tasks/{step1['id']}", json={"status": "Completed"})
+    assert forbidden.status_code == 403
+    assert "Editable only by" in forbidden.json()["detail"]
+
+    # Comments drawer works
+    cm = ok(susan_c.post(f"/api/clinical-tasks/{step1['id']}/comments", json={"body": "Patient waiting at billing counter"}))
+    assert cm["body"] == "Patient waiting at billing counter"
+    assert len(ok(nathiya_c.get(f"/api/clinical-tasks/{step1['id']}/comments"))) == 1
+
+    # Nathiya (Assignee) completes Step 1 -> Auto-Handoff notifies Sarala D (Step 2)!
+    completed_step1 = ok(nathiya_c.patch(f"/api/clinical-tasks/{step1['id']}", json={"status": "Completed"}))
+    assert completed_step1["status"] == "Completed"
+    assert completed_step1["handoff"]["next_assignee_name"] == "Sarala D"
+
+    sarala_notifs = ok(sarala_c.get("/api/clinical-tasks/notifications"))
+    assert any(n["kind"] == "handoff" and n["task"]["step_order"] == 2 for n in sarala_notifs["notifications"])
+
+    # Live Workflow Progress (Calendar batch & Patient Banner) reflects 1/5 completed and Step 2 as bottleneck!
+    batch = ok(creator.get("/api/clinical-tasks/workflow-progress-batch", params={"patient_ids": p["id"]}))
+    wf = batch[p["id"]][0]
+    assert wf["template_name"] == "EECP Lab + Demo"
+    assert wf["completed_count"] == 1
+    assert wf["total_count"] == 5
+    assert wf["bottleneck"]["title"] == "Complete the Laboratory Testing"
+    assert wf["bottleneck"]["assigned_to_name"] == "Sarala D"

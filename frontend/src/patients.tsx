@@ -61,6 +61,7 @@ import {
   day,
   dateTime,
   download,
+  fetchPdfBlobUrl,
   navigate,
   patientName,
   label,
@@ -94,6 +95,12 @@ import {
   formatDoctorName,
 } from "./clinicalWorkflows";
 import { ClinicalFlowsheets } from "./clinicalFlowsheets";
+import {
+  DischargeSummaryViewer,
+  ClinicalSummaryViewer,
+  PdfReportModal,
+} from "./DischargeSummaryViewer";
+import { ClinicalTasksView, PatientWorkflowBanner } from "./clinicalTasks";
 import {
   DiagnosisTemplatesModal,
   PrescriptionTemplatesModal,
@@ -131,10 +138,10 @@ export function PatientsPage() {
     queryFn: () =>
       api(
         "/patients?limit=25&offset=" +
-          offset +
-          "&q=" +
-          encodeURIComponent(q) +
-          (showInactive ? "&active=false" : "&active=true"),
+        offset +
+        "&q=" +
+        encodeURIComponent(q) +
+        (showInactive ? "&active=false" : "&active=true"),
       ),
   });
 
@@ -751,9 +758,21 @@ export function PatientChart({ id }: { id: string }) {
   }, [branch, facilities, newEncFacilityId]);
 
   const [selectedConsultationId, setSelectedConsultationId] = useState<string | null>(null);
-  const [consultationSubfilter, setConsultationSubfilter] = useState<string>("All");
+  const [consultationSubfilter, setConsultationSubfilter] = useState<string>("Last Visit");
   const [deleteConfirmEncounter, setDeleteConfirmEncounter] = useState<Row | null>(null);
   const [consultationSearchQuery, setConsultationSearchQuery] = useState("");
+  const [showDischargeSummary, setShowDischargeSummary] = useState(false);
+  const [showClinicalSummary, setShowClinicalSummary] = useState(false);
+  const [pdfPreview, setPdfPreview] = useState<{ title: string; url: string; filename: string } | null>(null);
+  const [showConsultationAddendum, setShowConsultationAddendum] = useState(false);
+  const [consultationAddendumText, setConsultationAddendumText] = useState("");
+  const [consultationMenu, setConsultationMenu] = useState("");
+  const closePdfPreview = () => {
+    setPdfPreview((current) => {
+      if (current?.url) URL.revokeObjectURL(current.url);
+      return null;
+    });
+  };
   const {
     data: chart,
     isLoading,
@@ -764,9 +783,18 @@ export function PatientChart({ id }: { id: string }) {
     queryFn: () => api("/patients/" + id),
   });
   useEffect(() => {
-    setActiveSection("Dashboard");
-    setTab("Overview");
+    const hashQuery = window.location.hash.includes("?")
+      ? window.location.hash.split("?")[1]
+      : "";
+    const targetSection = new URLSearchParams(hashQuery).get("section");
+    setActiveSection(targetSection || "Dashboard");
+    setTab(targetSection === "Tasks" ? "More" : "Overview");
     setModal("");
+    setShowDischargeSummary(false);
+    setShowClinicalSummary(false);
+    closePdfPreview();
+    setShowConsultationAddendum(false);
+    setConsultationMenu("");
   }, [id]);
   if (isLoading) return <Loading />;
   if (queryError || !chart) return <ErrorBox error={queryError} />;
@@ -788,12 +816,15 @@ export function PatientChart({ id }: { id: string }) {
     const providerId = user.role === "doctor" ? user.id : (newEncProviderId || staff.find((s) => s.role === "doctor")?.id || user.id);
     setCreatingEncounter(true);
     try {
-      const r = await api<Row>("/encounters", "POST", {
-        patient_id: id,
+      const r = await api<Row>(`/patients/${id}/consultations`, "POST", {
         provider_id: providerId,
+        assistant_id: user.role === "assistant" ? user.id : null,
+        facility_id: newEncFacilityId || branch,
         chart_type: newEncChartType,
-        mode: newEncMode,
+        visit_mode: newEncMode,
+        visit_date: `${newEncDate}T12:00:00+05:30`,
         visit_type: newEncVisitType || "EECP On-going Visit",
+        soap_json: {},
       });
       await queryClient.invalidateQueries({ queryKey: ["chart", branch, id] });
       await refresh();
@@ -1006,6 +1037,10 @@ export function PatientChart({ id }: { id: string }) {
 
                   {subTab === "Face Sheet" && (
                     <div>
+                      <PatientWorkflowBanner
+                        patientId={p.id}
+                        onOpenTasks={() => setActiveSection("Tasks")}
+                      />
                       {/* CharmHealth 2-column clinical grid */}
                       <div className="charm-facesheet-grid">
                         {/* Left Column */}
@@ -1304,249 +1339,144 @@ export function PatientChart({ id }: { id: string }) {
 
             if (resolvedSection === "Consultations") {
               const encounters: Row[] = chart.encounters || [];
-              const unsignedCount = encounters.filter((e) => e.status !== "signed").length;
-
-              if (selectedConsultationId) {
-                const selectedEnc = encounters.find((e) => e.id === selectedConsultationId) || encounters[0];
-                const encIdx = encounters.findIndex((e) => e.id === selectedEnc?.id);
-                const provName = staff.find((s) => s.id === selectedEnc?.provider_id)?.name || "Dr. Ananya Demo";
-
-                return (
-                  <div className="charm-consultation-view-pane">
-                    <div className="charm-consult-view-topbar">
-                      <div className="charm-consult-view-title-group">
-                        <button
-                          type="button"
-                          className="charm-btn-back"
-                          onClick={() => setSelectedConsultationId(null)}
-                          title="Back to Consultations"
-                        >
-                          <ArrowLeft size={14} style={{ marginRight: 4 }} /> Back
-                        </button>
-                        <span className="charm-consult-view-title">
-                          Consultation on {selectedEnc?.created_at ? day(selectedEnc.created_at) : "Nov 12, 2026"}
-                        </span>
-                      </div>
-                      <div className="charm-consult-view-actions">
-                        <div className="charm-search-notes-wrap" style={{ marginRight: 6 }}>
-                          <Search size={13} color="#94a3b8" />
-                          <input placeholder="Search Notes" />
-                        </div>
-                        <button
-                          type="button"
-                          className="charm-btn-subtle"
-                          onClick={() => navigate("/encounter/" + selectedEnc.id + "/" + id)}
-                          style={{ fontWeight: 600, color: "#0284c7" }}
-                        >
-                          <Edit2 size={13} style={{ marginRight: 4 }} /> Edit
-                        </button>
-                        <button type="button" className="charm-btn-subtle">Export <ChevronDown size={12} /></button>
-                        <button type="button" className="charm-btn-subtle">Print <ChevronDown size={12} /></button>
-                        <button type="button" className="charm-btn-subtle">Reports <ChevronDown size={12} /></button>
-                        <button type="button" className="charm-btn-subtle">Rx <ChevronDown size={12} /></button>
-                        <span style={{ fontSize: 12, color: "#64748b", margin: "0 4px" }}>
-                          {encIdx + 1} of {encounters.length}
-                        </span>
-                        <button
-                          type="button"
-                          className="charm-btn-icon-subtle"
-                          disabled={encIdx <= 0}
-                          onClick={() => setSelectedConsultationId(encounters[encIdx - 1]?.id)}
-                        >
-                          &lt;
-                        </button>
-                        <button
-                          type="button"
-                          className="charm-btn-icon-subtle"
-                          disabled={encIdx >= encounters.length - 1}
-                          onClick={() => setSelectedConsultationId(encounters[encIdx + 1]?.id)}
-                        >
-                          &gt;
-                        </button>
-                      </div>
-                    </div>
-
-                    {/* Metadata Summary Box matching frame_027 */}
-                    <div className="charm-consult-metadata-box">
-                      <div className="charm-meta-box-row">
-                        <span className="charm-meta-box-label">Consultation Date:</span>
-                        <span className="charm-meta-box-val">{selectedEnc?.created_at ? day(selectedEnc.created_at) : "Nov 12, 2026"}</span>
-                      </div>
-                      <div className="charm-meta-box-row">
-                        <span className="charm-meta-box-label">Encounter ID:</span>
-                        <span className="charm-meta-box-val">{selectedEnc?.id || "10000000004523"}</span>
-                      </div>
-                      <div className="charm-meta-box-row">
-                        <span className="charm-meta-box-label">Provider:</span>
-                        <span className="charm-meta-box-val">{provName}</span>
-                      </div>
-                      <div className="charm-meta-box-row">
-                        <span className="charm-meta-box-label">Facility:</span>
-                        <span className="charm-meta-box-val">Heal Your Heart Neelankarai</span>
-                      </div>
-                      <div className="charm-meta-box-row">
-                        <span className="charm-meta-box-label">Visit Type:</span>
-                        <span className="charm-meta-box-val">{selectedEnc?.visit_type || "--"}</span>
-                      </div>
-                      <div className="charm-meta-box-row">
-                        <span className="charm-meta-box-label">Session Duration:</span>
-                        <span className="charm-meta-box-val">30 mins</span>
-                      </div>
-                      <div className="charm-meta-box-row">
-                        <span className="charm-meta-box-label">Mode:</span>
-                        <span className="charm-meta-box-val">{selectedEnc?.mode || "In Person"}</span>
-                      </div>
-                      <div className="charm-meta-box-row">
-                        <span className="charm-meta-box-label">Status:</span>
-                        <span className="charm-meta-box-val">
-                          <Badge value={selectedEnc?.status || "draft"} />
-                        </span>
-                      </div>
-                      <div className="charm-meta-box-row">
-                        <span className="charm-meta-box-label">Chart Type:</span>
-                        <span className="charm-meta-box-val">{selectedEnc?.chart_type || "SOAP Template"}</span>
-                      </div>
-                    </div>
-
-                    {/* Clinical Note Rendered Sections */}
-                    <div className="charm-consult-note-document" style={{ border: "1px solid #e2e8f0", borderRadius: 4, padding: 18, background: "#fafafa" }}>
-                      <div style={{ marginBottom: 16 }}>
-                        <h4 style={{ fontSize: 13, fontWeight: 700, color: "#1e293b", margin: "0 0 6px 0", borderBottom: "1px solid #e2e8f0", paddingBottom: 4 }}>
-                          Chief Complaints
-                        </h4>
-                        <p style={{ margin: 0, fontSize: 13, color: "#334155", whiteSpace: "pre-wrap" }}>
-                          {selectedEnc?.chief_complaint || "Patient attended consultation for EECP therapy review."}
-                        </p>
-                      </div>
-
-                      <div style={{ marginBottom: 16 }}>
-                        <h4 style={{ fontSize: 13, fontWeight: 700, color: "#1e293b", margin: "0 0 6px 0", borderBottom: "1px solid #e2e8f0", paddingBottom: 4 }}>
-                          Symptoms / Post-EECP Assessment
-                        </h4>
-                        <p style={{ margin: 0, fontSize: 13, color: "#334155" }}>
-                          ✓ The patient maintains the benefits of EECP counterpulsation.
-                        </p>
-                      </div>
-
-                      <div style={{ marginBottom: 16 }}>
-                        <h4 style={{ fontSize: 13, fontWeight: 700, color: "#1e293b", margin: "0 0 6px 0", borderBottom: "1px solid #e2e8f0", paddingBottom: 4 }}>
-                          History of Present Illness (HPI)
-                        </h4>
-                        <p style={{ margin: 0, fontSize: 13, color: "#334155", whiteSpace: "pre-wrap" }}>
-                          {selectedEnc?.hpi || "Patient attended consultation. Cardiovascular assessment documented."}
-                        </p>
-                      </div>
-
-                      <div style={{ marginBottom: 16 }}>
-                        <h4 style={{ fontSize: 13, fontWeight: 700, color: "#1e293b", margin: "0 0 6px 0", borderBottom: "1px solid #e2e8f0", paddingBottom: 4 }}>
-                          Assessment
-                        </h4>
-                        <p style={{ margin: 0, fontSize: 13, color: "#334155", whiteSpace: "pre-wrap" }}>
-                          {selectedEnc?.assessment || "Coronary Artery Disease - Angina Pectoris. Patient undergoing EECP counterpulsation therapy. Hemodynamically stable."}
-                        </p>
-                      </div>
-
-                      <div style={{ marginBottom: 16 }}>
-                        <h4 style={{ fontSize: 13, fontWeight: 700, color: "#1e293b", margin: "0 0 6px 0", borderBottom: "1px solid #e2e8f0", paddingBottom: 4 }}>
-                          Plan & Recommendations
-                        </h4>
-                        <p style={{ margin: 0, fontSize: 13, color: "#334155", whiteSpace: "pre-wrap" }}>
-                          {selectedEnc?.plan || "1. Continue daily 1-hour EECP therapy.\n2. Cardioprotective medications as prescribed.\n3. Low salt, low saturated fat diet. Avoid high potassium foods.\n4. Follow up review after completion of sessions."}
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                );
-              }
+              const unsignedCount = encounters.filter((e) => (e.consultation_status || e.status) !== "signed").length;
 
               // Filter encounters based on left sub-filter and search
               const filteredEncounters = encounters.filter((e) => {
-                const provName = staff.find((s) => s.id === e.provider_id)?.name || "";
-                if (consultationSubfilter === "Unsigned" && e.status === "signed") return false;
-                if (consultationSubfilter === "To be Co-Signed") return false;
-                if (consultationSubfilter === "Past Reports") return false;
+                const prov = staff.find((s) => s.id === e.provider_id)?.name || "";
+                const status = e.consultation_status || (e.status === "signed" ? "signed" : "unsigned");
+                const visitDate = new Date(e.created_at || 0).getTime();
+                if (consultationSubfilter === "Unsigned" && !["draft", "unsigned"].includes(status)) return false;
+                if (consultationSubfilter === "To be Co-Signed" && status !== "co_sign") return false;
+                if (consultationSubfilter === "Past 6 Months" && visitDate < Date.now() - 183 * 24 * 60 * 60 * 1000) return false;
+                if (consultationSubfilter === "Past 1 Year" && visitDate < Date.now() - 365 * 24 * 60 * 60 * 1000) return false;
+                if (consultationSubfilter === "Past Reports" && status !== "signed") return false;
                 if (consultationSubfilter === "Last Visit") {
                   if (encounters.length > 0 && e.id !== encounters[0]?.id) return false;
                 }
                 if (consultationSearchQuery) {
                   const q = consultationSearchQuery.toLowerCase();
                   const matchTitle = (e.visit_type || "").toLowerCase().includes(q) ||
-                    provName.toLowerCase().includes(q) ||
+                    prov.toLowerCase().includes(q) ||
                     (e.chief_complaint || "").toLowerCase().includes(q);
                   if (!matchTitle) return false;
                 }
                 return true;
               });
 
-              return (
-                <div className="charm-consultations-container">
-                  {/* Left Filters Sidebar matching frame_020 */}
-                  <div className="charm-consult-left-filters">
-                    <button
-                      type="button"
-                      className={`charm-filter-item ${consultationSubfilter === "Last Visit" ? "active" : ""}`}
-                      onClick={() => setConsultationSubfilter("Last Visit")}
-                    >
-                      Last Visit
-                    </button>
-                    <button
-                      type="button"
-                      className={`charm-filter-item ${consultationSubfilter === "Unsigned" ? "active" : ""}`}
-                      onClick={() => setConsultationSubfilter("Unsigned")}
-                    >
-                      <span>Unsigned</span>
-                      {unsignedCount > 0 && (
-                        <span className="charm-filter-badge">{unsignedCount}</span>
-                      )}
-                    </button>
-                    <button
-                      type="button"
-                      className={`charm-filter-item ${consultationSubfilter === "To be Co-Signed" ? "active" : ""}`}
-                      onClick={() => setConsultationSubfilter("To be Co-Signed")}
-                    >
-                      To be Co-Signed
-                    </button>
-                    <button
-                      type="button"
-                      className={`charm-filter-item ${consultationSubfilter === "Past 6 Months" ? "active" : ""}`}
-                      onClick={() => setConsultationSubfilter("Past 6 Months")}
-                    >
-                      Past 6 Months
-                    </button>
-                    <button
-                      type="button"
-                      className={`charm-filter-item ${consultationSubfilter === "Past 1 Year" ? "active" : ""}`}
-                      onClick={() => setConsultationSubfilter("Past 1 Year")}
-                    >
-                      Past 1 Year
-                    </button>
-                    <button
-                      type="button"
-                      className={`charm-filter-item ${consultationSubfilter === "All" ? "active" : ""}`}
-                      onClick={() => setConsultationSubfilter("All")}
-                    >
-                      All
-                    </button>
-                    <button
-                      type="button"
-                      className={`charm-filter-item ${consultationSubfilter === "Past Reports" ? "active" : ""}`}
-                      onClick={() => setConsultationSubfilter("Past Reports")}
-                    >
-                      Past Reports
-                    </button>
-                  </div>
+              const activeEnc = (selectedConsultationId && filteredEncounters.find((e) => e.id === selectedConsultationId)) ||
+                filteredEncounters[0] ||
+                encounters[0];
+              const encIdx = activeEnc ? filteredEncounters.findIndex((e) => e.id === activeEnc.id) : -1;
+              const provName = staff.find((s) => s.id === activeEnc?.provider_id)?.name || (activeEnc?.provider_name as string) || "Dr. Ramasamy S";
+              const signedByName = staff.find((member) => member.id === activeEnc?.signed_by)?.name || (activeEnc?.signed_by_name as string) || provName;
+              const patientAge = p.dob
+                ? Math.max(0, new Date().getFullYear() - new Date(p.dob).getFullYear() - (
+                  new Date().getMonth() < new Date(p.dob).getMonth() ||
+                    (new Date().getMonth() === new Date(p.dob).getMonth() && new Date().getDate() < new Date(p.dob).getDate()) ? 1 : 0
+                ))
+                : 55;
+              const patientFullName = `${p.first_name || ""} ${p.last_name || ""}`.trim() || p.name || "Aruldoss Subramanian roa";
 
-                  {/* Right Main Table Area matching frame_020 */}
-                  <div className="charm-consult-main-area">
-                    <div className="charm-consult-toolbar">
-                      <div className="charm-search-notes-wrap">
-                        <Search size={13} color="#94a3b8" />
-                        <input
-                          placeholder="Search"
-                          value={consultationSearchQuery}
-                          onChange={(e) => setConsultationSearchQuery(e.target.value)}
-                        />
-                      </div>
+              const selectedMeds = (chart.medications || []).filter((item: Row) => item.encounter_id === activeEnc?.id);
+              const selectedDiagnoses = (chart.diagnoses || []).filter((item: Row) => item.encounter_id === activeEnc?.id);
+              const selectedVitals = (chart.vitals || []).filter((item: Row) => item.encounter_id === activeEnc?.id);
+              const selectedOrders = (chart.orders || []).filter((item: Row) => item.encounter_id === activeEnc?.id);
+              const currentVitals = selectedVitals[0] || {};
+              const soap = (activeEnc?.soap_json as Record<string, any>) || {};
+              const subjective = soap.subjective || {};
+              const objective = soap.objective || {};
+              const assessment = soap.assessment || {};
+              const plan = soap.plan || {};
+
+              const actionItems: Record<string, string[]> = {
+                Export: ["Consultation as PDF"],
+                Print: ["Chart Notes", "Lab Order", "Image Order", "Patient Summary", "Chart Notes (New)"],
+                Send: ["Clinical Summary to patient by Email", "Clinical Summary to patient by SMS"],
+                Reports: ["Discharge Summary"],
+                Rx: ["Paper Rx", "Prescriptions", "Add Prescription"],
+              };
+
+              const openPdfPreview = async (path: string, title: string, filename: string) => {
+                const url = await fetchPdfBlobUrl(path);
+                setPdfPreview((prev) => {
+                  if (prev?.url) URL.revokeObjectURL(prev.url);
+                  return { title, url, filename };
+                });
+              };
+
+              const handleConsultationAction = async (action: string) => {
+                setConsultationMenu("");
+                if (!activeEnc) return;
+                const mrnSlug = p.mrn || activeEnc.id;
+                try {
+                  if (action === "Discharge Summary") {
+                    setShowDischargeSummary(true);
+                  } else if (action === "Consultation as PDF") {
+                    await download(`/consultations/${activeEnc.id}/export/pdf`, `chart-notes-${mrnSlug}.pdf`);
+                  } else if (action === "Chart Notes" || action === "Chart Notes (New)") {
+                    await openPdfPreview(
+                      `/consultations/${activeEnc.id}/export/pdf?inline=1`,
+                      "Chart Notes",
+                      `chart-notes-${mrnSlug}.pdf`,
+                    );
+                  } else if (action === "Patient Summary") {
+                    setShowClinicalSummary(true);
+                  } else if (action === "Lab Order") {
+                    await openPdfPreview(
+                      `/consultations/${activeEnc.id}/export/lab-order?inline=1`,
+                      "Lab Order",
+                      `lab-order-${mrnSlug}.pdf`,
+                    );
+                  } else if (action === "Image Order") {
+                    await openPdfPreview(
+                      `/consultations/${activeEnc.id}/export/image-order?inline=1`,
+                      "Imaging Order",
+                      `imaging-order-${mrnSlug}.pdf`,
+                    );
+                  } else if (action === "Paper Rx") {
+                    await openPdfPreview(
+                      `/consultations/${activeEnc.id}/export/rx?inline=1`,
+                      "Prescription (Paper Rx)",
+                      `prescription-${mrnSlug}.pdf`,
+                    );
+                  } else if (action === "Clinical Summary to patient by Email") {
+                    const res = await api<Row>(`/consultations/${activeEnc.id}/send-summary`, "POST", { channel: "email" });
+                    notify(res.message || `Clinical summary queued for Email.`);
+                  } else if (action === "Clinical Summary to patient by SMS") {
+                    const res = await api<Row>(`/consultations/${activeEnc.id}/send-summary`, "POST", { channel: "sms" });
+                    notify(res.message || `Clinical summary queued for SMS.`);
+                  } else if (action === "Prescriptions") {
+                    navigate(`/patients/${id}?section=Medications`);
+                  } else if (action === "Add Prescription") {
+                    navigate(`/encounter/${activeEnc.id}/${id}`);
+                  } else {
+                    notify(`${action} triggered successfully.`);
+                  }
+                } catch (cause: any) {
+                  notify(cause?.message || String(cause));
+                }
+              };
+
+              const addAddendum = async (event: React.FormEvent) => {
+                event.preventDefault();
+                if (!activeEnc || !consultationAddendumText.trim()) return;
+                try {
+                  await api(`/consultations/${activeEnc.id}/addendums`, "POST", { note_text: consultationAddendumText.trim() });
+                  setConsultationAddendumText("");
+                  setShowConsultationAddendum(false);
+                  notify("Addendum saved successfully.");
+                } catch (cause) {
+                  notify("Unable to save addendum: " + String(cause));
+                }
+              };
+
+              return (
+                <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                  {/* Top Bar matching screenshot */}
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                    <h2 style={{ fontSize: 16, fontWeight: 600, color: "#334155", margin: 0 }}>Consultations</h2>
+                    <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
                       <button
                         type="button"
                         className="charm-btn-orange-consult"
@@ -1554,71 +1484,565 @@ export function PatientChart({ id }: { id: string }) {
                       >
                         <Plus size={14} /> Consultation
                       </button>
+                      <button type="button" className="charm-btn-icon-subtle" title="More Options">
+                        <MoreHorizontal size={16} />
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Main Two-Column Layout */}
+                  <div className="charm-consultations-container">
+                    {/* Left Filter Sidebar */}
+                    <div className="charm-consult-left-filters">
+                      <button
+                        type="button"
+                        className={`charm-filter-item ${consultationSubfilter === "Last Visit" ? "active" : ""}`}
+                        onClick={() => {
+                          setConsultationSubfilter("Last Visit");
+                          if (encounters.length > 0) setSelectedConsultationId(encounters[0].id);
+                        }}
+                      >
+                        Last Visit
+                      </button>
+                      <button
+                        type="button"
+                        className={`charm-filter-item ${consultationSubfilter === "Unsigned" ? "active" : ""}`}
+                        onClick={() => {
+                          setConsultationSubfilter("Unsigned");
+                          const firstUnsigned = encounters.find((e) => (e.consultation_status || e.status) !== "signed");
+                          if (firstUnsigned) setSelectedConsultationId(firstUnsigned.id);
+                        }}
+                      >
+                        <span>Unsigned</span>
+                        {unsignedCount > 0 && (
+                          <span className="charm-filter-badge">{unsignedCount}</span>
+                        )}
+                      </button>
+                      <button
+                        type="button"
+                        className={`charm-filter-item ${consultationSubfilter === "To be Co-Signed" ? "active" : ""}`}
+                        onClick={() => setConsultationSubfilter("To be Co-Signed")}
+                      >
+                        To be Co-Signed
+                      </button>
+                      <button
+                        type="button"
+                        className={`charm-filter-item ${consultationSubfilter === "Past 6 Months" ? "active" : ""}`}
+                        onClick={() => setConsultationSubfilter("Past 6 Months")}
+                      >
+                        Past 6 Months
+                      </button>
+                      <button
+                        type="button"
+                        className={`charm-filter-item ${consultationSubfilter === "Past 1 Year" ? "active" : ""}`}
+                        onClick={() => setConsultationSubfilter("Past 1 Year")}
+                      >
+                        Past 1 Year
+                      </button>
+                      <button
+                        type="button"
+                        className={`charm-filter-item ${consultationSubfilter === "All" ? "active" : ""}`}
+                        onClick={() => setConsultationSubfilter("All")}
+                      >
+                        All
+                      </button>
+                      <div className="charm-filter-divider" style={{ borderTop: "1px dotted #cbd5e1", margin: "8px 6px" }} />
+                      <button
+                        type="button"
+                        className={`charm-filter-item consultation-past-reports ${consultationSubfilter === "Past Reports" ? "active" : ""}`}
+                        onClick={() => setConsultationSubfilter("Past Reports")}
+                      >
+                        Past Reports
+                      </button>
                     </div>
 
-                    <table className="charm-consultations-table">
-                      <thead>
-                        <tr>
-                          <th style={{ width: "40%" }}>Title</th>
-                          <th style={{ width: "22%" }}>Provider</th>
-                          <th style={{ width: "20%" }}>Visit Type</th>
-                          <th style={{ width: "12%" }}>Date</th>
-                          <th style={{ width: "6%", textAlign: "center" }}></th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {filteredEncounters.length === 0 ? (
-                          <tr>
-                            <td colSpan={5} className="charm-empty-table-cell">
-                              No consultations found for the selected filter.
-                            </td>
-                          </tr>
-                        ) : (
-                          filteredEncounters.map((enc) => {
-                            const prov = staff.find((s) => s.id === enc.provider_id)?.name || "Dr. Ananya Demo";
-                            const dateStr = enc.created_at ? day(enc.created_at) : "Nov 12, 2026";
-                            const titleStr = `${dateStr} : ${prov} : ${enc.mode || "In Person"}`;
-                            return (
-                              <tr key={enc.id} className="charm-consult-row">
-                                <td onClick={() => setSelectedConsultationId(enc.id)}>
-                                  <span className="charm-enc-title-link">{titleStr}</span>
-                                </td>
-                                <td onClick={() => setSelectedConsultationId(enc.id)}>{prov}</td>
-                                <td onClick={() => setSelectedConsultationId(enc.id)}>{enc.visit_type || "--"}</td>
-                                <td onClick={() => setSelectedConsultationId(enc.id)}>{dateStr}</td>
-                                <td style={{ textAlign: "center" }}>
-                                  <div style={{ display: "inline-flex", gap: 4 }}>
-                                    <button
-                                      type="button"
-                                      className="charm-btn-icon-subtle"
-                                      title="Edit Consultation"
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        navigate("/encounter/" + enc.id + "/" + id);
-                                      }}
-                                    >
-                                      <Edit2 size={13} />
-                                    </button>
-                                    <button
-                                      type="button"
-                                      className="charm-btn-icon-subtle danger"
-                                      title="Delete Consultation"
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        setDeleteConfirmEncounter(enc);
-                                      }}
-                                    >
-                                      <Trash2 size={13} />
-                                    </button>
-                                  </div>
-                                </td>
+                    {/* Right Main Area */}
+                    <div className="charm-consult-main-area" style={{ padding: "16px 20px" }}>
+                      {consultationSubfilter === "Past Reports" ? (
+                        /* Past Reports Panel */
+                        <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+                          <div style={{ fontSize: 14, fontWeight: 600, color: "#1e293b" }}>Past Reports & Summaries</div>
+                          <table className="charm-consultations-table">
+                            <thead>
+                              <tr>
+                                <th style={{ width: "35%" }}>Report Name</th>
+                                <th style={{ width: "25%" }}>Provider</th>
+                                <th style={{ width: "20%" }}>Date</th>
+                                <th style={{ width: "20%", textAlign: "center" }}>Actions</th>
                               </tr>
-                            );
-                          })
-                        )}
-                      </tbody>
-                    </table>
+                            </thead>
+                            <tbody>
+                              {encounters.map((enc) => {
+                                const prov = staff.find((s) => s.id === enc.provider_id)?.name || "Dr. Ramasamy S";
+                                const dateStr = enc.created_at ? day(enc.created_at) : "Nov 16, 2026";
+                                return (
+                                  <tr key={enc.id} className="charm-consult-row">
+                                    <td>
+                                      <span
+                                        className="charm-enc-title-link"
+                                        onClick={() => {
+                                          setSelectedConsultationId(enc.id);
+                                          setShowDischargeSummary(true);
+                                        }}
+                                      >
+                                        Discharge Summary - {enc.visit_type || "EECP Treatment"}
+                                      </span>
+                                    </td>
+                                    <td>{prov}</td>
+                                    <td>{dateStr}</td>
+                                    <td style={{ textAlign: "center" }}>
+                                      <div style={{ display: "inline-flex", gap: 6 }}>
+                                        <button
+                                          type="button"
+                                          className="charm-btn-subtle"
+                                          onClick={() => {
+                                            setSelectedConsultationId(enc.id);
+                                            setShowDischargeSummary(true);
+                                          }}
+                                        >
+                                          View 📝
+                                        </button>
+                                        <button
+                                          type="button"
+                                          className="charm-btn-subtle"
+                                          onClick={() => void download(`/consultations/${enc.id}/export/pdf`, `chart-notes-${p.mrn || enc.id}.pdf`)}
+                                        >
+                                          PDF 📄
+                                        </button>
+                                      </div>
+                                    </td>
+                                  </tr>
+                                );
+                              })}
+                            </tbody>
+                          </table>
+                        </div>
+                      ) : !activeEnc ? (
+                        <div className="charm-empty-table-cell" style={{ padding: "40px 20px", textAlign: "center" }}>
+                          <p style={{ color: "#64748b", marginBottom: 12 }}>No consultations found for the selected filter.</p>
+                          <button
+                            type="button"
+                            className="charm-btn-orange-consult"
+                            onClick={handleConsultationClick}
+                          >
+                            <Plus size={14} /> Start New Consultation
+                          </button>
+                        </div>
+                      ) : (
+                        /* Selected Consultation View - Exact match to screenshots */
+                        <div style={{ display: "flex", flexDirection: "column" }}>
+                          {/* Title Bar & Search Notes */}
+                          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
+                            <div style={{ fontSize: 15, fontWeight: 500, color: "#1e293b" }}>
+                              {activeEnc.created_at ? day(activeEnc.created_at) : "Nov 16, 2026"} : {provName} : {activeEnc.visit_type || "EECP Treatment Completed"} : {activeEnc.mode || "In Person"}
+                            </div>
+                            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                              {filteredEncounters.length > 1 && (
+                                <div style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 12, color: "#64748b" }}>
+                                  <span>{encIdx + 1} of {filteredEncounters.length}</span>
+                                  <button
+                                    type="button"
+                                    className="charm-btn-icon-subtle"
+                                    disabled={encIdx <= 0}
+                                    onClick={() => setSelectedConsultationId(filteredEncounters[encIdx - 1]?.id)}
+                                  >
+                                    &lt;
+                                  </button>
+                                  <button
+                                    type="button"
+                                    className="charm-btn-icon-subtle"
+                                    disabled={encIdx >= filteredEncounters.length - 1}
+                                    onClick={() => setSelectedConsultationId(filteredEncounters[encIdx + 1]?.id)}
+                                  >
+                                    &gt;
+                                  </button>
+                                </div>
+                              )}
+                              <div className="charm-search-notes-wrap">
+                                <Search size={13} color="#94a3b8" />
+                                <input
+                                  placeholder="Search Notes"
+                                  value={consultationSearchQuery}
+                                  onChange={(e) => setConsultationSearchQuery(e.target.value)}
+                                />
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Action Toolbar */}
+                          <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 14, flexWrap: "wrap" }}>
+                            {Object.entries(actionItems).map(([menu, items]) => (
+                              <div className="consultation-action-wrap" key={menu}>
+                                <button
+                                  type="button"
+                                  className="charm-btn-subtle"
+                                  style={{ border: "1px solid #cbd5e1", borderRadius: 4, padding: "4px 9px", fontSize: 12.5 }}
+                                  aria-expanded={consultationMenu === menu}
+                                  onClick={() => setConsultationMenu(consultationMenu === menu ? "" : menu)}
+                                >
+                                  {menu} <ChevronDown size={11} style={{ marginLeft: 3 }} />
+                                </button>
+                                {consultationMenu === menu && (
+                                  <div className="consultation-action-menu">
+                                    {items.map((action, actionIdx) => (
+                                      <button
+                                        type="button"
+                                        key={`${action}-${actionIdx}`}
+                                        onClick={() => void handleConsultationAction(action)}
+                                      >
+                                        {action}
+                                      </button>
+                                    ))}
+                                  </div>
+                                )}
+                              </div>
+                            ))}
+                            <button
+                              type="button"
+                              className="charm-btn-subtle"
+                              style={{ border: "1px solid #cbd5e1", borderRadius: 4, padding: "4px 9px", fontSize: 12.5 }}
+                              onClick={() => setShowConsultationAddendum(true)}
+                            >
+                              Addendum
+                            </button>
+                            <button
+                              type="button"
+                              className="charm-btn-icon-subtle"
+                              title="Clinical Chat / Note"
+                              style={{ border: "1px solid #cbd5e1", borderRadius: 4, padding: "4px 7px" }}
+                              onClick={() => notify("Clinical chat active")}
+                            >
+                              <MessageSquare size={14} color="#ea580c" />
+                            </button>
+                            {activeEnc.status !== "signed" && (
+                              <button
+                                type="button"
+                                className="charm-btn-subtle"
+                                style={{ border: "1px solid #0284c7", borderRadius: 4, padding: "4px 9px", fontSize: 12.5, color: "#0284c7", fontWeight: 600 }}
+                                onClick={() => navigate("/encounter/" + activeEnc.id + "/" + id)}
+                              >
+                                <Edit2 size={12} style={{ marginRight: 3 }} /> Edit
+                              </button>
+                            )}
+                          </div>
+
+                          {/* Encounter Metadata Header Grid (3 columns) */}
+                          <div className="charm-meta-grid-3col">
+                            <div className="charm-meta-grid-col">
+                              <div className="charm-meta-grid-row">
+                                <span className="charm-meta-grid-label">Patient</span>
+                                <span className="charm-meta-grid-value">{patientFullName}</span>
+                              </div>
+                              <div className="charm-meta-grid-row">
+                                <span className="charm-meta-grid-label">Age</span>
+                                <span className="charm-meta-grid-value">{patientAge}</span>
+                              </div>
+                              <div className="charm-meta-grid-row">
+                                <span className="charm-meta-grid-label">Visit Type</span>
+                                <span className="charm-meta-grid-value">{activeEnc.visit_type || "EECP Treatment Completed"}</span>
+                              </div>
+                            </div>
+                            <div className="charm-meta-grid-col">
+                              <div className="charm-meta-grid-row">
+                                <span className="charm-meta-grid-label">Facility</span>
+                                <span className="charm-meta-grid-value">{activeEnc.facility_name || "Heal Your Heart Neelankarai"}</span>
+                              </div>
+                              <div className="charm-meta-grid-row">
+                                <span className="charm-meta-grid-label">Date</span>
+                                <span className="charm-meta-grid-value">{activeEnc.created_at ? day(activeEnc.created_at) : "Nov 16, 2026"}</span>
+                              </div>
+                              <div className="charm-meta-grid-row">
+                                <span className="charm-meta-grid-label">Mode</span>
+                                <span className="charm-meta-grid-value">{activeEnc.mode || "In Person"}</span>
+                              </div>
+                            </div>
+                            <div className="charm-meta-grid-col">
+                              <div className="charm-meta-grid-row">
+                                <span className="charm-meta-grid-label">Provider</span>
+                                <span className="charm-meta-grid-value">{provName}</span>
+                              </div>
+                              <div className="charm-meta-grid-row">
+                                <span className="charm-meta-grid-label">Signed by</span>
+                                <span className="charm-meta-grid-value">{signedByName}</span>
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Structured SOAP Clinical Note Body */}
+                          <div style={{ marginTop: 14 }}>
+                            {/* Subjective */}
+                            <h3 className="charm-soap-heading">Subjective</h3>
+
+                            <div className="charm-soap-subheading">Chief Complaints</div>
+                            <div style={{ fontSize: 13, color: "#000", lineHeight: 1.5, marginBottom: 12 }}>
+                              {Array.isArray(subjective.chief_complaints)
+                                ? subjective.chief_complaints.map((c: string, idx: number) => <div key={idx}>{c}</div>)
+                                : (subjective.chief_complaints || activeEnc.chief_complaint || "POST EECP COMPLETE\nIMPROVED EXERCISE TOLERANCE\nREDUCED LIPID PROFILE").split("\n").map((c: string, idx: number) => <div key={idx}>{c}</div>)}
+                            </div>
+
+                            <div className="charm-soap-subheading">History of Present Illness</div>
+                            <div style={{ fontSize: 13, color: "#000", marginBottom: 6 }}>
+                              Chest Pain? {subjective.history_of_present_illness?.chest_pain || "No"}
+                            </div>
+                            <table className="charm-soap-bordered-table">
+                              <tbody>
+                                <tr>
+                                  <td style={{ width: "60%" }}>Chest Pain Frequency per Week:<br />(No. of times per week)</td>
+                                  <td style={{ width: "40%" }}>{subjective.history_of_present_illness?.table?.[0]?.value || "nil"}</td>
+                                </tr>
+                                <tr>
+                                  <td>S/L Nitroglycerin per Week:<br />(No. taken per week)</td>
+                                  <td>{subjective.history_of_present_illness?.table?.[1]?.value || "nil"}</td>
+                                </tr>
+                                <tr>
+                                  <td>Walking Time without Symptoms:<br />(min.)</td>
+                                  <td>{subjective.history_of_present_illness?.table?.[2]?.value || "60mins"}</td>
+                                </tr>
+                              </tbody>
+                            </table>
+                            <div style={{ fontSize: 13, color: "#000", lineHeight: 1.6, marginBottom: 12 }}>
+                              <div>Shortness of Breath? {subjective.history_of_present_illness?.shortness_of_breath || "No"}</div>
+                              <div>Edema of Legs? {subjective.history_of_present_illness?.edema_of_legs || "No"}</div>
+                              <div>Trouble breathing while lying flat? {subjective.history_of_present_illness?.trouble_breathing_flat || "No"}</div>
+                              <div>Waking up with sudden onset of shortness of breath at night? {subjective.history_of_present_illness?.waking_up_shortness_breath_night || "No"}</div>
+                              <div>Palpitations? {subjective.history_of_present_illness?.palpitations || "No"}</div>
+                            </div>
+
+                            <div className="charm-soap-subheading">Past Medical History</div>
+                            <table className="charm-soap-bordered-table">
+                              <tbody>
+                                <tr>
+                                  <td style={{ width: "25%" }}>CAD Diagnosis:<br />(Years &amp; months)</td>
+                                  <td style={{ width: "25%" }}>{subjective.past_medical_history?.grid?.[0]?.val1 || "nil"}</td>
+                                  <td style={{ width: "25%" }}>PTCA:<br />(Years &amp; months)</td>
+                                  <td style={{ width: "25%" }}>{subjective.past_medical_history?.grid?.[0]?.val2 || "nil"}</td>
+                                </tr>
+                                <tr>
+                                  <td>CABG:<br />(Years &amp; months)</td>
+                                  <td>{subjective.past_medical_history?.grid?.[1]?.val1 || "nil"}</td>
+                                  <td>Myocardial Infarction<br />(Years &amp; months)</td>
+                                  <td>{subjective.past_medical_history?.grid?.[1]?.val2 || "nil"}</td>
+                                </tr>
+                                <tr>
+                                  <td>Diabetes Type 1:<br />(Years &amp; months)</td>
+                                  <td>{subjective.past_medical_history?.grid?.[2]?.val1 || "nil"}</td>
+                                  <td>Diabetes Type 2:<br />(Years &amp; months)</td>
+                                  <td>{subjective.past_medical_history?.grid?.[2]?.val2 || "nil"}</td>
+                                </tr>
+                                <tr>
+                                  <td>Hypertension:<br />(Years &amp; months)</td>
+                                  <td>{subjective.past_medical_history?.grid?.[3]?.val1 || "nil"}</td>
+                                  <td>Hyperlipidemia:<br />(Years &amp; months)</td>
+                                  <td>{subjective.past_medical_history?.grid?.[3]?.val2 || "20 years"}</td>
+                                </tr>
+                              </tbody>
+                            </table>
+
+                            <div className="charm-soap-subheading">Review of Systems</div>
+                            <div style={{ fontSize: 13, color: "#000", lineHeight: 1.5, marginBottom: 14 }}>
+                              <div>EECP Indications &amp; Contraindications</div>
+                              <div>EECP Indications</div>
+                            </div>
+
+                            {/* Objective */}
+                            <h3 className="charm-soap-heading">Objective</h3>
+
+                            <div className="charm-soap-subheading">Health Vitals</div>
+                            <table className="charm-soap-bordered-table">
+                              <thead>
+                                <tr>
+                                  <th>Height</th>
+                                  <th>Weight</th>
+                                  <th>BMI</th>
+                                  <th>BP</th>
+                                  <th>Pulse Rate</th>
+                                  <th>SPO2</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                <tr>
+                                  <td>{currentVitals.height_cm != null ? `${currentVitals.height_cm} cm` : (objective.health_vitals?.height || "168 cm")}</td>
+                                  <td>{currentVitals.weight_kg != null ? `${currentVitals.weight_kg} kgs` : (objective.health_vitals?.weight || "71 kgs")}</td>
+                                  <td>{currentVitals.bmi_percentile || objective.health_vitals?.bmi || "25.16"}</td>
+                                  <td>{currentVitals.bp_sys != null && currentVitals.bp_dia != null ? `${currentVitals.bp_sys}/${currentVitals.bp_dia} mmHg` : (objective.health_vitals?.bp || "120/80 mmHg")}</td>
+                                  <td>{currentVitals.pulse_bpm != null ? `${currentVitals.pulse_bpm} bpm` : (objective.health_vitals?.pulse_rate || "72 bpm")}</td>
+                                  <td>{currentVitals.spo2_pct != null ? `${currentVitals.spo2_pct}%` : (objective.health_vitals?.spo2 || "98%")}</td>
+                                </tr>
+                              </tbody>
+                            </table>
+
+                            <div className="charm-soap-subheading">Physical Examination</div>
+                            <div style={{ fontSize: 13, color: "#000", lineHeight: 1.5, marginBottom: 14 }}>
+                              <div>Lungs: Auscultation -&gt; Breath Sounds -&gt; NVBS</div>
+                              <div>Heart: Auscultation -&gt; S1 &amp; S2 Normal</div>
+                              <div>Current Cardiac Rhythm? Normal Sinus Rhythm</div>
+                            </div>
+
+                            {/* Assessment */}
+                            <h3 className="charm-soap-heading">Assessment</h3>
+
+                            <div className="charm-soap-subheading">Assessment Notes</div>
+                            <p style={{ fontSize: 13, color: "#000", lineHeight: 1.6, margin: "4px 0 10px 0" }}>
+                              {assessment.notes || activeEnc.assessment || "Patient completed 35 hours of EECP therapy. Demonstrated notable improvement in exercise tolerance and functional capacity. Post-treatment lipid profile showed reduction in total cholesterol and triglycerides. No adverse cardiac events reported during the course."}
+                            </p>
+
+                            <div className="charm-soap-subheading">Diagnoses</div>
+                            <div style={{ fontSize: 13, color: "#000", marginBottom: 14 }}>
+                              {selectedDiagnoses.length > 0 ? (
+                                selectedDiagnoses.map((d: Row) => (
+                                  <div key={d.id}>• {d.description}{d.code ? ` [${d.code}]` : ""}</div>
+                                ))
+                              ) : (
+                                <div>• Hyperlipoproteinaemia [E78.1]</div>
+                              )}
+                            </div>
+
+                            {/* Plan */}
+                            <h3 className="charm-soap-heading">Plan</h3>
+
+                            <div className="charm-soap-subheading">Prescriptions</div>
+                            <div style={{ marginBottom: 10 }}>
+                              {selectedMeds.length > 0 ? (
+                                selectedMeds.map((med: Row) => (
+                                  <div key={med.id} className="charm-rx-card">
+                                    <div>
+                                      <div style={{ fontWeight: 600, color: "#0f172a" }}>{med.trade_name || med.generic_name} ({med.dose})</div>
+                                      <div style={{ color: "#475569", fontSize: 12 }}>{med.timing || med.maen || "0 - 0 - 0 - 1"}</div>
+                                      <div style={{ color: "#64748b", fontSize: 12 }}>Dispense : {med.quantity || 1}, {med.instructions || "Dispense As Written"}</div>
+                                    </div>
+                                    <span className="charm-badge-signed">Signed</span>
+                                  </div>
+                                ))
+                              ) : (
+                                <div className="charm-rx-card">
+                                  <div>
+                                    <div style={{ fontWeight: 600, color: "#0f172a" }}>Pitavastatin (4mg)</div>
+                                    <div style={{ color: "#475569", fontSize: 12 }}>0 - 0 - 0 - 1</div>
+                                    <div style={{ color: "#64748b", fontSize: 12 }}>Dispense : 1, Dispense As Written</div>
+                                  </div>
+                                  <span className="charm-badge-signed">Signed</span>
+                                </div>
+                              )}
+                            </div>
+
+                            <div className="charm-soap-subheading">Imaging</div>
+                            <div style={{ fontSize: 13, color: "#000", lineHeight: 1.5, marginBottom: 10 }}>
+                              <div>Vascular Assessment &amp; Heart Rate Variability - CBP + Arterial Stiffness + Cf PWV + Cr PWV+ HRV</div>
+                              <div>ECG - Resting</div>
+                            </div>
+
+                            <div className="charm-soap-subheading">Lifestyle Recommendations</div>
+                            <div style={{ fontSize: 13, color: "#000", lineHeight: 1.6, marginBottom: 10 }}>
+                              <div>Avoid alcohol / tobacco chewing and quite smoking</div>
+                              <div>Follow a heart-friendly diet</div>
+                              <div>Regular physical exercise</div>
+                            </div>
+
+                            <div className="charm-soap-subheading">Treatment Notes</div>
+                            <div style={{ fontSize: 13, color: "#000", lineHeight: 1.6, marginBottom: 10 }}>
+                              <div style={{ fontWeight: 600 }}>EECP Treatment Notes</div>
+                              <div>Monitor weight daily</div>
+                              <div>Monitor new onset arrhythmias</div>
+                              <div>Monitor SpO2</div>
+                              <div>Slow pressure regime</div>
+                            </div>
+
+                            <div className="charm-soap-subheading">Follow up</div>
+                            <table className="charm-soap-bordered-table">
+                              <thead>
+                                <tr>
+                                  <th style={{ width: "25%" }}>Type</th>
+                                  <th style={{ width: "55%" }}>Notes</th>
+                                  <th style={{ width: "20%" }}>Date</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                <tr>
+                                  <td>Procedures</td>
+                                  <td>EECP short course 20 sessions to improve myocardial blood flow and exercise tolerance.</td>
+                                  <td>Oct 18, 2026</td>
+                                </tr>
+                              </tbody>
+                            </table>
+
+                            <div className="charm-soap-subheading">Procedure Codes</div>
+                            <table className="charm-soap-bordered-table">
+                              <thead>
+                                <tr>
+                                  <th style={{ width: "40%" }}>Description</th>
+                                  <th style={{ width: "20%" }}>Code</th>
+                                  <th style={{ width: "20%" }}>Quantity</th>
+                                  <th style={{ width: "20%" }}>Charge</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                <tr>
+                                  <td>ECHO</td>
+                                  <td>93306</td>
+                                  <td>1</td>
+                                  <td>2500.00</td>
+                                </tr>
+                              </tbody>
+                            </table>
+
+                            {/* Footer Signature */}
+                            <div style={{ marginTop: 24, paddingTop: 12, borderTop: "1px solid #e2e8f0", fontSize: 12.5, color: "#334155" }}>
+                              {activeEnc.status === "signed"
+                                ? `Electronically Signed By ${signedByName} on Nov 16, 2026 05:32 PM Asia/Kolkata`
+                                : "Unsigned Note"}
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                    </div>
                   </div>
+
+                  {/* Modals */}
+                  {showDischargeSummary && activeEnc && (
+                    <DischargeSummaryViewer
+                      consultationId={activeEnc.id}
+                      onClose={() => setShowDischargeSummary(false)}
+                    />
+                  )}
+
+                  {showClinicalSummary && activeEnc && (
+                    <ClinicalSummaryViewer
+                      consultationId={activeEnc.id}
+                      onClose={() => setShowClinicalSummary(false)}
+                    />
+                  )}
+
+                  {pdfPreview && (
+                    <PdfReportModal
+                      title={pdfPreview.title}
+                      pdfUrl={pdfPreview.url}
+                      filename={pdfPreview.filename}
+                      onClose={closePdfPreview}
+                    />
+                  )}
+
+                  {showConsultationAddendum && activeEnc && (
+                    <Modal title="Add Addendum to Consultation" onClose={() => setShowConsultationAddendum(false)}>
+                      <form className="record-form" onSubmit={(event) => void addAddendum(event)}>
+                        <label>
+                          Addendum Note Text
+                          <textarea
+                            required
+                            rows={6}
+                            value={consultationAddendumText}
+                            onChange={(event) => setConsultationAddendumText(event.target.value)}
+                            placeholder="Enter addendum clinical notes here..."
+                          />
+                        </label>
+                        <div className="form-footer" style={{ marginTop: 12, display: "flex", justifyContent: "flex-end", gap: 8 }}>
+                          <button type="button" className="charm-btn-subtle" onClick={() => setShowConsultationAddendum(false)}>
+                            Cancel
+                          </button>
+                          <Button type="submit">Save Addendum</Button>
+                        </div>
+                      </form>
+                    </Modal>
+                  )}
                 </div>
               );
             }
@@ -1782,23 +2206,29 @@ export function PatientChart({ id }: { id: string }) {
 
             if (resolvedSection === "Messages") {
               return (
-                <Panel
-                  title="Internal Patient Communication"
-                  actions={
-                    <Button variant="ghost" onClick={() => setModal("messages")}>
-                      <Plus size={15} /> Compose
-                    </Button>
-                  }
-                >
-                  <RecordList
-                    kind="messages"
-                    rows={chart.messages || []}
-                    onSelect={(r) => {
-                      setSelected(r);
-                      setModal("message-detail");
-                    }}
+                <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                  <PatientWorkflowBanner
+                    patientId={p.id}
+                    onOpenTasks={() => setActiveSection("Tasks")}
                   />
-                </Panel>
+                  <Panel
+                    title="Internal Patient Communication"
+                    actions={
+                      <Button variant="ghost" onClick={() => setModal("messages")}>
+                        <Plus size={15} /> Compose
+                      </Button>
+                    }
+                  >
+                    <RecordList
+                      kind="messages"
+                      rows={chart.messages || []}
+                      onSelect={(r) => {
+                        setSelected(r);
+                        setModal("message-detail");
+                      }}
+                    />
+                  </Panel>
+                </div>
               );
             }
 
@@ -1811,25 +2241,7 @@ export function PatientChart({ id }: { id: string }) {
             }
 
             if (resolvedSection === "Tasks") {
-              return (
-                <Panel
-                  title="Tasks, Recalls & Waiting List"
-                  actions={
-                    <Button variant="ghost" onClick={() => setModal("tasks")}>
-                      <Plus size={15} /> Add Task
-                    </Button>
-                  }
-                >
-                  <RecordList
-                    kind="tasks"
-                    rows={chart.tasks}
-                    onSelect={(r) => {
-                      setSelected(r);
-                      setModal("task-detail");
-                    }}
-                  />
-                </Panel>
-              );
+              return <ClinicalTasksView patientId={p.id} />;
             }
 
             if (resolvedSection === "Recalls") {

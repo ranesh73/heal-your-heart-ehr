@@ -15,14 +15,15 @@ tables_to_check = [
     'template_relationships',
     'template_permissions',
     'medication_references',
-    'consultations',
+    'template_consultation_responses',
     'template_responses'
 ]
 
 print("=== SOURCE DATABASE INVENTORY (C:\\Users\\sanju\\Downloads\\HUH\\charm_health-main\\backend\\ehr_templates.db) ===")
 src_counts = {}
 for t in tables_to_check:
-    c = src_cur.execute(f'SELECT count(*) FROM "{t}"').fetchone()[0]
+    source_table = 'consultations' if t == 'template_consultation_responses' else t
+    c = src_cur.execute(f'SELECT count(*) FROM "{source_table}"').fetchone()[0]
     src_counts[t] = c
     print(f"  {t}: {c} records")
 
@@ -37,8 +38,9 @@ for dst_path in dst_paths:
         exists = dst_cur.execute("SELECT count(*) FROM sqlite_master WHERE type='table' AND name=?", (t,)).fetchone()[0]
         if not exists:
             print(f"Creating missing table {t} in {dst_path}...")
-            schema = src_cur.execute(f"SELECT sql FROM sqlite_master WHERE type='table' AND name='{t}'").fetchone()[0]
-            dst_cur.execute(schema)
+            source_table = 'consultations' if t == 'template_consultation_responses' else t
+            schema = src_cur.execute(f"SELECT sql FROM sqlite_master WHERE type='table' AND name='{source_table}'").fetchone()[0]
+            dst_cur.execute(schema.replace(f'CREATE TABLE {source_table}', f'CREATE TABLE {t}'))
             dst_con.commit()
             
         dst_c = dst_cur.execute(f'SELECT count(*) FROM "{t}"').fetchone()[0]

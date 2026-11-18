@@ -109,6 +109,7 @@ import {
   ChannelsPage,
   TasksPage,
 } from "./clinicalModules";
+import { TaskNotificationCenter } from "./clinicalTasks";
 import {
   SettingsDashboard,
   IndividualSettingPage,
@@ -800,15 +801,7 @@ function Workspace() {
                   <ChevronDown size={14} color="#64748b" className="charm-branch-chevron" />
                 </div>
 
-                <button
-                  className="charm-icon-btn-round"
-                  aria-label="Notifications"
-                  onClick={() => notify("No new notifications.")}
-                  title="Notifications"
-                >
-                  <Bell size={16} />
-                  <span className="charm-bell-dot" />
-                </button>
+                <TaskNotificationCenter />
 
                 <button
                   className="charm-icon-btn-round"

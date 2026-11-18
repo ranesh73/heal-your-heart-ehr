@@ -163,6 +163,48 @@ class Encounter(PatientRecord, Base):
     __table_args__ = (CheckConstraint("status IN ('draft','signed')"),)
 
 
+class Consultation(Base):
+    __tablename__ = 'consultations'
+    id = Column(ForeignKey('encounters.id', ondelete='CASCADE'), primary_key=True)
+    patient_id = Column(ForeignKey('patients.id'), nullable=False, index=True)
+    provider_id = Column(ForeignKey('users.id'), nullable=False)
+    facility_id = Column(ForeignKey('facilities.id'), nullable=False, index=True)
+    facility_name = Column(String(150), nullable=False, default='')
+    visit_type = Column(String(80), nullable=False)
+    visit_mode = Column(String(50), nullable=False, default='In Person')
+    visit_date = Column(DateTime(timezone=True), nullable=False, index=True)
+    status = Column(String(20), nullable=False, default='unsigned')
+    signed_by = Column(ForeignKey('users.id'))
+    signed_at = Column(DateTime(timezone=True))
+    soap_json = Column(JSON().with_variant(JSONB, 'postgresql'), nullable=False, default=dict)
+    created_at = Column(DateTime(timezone=True), nullable=False, default=now)
+    updated_at = Column(DateTime(timezone=True), nullable=False, default=now, onupdate=now)
+    __table_args__ = (
+        CheckConstraint("status IN ('draft','unsigned','co_sign','signed')"),
+    )
+
+
+class ConsultationAddendum(Base):
+    __tablename__ = 'consultation_addendums'
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid4()))
+    consultation_id = Column(ForeignKey('consultations.id', ondelete='CASCADE'), nullable=False, index=True)
+    author_id = Column(ForeignKey('users.id'), nullable=False)
+    note_text = Column(Text, nullable=False)
+    created_at = Column(DateTime(timezone=True), nullable=False, default=now)
+
+
+class DischargeSummary(Base):
+    __tablename__ = 'discharge_summaries'
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid4()))
+    consultation_id = Column(ForeignKey('consultations.id', ondelete='CASCADE'), nullable=False, unique=True)
+    patient_id = Column(ForeignKey('patients.id'), nullable=False, index=True)
+    report_data_json = Column(JSON().with_variant(JSONB, 'postgresql'), nullable=False, default=dict)
+    updated_by = Column(ForeignKey('users.id'), nullable=False)
+    version = Column(Integer, nullable=False, default=1)
+    created_at = Column(DateTime(timezone=True), nullable=False, default=now)
+    updated_at = Column(DateTime(timezone=True), nullable=False, default=now, onupdate=now)
+
+
 class Symptom(Entity, Base):
     __tablename__ = 'encounter_symptoms'
     encounter_id = Column(ForeignKey('encounters.id'), nullable=False, index=True)
@@ -549,6 +591,69 @@ class Task(PatientRecord, Base):
     due_date = Column(Date)
     priority = Column(String(20), default='normal', nullable=False)
     status = Column(String(20), default='pending', nullable=False)
+
+
+class WorkflowTemplate(Base):
+    __tablename__ = 'workflow_templates'
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid4()))
+    facility_id = Column(ForeignKey('facilities.id'), nullable=True, index=True)
+    name = Column(String(150), nullable=False)
+    description = Column(Text, default='')
+    is_system = Column(Boolean, nullable=False, default=False)
+    has_optional_lab_flow = Column(Boolean, nullable=False, default=False)
+    steps_json = Column(JSON().with_variant(JSONB, 'postgresql'), nullable=False, default=list)
+    created_by = Column(ForeignKey('users.id'), nullable=True)
+    created_at = Column(DateTime(timezone=True), nullable=False, default=now)
+    updated_at = Column(DateTime(timezone=True), nullable=False, default=now, onupdate=now)
+
+
+class ClinicalTask(Base):
+    __tablename__ = 'clinical_tasks'
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid4()))
+    facility_id = Column(ForeignKey('facilities.id'), nullable=False, index=True)
+    patient_id = Column(ForeignKey('patients.id'), nullable=True, index=True)
+    workflow_instance_id = Column(String(36), nullable=True, index=True)
+    template_id = Column(ForeignKey('workflow_templates.id', ondelete='SET NULL'), nullable=True)
+    category = Column(String(150), nullable=False, default='General')
+    step_order = Column(Integer, nullable=False, default=1)
+    short_label = Column(String(80), nullable=False, default='')
+    title = Column(String(250), nullable=False)
+    sub_type = Column(String(80), nullable=False, default='')
+    priority = Column(String(20), nullable=False, default='Medium')
+    status = Column(String(20), nullable=False, default='Pending')
+    created_by_user_id = Column(ForeignKey('users.id'), nullable=False, index=True)
+    assigned_to_user_id = Column(ForeignKey('users.id'), nullable=False, index=True)
+    due_date = Column(Date, nullable=True, index=True)
+    comments = Column(Text, nullable=False, default='')
+    completed_at = Column(DateTime(timezone=True), nullable=True)
+    created_at = Column(DateTime(timezone=True), nullable=False, default=now)
+    updated_at = Column(DateTime(timezone=True), nullable=False, default=now, onupdate=now)
+    version = Column(Integer, nullable=False, default=1)
+    __table_args__ = (
+        CheckConstraint("priority IN ('High','Medium','Low')"),
+        CheckConstraint("status IN ('Pending','In-Progress','Completed')"),
+    )
+
+
+class ClinicalTaskComment(Base):
+    __tablename__ = 'clinical_task_comments'
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid4()))
+    task_id = Column(ForeignKey('clinical_tasks.id', ondelete='CASCADE'), nullable=False, index=True)
+    author_id = Column(ForeignKey('users.id'), nullable=False)
+    body = Column(Text, nullable=False)
+    created_at = Column(DateTime(timezone=True), nullable=False, default=now)
+
+
+class TaskNotification(Base):
+    __tablename__ = 'task_notifications'
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid4()))
+    facility_id = Column(ForeignKey('facilities.id'), nullable=False, index=True)
+    user_id = Column(ForeignKey('users.id'), nullable=False, index=True)
+    task_id = Column(ForeignKey('clinical_tasks.id', ondelete='CASCADE'), nullable=False, index=True)
+    kind = Column(String(40), nullable=False, default='assigned')
+    message = Column(Text, nullable=False)
+    is_read = Column(Boolean, nullable=False, default=False, index=True)
+    created_at = Column(DateTime(timezone=True), nullable=False, default=now)
 
 
 class PatientEntry(PatientRecord, Base):

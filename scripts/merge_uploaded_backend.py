@@ -23,7 +23,7 @@ template_tables = [
     'template_options',
     'template_relationships',
     'template_permissions',
-    'consultations',
+    'template_consultation_responses',
     'template_responses',
     'medication_references'
 ]
@@ -36,8 +36,9 @@ for target_path in targets:
     target_cur = target_con.cursor()
     
     for tbl in template_tables:
+        source_table = 'consultations' if tbl == 'template_consultation_responses' else tbl
         # Get schema from source
-        ddl = source_cur.execute(f"SELECT sql FROM sqlite_master WHERE type='table' AND name='{tbl}'").fetchone()
+        ddl = source_cur.execute(f"SELECT sql FROM sqlite_master WHERE type='table' AND name='{source_table}'").fetchone()
         if not ddl or not ddl[0]:
             print(f"  Warning: No DDL for {tbl}")
             continue
@@ -45,10 +46,10 @@ for target_path in targets:
         # Drop old table in target if exists
         target_cur.execute(f"DROP TABLE IF EXISTS [{tbl}]")
         # Create fresh table with exact schema
-        target_cur.execute(ddl[0])
+        target_cur.execute(ddl[0].replace(f'CREATE TABLE {source_table}', f'CREATE TABLE {tbl}'))
         
         # Copy data
-        rows = source_cur.execute(f"SELECT * FROM [{tbl}]").fetchall()
+        rows = source_cur.execute(f"SELECT * FROM [{source_table}]").fetchall()
         if rows:
             placeholders = ','.join(['?' for _ in rows[0]])
             target_cur.executemany(f"INSERT INTO [{tbl}] VALUES ({placeholders})", rows)

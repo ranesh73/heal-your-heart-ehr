@@ -33,6 +33,17 @@ def get_con():
     return conn
 
 
+def template_consultation_table(cursor):
+    tables = {row[0] for row in cursor.execute("SELECT name FROM sqlite_master WHERE type='table'")}
+    if "template_consultation_responses" in tables:
+        return "template_consultation_responses"
+    if "consultations" in tables:
+        columns = {row[1] for row in cursor.execute("PRAGMA table_info(consultations)")}
+        if "template_id" in columns:
+            return "consultations"
+    raise sqlite3.OperationalError("Template consultation response table is unavailable")
+
+
 def _row_to_template(row: sqlite3.Row, cursor: sqlite3.Cursor) -> Dict[str, Any]:
     data = dict(row)
     data["is_active"] = bool(data.get("is_active", 1))
@@ -713,7 +724,8 @@ def delete_medication(med_id: int):
 def list_consultations():
     conn = get_con()
     cursor = conn.cursor()
-    cursor.execute("SELECT * FROM consultations ORDER BY id DESC LIMIT 50")
+    response_table = template_consultation_table(cursor)
+    cursor.execute(f"SELECT * FROM {response_table} ORDER BY id DESC LIMIT 50")
     rows = cursor.fetchall()
     results = []
     for r in rows:
@@ -731,6 +743,7 @@ def list_consultations():
 def save_consultation_responses(data: dict):
     conn = get_con()
     cursor = conn.cursor()
+    response_table = template_consultation_table(cursor)
     pat_id = data.get("patient_id", 1)
     tpl_id = data.get("template_id", 1)
     notes = data.get("notes", "")
@@ -739,9 +752,9 @@ def save_consultation_responses(data: dict):
     responses = data.get("responses", [])
 
     cursor.execute("""
-        INSERT INTO consultations (patient_id, template_id, doctor_name, notes, encounter_type, status, created_at, updated_at)
+        INSERT INTO {response_table} (patient_id, template_id, doctor_name, notes, encounter_type, status, created_at, updated_at)
         VALUES (?, ?, ?, ?, ?, 'Completed', datetime('now'), datetime('now'))
-    """, (pat_id, tpl_id, doc_name, notes, enc_type))
+    """.format(response_table=response_table), (pat_id, tpl_id, doc_name, notes, enc_type))
     cons_id = cursor.lastrowid
 
     for resp in responses:
@@ -764,7 +777,8 @@ def save_consultation_responses(data: dict):
 def get_consultation_responses(consultation_id: int):
     conn = get_con()
     cursor = conn.cursor()
-    cursor.execute("SELECT * FROM consultations WHERE id = ?", (consultation_id,))
+    response_table = template_consultation_table(cursor)
+    cursor.execute(f"SELECT * FROM {response_table} WHERE id = ?", (consultation_id,))
     c = cursor.fetchone()
     if not c:
         conn.close()

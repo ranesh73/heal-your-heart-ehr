@@ -144,6 +144,35 @@ class NoteInput(Version):
     symptoms: list[SymptomInput] = Field(default_factory=list, max_length=20)
 
 
+class ConsultationInput(Input):
+    provider_id: str
+    facility_id: str | None = None
+    assistant_id: str | None = None
+    appointment_id: str | None = None
+    visit_type: str = Field(default='Consultation', min_length=1, max_length=80)
+    chart_type: str = Field(default='SOAP Template', max_length=50)
+    visit_mode: Literal['In Person', 'Telehealth', 'Phone Call', 'Video Consult'] = 'In Person'
+    visit_date: datetime | None = None
+    status: Literal['draft', 'unsigned', 'co_sign'] = 'unsigned'
+    soap_json: dict[str, Any] = Field(default_factory=dict)
+
+
+class ConsultationUpdate(Version):
+    visit_type: str | None = Field(default=None, min_length=1, max_length=80)
+    visit_mode: Literal['In Person', 'Telehealth', 'Phone Call', 'Video Consult'] | None = None
+    visit_date: datetime | None = None
+    status: Literal['draft', 'unsigned', 'co_sign'] | None = None
+    soap_json: dict[str, Any] | None = None
+
+
+class DischargeSummaryInput(Version):
+    report_data_json: dict[str, Any]
+
+
+class ConsultationAddendumInput(Input):
+    note_text: str = Field(min_length=1, max_length=12000)
+
+
 class AmendmentInput(Input):
     reason: str = Field(min_length=3, max_length=3000)
     content: str = Field(min_length=3, max_length=12000)

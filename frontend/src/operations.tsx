@@ -21,6 +21,7 @@ import {
 import { ViewTemplateModal } from "./patients";
 import { formatDoctorName } from "./clinicalWorkflows";
 import { CharmPracticeBilling } from "./charmPatientBilling";
+import { PatientWorkflowProgressBar } from "./clinicalTasks";
 import {
   api,
   branch,
@@ -1982,6 +1983,22 @@ function Schedule() {
     return sorted;
   }, [searchAndStatusFiltered, calSortBy, resources, staff]);
 
+  const calendarPatientIds = useMemo(() => {
+    const unique = Array.from(new Set(displayedAppts.map((a) => a.patient_id).filter(Boolean)));
+    return unique.sort().join(",");
+  }, [displayedAppts]);
+
+  const calendarWorkflowsQuery = useQuery({
+    queryKey: ["calendar-workflow-progress", branch, calendarPatientIds],
+    queryFn: () =>
+      api<Record<string, Row[]>>(
+        `/clinical-tasks/workflow-progress-batch?patient_ids=${encodeURIComponent(calendarPatientIds)}`,
+      ),
+    enabled: Boolean(calendarPatientIds),
+    refetchInterval: 15000,
+  });
+  const calendarWorkflowMap = calendarWorkflowsQuery.data || {};
+
   const activeCalView = calSubtab === "Waiting List" ? waitingListView : view;
   const shift = (amount: number) => {
     if (activeCalView === "Month") {
@@ -3323,6 +3340,15 @@ function Schedule() {
                             </button>
                           </div>
                         </div>
+
+                        {/* Live Active Clinical Workflow Progress Tracker */}
+                        {calendarWorkflowMap[a.patient_id]?.length > 0 && (
+                          <PatientWorkflowProgressBar
+                            workflows={calendarWorkflowMap[a.patient_id]}
+                            compact
+                            onOpenTasks={() => navigate(`/patients/${a.patient_id}?section=Tasks`)}
+                          />
+                        )}
                       </div>
                     </div>
                   );
