@@ -6,7 +6,7 @@ from sqlalchemy.dialects import postgresql
 
 
 revision = "20261117_consultations_discharge_summary"
-down_revision = "20261117_patient_flowsheet_catalog"
+down_revision = "20261117_patient_billing_actions_metadata"
 branch_labels = None
 depends_on = None
 

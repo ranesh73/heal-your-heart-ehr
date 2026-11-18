@@ -20,6 +20,7 @@ import {
   Clock,
   FlaskConical,
   Paperclip,
+  Download,
 } from "lucide-react";
 import { api, branch, navigate, Row } from "./api";
 import { useApp } from "./context";
@@ -212,6 +213,49 @@ export interface AnalyteItem {
   comments: string;
 }
 
+// Helper to resolve primary lab name from order
+export function getOrderLabName(order: Row): string {
+  if (order.order_metadata) {
+    try {
+      const meta = JSON.parse(order.order_metadata);
+      if (meta.template_name) return meta.template_name;
+      if (meta.primary_lab) return meta.primary_lab;
+    } catch { }
+  }
+  if (order.name && order.name.includes(" · ")) {
+    return order.name.split(" · ")[0].trim();
+  }
+  return "HUH-Cardio Diabetic";
+}
+
+// Helper to parse tests array from order
+export function getOrderTests(order: Row): string[] {
+  if (order.order_metadata) {
+    try {
+      const meta = JSON.parse(order.order_metadata);
+      if (Array.isArray(meta.tests) && meta.tests.length > 0) {
+        return meta.tests;
+      }
+      if (meta.template_name) {
+        if (meta.template_name.includes(" & ")) return meta.template_name.split(" & ").map((s: string) => s.trim());
+        if (meta.template_name.includes(" · ")) return [meta.template_name.split(" · ")[1].trim()];
+        return [meta.template_name];
+      }
+    } catch { }
+  }
+  if (order.name) {
+    if (order.name.includes(" · ")) {
+      const afterDot = order.name.split(" · ")[1].trim().replace(/\s*\(\+\d+\s*tests?\)/i, "");
+      return [afterDot];
+    }
+    if (order.name.includes(" & ")) {
+      return order.name.split(" & ").map((s: string) => s.trim());
+    }
+    return [order.name];
+  }
+  return ["Routine Diagnostic Evaluation"];
+}
+
 // Helper to resolve parameter definitions for any test with multi-level fallback
 export function getTestAnalytes(tName: string, labCatalogs: Row[] = []): AnalyteItem[] {
   const normTarget = tName.toLowerCase().replace(/^(huh\s*[-–—]?\s*|huh-cd-)/i, "").trim();
@@ -327,18 +371,18 @@ export function exportOrderAsPdf(order: Row, patient?: Row, staffList: Row[] = [
     </thead>
     <tbody>
       ${values.length === 0 ? `<tr><td colspan="5" style="text-align:center; padding: 20px; color:#94a3b8;">No test values recorded.</td></tr>` :
-        values.map((v) => {
-          const interp = v.interpretation || "-";
-          const isAbn = ["low", "high", "abnormal"].includes(interp.toLowerCase());
-          return `<tr>
+      values.map((v) => {
+        const interp = v.interpretation || "-";
+        const isAbn = ["low", "high", "abnormal"].includes(interp.toLowerCase());
+        return `<tr>
             <td style="font-weight: 600;">${v.parameter || v.test_name}</td>
             <td class="${isAbn ? 'flag-high' : ''}">${v.value}</td>
             <td style="color:#64748b;">${v.unit || "-"}</td>
             <td style="color:#64748b;">${v.reference_range || "-"}</td>
             <td class="${isAbn ? 'flag-high' : 'flag-normal'}">${interp}</td>
           </tr>`;
-        }).join("")
-      }
+      }).join("")
+    }
     </tbody>
   </table>
 
@@ -373,7 +417,9 @@ export function CharmLabOrders({ patientId, encounterId, isGlobal }: CharmLabOrd
 
   // Navigation & View Modes: in global mode, default to results (matching CharmHealth Frame 5)
   const [activeSubTab, setActiveSubTab] = useState<"orders" | "results">(isGlobalMode ? "results" : "orders");
-  const [viewMode, setViewMode] = useState<"list" | "add_order" | "add_lab_result" | "import_result" | "print_view">("list");
+  const [viewMode, setViewMode] = useState<
+    "list" | "add_order" | "edit_order" | "add_lab_result" | "edit_lab_result" | "import_result" | "print_view"
+  >("list");
   const [selectedOrder, setSelectedOrder] = useState<Row | null>(null);
   const [plotOrder, setPlotOrder] = useState<Row | null>(null);
 
@@ -524,20 +570,6 @@ export function CharmLabOrders({ patientId, encounterId, isGlobal }: CharmLabOrd
     return { id: pid, name: pName, mrn: pMrn, initial };
   };
 
-  const getOrderLabName = (order: Row): string => {
-    if (order.order_metadata) {
-      try {
-        const meta = JSON.parse(order.order_metadata);
-        if (meta.template_name) return meta.template_name;
-        if (meta.primary_lab) return meta.primary_lab;
-      } catch { }
-    }
-    if (order.name && order.name.includes(" · ")) {
-      return order.name.split(" · ")[0].trim();
-    }
-    return "HUH-Cardio Diabetic";
-  };
-
   const isOrderAbnormal = (order: Row): boolean => {
     const vals: any[] = order.values || [];
     return vals.some((v) => ["low", "high", "abnormal"].includes((v.interpretation || "").toLowerCase()));
@@ -553,25 +585,6 @@ export function CharmLabOrders({ patientId, encounterId, isGlobal }: CharmLabOrd
     window.addEventListener("click", handleOutsideClick);
     return () => window.removeEventListener("click", handleOutsideClick);
   }, []);
-
-  // Helper to parse tests array from order
-  const getOrderTests = (order: Row): string[] => {
-    if (order.order_metadata) {
-      try {
-        const meta = JSON.parse(order.order_metadata);
-        if (Array.isArray(meta.tests) && meta.tests.length > 0) {
-          return meta.tests;
-        }
-      } catch { }
-    }
-    if (order.name) {
-      if (order.name.includes(" · ")) {
-        return [order.name.split(" · ")[1].trim()];
-      }
-      return [order.name];
-    }
-    return ["Routine Diagnostic Evaluation"];
-  };
 
   // Helper to check if a specific test within an order has resulted values
   const isTestResulted = (order: Row, testName: string): boolean => {
@@ -738,11 +751,37 @@ export function CharmLabOrders({ patientId, encounterId, isGlobal }: CharmLabOrd
           labCatalogs={labCatalogs}
           labTemplates={labTemplates}
           allOrders={orders}
-          onCancel={() => setViewMode("list")}
+          initialOrder={null}
+          onCancel={() => {
+            setViewMode("list");
+            setSelectedOrder(null);
+          }}
           onSaved={() => {
             queryClient.invalidateQueries({ queryKey: ["orders"] });
             setViewMode("list");
+            setSelectedOrder(null);
             notify("Lab order created successfully.");
+          }}
+        />
+      )}
+
+      {viewMode === "edit_order" && selectedOrder && (
+        <AddLabOrderScreen
+          patientId={patientId || selectedOrder.patient_id}
+          encounterId={encounterId || selectedOrder.encounter_id}
+          labCatalogs={labCatalogs}
+          labTemplates={labTemplates}
+          allOrders={orders}
+          initialOrder={selectedOrder}
+          onCancel={() => {
+            setViewMode("list");
+            setSelectedOrder(null);
+          }}
+          onSaved={() => {
+            queryClient.invalidateQueries({ queryKey: ["orders"] });
+            setViewMode("list");
+            setSelectedOrder(null);
+            notify("Lab order updated successfully.");
           }}
         />
       )}
@@ -751,17 +790,21 @@ export function CharmLabOrders({ patientId, encounterId, isGlobal }: CharmLabOrd
         <AddLabResultScreen
           patientId={patientId}
           labCatalogs={labCatalogs}
-          onCancel={() => setViewMode("list")}
+          onCancel={() => {
+            setViewMode("list");
+            setSelectedOrder(null);
+          }}
           onSaved={() => {
             queryClient.invalidateQueries({ queryKey: ["orders"] });
             setViewMode("list");
+            setSelectedOrder(null);
             notify("Lab result created successfully.");
           }}
         />
       )}
 
-      {viewMode === "import_result" && selectedOrder && (
-        <ImportLabResultScreen
+      {viewMode === "edit_lab_result" && selectedOrder && (
+        <EditLabResultScreen
           order={selectedOrder}
           labCatalogs={labCatalogs}
           onCancel={() => {
@@ -772,7 +815,24 @@ export function CharmLabOrders({ patientId, encounterId, isGlobal }: CharmLabOrd
             queryClient.invalidateQueries({ queryKey: ["orders"] });
             setViewMode("list");
             setSelectedOrder(null);
-            notify("Lab results saved successfully.");
+            notify("Lab result updated successfully.");
+          }}
+        />
+      )}
+
+      {viewMode === "import_result" && selectedOrder && (
+        <ImportResultsScreen
+          order={selectedOrder}
+          labCatalogs={labCatalogs}
+          onCancel={() => {
+            setViewMode("list");
+            setSelectedOrder(null);
+          }}
+          onSaved={() => {
+            queryClient.invalidateQueries({ queryKey: ["orders"] });
+            setViewMode("list");
+            setSelectedOrder(null);
+            notify("Lab results imported successfully.");
           }}
         />
       )}
@@ -1119,7 +1179,7 @@ export function CharmLabOrders({ patientId, encounterId, isGlobal }: CharmLabOrd
                                   }}
                                   onClick={() => {
                                     setSelectedOrder(order);
-                                    setViewMode("add_order");
+                                    setViewMode("edit_order");
                                     setOpenMenuId(null);
                                   }}
                                 >
@@ -1633,7 +1693,7 @@ export function CharmLabOrders({ patientId, encounterId, isGlobal }: CharmLabOrd
                                   }}
                                   onClick={() => {
                                     setSelectedOrder(order);
-                                    setViewMode("import_result");
+                                    setViewMode("edit_lab_result");
                                     setOpenMenuId(null);
                                   }}
                                 >
@@ -2740,7 +2800,7 @@ function PlotModal({
 }
 
 // ==========================================
-// SCREEN: ADD LAB ORDER REQUISITION BUILDER
+// SCREEN: ADD / EDIT LAB ORDER REQUISITION BUILDER
 // ==========================================
 function AddLabOrderScreen({
   patientId,
@@ -2748,6 +2808,7 @@ function AddLabOrderScreen({
   labCatalogs,
   labTemplates,
   allOrders = [],
+  initialOrder = null,
   onCancel,
   onSaved,
 }: {
@@ -2756,13 +2817,20 @@ function AddLabOrderScreen({
   labCatalogs: Row[];
   labTemplates: Row[];
   allOrders?: Row[];
+  initialOrder?: Row | null;
   onCancel: () => void;
   onSaved: () => void;
 }) {
   const { user, staff, patients } = useApp();
-  const [selectedPatientId, setSelectedPatientId] = useState<string>(patientId || patients[0]?.id || "");
-  const [orderedDate, setOrderedDate] = useState<string>("Nov 06, 2026");
-  const [orderedBy, setOrderedBy] = useState<string>(user.id);
+  const [selectedPatientId, setSelectedPatientId] = useState<string>(
+    initialOrder?.patient_id || patientId || patients[0]?.id || ""
+  );
+  const [orderedDate, setOrderedDate] = useState<string>(
+    initialOrder?.ordered_date || "Nov 06, 2026"
+  );
+  const [orderedBy, setOrderedBy] = useState<string>(
+    initialOrder?.author_id || user.id
+  );
   const [templateModalOpen, setTemplateModalOpen] = useState(false);
   const [searchAddModalOpen, setSearchAddModalOpen] = useState(false);
   const [pastOrdersModalOpen, setPastOrdersModalOpen] = useState(false);
@@ -2771,11 +2839,22 @@ function AddLabOrderScreen({
   const [isSavingLoading, setIsSavingLoading] = useState(false);
 
   // Ordered tests list
-  const [orderedItems, setOrderedItems] = useState<{ labName: string; testName: string }[]>([]);
+  const [orderedItems, setOrderedItems] = useState<{ labName: string; testName: string }[]>(() => {
+    if (initialOrder) {
+      const tests = getOrderTests(initialOrder);
+      const primaryLab = getOrderLabName(initialOrder);
+      return tests.map((t: string) => ({ labName: primaryLab, testName: t }));
+    }
+    return [];
+  });
 
   // Notes
-  const [noteLabPatient, setNoteLabPatient] = useState("");
-  const [notesIntraOffice, setNotesIntraOffice] = useState("");
+  const [noteLabPatient, setNoteLabPatient] = useState(
+    initialOrder?.notes_lab_patient || initialOrder?.instructions || ""
+  );
+  const [notesIntraOffice, setNotesIntraOffice] = useState(
+    initialOrder?.notes_intra_office || ""
+  );
 
   const handleRemoveItem = (index: number) => {
     setOrderedItems((prev) => prev.filter((_, i) => i !== index));
@@ -2812,26 +2891,45 @@ function AddLabOrderScreen({
       const testNames = orderedItems.map((x) => x.testName);
       const title = `${primaryLab} · ${testNames[0]}${testNames.length > 1 ? ` (+${testNames.length - 1} tests)` : ""}`;
 
-      await api("/records/orders", "POST", {
-        patient_id: effPatientId,
-        encounter_id: encounterId || null,
-        kind: "Lab",
-        name: title,
-        ordered_date: orderedDate,
-        status: "Pending",
-        notes_lab_patient: noteLabPatient,
-        notes_intra_office: notesIntraOffice,
-        instructions: noteLabPatient,
-        order_metadata: JSON.stringify({
-          primary_lab: primaryLab,
-          tests: testNames,
+      if (initialOrder) {
+        // UPDATE EXISTING ORDER
+        await api(`/records/orders/${initialOrder.id}`, "PUT", {
+          name: title,
+          ordered_date: orderedDate,
           notes_lab_patient: noteLabPatient,
           notes_intra_office: notesIntraOffice,
-        }),
-      });
+          instructions: noteLabPatient,
+          version: initialOrder.version,
+          order_metadata: JSON.stringify({
+            primary_lab: primaryLab,
+            tests: testNames,
+            notes_lab_patient: noteLabPatient,
+            notes_intra_office: notesIntraOffice,
+          }),
+        });
+      } else {
+        // CREATE NEW ORDER
+        await api("/records/orders", "POST", {
+          patient_id: effPatientId,
+          encounter_id: encounterId || null,
+          kind: "Lab",
+          name: title,
+          ordered_date: orderedDate,
+          status: "Pending",
+          notes_lab_patient: noteLabPatient,
+          notes_intra_office: notesIntraOffice,
+          instructions: noteLabPatient,
+          order_metadata: JSON.stringify({
+            primary_lab: primaryLab,
+            tests: testNames,
+            notes_lab_patient: noteLabPatient,
+            notes_intra_office: notesIntraOffice,
+          }),
+        });
+      }
       onSaved();
     } catch (err: any) {
-      alert(err.message || "Failed to create lab order.");
+      alert(err.message || (initialOrder ? "Failed to update lab order." : "Failed to create lab order."));
       setIsSavingLoading(false);
     }
   };
@@ -2875,7 +2973,9 @@ function AddLabOrderScreen({
           marginBottom: "16px",
         }}
       >
-        <h2 style={{ margin: 0, fontSize: "1.25rem", color: "#0f172a", fontWeight: 600 }}>Add Lab Order</h2>
+        <h2 style={{ margin: 0, fontSize: "1.25rem", color: "#0f172a", fontWeight: 600 }}>
+          {initialOrder ? "Edit Lab Order" : "Add Lab Order"}
+        </h2>
         <div style={{ display: "flex", gap: "10px" }}>
           <button
             type="button"
@@ -2892,7 +2992,7 @@ function AddLabOrderScreen({
               cursor: "pointer",
             }}
           >
-            Save
+            {initialOrder ? "Update Order" : "Save"}
           </button>
           <button
             type="button"
@@ -2925,7 +3025,27 @@ function AddLabOrderScreen({
           fontSize: "0.85rem",
         }}
       >
-        {!patientId && (
+        {initialOrder ? (
+          <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+            <span style={{ color: "#334155", fontWeight: 600 }}>Patient</span>
+            <span
+              style={{
+                padding: "5px 10px",
+                background: "#f8fafc",
+                border: "1px solid #cbd5e1",
+                borderRadius: "4px",
+                fontSize: "0.85rem",
+                fontWeight: 600,
+                color: "#0f172a",
+              }}
+            >
+              {(() => {
+                const p = patients.find((x) => x.id === initialOrder.patient_id);
+                return p ? `${p.first_name} ${p.last_name} (${p.mrn})` : initialOrder.patient_name || "Patient";
+              })()}
+            </span>
+          </div>
+        ) : !patientId ? (
           <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
             <span style={{ color: "#334155", fontWeight: 600 }}>Patient</span>
             <select
@@ -2946,7 +3066,7 @@ function AddLabOrderScreen({
               ))}
             </select>
           </div>
-        )}
+        ) : null}
 
         <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
           <span style={{ color: "#334155" }}>Ordered Date</span>
@@ -3571,9 +3691,1311 @@ function TemplatesModal({
 }
 
 // ==========================================
-// SCREEN: IMPORT / EDIT LAB RESULT (AUTHENTIC CHARMHEALTH PARITY)
+// PARSING HELPERS FOR LAB RESULT IMPORT
 // ==========================================
-function ImportLabResultScreen({
+function parseCsvResults(csvText: string): Array<{
+  test_name: string;
+  parameter: string;
+  value: string;
+  unit: string;
+  reference_range: string;
+  interpretation: string;
+  comments: string;
+}> {
+  const lines = csvText.split(/\r?\n/).filter((l) => l.trim().length > 0);
+  if (lines.length === 0) return [];
+
+  const parseLine = (line: string): string[] => {
+    const cells: string[] = [];
+    let cur = "";
+    let inQuotes = false;
+    for (let i = 0; i < line.length; i++) {
+      const c = line[i];
+      if (c === '"') {
+        if (inQuotes && line[i + 1] === '"') {
+          cur += '"';
+          i++;
+        } else {
+          inQuotes = !inQuotes;
+        }
+      } else if (c === ',' && !inQuotes) {
+        cells.push(cur.trim());
+        cur = "";
+      } else {
+        cur += c;
+      }
+    }
+    cells.push(cur.trim());
+    return cells;
+  };
+
+  const parsedLines = lines.map(parseLine);
+  if (parsedLines.length === 0) return [];
+
+  const firstRow = parsedLines[0].map((h) => h.toLowerCase());
+  let hasHeader = false;
+  let testIdx = -1;
+  let paramIdx = -1;
+  let valIdx = -1;
+  let unitIdx = -1;
+  let refIdx = -1;
+  let interpIdx = -1;
+  let commIdx = -1;
+
+  firstRow.forEach((h, i) => {
+    if (h.includes("test") || h.includes("panel")) testIdx = i;
+    else if (h.includes("param") || h.includes("analyte") || h.includes("name")) paramIdx = i;
+    else if (h.includes("val") || h.includes("result")) valIdx = i;
+    else if (h.includes("unit")) unitIdx = i;
+    else if (h.includes("ref") || h.includes("range")) refIdx = i;
+    else if (h.includes("interp") || h.includes("flag")) interpIdx = i;
+    else if (h.includes("comm") || h.includes("note")) commIdx = i;
+  });
+
+  if (paramIdx !== -1 || valIdx !== -1) {
+    hasHeader = true;
+  }
+
+  if (!hasHeader) {
+    testIdx = 0;
+    paramIdx = 1;
+    valIdx = 2;
+    unitIdx = 3;
+    refIdx = 4;
+    interpIdx = 5;
+    commIdx = 6;
+  } else {
+    if (testIdx === -1) testIdx = 0;
+    if (paramIdx === -1) paramIdx = 1;
+    if (valIdx === -1) valIdx = 2;
+  }
+
+  const startRow = hasHeader ? 1 : 0;
+  const results: Array<{
+    test_name: string;
+    parameter: string;
+    value: string;
+    unit: string;
+    reference_range: string;
+    interpretation: string;
+    comments: string;
+  }> = [];
+
+  for (let r = startRow; r < parsedLines.length; r++) {
+    const row = parsedLines[r];
+    if (row.length < 2) continue;
+    const testName = (testIdx >= 0 && row[testIdx]) ? row[testIdx] : "";
+    const paramName = (paramIdx >= 0 && row[paramIdx]) ? row[paramIdx] : (row[0] || "");
+    const val = (valIdx >= 0 && row[valIdx]) ? row[valIdx] : "";
+    const unit = (unitIdx >= 0 && row[unitIdx]) ? row[unitIdx] : "";
+    const ref = (refIdx >= 0 && row[refIdx]) ? row[refIdx] : "";
+    let interp = (interpIdx >= 0 && row[interpIdx]) ? row[interpIdx] : "";
+    const comm = (commIdx >= 0 && row[commIdx]) ? row[commIdx] : "";
+
+    if (!paramName && !val) continue;
+
+    if (!interp || interp === "-") {
+      const num = parseFloat(val);
+      if (!isNaN(num)) {
+        const nums = ref.match(/[-+]?[0-9]*\.?[0-9]+/g);
+        if (nums && nums.length >= 2) {
+          const low = parseFloat(nums[0]);
+          const high = parseFloat(nums[1]);
+          if (!isNaN(low) && !isNaN(high)) {
+            if (num < low) interp = "Low";
+            else if (num > high) interp = "High";
+            else interp = "Normal";
+          }
+        }
+      }
+    }
+
+    results.push({
+      test_name: testName,
+      parameter: paramName,
+      value: val,
+      unit,
+      reference_range: ref,
+      interpretation: interp || "Normal",
+      comments: comm,
+    });
+  }
+
+  return results;
+}
+
+function parseJsonResults(jsonText: string): Array<{
+  test_name: string;
+  parameter: string;
+  value: string;
+  unit: string;
+  reference_range: string;
+  interpretation: string;
+  comments: string;
+}> {
+  try {
+    const parsed = JSON.parse(jsonText);
+    const rawList = Array.isArray(parsed) ? parsed : (parsed.values || parsed.results || parsed.analytes || []);
+    if (!Array.isArray(rawList)) return [];
+
+    return rawList.map((item: any) => ({
+      test_name: item.test_name || item.test || item.panel || "",
+      parameter: item.parameter || item.name || item.analyte || "",
+      value: String(item.value ?? item.result ?? ""),
+      unit: item.unit || item.units || "",
+      reference_range: item.reference_range || item.range || item.reference || "",
+      interpretation: item.interpretation || item.flag || "Normal",
+      comments: item.comments || item.notes || "",
+    })).filter((x) => x.parameter || x.value);
+  } catch {
+    return [];
+  }
+}
+
+// ==========================================
+// SCREEN: IMPORT LAB RESULTS (AUTHENTIC CHARMHEALTH LAB ORDERS ACTION)
+// ==========================================
+function ImportResultsScreen({
+  order,
+  labCatalogs,
+  onCancel,
+  onSaved,
+}: {
+  order: Row;
+  labCatalogs: Row[];
+  onCancel: () => void;
+  onSaved: () => void;
+}) {
+  const { user, staff, patients, notify } = useApp();
+  const [resultDate, setResultDate] = useState("Nov 06, 2026");
+  const [resultTime, setResultTime] = useState("");
+  const [isSaving, setIsSaving] = useState(false);
+  const [specimenSource, setSpecimenSource] = useState("Blood (Serum)");
+  const [uploadedFile, setUploadedFile] = useState<File | null>(null);
+  const [uploadedPdfFile, setUploadedPdfFile] = useState<File | null>(null);
+  const [panelComments, setPanelComments] = useState<Record<string, string>>({});
+  const [groupComments, setGroupComments] = useState("");
+  const [importNotice, setImportNotice] = useState<string | null>(null);
+  const [isDragging, setIsDragging] = useState(false);
+  const [specimenModalOpen, setSpecimenModalOpen] = useState(false);
+
+  // Context: patient and doctor
+  const patient = useMemo(() => patients.find((p) => p.id === order.patient_id), [patients, order.patient_id]);
+  const clinician = useMemo(() => {
+    const s = staff.find((st) => st.id === order.author_id);
+    if (s) return s.name.startsWith("Dr.") ? s.name : `Dr. ${s.name}`;
+    return order.ordered_by || "Dr. Prem Sekar";
+  }, [staff, order]);
+
+  // Robust test names extraction from order
+  const [testNames, setTestNames] = useState<string[]>(() => {
+    if (order.order_metadata) {
+      try {
+        const meta = JSON.parse(order.order_metadata);
+        if (Array.isArray(meta.tests) && meta.tests.length > 0) return meta.tests;
+        if (meta.template_name) {
+          if (meta.template_name.includes(" & ")) return meta.template_name.split(" & ").map((s: string) => s.trim());
+          if (meta.template_name.includes(" · ")) return [meta.template_name.split(" · ")[1].trim()];
+          return [meta.template_name];
+        }
+      } catch { }
+    }
+    if (order.name) {
+      if (order.name.includes(" · ")) {
+        const afterDot = order.name.split(" · ")[1].trim().replace(/\s*\(\+\d+\s*tests?\)/i, "");
+        return [afterDot];
+      }
+      if (order.name.includes(" & ")) {
+        return order.name.split(" & ").map((s: string) => s.trim());
+      }
+      return [order.name];
+    }
+    return ["HUH - Routine Diagnostic Evaluation"];
+  });
+
+  const [collapsedCards, setCollapsedCards] = useState<Record<string, boolean>>({});
+  const [analyteState, setAnalyteState] = useState<Record<string, AnalyteItem[]>>({});
+
+  // Initialize analyte state from existing values or standard parameters for this order
+  useEffect(() => {
+    const existingValues: any[] = order.values || [];
+    const initial: Record<string, AnalyteItem[]> = {};
+
+    testNames.forEach((tName: string) => {
+      const defaultItems = getTestAnalytes(tName, labCatalogs);
+      initial[tName] = defaultItems.map((item) => {
+        const exist = existingValues.find(
+          (v) => v.parameter?.toLowerCase() === item.name.toLowerCase() && (!v.test_name || v.test_name === tName)
+        );
+        return {
+          ...item,
+          result: exist?.value || "",
+          interpretation: exist?.interpretation || item.interpretation || "-",
+          comments: exist?.comments || "",
+        };
+      });
+    });
+
+    setAnalyteState(initial);
+  }, [order, testNames, labCatalogs]);
+
+  // Handle Result input change with live auto-interpretation & red border on abnormal
+  const handleResultChange = (tName: string, idx: number, val: string) => {
+    setAnalyteState((prev) => {
+      const items = [...(prev[tName] || [])];
+      const target = { ...items[idx], result: val };
+
+      if (val.trim() === "") {
+        target.interpretation = "-";
+      } else {
+        const num = parseFloat(val);
+        if (!isNaN(num)) {
+          if (target.minRef !== undefined && num < target.minRef) {
+            target.interpretation = "Low";
+          } else if (target.maxRef !== undefined && num > target.maxRef) {
+            target.interpretation = "High";
+          } else if (target.minRef !== undefined || target.maxRef !== undefined) {
+            target.interpretation = "Normal";
+          }
+        }
+      }
+
+      items[idx] = target;
+      return { ...prev, [tName]: items };
+    });
+  };
+
+  const handleInterpretationChange = (tName: string, idx: number, interp: string) => {
+    setAnalyteState((prev) => {
+      const items = [...(prev[tName] || [])];
+      items[idx] = { ...items[idx], interpretation: interp };
+      return { ...prev, [tName]: items };
+    });
+  };
+
+  const handleCommentsChange = (tName: string, idx: number, comm: string) => {
+    setAnalyteState((prev) => {
+      const items = [...(prev[tName] || [])];
+      items[idx] = { ...items[idx], comments: comm };
+      return { ...prev, [tName]: items };
+    });
+  };
+
+  const handleAddParameter = (tName: string) => {
+    setAnalyteState((prev) => {
+      const items = [...(prev[tName] || [])];
+      const newItem: AnalyteItem = {
+        name: `Additional Param ${items.length + 1}`,
+        result: "",
+        unit: "",
+        minRef: undefined,
+        maxRef: undefined,
+        textRef: "",
+        interpretation: "-",
+        comments: "",
+      };
+      return { ...prev, [tName]: [...items, newItem] };
+    });
+  };
+
+  const handleRemoveParameter = (tName: string, idx: number) => {
+    setAnalyteState((prev) => {
+      const items = [...(prev[tName] || [])];
+      items.splice(idx, 1);
+      return { ...prev, [tName]: items };
+    });
+  };
+
+  const handleParamNameChange = (tName: string, idx: number, name: string) => {
+    setAnalyteState((prev) => {
+      const items = [...(prev[tName] || [])];
+      items[idx] = { ...items[idx], name };
+      return { ...prev, [tName]: items };
+    });
+  };
+
+  const handleParamUnitChange = (tName: string, idx: number, unit: string) => {
+    setAnalyteState((prev) => {
+      const items = [...(prev[tName] || [])];
+      items[idx] = { ...items[idx], unit };
+      return { ...prev, [tName]: items };
+    });
+  };
+
+  // Download Sample CSV Template
+  const handleDownloadTemplate = () => {
+    const headers = ["Test Name", "Parameter", "Result Value", "Unit", "Reference Range", "Interpretation", "Comments"];
+    const rows: string[][] = [];
+
+    testNames.forEach((tName) => {
+      const items = getTestAnalytes(tName, labCatalogs);
+      items.forEach((item) => {
+        const refStr = item.minRef !== undefined && item.maxRef !== undefined
+          ? `${item.minRef} - ${item.maxRef}`
+          : (item.textRef || "");
+        rows.push([
+          `"${tName}"`,
+          `"${item.name}"`,
+          `""`,
+          `"${item.unit || ""}"`,
+          `"${refStr}"`,
+          `"Normal"`,
+          `""`,
+        ]);
+      });
+    });
+
+    const csvContent = [headers.join(","), ...rows.map((r) => r.join(","))].join("\r\n");
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `Lab_Result_Template_${order.lab_ref || "Requisition"}.csv`;
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+    notify("Sample CSV template downloaded.");
+  };
+
+  // Process imported results from file
+  const handleApplyImportedRows = (
+    importedRows: Array<{
+      test_name: string;
+      parameter: string;
+      value: string;
+      unit: string;
+      reference_range: string;
+      interpretation: string;
+      comments: string;
+    }>
+  ) => {
+    setAnalyteState((prev) => {
+      const nextState = { ...prev };
+      let matchedCount = 0;
+      let addedCount = 0;
+
+      importedRows.forEach((row) => {
+        let targetPanel = testNames.find(
+          (t) => t.toLowerCase() === row.test_name.toLowerCase()
+        );
+        if (!targetPanel && testNames.length > 0) {
+          targetPanel = testNames.find((t) =>
+            row.test_name && (t.toLowerCase().includes(row.test_name.toLowerCase()) || row.test_name.toLowerCase().includes(t.toLowerCase()))
+          ) || testNames[0];
+        }
+        if (!targetPanel) targetPanel = row.test_name || "Diagnostic Evaluation";
+
+        if (!nextState[targetPanel]) {
+          nextState[targetPanel] = [];
+        }
+
+        const existingIdx = nextState[targetPanel].findIndex(
+          (p) => p.name.toLowerCase() === row.parameter.toLowerCase()
+        );
+
+        if (existingIdx >= 0) {
+          matchedCount++;
+          nextState[targetPanel][existingIdx] = {
+            ...nextState[targetPanel][existingIdx],
+            result: row.value,
+            unit: row.unit || nextState[targetPanel][existingIdx].unit,
+            textRef: row.reference_range || nextState[targetPanel][existingIdx].textRef,
+            interpretation: row.interpretation || nextState[targetPanel][existingIdx].interpretation,
+            comments: row.comments || nextState[targetPanel][existingIdx].comments,
+          };
+        } else {
+          addedCount++;
+          const nums = row.reference_range.match(/[-+]?[0-9]*\.?[0-9]+/g);
+          let minRef: number | undefined;
+          let maxRef: number | undefined;
+          if (nums && nums.length >= 2) {
+            minRef = parseFloat(nums[0]);
+            maxRef = parseFloat(nums[1]);
+          }
+          nextState[targetPanel].push({
+            name: row.parameter,
+            result: row.value,
+            unit: row.unit,
+            minRef,
+            maxRef,
+            textRef: row.reference_range,
+            interpretation: row.interpretation || "Normal",
+            comments: row.comments,
+          });
+        }
+      });
+
+      setImportNotice(
+        `✓ File parsed successfully: ${importedRows.length} analyte results processed (${matchedCount} matched to ordered parameters${addedCount > 0 ? `, ${addedCount} added` : ""}).`
+      );
+      return nextState;
+    });
+  };
+
+  const handleFileUpload = (file: File) => {
+    setUploadedFile(file);
+    const fname = file.name.toLowerCase();
+
+    if (fname.endsWith(".pdf")) {
+      setUploadedPdfFile(file);
+      setImportNotice(
+        `📄 Diagnostic PDF report "${file.name}" (${(file.size / 1024).toFixed(1)} KB) attached. It will be securely archived in Patient Documents and linked to order ${order.lab_ref || ""}.`
+      );
+      return;
+    }
+
+    if (fname.endsWith(".json")) {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const text = e.target?.result as string;
+        const rows = parseJsonResults(text);
+        if (rows.length === 0) {
+          alert("Could not parse JSON. Ensure it contains an array of analyte objects with 'parameter' and 'value'.");
+          return;
+        }
+        handleApplyImportedRows(rows);
+      };
+      reader.readAsText(file);
+      return;
+    }
+
+    // Default: CSV / TXT
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const text = e.target?.result as string;
+      const rows = parseCsvResults(text);
+      if (rows.length === 0) {
+        alert("Could not find any readable rows in the uploaded CSV. Please check formatting or download the sample template.");
+        return;
+      }
+      handleApplyImportedRows(rows);
+    };
+    reader.readAsText(file);
+  };
+
+  // Completed tests count
+  const completedTestCount = useMemo(() => {
+    let count = 0;
+    Object.entries(analyteState).forEach(([_, items]) => {
+      if (items.length > 0 && items.some((x) => x.result.trim() !== "")) {
+        count++;
+      }
+    });
+    return count;
+  }, [analyteState]);
+
+  // Genuine Save & Upload results
+  const handleSaveAll = async (forceStatus?: string) => {
+    setIsSaving(true);
+    try {
+      const payloadValues: any[] = [];
+      let totalTestsWithResults = 0;
+
+      Object.entries(analyteState).forEach(([tName, items]) => {
+        let hasAny = false;
+        items.forEach((item) => {
+          if (item.result.trim() !== "") {
+            hasAny = true;
+            payloadValues.push({
+              test_name: tName,
+              parameter: item.name,
+              value: item.result.trim(),
+              unit: item.unit || "",
+              reference_range:
+                item.minRef !== undefined && item.maxRef !== undefined
+                  ? `Min ${item.minRef} - Max ${item.maxRef}`
+                  : item.textRef || "",
+              interpretation: item.interpretation || "Normal",
+              comments: item.comments || "",
+            });
+          }
+        });
+        if (hasAny) totalTestsWithResults++;
+      });
+
+      if (payloadValues.length === 0) {
+        alert("Please upload a laboratory result file or enter at least one parameter result before saving.");
+        setIsSaving(false);
+        return;
+      }
+
+      let nextStatus = forceStatus || "Completed";
+      if (!forceStatus) {
+        if (totalTestsWithResults === testNames.length && testNames.length > 0) {
+          nextStatus = "Completed";
+        } else if (totalTestsWithResults > 0) {
+          nextStatus = "Partial";
+        }
+      }
+
+      // 1. Post structured results to backend
+      await api(`/orders/${order.id}/result`, "POST", {
+        version: order.version,
+        status: nextStatus,
+        result: `Imported results for ${totalTestsWithResults} of ${testNames.length} laboratory test panels.${groupComments ? ` ${groupComments}` : ""}`,
+        values: payloadValues,
+      });
+
+      // 2. Upload PDF document if attached
+      if (uploadedPdfFile) {
+        const formData = new FormData();
+        formData.append("patient_id", order.patient_id);
+        formData.append("title", `Lab Result Report - ${testNames[0] || "Laboratory"}`);
+        formData.append("order_id", order.id);
+        formData.append("file", uploadedPdfFile);
+        await api("/documents", "POST", formData);
+      }
+
+      onSaved();
+    } catch (err: any) {
+      alert(err.message || "Failed to import laboratory results.");
+      setIsSaving(false);
+    }
+  };
+
+  const labName = getOrderLabName(order) || "Diagnostic Laboratory";
+
+  return (
+    <div style={{ position: "relative" }}>
+      {isSaving && (
+        <div
+          style={{
+            position: "absolute",
+            inset: 0,
+            background: "rgba(255,255,255,0.8)",
+            zIndex: 50,
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            justifyContent: "center",
+            gap: "10px",
+          }}
+        >
+          <div
+            style={{
+              width: "38px",
+              height: "38px",
+              border: "4px solid #cbd5e1",
+              borderTopColor: "#ea580c",
+              borderRadius: "50%",
+              animation: "spin 0.8s linear infinite",
+            }}
+          />
+          <span style={{ fontSize: "0.9rem", color: "#0f172a", fontWeight: 600 }}>
+            Importing and persisting laboratory results...
+          </span>
+        </div>
+      )}
+
+      {/* Top Header Bar matching CharmHealth reference Frame 12 */}
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          marginBottom: "12px",
+        }}
+      >
+        <h2 style={{ margin: 0, fontSize: "1.25rem", color: "#0f172a", fontWeight: 600 }}>
+          Import Lab Result
+        </h2>
+        <div style={{ display: "flex", gap: "10px" }}>
+          <button
+            type="button"
+            onClick={() => handleSaveAll("Completed")}
+            disabled={isSaving}
+            style={{
+              backgroundColor: "#ea580c",
+              color: "#ffffff",
+              border: "none",
+              borderRadius: "4px",
+              padding: "7px 20px",
+              fontSize: "0.85rem",
+              fontWeight: 600,
+              cursor: "pointer",
+            }}
+          >
+            Save
+          </button>
+          <button
+            type="button"
+            onClick={onCancel}
+            style={{
+              backgroundColor: "#ffffff",
+              color: "#334155",
+              border: "1px solid #cbd5e1",
+              borderRadius: "4px",
+              padding: "7px 16px",
+              fontSize: "0.85rem",
+              cursor: "pointer",
+            }}
+          >
+            Cancel
+          </button>
+        </div>
+      </div>
+
+      {/* Order Context Bar matching CharmHealth Frame 12 */}
+      <div
+        style={{
+          background: "#ffffff",
+          border: "1px solid #e2e8f0",
+          borderRadius: "6px",
+          padding: "12px 18px",
+          marginBottom: "16px",
+          fontSize: "0.85rem",
+        }}
+      >
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "flex-start",
+            flexWrap: "wrap",
+            gap: "12px",
+          }}
+        >
+          {/* Left: Clinician, Date, Lab */}
+          <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+            <div style={{ display: "flex", gap: "18px", alignItems: "center" }}>
+              <div>
+                <span style={{ color: "#64748b" }}>Ordered By : </span>
+                <span style={{ color: "#0f172a", fontWeight: 600 }}>{clinician}</span>
+              </div>
+              <div>
+                <span style={{ color: "#64748b" }}>Ordered On : </span>
+                <span style={{ color: "#0f172a", fontWeight: 600 }}>{order.ordered_date || "11-Nov-2026"}</span>
+              </div>
+            </div>
+            <div>
+              <span style={{ color: "#64748b" }}>Lab Name : </span>
+              <span style={{ color: "#0f172a", fontWeight: 600 }}>{labName}</span>
+            </div>
+          </div>
+
+          {/* Right: Tests count, Specimen details link, Result Date Time */}
+          <div style={{ display: "flex", flexDirection: "column", gap: "6px", alignItems: "flex-end" }}>
+            <div style={{ display: "flex", gap: "16px", alignItems: "center" }}>
+              <span style={{ color: "#64748b" }}>
+                No of Tests : <strong style={{ color: "#0f172a" }}>{testNames.length}</strong>
+              </span>
+              <span style={{ color: "#64748b" }}>
+                Completed : <strong style={{ color: "#0f172a" }}>{completedTestCount}</strong>
+              </span>
+              <button
+                type="button"
+                onClick={() => setSpecimenModalOpen(true)}
+                style={{
+                  background: "none",
+                  border: "none",
+                  color: "#0284c7",
+                  fontWeight: 600,
+                  fontSize: "0.85rem",
+                  cursor: "pointer",
+                  padding: 0,
+                  textDecoration: "underline",
+                }}
+              >
+                Specimen Details
+              </button>
+            </div>
+            <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+              <span style={{ color: "#64748b" }}>Result Date Time</span>
+              <div style={{ display: "flex", alignItems: "center", border: "1px solid #cbd5e1", borderRadius: "4px" }}>
+                <input
+                  type="text"
+                  value={resultDate}
+                  onChange={(e) => setResultDate(e.target.value)}
+                  style={{ border: "none", padding: "4px 8px", fontSize: "0.85rem", width: "105px", outline: "none" }}
+                />
+                <span style={{ padding: "0 6px", color: "#64748b" }}>
+                  <Calendar size={14} />
+                </span>
+              </div>
+              <input
+                type="text"
+                placeholder="hh:mm"
+                value={resultTime}
+                onChange={(e) => setResultTime(e.target.value)}
+                style={{
+                  border: "1px solid #cbd5e1",
+                  borderRadius: "4px",
+                  padding: "4px 8px",
+                  fontSize: "0.85rem",
+                  width: "70px",
+                  outline: "none",
+                }}
+              />
+            </div>
+          </div>
+        </div>
+
+        {/* Patient line */}
+        <div style={{ marginTop: "10px", paddingTop: "8px", borderTop: "1px solid #f1f5f9", display: "flex", alignItems: "center", gap: "10px" }}>
+          <span style={{ fontSize: "0.78rem", textTransform: "uppercase", letterSpacing: "0.05em", color: "#64748b", fontWeight: 700 }}>
+            Patient
+          </span>
+          <span style={{ fontWeight: 600, color: "#0f172a" }}>
+            {patient ? `${patient.first_name} ${patient.last_name}` : order.patient_name || "Patient"}
+          </span>
+          <span style={{ color: "#0284c7", fontSize: "0.82rem", fontWeight: 600 }}>
+            [{patient?.mrn || order.patient_mrn || "HYN-MR"}]
+          </span>
+          <span style={{ color: "#94a3b8" }}>·</span>
+          <span style={{ color: "#64748b", fontSize: "0.82rem" }}>
+            Lab Ref: <strong>{order.lab_ref || "20261104"}</strong>
+          </span>
+        </div>
+      </div>
+
+      {/* DEDICATED FILE IMPORT & UPLOAD CARD */}
+      <div
+        style={{
+          background: "#ffffff",
+          border: "1px solid #cbd5e1",
+          borderRadius: "6px",
+          padding: "16px 20px",
+          marginBottom: "18px",
+        }}
+      >
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "10px" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+            <Upload size={18} color="#ea580c" />
+            <h3 style={{ margin: 0, fontSize: "0.95rem", color: "#0f172a", fontWeight: 700 }}>
+              Import External Laboratory Results File
+            </h3>
+          </div>
+          <button
+            type="button"
+            onClick={handleDownloadTemplate}
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: "6px",
+              padding: "5px 12px",
+              borderRadius: "4px",
+              border: "1px solid #0284c7",
+              background: "#f0f9ff",
+              color: "#0284c7",
+              fontSize: "0.82rem",
+              fontWeight: 600,
+              cursor: "pointer",
+            }}
+          >
+            <Download size={14} />
+            Download Sample CSV Template
+          </button>
+        </div>
+
+        <p style={{ margin: "0 0 12px 0", fontSize: "0.82rem", color: "#64748b" }}>
+          Upload instrument data files or laboratory diagnostic reports (<strong>.CSV</strong>, <strong>.JSON</strong>, <strong>.PDF</strong>, or <strong>.TXT</strong>). Analytes will be automatically parsed, matched against the tests ordered for this requisition, and flagged for clinician review.
+        </p>
+
+        {/* Dropzone */}
+        <div
+          onDragOver={(e) => {
+            e.preventDefault();
+            setIsDragging(true);
+          }}
+          onDragLeave={() => setIsDragging(false)}
+          onDrop={(e) => {
+            e.preventDefault();
+            setIsDragging(false);
+            if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+              handleFileUpload(e.dataTransfer.files[0]);
+            }
+          }}
+          style={{
+            border: isDragging ? "2px dashed #ea580c" : "2px dashed #cbd5e1",
+            borderRadius: "6px",
+            background: isDragging ? "#fff7ed" : "#f8fafc",
+            padding: "20px",
+            textAlign: "center",
+            cursor: "pointer",
+            transition: "all 0.15s ease",
+          }}
+          onClick={() => {
+            const input = document.getElementById("charm-import-file-input") as HTMLInputElement;
+            if (input) input.click();
+          }}
+        >
+          <input
+            id="charm-import-file-input"
+            type="file"
+            accept=".csv,.json,.pdf,.txt"
+            style={{ display: "none" }}
+            onChange={(e) => {
+              if (e.target.files && e.target.files[0]) {
+                handleFileUpload(e.target.files[0]);
+              }
+            }}
+          />
+          <Upload size={28} color="#94a3b8" style={{ marginBottom: "6px" }} />
+          <div style={{ fontSize: "0.88rem", fontWeight: 600, color: "#334155" }}>
+            Click to browse or drag and drop laboratory result file
+          </div>
+          <div style={{ fontSize: "0.78rem", color: "#64748b", marginTop: "4px" }}>
+            Supports CSV analyzer spreadsheets, JSON laboratory feeds, and PDF diagnostic reports
+          </div>
+        </div>
+
+        {/* Uploaded File Chip & Validation Notification */}
+        {uploadedFile && (
+          <div
+            style={{
+              marginTop: "12px",
+              padding: "10px 14px",
+              borderRadius: "4px",
+              background: "#f0fdf4",
+              border: "1px solid #bbf7d0",
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+            }}
+          >
+            <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+              <CheckCircle2 size={18} color="#16a34a" />
+              <div>
+                <span style={{ fontSize: "0.85rem", fontWeight: 600, color: "#166534" }}>
+                  {uploadedFile.name}
+                </span>
+                <span style={{ fontSize: "0.78rem", color: "#64748b", marginLeft: "8px" }}>
+                  ({(uploadedFile.size / 1024).toFixed(1)} KB)
+                </span>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={() => {
+                setUploadedFile(null);
+                setUploadedPdfFile(null);
+                setImportNotice(null);
+              }}
+              style={{
+                background: "none",
+                border: "none",
+                color: "#dc2626",
+                fontSize: "0.82rem",
+                cursor: "pointer",
+                fontWeight: 600,
+              }}
+            >
+              Remove
+            </button>
+          </div>
+        )}
+
+        {importNotice && (
+          <div
+            style={{
+              marginTop: "8px",
+              fontSize: "0.82rem",
+              color: "#166534",
+              fontWeight: 500,
+            }}
+          >
+            {importNotice}
+          </div>
+        )}
+      </div>
+
+      {/* ANALYTE RESULTS PREVIEW AND CONFIRMATION TABLES */}
+      <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+        {testNames.map((tName) => {
+          const items = analyteState[tName] || [];
+          const isCollapsed = !!collapsedCards[tName];
+
+          return (
+            <div
+              key={tName}
+              style={{
+                background: "#ffffff",
+                border: "1px solid #e2e8f0",
+                borderRadius: "6px",
+                overflow: "hidden",
+              }}
+            >
+              {/* Card Header */}
+              <div
+                style={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                  padding: "10px 16px",
+                  background: "#f8fafc",
+                  borderBottom: isCollapsed ? "none" : "1px solid #e2e8f0",
+                }}
+              >
+                <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+                  <button
+                    type="button"
+                    onClick={() => setCollapsedCards((prev) => ({ ...prev, [tName]: !prev[tName] }))}
+                    style={{ background: "none", border: "none", cursor: "pointer", padding: 0, color: "#64748b" }}
+                  >
+                    {isCollapsed ? <ChevronDown size={18} /> : <ChevronUp size={18} />}
+                  </button>
+                  <span style={{ fontSize: "0.95rem", fontWeight: 700, color: "#0f172a" }}>
+                    {tName}
+                  </span>
+                  <span
+                    style={{
+                      background: "#e0f2fe",
+                      color: "#0369a1",
+                      borderRadius: "12px",
+                      padding: "2px 8px",
+                      fontSize: "0.75rem",
+                      fontWeight: 600,
+                    }}
+                  >
+                    {items.length} Analytes
+                  </span>
+                </div>
+
+                <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: "6px", fontSize: "0.82rem" }}>
+                    <span style={{ color: "#64748b" }}>Specimen:</span>
+                    <select
+                      value={specimenSource}
+                      onChange={(e) => setSpecimenSource(e.target.value)}
+                      style={{
+                        padding: "3px 8px",
+                        border: "1px solid #cbd5e1",
+                        borderRadius: "4px",
+                        fontSize: "0.82rem",
+                        background: "#fff",
+                      }}
+                    >
+                      <option value="Blood (Serum)">Blood (Serum)</option>
+                      <option value="Whole Blood">Whole Blood</option>
+                      <option value="Plasma">Plasma</option>
+                      <option value="Urine">Urine</option>
+                      <option value="Saliva">Saliva</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+
+              {/* Table */}
+              {!isCollapsed && (
+                <div style={{ padding: "14px 16px" }}>
+                  <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.85rem" }}>
+                    <thead>
+                      <tr style={{ borderBottom: "1px solid #cbd5e1", textAlign: "left", color: "#64748b" }}>
+                        <th style={{ padding: "6px 8px", width: "22%" }}>Name</th>
+                        <th style={{ padding: "6px 8px", width: "14%" }}>Result</th>
+                        <th style={{ padding: "6px 8px", width: "10%" }}>Unit</th>
+                        <th style={{ padding: "6px 8px", width: "18%" }}>Reference</th>
+                        <th style={{ padding: "6px 8px", width: "14%" }}>Interpretation</th>
+                        <th style={{ padding: "6px 8px", width: "18%" }}>Comments</th>
+                        <th style={{ padding: "6px 8px", width: "4%", textAlign: "center" }}></th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {items.map((item, idx) => {
+                        const isAbnormal = ["low", "high", "abnormal"].includes(item.interpretation.toLowerCase());
+                        const refDisplay =
+                          item.textRef ||
+                          (item.minRef !== undefined && item.maxRef !== undefined
+                            ? `${item.minRef} - ${item.maxRef}`
+                            : "-");
+
+                        return (
+                          <tr key={idx} style={{ borderBottom: "1px solid #f1f5f9" }}>
+                            <td style={{ padding: "8px 8px" }}>
+                              <input
+                                type="text"
+                                value={item.name}
+                                onChange={(e) => handleParamNameChange(tName, idx, e.target.value)}
+                                style={{
+                                  width: "100%",
+                                  border: "none",
+                                  background: "transparent",
+                                  fontWeight: 600,
+                                  color: "#0f172a",
+                                  fontSize: "0.85rem",
+                                }}
+                              />
+                            </td>
+                            <td style={{ padding: "8px 8px" }}>
+                              <input
+                                type="text"
+                                value={item.result}
+                                onChange={(e) => handleResultChange(tName, idx, e.target.value)}
+                                placeholder="Value..."
+                                style={{
+                                  width: "100%",
+                                  padding: "5px 8px",
+                                  borderRadius: "4px",
+                                  border: isAbnormal ? "1.5px solid #dc2626" : "1px solid #cbd5e1",
+                                  fontSize: "0.85rem",
+                                  fontWeight: isAbnormal ? 700 : 500,
+                                  color: isAbnormal ? "#dc2626" : "#0f172a",
+                                }}
+                              />
+                            </td>
+                            <td style={{ padding: "8px 8px" }}>
+                              <input
+                                type="text"
+                                value={item.unit}
+                                onChange={(e) => handleParamUnitChange(tName, idx, e.target.value)}
+                                placeholder="Unit"
+                                style={{
+                                  width: "100%",
+                                  padding: "5px 8px",
+                                  borderRadius: "4px",
+                                  border: "1px solid #cbd5e1",
+                                  fontSize: "0.85rem",
+                                }}
+                              />
+                            </td>
+                            <td style={{ padding: "8px 8px", color: "#64748b" }}>
+                              <span style={{ fontSize: "0.82rem" }}>{refDisplay}</span>
+                            </td>
+                            <td style={{ padding: "8px 8px" }}>
+                              <select
+                                value={item.interpretation}
+                                onChange={(e) => handleInterpretationChange(tName, idx, e.target.value)}
+                                style={{
+                                  width: "100%",
+                                  padding: "5px 8px",
+                                  borderRadius: "4px",
+                                  border: "1px solid #cbd5e1",
+                                  fontSize: "0.85rem",
+                                  fontWeight: isAbnormal ? 700 : 500,
+                                  color: isAbnormal ? "#dc2626" : item.interpretation === "Normal" ? "#16a34a" : "#334155",
+                                }}
+                              >
+                                <option value="-">-</option>
+                                <option value="Normal">Normal</option>
+                                <option value="Low">Low</option>
+                                <option value="High">High</option>
+                                <option value="Abnormal">Abnormal</option>
+                              </select>
+                            </td>
+                            <td style={{ padding: "8px 8px" }}>
+                              <input
+                                type="text"
+                                value={item.comments}
+                                onChange={(e) => handleCommentsChange(tName, idx, e.target.value)}
+                                placeholder="Comment..."
+                                style={{
+                                  width: "100%",
+                                  padding: "5px 8px",
+                                  borderRadius: "4px",
+                                  border: "1px solid #cbd5e1",
+                                  fontSize: "0.85rem",
+                                }}
+                              />
+                            </td>
+                            <td style={{ padding: "8px 8px", textAlign: "center" }}>
+                              <button
+                                type="button"
+                                onClick={() => handleRemoveParameter(tName, idx)}
+                                style={{
+                                  background: "none",
+                                  border: "none",
+                                  color: "#94a3b8",
+                                  cursor: "pointer",
+                                  padding: "2px",
+                                }}
+                                title="Remove parameter"
+                              >
+                                <Trash2 size={14} />
+                              </button>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+
+                  <button
+                    type="button"
+                    onClick={() => handleAddParameter(tName)}
+                    style={{
+                      background: "none",
+                      border: "none",
+                      color: "#0284c7",
+                      fontSize: "0.82rem",
+                      fontWeight: 600,
+                      cursor: "pointer",
+                      padding: "8px 0 0 0",
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: "4px",
+                    }}
+                  >
+                    <Plus size={14} />
+                    Additional Parameter
+                  </button>
+
+                  <div style={{ marginTop: "12px" }}>
+                    <textarea
+                      rows={1}
+                      value={panelComments[tName] || ""}
+                      onChange={(e) => setPanelComments((prev) => ({ ...prev, [tName]: e.target.value }))}
+                      placeholder={`Notes for ${tName}...`}
+                      style={{
+                        width: "100%",
+                        padding: "6px 8px",
+                        borderRadius: "4px",
+                        border: "1px solid #cbd5e1",
+                        fontSize: "0.82rem",
+                        resize: "vertical",
+                      }}
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Overall Group Comments */}
+      <div style={{ marginTop: "18px", background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: "6px", padding: "14px 18px" }}>
+        <label style={{ display: "block", fontSize: "0.85rem", fontWeight: 600, color: "#334155", marginBottom: "6px" }}>
+          Overall Clinical / Laboratory Assessment Comments
+        </label>
+        <textarea
+          rows={3}
+          value={groupComments}
+          onChange={(e) => setGroupComments(e.target.value)}
+          placeholder="Overall laboratory assessment comments..."
+          style={{
+            width: "100%",
+            padding: "8px 10px",
+            borderRadius: "4px",
+            border: "1px solid #cbd5e1",
+            fontSize: "0.85rem",
+            resize: "vertical",
+          }}
+        />
+      </div>
+
+      {/* Bottom Actions Bar */}
+      <div style={{ marginTop: "18px", display: "flex", justifyContent: "flex-end", gap: "10px" }}>
+        <button
+          type="button"
+          onClick={onCancel}
+          style={{
+            backgroundColor: "#ffffff",
+            color: "#334155",
+            border: "1px solid #cbd5e1",
+            borderRadius: "4px",
+            padding: "8px 18px",
+            fontSize: "0.85rem",
+            cursor: "pointer",
+          }}
+        >
+          Cancel
+        </button>
+        <button
+          type="button"
+          onClick={() => handleSaveAll("Partial")}
+          disabled={isSaving}
+          style={{
+            backgroundColor: "#f1f5f9",
+            color: "#334155",
+            border: "1px solid #cbd5e1",
+            borderRadius: "4px",
+            padding: "8px 18px",
+            fontSize: "0.85rem",
+            fontWeight: 600,
+            cursor: "pointer",
+          }}
+        >
+          Import as Partial
+        </button>
+        <button
+          type="button"
+          onClick={() => handleSaveAll("Completed")}
+          disabled={isSaving}
+          style={{
+            backgroundColor: "#ea580c",
+            color: "#ffffff",
+            border: "none",
+            borderRadius: "4px",
+            padding: "8px 24px",
+            fontSize: "0.85rem",
+            fontWeight: 600,
+            cursor: "pointer",
+          }}
+        >
+          Import & Complete Order
+        </button>
+      </div>
+
+      {/* Specimen Details Modal */}
+      {specimenModalOpen && (
+        <div
+          style={{
+            position: "fixed",
+            inset: 0,
+            background: "rgba(0,0,0,0.5)",
+            zIndex: 300,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+          }}
+        >
+          <div
+            style={{
+              background: "#ffffff",
+              borderRadius: "6px",
+              width: "500px",
+              maxWidth: "92vw",
+              boxShadow: "0 10px 25px rgba(0,0,0,0.2)",
+              padding: "20px",
+            }}
+          >
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "14px" }}>
+              <h3 style={{ margin: 0, fontSize: "1.05rem", color: "#0f172a", fontWeight: 700 }}>
+                Specimen Collection Details
+              </h3>
+              <button
+                type="button"
+                onClick={() => setSpecimenModalOpen(false)}
+                style={{ background: "none", border: "none", cursor: "pointer", color: "#64748b" }}
+              >
+                <X size={18} />
+              </button>
+            </div>
+            <div style={{ fontSize: "0.85rem", color: "#334155", display: "flex", flexDirection: "column", gap: "8px" }}>
+              <div><strong>Requisition:</strong> {order.lab_ref || "20261104"}</div>
+              <div><strong>Patient:</strong> {patient ? `${patient.first_name} ${patient.last_name}` : order.patient_name}</div>
+              <div><strong>Specimen Type:</strong> {specimenSource}</div>
+              <div><strong>Collection Site:</strong> Left antecubital fossa</div>
+              <div><strong>Container:</strong> Gold Top (SST gel separator)</div>
+              <div><strong>Volume:</strong> 5 mL</div>
+              <div><strong>Fasting Status:</strong> Overnight 12h fasting confirmed</div>
+            </div>
+            <div style={{ marginTop: "18px", display: "flex", justifyContent: "flex-end" }}>
+              <button
+                type="button"
+                onClick={() => setSpecimenModalOpen(false)}
+                style={{
+                  padding: "6px 16px",
+                  borderRadius: "4px",
+                  border: "1px solid #cbd5e1",
+                  background: "#fff",
+                  fontSize: "0.85rem",
+                  cursor: "pointer",
+                }}
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ==========================================
+// SCREEN: EDIT LAB RESULT (AUTHENTIC CHARMHEALTH PARITY - RESULTS TAB)
+// ==========================================
+function EditLabResultScreen({
   order,
   labCatalogs,
   onCancel,

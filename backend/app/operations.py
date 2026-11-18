@@ -32,6 +32,32 @@ def get_single_invoice(identifier: str, c=Depends(context)):
     return invoice_out(c.db, row)
 
 
+@router.get('/invoices/{identifier}/pdf')
+def get_invoice_pdf(identifier: str, template: str = Query('standard'), c=Depends(context)):
+    c.allow(BILLING)
+    row = c.record(m.Invoice, identifier)
+    lines = list(c.db.scalars(select(m.InvoiceLine).where(m.InvoiceLine.invoice_id == row.id).order_by(m.InvoiceLine.id)))
+    pat = c.db.get(m.Patient, row.patient_id)
+    fac = c.db.get(m.Facility, row.facility_id)
+    
+    ledger = invoice_out(c.db, row)
+    row.paid_paise = ledger['paid_paise'] + ledger['credited_paise']
+    row.balance_paise = ledger['balance_paise']
+    
+    from .invoice_pdf import generate_invoice_pdf
+    tmpl = template if template in ('standard', 'superbill', 'envelope') else 'standard'
+    pdf_bytes = generate_invoice_pdf(row, lines, pat, fac, template=tmpl)
+    filename = f"Invoice_{row.number}_{tmpl}.pdf"
+    return Response(
+        content=pdf_bytes,
+        media_type="application/pdf",
+        headers={
+            "Content-Disposition": f"inline; filename={filename}",
+            "Cache-Control": "no-cache",
+        }
+    )
+
+
 @router.post('/invoices')
 def create_invoice(data:s.InvoiceInput,c=Depends(context)):
     c.allow(BILLING); c.patient(data.patient_id)
@@ -161,21 +187,321 @@ def cancel(identifier:str,data:s.Version,c=Depends(context)):
     return invoice_out(c.db,row)
 
 
+@router.delete('/invoices/{identifier}')
+def delete_invoice(identifier: str, c=Depends(context)):
+    c.allow(BILLING)
+    row = c.record(m.Invoice, identifier)
+    if row.status != 'draft':
+        raise HTTPException(409, f"Only Draft invoices can be deleted. Invoice '{row.number}' is in '{row.status}' status.")
+    c.db.execute(delete(m.InvoiceLine).where(m.InvoiceLine.invoice_id == row.id))
+    c.db.delete(row)
+    c.audit('delete_invoice', row, f"Deleted draft invoice {row.number}")
+    return {'status': 'deleted', 'id': identifier, 'number': row.number}
+
+
+@router.post('/invoices/bulk-action')
+def invoice_bulk_action(data: s.InvoiceBulkActionInput, c=Depends(context)):
+    c.allow(BILLING)
+    affected = []
+    
+    if data.action == 'delete':
+        for inv_id in data.invoice_ids:
+            inv = c.db.get(m.Invoice, inv_id)
+            if not inv:
+                continue
+            if inv.facility_id != c.facility_id:
+                raise HTTPException(403, f"Cannot delete invoice {inv.number} from another facility")
+            if inv.status != 'draft':
+                raise HTTPException(409, f"Only Draft invoices can be deleted. Invoice '{inv.number}' is in '{inv.status}' status.")
+            affected.append(inv)
+        
+        for inv in affected:
+            c.audit('delete_draft_invoice', inv, f"Deleted draft invoice {inv.number}")
+            c.db.execute(delete(m.InvoiceLine).where(m.InvoiceLine.invoice_id == inv.id))
+            c.db.delete(inv)
+        
+        return {'action': 'delete', 'count': len(affected), 'affected_ids': [x.id for x in affected]}
+
+    for inv_id in data.invoice_ids:
+        inv = c.db.get(m.Invoice, inv_id)
+        if not inv or inv.facility_id != c.facility_id:
+            continue
+        
+        if data.action == 'mark_as_mailed':
+            inv.is_mailed = True
+            inv.mailed_at = m.now()
+            inv.version += 1
+            affected.append(inv)
+        elif data.action == 'flag':
+            inv.is_flagged = True
+            inv.version += 1
+            affected.append(inv)
+        elif data.action == 'clear_flags':
+            inv.is_flagged = False
+            inv.version += 1
+            affected.append(inv)
+        elif data.action == 'sent_for_collection':
+            inv.sent_for_collection = True
+            inv.collection_at = m.now()
+            inv.version += 1
+            affected.append(inv)
+        elif data.action == 'clear_collection':
+            inv.sent_for_collection = False
+            inv.collection_at = None
+            inv.version += 1
+            affected.append(inv)
+        elif data.action == 'add_notes':
+            new_note = (data.notes or '').strip()
+            if new_note:
+                existing = inv.notes or ''
+                inv.notes = f"{existing}\n{new_note}".strip() if existing else new_note
+                inv.version += 1
+                affected.append(inv)
+        elif data.action == 'set_follow_up':
+            if data.follow_up_date:
+                from datetime import date as dt_date
+                inv.follow_up_date = dt_date.fromisoformat(data.follow_up_date)
+                inv.version += 1
+                affected.append(inv)
+        elif data.action == 'add_procedure':
+            if data.procedure and inv.status not in ('paid', 'cancelled'):
+                proc = data.procedure
+                qty = int(proc.get('quantity', 1))
+                unit_paise = int(proc.get('unit_paise', 0))
+                line_entry = m.InvoiceLine(
+                    invoice_id=inv.id,
+                    code=str(proc.get('code', '')),
+                    description=str(proc.get('description', 'Procedure Item')),
+                    quantity=max(1, qty),
+                    unit_paise=max(0, unit_paise)
+                )
+                c.db.add(line_entry)
+                c.db.flush()
+                lines = list(c.db.scalars(select(m.InvoiceLine).where(m.InvoiceLine.invoice_id == inv.id)))
+                inv.total_paise = max(0, sum(l.quantity * l.unit_paise for l in lines) - (inv.discount_paise or 0))
+                update_invoice(c, inv)
+                affected.append(inv)
+        else:
+            raise HTTPException(400, f"Unsupported bulk action '{data.action}'")
+
+    for inv in affected:
+        c.audit(f"invoice_{data.action}", inv, json.dumps({'action': data.action}))
+    return {'action': data.action, 'count': len(affected), 'affected_ids': [x.id for x in affected]}
+
+
+def serialize_billing_receipt(db, rec: m.BillingReceipt):
+    pat = db.get(m.Patient, rec.patient_id)
+    fac = db.get(m.Facility, rec.facility_id)
+    allocations = list(db.scalars(
+        select(m.ReceiptAllocation)
+        .where(m.ReceiptAllocation.receipt_id == rec.id)
+        .order_by(m.ReceiptAllocation.created_at)
+    ))
+    inv_ids = [a.invoice_id for a in allocations]
+    inv_map = {}
+    if inv_ids:
+        invoices = list(db.scalars(select(m.Invoice).where(m.Invoice.id.in_(inv_ids))))
+        for inv in invoices:
+            inv_map[inv.id] = {
+                "number": inv.number,
+                "total_paise": inv.total_paise,
+                "status": inv.status,
+            }
+
+    alloc_list = []
+    for a in allocations:
+        inv_info = inv_map.get(a.invoice_id, {})
+        alloc_list.append({
+            "id": a.id,
+            "invoice_id": a.invoice_id,
+            "invoice_number": inv_info.get("number", ""),
+            "invoice_total_paise": inv_info.get("total_paise", 0),
+            "amount_paise": a.amount_paise,
+            "write_off_paise": a.write_off_paise,
+            "write_off_reason": a.write_off_reason,
+            "comments": a.comments,
+        })
+
+    primary_invoice = alloc_list[0] if alloc_list else None
+
+    return {
+        "id": rec.id,
+        "receipt_number": rec.receipt_number,
+        "invoice_id": primary_invoice["invoice_id"] if primary_invoice else None,
+        "invoice_number": primary_invoice["invoice_number"] if primary_invoice else "",
+        "patient_id": rec.patient_id,
+        "patient_name": f"{pat.first_name} {pat.last_name}".strip() if pat else "",
+        "patient_mrn": pat.mrn if pat else "",
+        "facility_id": rec.facility_id,
+        "facility_name": fac.name if fac else "Heal Your Heart · Neelankarai",
+        "receipt_date": rec.created_at.isoformat() if rec.created_at else "",
+        "amount_paise": rec.amount_paise,
+        "mode": rec.mode,
+        "reference": rec.reference,
+        "other_reference": rec.other_reference,
+        "description": rec.description,
+        "payment_from": rec.payment_from,
+        "refund_paise": 0,
+        "unused_paise": rec.unused_paise,
+        "is_void": rec.is_void,
+        "allocations": alloc_list,
+    }
+
+
+@router.post('/billing/payments')
+@router.post('/payments')
+def create_patient_payment(data: s.PatientPaymentInput, c=Depends(context)):
+    c.allow(BILLING)
+    c.patient(data.patient_id)
+    if data.amount_paise <= 0:
+        raise HTTPException(422, "Payment amount must be greater than zero")
+
+    # Check idempotency
+    if data.idempotency_key:
+        existing = c.db.scalar(select(m.BillingReceipt).where(m.BillingReceipt.idempotency_key == data.idempotency_key))
+        if existing:
+            if existing.patient_id != data.patient_id or existing.amount_paise != data.amount_paise or existing.mode != data.mode:
+                raise HTTPException(409, "Payment key was already used with different details")
+            return {"receipt": serialize_billing_receipt(c.db, existing), "replayed": True}
+
+    total_alloc_paise = sum(a.amount_paise for a in data.allocations)
+    if total_alloc_paise > data.amount_paise:
+        raise HTTPException(422, "Total payment applied exceeds received payment amount")
+
+    unused_paise = data.amount_paise - total_alloc_paise
+
+    # Validate allocations and write-offs
+    invoices_to_update = []
+    seen_invoice_ids = set()
+    for a in data.allocations:
+        if a.amount_paise < 0 or a.write_off_paise < 0:
+            raise HTTPException(422, "Allocation and write-off amounts cannot be negative")
+        if a.amount_paise == 0 and a.write_off_paise == 0:
+            continue
+        if a.invoice_id in seen_invoice_ids:
+            raise HTTPException(422, "Duplicate invoice allocation in single payment request")
+        seen_invoice_ids.add(a.invoice_id)
+
+        inv = c.db.get(m.Invoice, a.invoice_id)
+        if not inv:
+            raise HTTPException(404, f"Invoice {a.invoice_id} not found")
+        if inv.facility_id != c.facility_id:
+            raise HTTPException(403, "Cannot apply payment to an invoice from another facility")
+        if inv.patient_id != data.patient_id:
+            raise HTTPException(422, f"Invoice {inv.number} belongs to another patient")
+        if inv.status == 'cancelled':
+            raise HTTPException(409, f"Cannot allocate payment to cancelled invoice {inv.number}")
+
+        ledger = invoice_out(c.db, inv)
+        curr_balance = ledger['balance_paise']
+        if a.amount_paise > curr_balance:
+            raise HTTPException(409, f"Payment allocation of Rs. {a.amount_paise/100:.2f} exceeds remaining invoice balance of Rs. {curr_balance/100:.2f}")
+
+        if a.write_off_paise > 0:
+            if not a.write_off_reason or not a.write_off_reason.strip():
+                raise HTTPException(422, "Write-off reason is required when a write-off amount is specified")
+            if a.write_off_paise > (curr_balance - a.amount_paise):
+                raise HTTPException(409, f"Write-off amount exceeds remaining balance after payment on invoice {inv.number}")
+
+        invoices_to_update.append((inv, a))
+
+    branch = c.db.get(m.Facility, c.facility_id)
+    prefix = (branch.code if branch and branch.code else 'HYN') + '-REC'
+    receipt_num = next_number(c.db, prefix)
+
+    idem = data.idempotency_key or f"rec_{data.patient_id}_{uuid.uuid4().hex[:16]}"
+    receipt = m.BillingReceipt(
+        patient_id=data.patient_id,
+        facility_id=c.facility_id,
+        author_id=c.user.id,
+        receipt_number=receipt_num,
+        amount_paise=data.amount_paise,
+        unused_paise=unused_paise,
+        mode=data.mode or 'Cash',
+        reference=data.reference or '',
+        other_reference=data.other_reference or '',
+        description=data.description or '',
+        payment_from='Patient',
+        is_void=False,
+        idempotency_key=idem,
+    )
+    c.db.add(receipt)
+    c.db.flush()
+
+    for inv, a in invoices_to_update:
+        alloc_row = m.ReceiptAllocation(
+            receipt_id=receipt.id,
+            invoice_id=inv.id,
+            amount_paise=a.amount_paise,
+            write_off_paise=a.write_off_paise,
+            write_off_reason=a.write_off_reason or '',
+            comments=a.comments or '',
+        )
+        c.db.add(alloc_row)
+
+        if a.amount_paise > 0:
+            child_pay = m.Payment(
+                invoice_id=inv.id,
+                receipt_number=f"{receipt_num}-{inv.id[:8]}",
+                actor_id=c.user.id,
+                amount_paise=a.amount_paise,
+                mode=data.mode or 'Cash',
+                idempotency_key=f"pay_alloc_{receipt.id}_{inv.id}_{uuid.uuid4().hex[:8]}",
+                simulated=True,
+            )
+            c.db.add(child_pay)
+
+        if a.write_off_paise > 0:
+            reason_str = a.write_off_reason
+            if a.comments:
+                reason_str = f"{reason_str} - {a.comments}"
+            credit_entry = m.Credit(
+                invoice_id=inv.id,
+                amount_paise=a.write_off_paise,
+                reason=reason_str,
+                actor_id=c.user.id,
+            )
+            c.db.add(credit_entry)
+
+        update_invoice(c, inv)
+
+    c.audit('record_patient_payment', receipt, json.dumps({'receipt_number': receipt_num, 'amount_paise': data.amount_paise, 'unused_paise': unused_paise, 'allocations_count': len(invoices_to_update)}))
+    return {'receipt': serialize_billing_receipt(c.db, receipt), 'replayed': False}
+
+
 @router.get('/receipts')
 def receipts(patient_id: str | None = None, c=Depends(context)):
     c.allow(BILLING)
-    stmt = select(m.Payment, m.Invoice, m.Patient, m.Facility)\
+    out = []
+
+    # 1. Query BillingReceipts
+    stmt_rec = select(m.BillingReceipt)
+    if patient_id:
+        stmt_rec = stmt_rec.where(m.BillingReceipt.patient_id == patient_id)
+    else:
+        stmt_rec = stmt_rec.where(m.BillingReceipt.facility_id == c.facility_id)
+    
+    billing_recs = list(c.db.scalars(stmt_rec.order_by(m.BillingReceipt.created_at.desc()).limit(1000)))
+    rec_numbers = {r.receipt_number for r in billing_recs}
+    for r in billing_recs:
+        out.append(serialize_billing_receipt(c.db, r))
+
+    # 2. Query legacy Payments that were created directly on invoices without a BillingReceipt
+    stmt_pay = select(m.Payment, m.Invoice, m.Patient, m.Facility)\
         .join(m.Invoice, m.Payment.invoice_id == m.Invoice.id)\
         .join(m.Patient, m.Invoice.patient_id == m.Patient.id)\
         .outerjoin(m.Facility, m.Invoice.facility_id == m.Facility.id)
     if patient_id:
-        stmt = stmt.where(m.Invoice.patient_id == patient_id)
+        stmt_pay = stmt_pay.where(m.Invoice.patient_id == patient_id)
     else:
-        stmt = stmt.where(m.Invoice.facility_id == c.facility_id)
-    
-    records = c.db.execute(stmt.order_by(m.Payment.created_at.desc()).limit(1000)).all()
-    out = []
-    for pay, inv, pat, fac in records:
+        stmt_pay = stmt_pay.where(m.Invoice.facility_id == c.facility_id)
+
+    legacy_pays = c.db.execute(stmt_pay.order_by(m.Payment.created_at.desc()).limit(1000)).all()
+    for pay, inv, pat, fac in legacy_pays:
+        # Check if this payment's receipt_number belongs to one of the BillingReceipts (e.g. REC-12345-abcd)
+        base_rec_num = pay.receipt_number.rsplit('-', 1)[0] if '-' in pay.receipt_number else pay.receipt_number
+        if base_rec_num in rec_numbers or pay.receipt_number in rec_numbers:
+            continue
         out.append({
             "id": pay.id,
             "receipt_number": pay.receipt_number,
@@ -188,24 +514,81 @@ def receipts(patient_id: str | None = None, c=Depends(context)):
             "receipt_date": pay.created_at.isoformat() if pay.created_at else "",
             "amount_paise": pay.amount_paise,
             "mode": pay.mode,
+            "reference": "",
+            "other_reference": "",
+            "description": "",
             "simulated": pay.simulated,
             "is_void": inv.status == 'cancelled',
             "payment_from": "Patient",
             "refund_paise": 0,
-            "unused_paise": 0
+            "unused_paise": 0,
+            "allocations": [
+                {
+                    "invoice_id": inv.id,
+                    "invoice_number": inv.number,
+                    "amount_paise": pay.amount_paise,
+                    "write_off_paise": 0,
+                    "write_off_reason": "",
+                    "comments": "",
+                }
+            ],
         })
+
+    # Sort combined receipts by date descending
+    out.sort(key=lambda x: x.get("receipt_date") or "", reverse=True)
     return out
 
 
 @router.post('/receipts/{identifier}/void')
 def void_receipt(identifier: str, c=Depends(context)):
     c.allow(BILLING)
+
+    # 1. Try finding in BillingReceipt
+    billing_rec = c.db.get(m.BillingReceipt, identifier)
+    if not billing_rec:
+        billing_rec = c.db.scalar(select(m.BillingReceipt).where(m.BillingReceipt.receipt_number == identifier))
+
+    if billing_rec:
+        if billing_rec.is_void:
+            return {"message": "Receipt is already voided", "receipt_number": billing_rec.receipt_number}
+        billing_rec.is_void = True
+        billing_rec.unused_paise = 0
+        c.db.flush()
+
+        allocations = list(c.db.scalars(
+            select(m.ReceiptAllocation).where(m.ReceiptAllocation.receipt_id == billing_rec.id)
+        ))
+        for alloc in allocations:
+            inv = c.db.get(m.Invoice, alloc.invoice_id)
+            if inv:
+                update_invoice(c, inv)
+
+        c.audit('void_receipt', billing_rec, json.dumps({'receipt_number': billing_rec.receipt_number}))
+        return {"message": "Receipt voided successfully", "receipt_number": billing_rec.receipt_number}
+
+    # 2. Fallback to legacy Payment
     pay = c.record(m.Payment, identifier)
+    # Check if a synthetic void BillingReceipt should be created to mark this legacy receipt void
     inv = c.db.get(m.Invoice, pay.invoice_id)
-    c.db.delete(pay)
+    synth_rec = m.BillingReceipt(
+        patient_id=inv.patient_id if inv else c.user.id,
+        facility_id=inv.facility_id if inv else c.facility_id,
+        author_id=c.user.id,
+        receipt_number=pay.receipt_number,
+        amount_paise=pay.amount_paise,
+        unused_paise=0,
+        mode=pay.mode,
+        reference='',
+        other_reference='',
+        description='Voided legacy payment',
+        payment_from='Patient',
+        is_void=True,
+    )
+    c.db.add(synth_rec)
+    c.db.flush()
     if inv:
         update_invoice(c, inv)
-    return {"message": "Receipt voided successfully"}
+    return {"message": "Receipt voided successfully", "receipt_number": pay.receipt_number}
 
 
 # --- INVENTORY ENGINE ---

@@ -86,6 +86,8 @@ export function AddFacilityPage({
       } else {
         await api("/admin/facilities", "POST", payload);
       }
+      window.dispatchEvent(new CustomEvent("hyh_facility_updated", { detail: payload }));
+      window.dispatchEvent(new CustomEvent("hyh_setting_updated"));
       onSaved();
       onBack();
     } catch (err: any) {

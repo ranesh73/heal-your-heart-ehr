@@ -233,6 +233,34 @@ class CreditInput(Input):
     reason: str = Field(min_length=3, max_length=2000)
 
 
+class InvoiceAllocationInput(Input):
+    invoice_id: str
+    amount_paise: int = Field(default=0, ge=0, le=1000000000)
+    write_off_paise: int = Field(default=0, ge=0, le=1000000000)
+    write_off_reason: str = Field(default='', max_length=2000)
+    comments: str = Field(default='', max_length=2000)
+
+
+class PatientPaymentInput(Input):
+    patient_id: str
+    amount_paise: int = Field(gt=0, le=1000000000)
+    payment_date: str | None = None
+    mode: str = Field(default='Cash', max_length=50)
+    reference: str = Field(default='', max_length=100)
+    other_reference: str = Field(default='', max_length=100)
+    description: str = Field(default='', max_length=2000)
+    allocations: list[InvoiceAllocationInput] = Field(default_factory=list)
+    idempotency_key: str | None = None
+
+
+class InvoiceBulkActionInput(Input):
+    invoice_ids: list[str] = Field(min_length=1, max_length=500)
+    action: str = Field(min_length=1, max_length=50)
+    notes: str | None = None
+    follow_up_date: str | None = None
+    procedure: dict[str, Any] | None = None
+
+
 # Field metadata drives consistent, accessible input forms without exposing arbitrary DB writes.
 def field(name, label, kind='text', required=False, options=None, minimum=None, maximum=None):
     return dict(name=name, label=label, type=kind, required=required, options=options, min=minimum, max=maximum)
@@ -331,8 +359,39 @@ class StaffInput(Input):
     email: str = Field(min_length=3,max_length=160)
     name: str = Field(min_length=1,max_length=120)
     role: Literal['admin','doctor','assistant','therapist','reception','billing']
-    password: str = Field(min_length=12,max_length=200)
-    facility_ids: list[str] = Field(min_length=1)
+    password: str = Field(min_length=6,max_length=200)
+    facility_ids: list[str] = Field(default_factory=list)
+    phone: str | None = None
+    title: str | None = None
+
+
+class StaffUpdate(Input):
+    name: str | None = None
+    role: Literal['admin','doctor','assistant','therapist','reception','billing'] | None = None
+    phone: str | None = None
+    title: str | None = None
+    active: bool | None = None
+    facility_ids: list[str] | None = None
+
+
+class RequestOtpInput(Input):
+    identifier: str = Field(min_length=3, max_length=160)
+
+
+class VerifyOtpResetInput(Input):
+    identifier: str = Field(min_length=3, max_length=160)
+    otp: str = Field(min_length=4, max_length=10)
+    new_password: str = Field(min_length=6, max_length=200)
+
+
+class SignupRequestInput(Input):
+    first_name: str = Field(min_length=1, max_length=80)
+    last_name: str = Field(min_length=1, max_length=80)
+    email: str = Field(min_length=3, max_length=160)
+    phone: str = Field(min_length=5, max_length=40)
+    practice_name: str = Field(min_length=1, max_length=160)
+    specialty: str = Field(min_length=1, max_length=100)
+    notes: str | None = None
 
 
 class FacilityInput(Input):

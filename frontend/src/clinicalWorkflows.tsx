@@ -31,6 +31,13 @@ import {
   X,
   Check,
   Eye,
+  ShieldCheck,
+  Scale,
+  HeartPulse,
+  Sparkles,
+  History,
+  ClipboardList,
+  ClipboardCheck,
 } from "lucide-react";
 import { InjectionAutocomplete } from "./InjectionAutocomplete";
 import { CatalogAutocomplete } from "./CatalogAutocomplete";
@@ -124,6 +131,7 @@ export function AddPrescriptionModal({
   const [pharmacyNotes, setPharmacyNotes] = useState("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [showCardioHemodynamics, setShowCardioHemodynamics] = useState(false);
   const [activeSearchIdx, setActiveSearchIdx] = useState<number | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
 
@@ -132,8 +140,7 @@ export function AddPrescriptionModal({
     queryKey: ["catalogs", "medication", searchQuery],
     queryFn: () =>
       api<Row[]>(
-        `/catalogs?kind=medication${
-          searchQuery ? `&q=${encodeURIComponent(searchQuery)}` : ""
+        `/catalogs?kind=medication${searchQuery ? `&q=${encodeURIComponent(searchQuery)}` : ""
         }`
       ),
     staleTime: 60000,
@@ -160,8 +167,8 @@ export function AddPrescriptionModal({
           next.period_unit === "Weeks"
             ? next.period_count * 7
             : next.period_unit === "Months"
-            ? next.period_count * 30
-            : next.period_count;
+              ? next.period_count * 30
+              : next.period_count;
         next.dispense_count = Math.ceil(dailyTotal * days) || 30;
       }
       copy[index] = next;
@@ -189,12 +196,10 @@ export function AddPrescriptionModal({
     setSaving(true);
     try {
       for (const it of items) {
-        const maen = `${it.morning || "0"}-${it.afternoon || "0"}-${
-          it.evening || "0"
-        }-${it.night || "0"}`;
-        const directions = `${it.dosage} ${it.dose_unit} ${it.route} (${maen}) ${
-          it.timing_when
-        }${it.instructions ? ". " + it.instructions : ""}`;
+        const maen = `${it.morning || "0"}-${it.afternoon || "0"}-${it.evening || "0"
+          }-${it.night || "0"}`;
+        const directions = `${it.dosage} ${it.dose_unit} ${it.route} (${maen}) ${it.timing_when
+          }${it.instructions ? ". " + it.instructions : ""}`;
         await api("/records/medications", "POST", {
           patient_id: patientId,
           drug_name: it.drug_name,
@@ -874,8 +879,7 @@ export function PrintPrescriptionModal({
                     <td>
                       <span className="charm-badge charm-badge-maen">
                         {m.maen ||
-                          `${m.morning || 0}-${m.afternoon || 0}-${
-                            m.evening || 0
+                          `${m.morning || 0}-${m.afternoon || 0}-${m.evening || 0
                           }-${m.night || 0}`}
                       </span>
                       <div style={{ fontSize: 11, marginTop: 2 }}>{m.dosage}</div>
@@ -1109,8 +1113,7 @@ export function MedicationsSection({
                     <div className="charm-timing-cell">
                       <span className="charm-maen-badge">
                         {med.maen ||
-                          `${med.morning || 0}-${med.afternoon || 0}-${
-                            med.evening || 0
+                          `${med.morning || 0}-${med.afternoon || 0}-${med.evening || 0
                           }-${med.night || 0}`}
                       </span>
                       <span className="charm-timing-when">
@@ -1262,6 +1265,7 @@ export function AddInjectionModal({
   const [status, setStatus] = useState("administered");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [showCardioHemodynamics, setShowCardioHemodynamics] = useState(false);
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -1320,251 +1324,255 @@ export function AddInjectionModal({
       description="Record injection administration with master catalogue link, batch/lot tracking, anatomical site, and nurse notes."
       onClose={onClose}
       wide
+      className="charm-clinical-modal charm-modal-container"
     >
-      <form onSubmit={handleSave} className="charm-modal-form" style={{ maxHeight: "78vh", overflowY: "auto", paddingRight: 4 }}>
-        {error && (
-          <div className="charm-alert charm-alert-danger" style={{ marginBottom: 14 }}>
-            <AlertCircle size={16} /> {error}
-          </div>
-        )}
-
-        <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-          {/* SECTION A – INJECTION DETAILS */}
-          <div style={{ background: "#ffffff", padding: "16px 18px", borderRadius: 8, border: "1px solid #e2e8f0" }}>
-            <div style={{ fontSize: 13, fontWeight: 700, color: "#00838f", textTransform: "uppercase", letterSpacing: "0.5px", marginBottom: 12, display: "flex", alignItems: "center", gap: 6 }}>
-              <Syringe size={16} /> Section A — Injection Details
+      <form onSubmit={handleSave} className="charm-modal-form">
+        <div className="charm-modal-scroll-body">
+          {error && (
+            <div className="charm-alert charm-alert-danger" style={{ marginBottom: 14 }}>
+              <AlertCircle size={16} /> {error}
             </div>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 14 }}>
-              {/* Medication / Product Name */}
-              <div style={{ gridColumn: "1 / -1" }}>
-                <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: "#334155", marginBottom: 5 }}>
-                  Medication / Product Name <span style={{ color: "#ef4444" }}>*</span>
-                </label>
-                <InjectionAutocomplete
-                  value={name}
-                  catalogueId={catalogueId}
-                  onChangeText={(text) => {
-                    setName(text);
-                    setCatalogueId(null);
-                  }}
-                  onSelect={(item) => {
-                    setName(item.name);
-                    setCatalogueId(item.id);
-                  }}
-                  placeholder="Search central catalogue (e.g. Deform 20ml, Lasix, Fondaflo, Clexane)..."
-                  required
-                />
-              </div>
+          )}
 
-              {/* Dosage & Strength */}
+          <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+            {/* SECTION A – INJECTION DETAILS */}
+            <div style={{ background: "#ffffff", padding: "14px 16px", borderRadius: 6, border: "1px solid #e2e8f0" }}>
+              <div style={{ fontSize: 13, fontWeight: 700, color: "#00838f", textTransform: "uppercase", letterSpacing: "0.5px", marginBottom: 12, display: "flex", alignItems: "center", gap: 6 }}>
+                <Syringe size={16} /> Section A — Injection Details
+              </div>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 14 }}>
+                {/* Medication / Product Name */}
+                <div style={{ gridColumn: "1 / -1" }}>
+                  <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: "#334155", marginBottom: 5 }}>
+                    Medication / Product Name <span style={{ color: "#ef4444" }}>*</span>
+                  </label>
+                  <InjectionAutocomplete
+                    value={name}
+                    catalogueId={catalogueId}
+                    onChangeText={(text) => {
+                      setName(text);
+                      setCatalogueId(null);
+                    }}
+                    onSelect={(item) => {
+                      setName(item.name);
+                      setCatalogueId(item.id);
+                    }}
+                    placeholder="Search central catalogue (e.g. Deform 20ml, Lasix, Fondaflo, Clexane)..."
+                    required
+                  />
+                </div>
+
+                {/* Dosage & Strength */}
+                <div>
+                  <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: "#334155", marginBottom: 5 }}>
+                    Dosage & Strength <span style={{ color: "#ef4444" }}>*</span>
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="e.g. 20 mg / 2 ml, 2.5 mg / 0.5 ml"
+                    value={dosage}
+                    onChange={(e) => setDosage(e.target.value)}
+                    required
+                    className="charm-input"
+                    style={{ width: "100%", height: 36 }}
+                  />
+                </div>
+
+                {/* Route */}
+                <div>
+                  <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: "#334155", marginBottom: 5 }}>
+                    Route <span style={{ color: "#ef4444" }}>*</span>
+                  </label>
+                  <select
+                    value={route}
+                    onChange={(e) => setRoute(e.target.value)}
+                    required
+                    className="charm-select"
+                    style={{ width: "100%", height: 36 }}
+                  >
+                    <option value="Subcutaneous (SC)">Subcutaneous (SC)</option>
+                    <option value="Intramuscular (IM)">Intramuscular (IM)</option>
+                    <option value="Intravenous (IV)">Intravenous (IV)</option>
+                    <option value="Intradermal (ID)">Intradermal (ID)</option>
+                    <option value="IV Infusion">IV Infusion</option>
+                  </select>
+                </div>
+
+                {/* Administration Site */}
+                <div>
+                  <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: "#334155", marginBottom: 5 }}>
+                    Administration Site <span style={{ color: "#ef4444" }}>*</span>
+                  </label>
+                  <select
+                    value={site}
+                    onChange={(e) => setSite(e.target.value)}
+                    required
+                    className="charm-select"
+                    style={{ width: "100%", height: 36 }}
+                  >
+                    <option value="Deltoid - Left">Deltoid - Left</option>
+                    <option value="Deltoid - Right">Deltoid - Right</option>
+                    <option value="Gluteal - Left">Gluteal - Left</option>
+                    <option value="Gluteal - Right">Gluteal - Right</option>
+                    <option value="Abdomen - Upper Left">Abdomen - Upper Left</option>
+                    <option value="Abdomen - Upper Right">Abdomen - Upper Right</option>
+                    <option value="Abdomen - Lower Left">Abdomen - Lower Left</option>
+                    <option value="Abdomen - Lower Right">Abdomen - Lower Right</option>
+                    <option value="Vastus Lateralis - Left">Vastus Lateralis - Left</option>
+                    <option value="Vastus Lateralis - Right">Vastus Lateralis - Right</option>
+                    <option value="Basilic Vein - RH">Basilic Vein - RH</option>
+                    <option value="Cephalic Vein - RH">Cephalic Vein - RH</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+
+            {/* SECTION B – BATCH AND EXPIRY DETAILS */}
+            <div style={{ background: "#ffffff", padding: "14px 16px", borderRadius: 6, border: "1px solid #e2e8f0" }}>
+              <div style={{ fontSize: 13, fontWeight: 700, color: "#00838f", textTransform: "uppercase", letterSpacing: "0.5px", marginBottom: 12, display: "flex", alignItems: "center", gap: 6 }}>
+                <ShieldCheck size={16} /> Section B — Batch & Expiry Tracking
+              </div>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
+                <div>
+                  <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: "#334155", marginBottom: 5 }}>
+                    Batch / Lot Number
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="e.g. LOT-2026-882A"
+                    value={lotNumber}
+                    onChange={(e) => setLotNumber(e.target.value)}
+                    className="charm-input"
+                    style={{ width: "100%", height: 36 }}
+                  />
+                </div>
+                <div>
+                  <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: "#334155", marginBottom: 5 }}>
+                    Expiration Date
+                  </label>
+                  <input
+                    type="date"
+                    value={expirationDate}
+                    onChange={(e) => setExpirationDate(e.target.value)}
+                    className="charm-input"
+                    style={{ width: "100%", height: 36 }}
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* SECTION C – ADMINISTRATION DETAILS */}
+            <div style={{ background: "#ffffff", padding: "14px 16px", borderRadius: 6, border: "1px solid #e2e8f0" }}>
+              <div style={{ fontSize: 13, fontWeight: 700, color: "#00838f", textTransform: "uppercase", letterSpacing: "0.5px", marginBottom: 12, display: "flex", alignItems: "center", gap: 6 }}>
+                <Clock size={16} /> Section C — Administration Details
+              </div>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 14 }}>
+                <div>
+                  <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: "#334155", marginBottom: 5 }}>
+                    Administered Date & Time
+                  </label>
+                  <input
+                    type="datetime-local"
+                    value={administeredAt}
+                    onChange={(e) => setAdministeredAt(e.target.value)}
+                    className="charm-input"
+                    style={{ width: "100%", height: 36 }}
+                  />
+                </div>
+
+                <div>
+                  <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: "#334155", marginBottom: 5 }}>
+                    Administered By
+                  </label>
+                  <select
+                    value={administeredBy}
+                    onChange={(e) => setAdministeredBy(e.target.value)}
+                    className="charm-select"
+                    style={{ width: "100%", height: 36 }}
+                  >
+                    {staff.map((s) => (
+                      <option key={s.id} value={s.id}>
+                        {s.name} ({s.role})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: "#334155", marginBottom: 5 }}>
+                    Status
+                  </label>
+                  <select
+                    value={status}
+                    onChange={(e) => setStatus(e.target.value)}
+                    className="charm-select"
+                    style={{ width: "100%", height: 36 }}
+                  >
+                    <option value="administered">Administered (Given)</option>
+                    <option value="ordered">Ordered (Pending)</option>
+                    <option value="completed">Completed</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: "#334155", marginBottom: 5 }}>
+                    Frequency
+                  </label>
+                  <select
+                    value={frequency}
+                    onChange={(e) => setFrequency(e.target.value)}
+                    className="charm-select"
+                    style={{ width: "100%", height: 36 }}
+                  >
+                    <option value="Once / Stat">Once / Stat</option>
+                    <option value="Daily">Daily</option>
+                    <option value="Twice daily">Twice daily</option>
+                    <option value="Weekly">Weekly</option>
+                    <option value="PRN (As Needed)">PRN (As Needed)</option>
+                  </select>
+                </div>
+
+                <div style={{ gridColumn: "span 2" }}>
+                  <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: "#334155", marginBottom: 5 }}>
+                    Period / Duration
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="e.g. 1 Day, 5 Days"
+                    value={period}
+                    onChange={(e) => setPeriod(e.target.value)}
+                    className="charm-input"
+                    style={{ width: "100%", height: 36 }}
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* SECTION D – NURSE NOTES AND OBSERVATIONS */}
+            <div style={{ background: "#ffffff", padding: "14px 16px", borderRadius: 6, border: "1px solid #e2e8f0" }}>
+              <div style={{ fontSize: 13, fontWeight: 700, color: "#00838f", textTransform: "uppercase", letterSpacing: "0.5px", marginBottom: 8, display: "flex", alignItems: "center", gap: 6 }}>
+                <FileText size={16} /> Section D — Nurse Notes & Injection Reaction Observations
+              </div>
               <div>
-                <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: "#334155", marginBottom: 5 }}>
-                  Dosage & Strength <span style={{ color: "#ef4444" }}>*</span>
-                </label>
-                <input
-                  type="text"
-                  placeholder="e.g. 20 mg / 2 ml, 2.5 mg / 0.5 ml"
-                  value={dosage}
-                  onChange={(e) => setDosage(e.target.value)}
-                  required
+                <textarea
+                  rows={3}
+                  placeholder="Enter administration observations, tolerance, anatomical site response, vitals post-injection, and reaction observations..."
+                  value={nurseNotes}
+                  onChange={(e) => setNurseNotes(e.target.value)}
                   className="charm-input"
-                  style={{ width: "100%", height: 36 }}
+                  style={{ width: "100%", minHeight: 70, padding: 10, fontSize: 13, boxSizing: "border-box" }}
                 />
               </div>
-
-              {/* Route */}
-              <div>
-                <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: "#334155", marginBottom: 5 }}>
-                  Route <span style={{ color: "#ef4444" }}>*</span>
-                </label>
-                <select
-                  value={route}
-                  onChange={(e) => setRoute(e.target.value)}
-                  required
-                  className="charm-select"
-                  style={{ width: "100%", height: 36 }}
-                >
-                  <option value="Subcutaneous (SC)">Subcutaneous (SC)</option>
-                  <option value="Intramuscular (IM)">Intramuscular (IM)</option>
-                  <option value="Intravenous (IV)">Intravenous (IV)</option>
-                  <option value="Intradermal (ID)">Intradermal (ID)</option>
-                  <option value="IV Infusion">IV Infusion</option>
-                </select>
-              </div>
-
-              {/* Administration Site */}
-              <div>
-                <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: "#334155", marginBottom: 5 }}>
-                  Administration Site <span style={{ color: "#ef4444" }}>*</span>
-                </label>
-                <select
-                  value={site}
-                  onChange={(e) => setSite(e.target.value)}
-                  required
-                  className="charm-select"
-                  style={{ width: "100%", height: 36 }}
-                >
-                  <option value="Deltoid - Left">Deltoid - Left</option>
-                  <option value="Deltoid - Right">Deltoid - Right</option>
-                  <option value="Gluteal - Left">Gluteal - Left</option>
-                  <option value="Gluteal - Right">Gluteal - Right</option>
-                  <option value="Abdomen - Upper Left">Abdomen - Upper Left</option>
-                  <option value="Abdomen - Upper Right">Abdomen - Upper Right</option>
-                  <option value="Abdomen - Lower Left">Abdomen - Lower Left</option>
-                  <option value="Abdomen - Lower Right">Abdomen - Lower Right</option>
-                  <option value="Vastus Lateralis - Left">Vastus Lateralis - Left</option>
-                  <option value="Vastus Lateralis - Right">Vastus Lateralis - Right</option>
-                  <option value="Basilic Vein - RH">Basilic Vein - RH</option>
-                  <option value="Cephalic Vein - RH">Cephalic Vein - RH</option>
-                </select>
-              </div>
-            </div>
-          </div>
-
-          {/* SECTION B – BATCH AND EXPIRY DETAILS */}
-          <div style={{ background: "#ffffff", padding: "16px 18px", borderRadius: 8, border: "1px solid #e2e8f0" }}>
-            <div style={{ fontSize: 13, fontWeight: 700, color: "#00838f", textTransform: "uppercase", letterSpacing: "0.5px", marginBottom: 12 }}>
-              Section B — Batch & Expiry Tracking
-            </div>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 14 }}>
-              <div>
-                <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: "#334155", marginBottom: 5 }}>
-                  Batch / Lot Number
-                </label>
-                <input
-                  type="text"
-                  placeholder="e.g. LOT-2026-882A"
-                  value={lotNumber}
-                  onChange={(e) => setLotNumber(e.target.value)}
-                  className="charm-input"
-                  style={{ width: "100%", height: 36 }}
-                />
-              </div>
-              <div>
-                <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: "#334155", marginBottom: 5 }}>
-                  Expiration Date
-                </label>
-                <input
-                  type="date"
-                  value={expirationDate}
-                  onChange={(e) => setExpirationDate(e.target.value)}
-                  className="charm-input"
-                  style={{ width: "100%", height: 36 }}
-                />
-              </div>
-            </div>
-          </div>
-
-          {/* SECTION C – ADMINISTRATION DETAILS */}
-          <div style={{ background: "#ffffff", padding: "16px 18px", borderRadius: 8, border: "1px solid #e2e8f0" }}>
-            <div style={{ fontSize: 13, fontWeight: 700, color: "#00838f", textTransform: "uppercase", letterSpacing: "0.5px", marginBottom: 12 }}>
-              Section C — Administration Details
-            </div>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 14 }}>
-              <div>
-                <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: "#334155", marginBottom: 5 }}>
-                  Frequency
-                </label>
-                <select
-                  value={frequency}
-                  onChange={(e) => setFrequency(e.target.value)}
-                  className="charm-select"
-                  style={{ width: "100%", height: 36 }}
-                >
-                  <option value="Once / Stat">Once / Stat</option>
-                  <option value="Daily">Daily</option>
-                  <option value="Twice daily">Twice daily</option>
-                  <option value="Weekly">Weekly</option>
-                  <option value="PRN (As Needed)">PRN (As Needed)</option>
-                </select>
-              </div>
-
-              <div>
-                <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: "#334155", marginBottom: 5 }}>
-                  Period / Duration
-                </label>
-                <input
-                  type="text"
-                  placeholder="e.g. 1 Day, 5 Days"
-                  value={period}
-                  onChange={(e) => setPeriod(e.target.value)}
-                  className="charm-input"
-                  style={{ width: "100%", height: 36 }}
-                />
-              </div>
-
-              <div>
-                <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: "#334155", marginBottom: 5 }}>
-                  Administered Date & Time
-                </label>
-                <input
-                  type="datetime-local"
-                  value={administeredAt}
-                  onChange={(e) => setAdministeredAt(e.target.value)}
-                  className="charm-input"
-                  style={{ width: "100%", height: 36 }}
-                />
-              </div>
-
-              <div>
-                <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: "#334155", marginBottom: 5 }}>
-                  Administered By
-                </label>
-                <select
-                  value={administeredBy}
-                  onChange={(e) => setAdministeredBy(e.target.value)}
-                  className="charm-select"
-                  style={{ width: "100%", height: 36 }}
-                >
-                  {staff.map((s) => (
-                    <option key={s.id} value={s.id}>
-                      {s.name} ({s.role})
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: "#334155", marginBottom: 5 }}>
-                  Status
-                </label>
-                <select
-                  value={status}
-                  onChange={(e) => setStatus(e.target.value)}
-                  className="charm-select"
-                  style={{ width: "100%", height: 36 }}
-                >
-                  <option value="administered">Administered (Given)</option>
-                  <option value="ordered">Ordered (Pending)</option>
-                  <option value="completed">Completed</option>
-                </select>
-              </div>
-            </div>
-          </div>
-
-          {/* SECTION D – NURSE NOTES AND OBSERVATIONS */}
-          <div style={{ background: "#ffffff", padding: "16px 18px", borderRadius: 8, border: "1px solid #e2e8f0" }}>
-            <div style={{ fontSize: 13, fontWeight: 700, color: "#00838f", textTransform: "uppercase", letterSpacing: "0.5px", marginBottom: 8 }}>
-              Section D — Nurse Notes & Injection Reaction Observations
-            </div>
-            <div>
-              <textarea
-                rows={3}
-                placeholder="Enter administration observations, tolerance, anatomical site response, vitals post-injection, and reaction observations..."
-                value={nurseNotes}
-                onChange={(e) => setNurseNotes(e.target.value)}
-                className="charm-input"
-                style={{ width: "100%", minHeight: 80, padding: 10, fontSize: 13, boxSizing: "border-box" }}
-              />
             </div>
           </div>
         </div>
 
-        <div className="charm-modal-footer" style={{ marginTop: 20, display: "flex", justifyContent: "flex-end", gap: 10 }}>
+        <div className="charm-modal-footer">
           <Button variant="secondary" onClick={onClose} disabled={saving} type="button">
             Cancel
           </Button>
           <Button variant="primary" type="submit" disabled={saving}>
+            <Syringe size={15} style={{ marginRight: 6 }} />
             {saving ? "Saving Injection..." : "Save Injection"}
           </Button>
         </div>
@@ -1656,125 +1664,137 @@ export function AddPatientInjectionOrderModal({
       description="Create a physician injection order linked to the master formulary catalogue."
       onClose={onClose}
       wide
+      className="charm-clinical-modal charm-modal-container"
     >
       <form onSubmit={handleSave} className="charm-modal-form">
-        {error && (
-          <div className="charm-alert charm-alert-danger" style={{ marginBottom: 12 }}>
-            <AlertCircle size={16} /> {error}
-          </div>
-        )}
+        <div className="charm-modal-scroll-body">
+          {error && (
+            <div className="charm-alert charm-alert-danger" style={{ marginBottom: 14 }}>
+              <AlertCircle size={16} /> {error}
+            </div>
+          )}
 
-        {/* Quick formulary buttons */}
-        <div style={{ marginBottom: 14 }}>
-          <div style={{ fontSize: 11, fontWeight: 700, color: "#64748b", textTransform: "uppercase", marginBottom: 6 }}>
-            Quick Formulary Presets
+          {/* Quick formulary buttons */}
+          <div style={{ marginBottom: 16 }}>
+            <div style={{ fontSize: 11, fontWeight: 700, color: "#64748b", textTransform: "uppercase", letterSpacing: "0.5px", marginBottom: 8, display: "flex", alignItems: "center", gap: 6 }}>
+              <Sparkles size={14} color="#0284c7" /> Quick Formulary Presets
+            </div>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+              {presets.map((p) => {
+                const active = drugName === p.name;
+                return (
+                  <button
+                    key={p.name}
+                    type="button"
+                    onClick={() => handleApplyPreset(p)}
+                    style={{
+                      background: active ? "#e0f2fe" : "#ffffff",
+                      color: active ? "#0369a1" : "#334155",
+                      border: active ? "1px solid #0284c7" : "1px solid #cbd5e1",
+                      borderRadius: 6,
+                      padding: "5px 12px",
+                      fontSize: 12,
+                      fontWeight: active ? 700 : 500,
+                      cursor: "pointer",
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: 6,
+                      boxShadow: active ? "0 1px 2px rgba(2, 132, 199, 0.15)" : "0 1px 2px rgba(0,0,0,0.03)",
+                      transition: "all 0.15s ease",
+                    }}
+                  >
+                    {active && <Check size={13} color="#0284c7" />}
+                    {p.name.split(" ")[0]} ({p.dose})
+                  </button>
+                );
+              })}
+            </div>
           </div>
-          <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
-            {presets.map((p) => (
-              <button
-                key={p.name}
-                type="button"
-                onClick={() => handleApplyPreset(p)}
-                style={{
-                  background: drugName === p.name ? "#e0f2fe" : "#f1f5f9",
-                  color: drugName === p.name ? "#0284c7" : "#334155",
-                  border: drugName === p.name ? "1px solid #7dd3fc" : "1px solid #cbd5e1",
-                  borderRadius: 4,
-                  padding: "4px 8px",
-                  fontSize: 11,
-                  fontWeight: 600,
-                  cursor: "pointer",
+
+          <div className="charm-form-grid">
+            <div className="charm-form-group" style={{ gridColumn: "1 / -1" }}>
+              <label>Medication / Product Name *</label>
+              <InjectionAutocomplete
+                value={drugName}
+                catalogueId={catalogueId}
+                onChangeText={(text) => {
+                  setDrugName(text);
+                  setCatalogueId(null);
                 }}
+                onSelect={(item) => {
+                  setDrugName(item.name);
+                  setCatalogueId(item.id);
+                }}
+                required
+                placeholder="Search or select injection from central catalogue..."
+              />
+            </div>
+
+            <div className="charm-form-group">
+              <label>Dosage & Strength *</label>
+              <input
+                type="text"
+                value={dose}
+                onChange={(e) => setDose(e.target.value)}
+                required
+                className="charm-input"
+              />
+            </div>
+
+            <div className="charm-form-group">
+              <label>Route *</label>
+              <select
+                value={route}
+                onChange={(e) => setRoute(e.target.value)}
+                className="charm-select"
               >
-                {p.name.split(" ")[0]} ({p.dose})
-              </button>
-            ))}
-          </div>
-        </div>
+                <option value="Intravenous">Intravenous</option>
+                <option value="Subcutaneous (SC)">Subcutaneous (SC)</option>
+                <option value="Intramuscular (IM)">Intramuscular (IM)</option>
+                <option value="IV Infusion">IV Infusion</option>
+              </select>
+            </div>
 
-        <div className="charm-form-grid">
-          <div className="charm-form-group" style={{ gridColumn: "1 / -1" }}>
-            <label>Medication / Product Name *</label>
-            <InjectionAutocomplete
-              value={drugName}
-              catalogueId={catalogueId}
-              onChangeText={(text) => {
-                setDrugName(text);
-                setCatalogueId(null);
-              }}
-              onSelect={(item) => {
-                setDrugName(item.name);
-                setCatalogueId(item.id);
-              }}
-              required
-              placeholder="Search or select injection from central catalogue..."
-            />
-          </div>
+            <div className="charm-form-group">
+              <label>Administration Site</label>
+              <input
+                type="text"
+                value={site}
+                onChange={(e) => setSite(e.target.value)}
+                className="charm-input"
+              />
+            </div>
 
-          <div className="charm-form-group">
-            <label>Dosage & Strength *</label>
-            <input
-              type="text"
-              value={dose}
-              onChange={(e) => setDose(e.target.value)}
-              required
-              className="charm-input"
-            />
-          </div>
+            <div className="charm-form-group">
+              <label>Frequency</label>
+              <input
+                type="text"
+                value={frequency}
+                onChange={(e) => setFrequency(e.target.value)}
+                className="charm-input"
+              />
+            </div>
 
-          <div className="charm-form-group">
-            <label>Route *</label>
-            <select
-              value={route}
-              onChange={(e) => setRoute(e.target.value)}
-              className="charm-select"
-            >
-              <option value="Intravenous">Intravenous</option>
-              <option value="Subcutaneous (SC)">Subcutaneous (SC)</option>
-              <option value="Intramuscular (IM)">Intramuscular (IM)</option>
-              <option value="IV Infusion">IV Infusion</option>
-            </select>
-          </div>
+            <div className="charm-form-group" style={{ gridColumn: "1 / -1" }}>
+              <label>Note to Nurse</label>
+              <input
+                type="text"
+                value={nurseNotes}
+                onChange={(e) => setNurseNotes(e.target.value)}
+                placeholder="e.g. Start Immediate, monitor vitals"
+                className="charm-input"
+              />
+            </div>
 
-          <div className="charm-form-group">
-            <label>Administration Site</label>
-            <input
-              type="text"
-              value={site}
-              onChange={(e) => setSite(e.target.value)}
-              className="charm-input"
-            />
-          </div>
-
-          <div className="charm-form-group">
-            <label>Frequency</label>
-            <input
-              type="text"
-              value={frequency}
-              onChange={(e) => setFrequency(e.target.value)}
-              className="charm-input"
-            />
-          </div>
-
-          <div className="charm-form-group" style={{ gridColumn: "1 / -1" }}>
-            <label>Note to Nurse</label>
-            <input
-              type="text"
-              value={nurseNotes}
-              onChange={(e) => setNurseNotes(e.target.value)}
-              placeholder="e.g. Start Immediate, monitor vitals"
-              className="charm-input"
-            />
-          </div>
-
-          <div className="charm-form-group" style={{ gridColumn: "1 / -1" }}>
-            <label>Comments / Precaution</label>
-            <textarea
-              rows={2}
-              value={comments}
-              onChange={(e) => setComments(e.target.value)}
-              className="charm-input"
-            />
+            <div className="charm-form-group" style={{ gridColumn: "1 / -1" }}>
+              <label>Comments / Precaution</label>
+              <textarea
+                rows={2}
+                value={comments}
+                onChange={(e) => setComments(e.target.value)}
+                className="charm-input"
+              />
+            </div>
           </div>
         </div>
 
@@ -1783,6 +1803,7 @@ export function AddPatientInjectionOrderModal({
             Cancel
           </Button>
           <Button variant="primary" type="submit" disabled={submitting}>
+            <ClipboardCheck size={16} style={{ marginRight: 6 }} />
             {submitting ? "Placing Order..." : "Place Injection Order"}
           </Button>
         </div>
@@ -2088,8 +2109,8 @@ export function InjectionsSection({
                           {inj.administered_at
                             ? dateTime(inj.administered_at)
                             : inj.created_at
-                            ? dateTime(inj.created_at)
-                            : "—"}
+                              ? dateTime(inj.created_at)
+                              : "—"}
                         </strong>
                       </div>
                     </td>
@@ -2352,6 +2373,7 @@ export function AddVaccineModal({
   const [status, setStatus] = useState<string>(initialMode);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [showCardioHemodynamics, setShowCardioHemodynamics] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [showDropdown, setShowDropdown] = useState(false);
 
@@ -2360,8 +2382,7 @@ export function AddVaccineModal({
     queryKey: ["catalogs", "vaccine", searchQuery],
     queryFn: () =>
       api<Row[]>(
-        `/catalogs?kind=vaccine${
-          searchQuery ? `&q=${encodeURIComponent(searchQuery)}` : ""
+        `/catalogs?kind=vaccine${searchQuery ? `&q=${encodeURIComponent(searchQuery)}` : ""
         }`
       ),
     staleTime: 60000,
@@ -2409,261 +2430,297 @@ export function AddVaccineModal({
         status === "historical"
           ? "Add Historical Vaccine"
           : status === "ordered"
-          ? "Order Vaccine"
-          : "Add Vaccine"
+            ? "Order Vaccine"
+            : "Add Vaccine"
       }
       description="Record CDC/CVX-coded immunizations with lot numbers, VIS documentation, and dose series."
       onClose={onClose}
       wide
+      className="charm-clinical-modal charm-modal-container"
     >
       <div className="charm-modal-form">
-        {error && (
-          <div className="charm-alert charm-alert-danger">
-            <AlertCircle size={16} /> {error}
+        <div className="charm-modal-scroll-body">
+          {error && (
+            <div className="charm-alert charm-alert-danger" style={{ marginBottom: 14 }}>
+              <AlertCircle size={16} /> {error}
+            </div>
+          )}
+
+          <div className="charm-mode-selector" style={{ marginBottom: 16 }}>
+            <button
+              type="button"
+              className={`charm-mode-pill ${status === "administered" ? "active" : ""}`}
+              onClick={() => setStatus("administered")}
+            >
+              <Syringe size={14} /> Administer Now
+            </button>
+            <button
+              type="button"
+              className={`charm-mode-pill ${status === "historical" ? "active" : ""}`}
+              onClick={() => setStatus("historical")}
+            >
+              <History size={14} /> Historical Record
+            </button>
+            <button
+              type="button"
+              className={`charm-mode-pill ${status === "ordered" ? "active" : ""}`}
+              onClick={() => setStatus("ordered")}
+            >
+              <ClipboardList size={14} /> Order Vaccine
+            </button>
           </div>
-        )}
 
-        <div className="charm-mode-selector">
-          <button
-            type="button"
-            className={`charm-mode-pill ${status === "administered" ? "active" : ""}`}
-            onClick={() => setStatus("administered")}
-          >
-            Administer Now
-          </button>
-          <button
-            type="button"
-            className={`charm-mode-pill ${status === "historical" ? "active" : ""}`}
-            onClick={() => setStatus("historical")}
-          >
-            Historical Record
-          </button>
-          <button
-            type="button"
-            className={`charm-mode-pill ${status === "ordered" ? "active" : ""}`}
-            onClick={() => setStatus("ordered")}
-          >
-            Order Vaccine
-          </button>
-        </div>
+          <div className="charm-form-grid">
+            {/* Autocomplete Vaccine */}
+            <div className="charm-form-group charm-autocomplete-wrap" style={{ gridColumn: "1 / -1" }}>
+              <label>Vaccine Name / CVX *</label>
+              <div className="charm-input-search-box">
+                <Search size={15} className="charm-search-icon" />
+                <input
+                  type="text"
+                  placeholder="Search or enter vaccine name (e.g. Influenza quadrivalent, PCV20, PPSV23, Tdap)..."
+                  value={name}
+                  onFocus={() => {
+                    setShowDropdown(true);
+                    setSearchQuery(name);
+                  }}
+                  onChange={(e) => {
+                    setName(e.target.value);
+                    setSearchQuery(e.target.value);
+                  }}
+                  className="charm-input"
+                />
+              </div>
+              {showDropdown && catalogs.length > 0 && (
+                <div className="charm-autocomplete-dropdown">
+                  {catalogs.map((cat) => (
+                    <div
+                      key={cat.id}
+                      className="charm-autocomplete-item"
+                      onMouseDown={() => {
+                        setName(cat.name);
+                        if (cat.code) setCvxCode(cat.code);
+                        if (cat.notes) setManufacturer(cat.notes);
+                        setShowDropdown(false);
+                      }}
+                    >
+                      <strong>{cat.name}</strong>
+                      <span className="charm-autocomplete-sub">
+                        {cat.code ? `[CVX: ${cat.code}] ` : ""}
+                        {cat.notes || "Adult Immunization"}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
 
-        <div className="charm-form-grid">
-          {/* Autocomplete Vaccine */}
-          <div className="charm-form-group charm-autocomplete-wrap" style={{ gridColumn: "1 / -1" }}>
-            <label>Vaccine Name / CVX *</label>
-            <div className="charm-input-search-box">
-              <Search size={15} className="charm-search-icon" />
+            <div className="charm-form-group">
+              <label>CVX Code</label>
               <input
                 type="text"
-                placeholder="Search or enter vaccine name (e.g. Influenza quadrivalent, PCV20, PPSV23, Tdap)..."
-                value={name}
-                onFocus={() => {
-                  setShowDropdown(true);
-                  setSearchQuery(name);
-                }}
-                onChange={(e) => {
-                  setName(e.target.value);
-                  setSearchQuery(e.target.value);
-                }}
+                placeholder="e.g. 150, 216, 33"
+                value={cvxCode}
+                onChange={(e) => setCvxCode(e.target.value)}
                 className="charm-input"
               />
             </div>
-            {showDropdown && catalogs.length > 0 && (
-              <div className="charm-autocomplete-dropdown">
-                {catalogs.map((cat) => (
-                  <div
-                    key={cat.id}
-                    className="charm-autocomplete-item"
-                    onMouseDown={() => {
-                      setName(cat.name);
-                      if (cat.code) setCvxCode(cat.code);
-                      if (cat.notes) setManufacturer(cat.notes);
-                      setShowDropdown(false);
-                    }}
+
+            <div className="charm-form-group">
+              <label>Manufacturer</label>
+              <input
+                type="text"
+                placeholder="e.g. Sanofi Pasteur, Pfizer, GSK"
+                value={manufacturer}
+                onChange={(e) => setManufacturer(e.target.value)}
+                className="charm-input"
+              />
+            </div>
+
+            <div className="charm-form-group">
+              <label>Lot / Batch Number</label>
+              <input
+                type="text"
+                placeholder="e.g. UJ8902A"
+                value={lotNumber}
+                onChange={(e) => setLotNumber(e.target.value)}
+                className="charm-input"
+              />
+            </div>
+
+            <div className="charm-form-group">
+              <label>Expiration Date</label>
+              <input
+                type="date"
+                value={expirationDate}
+                onChange={(e) => setExpirationDate(e.target.value)}
+                className="charm-input"
+              />
+            </div>
+
+            <div className="charm-form-group">
+              <label>Dose in Series</label>
+              <select
+                value={doseInSeries}
+                onChange={(e) => setDoseInSeries(e.target.value)}
+                className="charm-select"
+              >
+                <option value="Single Dose (1 of 1)">Single Dose (1 of 1)</option>
+                <option value="Dose 1 of 2">Dose 1 of 2</option>
+                <option value="Dose 2 of 2">Dose 2 of 2</option>
+                <option value="Annual Booster">Annual Booster</option>
+                <option value="Booster 1">Booster 1</option>
+              </select>
+            </div>
+
+            <div className="charm-form-group">
+              <label>Dose Amount</label>
+              <input
+                type="text"
+                placeholder="e.g. 0.5 ml"
+                value={dosage}
+                onChange={(e) => setDosage(e.target.value)}
+                className="charm-input"
+              />
+            </div>
+
+            <div className="charm-form-group">
+              <label>Route</label>
+              <select
+                value={route}
+                onChange={(e) => setRoute(e.target.value)}
+                className="charm-select"
+              >
+                <option value="Intramuscular (IM)">Intramuscular (IM)</option>
+                <option value="Subcutaneous (SC)">Subcutaneous (SC)</option>
+                <option value="Intranasal">Intranasal</option>
+                <option value="Oral">Oral</option>
+              </select>
+            </div>
+
+            <div className="charm-form-group">
+              <label>Administration Site</label>
+              <select
+                value={site}
+                onChange={(e) => setSite(e.target.value)}
+                className="charm-select"
+              >
+                <option value="Deltoid - Left">Deltoid - Left</option>
+                <option value="Deltoid - Right">Deltoid - Right</option>
+                <option value="Anterolateral Thigh - Left">
+                  Anterolateral Thigh - Left
+                </option>
+                <option value="Anterolateral Thigh - Right">
+                  Anterolateral Thigh - Right
+                </option>
+                <option value="Nasal Mucosa">Nasal Mucosa</option>
+              </select>
+            </div>
+
+            {status === "administered" && (
+              <>
+                <div className="charm-form-group">
+                  <label>Administered Date & Time</label>
+                  <input
+                    type="datetime-local"
+                    value={administeredAt}
+                    onChange={(e) => setAdministeredAt(e.target.value)}
+                    className="charm-input"
+                  />
+                </div>
+
+                <div className="charm-form-group">
+                  <label>Administered By</label>
+                  <select
+                    value={administeredBy}
+                    onChange={(e) => setAdministeredBy(e.target.value)}
+                    className="charm-select"
                   >
-                    <strong>{cat.name}</strong>
-                    <span className="charm-autocomplete-sub">
-                      {cat.code ? `[CVX: ${cat.code}] ` : ""}
-                      {cat.notes || "Adult Immunization"}
-                    </span>
-                  </div>
-                ))}
+                    {staff.map((s) => (
+                      <option key={s.id} value={s.id}>
+                        {formatDoctorName(s.name)} ({s.role})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </>
+            )}
+
+            {status === "historical" && (
+              <div className="charm-form-group">
+                <label>Date Administered (Historical)</label>
+                <input
+                  type="date"
+                  value={administeredAt?.slice(0, 10) || ""}
+                  onChange={(e) => setAdministeredAt(e.target.value)}
+                  className="charm-input"
+                />
               </div>
             )}
-          </div>
 
-          <div className="charm-form-group">
-            <label>CVX Code</label>
-            <input
-              type="text"
-              placeholder="e.g. 150, 216, 33"
-              value={cvxCode}
-              onChange={(e) => setCvxCode(e.target.value)}
-              className="charm-input"
-            />
-          </div>
+            <div className="charm-form-group">
+              <label>Ordered By (Clinician) {status === "ordered" && <span style={{ color: "#ef4444" }}>*</span>}</label>
+              <select
+                value={orderedBy}
+                onChange={(e) => setOrderedBy(e.target.value)}
+                className="charm-select"
+              >
+                {staff
+                  .filter((s) => s.role === "doctor" || s.id === user.id)
+                  .map((s) => (
+                    <option key={s.id} value={s.id}>
+                      {formatDoctorName(s.name)}
+                    </option>
+                  ))}
+              </select>
+            </div>
 
-          <div className="charm-form-group">
-            <label>Manufacturer</label>
-            <input
-              type="text"
-              placeholder="e.g. Sanofi Pasteur, Pfizer, GSK"
-              value={manufacturer}
-              onChange={(e) => setManufacturer(e.target.value)}
-              className="charm-input"
-            />
-          </div>
+            {status === "administered" && (
+              <div className="charm-form-group">
+                <label>VIS Date Provided</label>
+                <input
+                  type="date"
+                  value={visGivenDate}
+                  onChange={(e) => setVisGivenDate(e.target.value)}
+                  className="charm-input"
+                />
+              </div>
+            )}
 
-          <div className="charm-form-group">
-            <label>Lot / Batch Number</label>
-            <input
-              type="text"
-              placeholder="e.g. UJ8902A"
-              value={lotNumber}
-              onChange={(e) => setLotNumber(e.target.value)}
-              className="charm-input"
-            />
-          </div>
-
-          <div className="charm-form-group">
-            <label>Expiration Date</label>
-            <input
-              type="date"
-              value={expirationDate}
-              onChange={(e) => setExpirationDate(e.target.value)}
-              className="charm-input"
-            />
-          </div>
-
-          <div className="charm-form-group">
-            <label>Dose in Series</label>
-            <select
-              value={doseInSeries}
-              onChange={(e) => setDoseInSeries(e.target.value)}
-              className="charm-select"
-            >
-              <option value="Single Dose (1 of 1)">Single Dose (1 of 1)</option>
-              <option value="Dose 1 of 2">Dose 1 of 2</option>
-              <option value="Dose 2 of 2">Dose 2 of 2</option>
-              <option value="Annual Booster">Annual Booster</option>
-              <option value="Booster 1">Booster 1</option>
-            </select>
-          </div>
-
-          <div className="charm-form-group">
-            <label>Dose Amount</label>
-            <input
-              type="text"
-              placeholder="e.g. 0.5 ml"
-              value={dosage}
-              onChange={(e) => setDosage(e.target.value)}
-              className="charm-input"
-            />
-          </div>
-
-          <div className="charm-form-group">
-            <label>Route</label>
-            <select
-              value={route}
-              onChange={(e) => setRoute(e.target.value)}
-              className="charm-select"
-            >
-              <option value="Intramuscular (IM)">Intramuscular (IM)</option>
-              <option value="Subcutaneous (SC)">Subcutaneous (SC)</option>
-              <option value="Intranasal">Intranasal</option>
-              <option value="Oral">Oral</option>
-            </select>
-          </div>
-
-          <div className="charm-form-group">
-            <label>Administration Site</label>
-            <select
-              value={site}
-              onChange={(e) => setSite(e.target.value)}
-              className="charm-select"
-            >
-              <option value="Deltoid - Left">Deltoid - Left</option>
-              <option value="Deltoid - Right">Deltoid - Right</option>
-              <option value="Anterolateral Thigh - Left">
-                Anterolateral Thigh - Left
-              </option>
-              <option value="Anterolateral Thigh - Right">
-                Anterolateral Thigh - Right
-              </option>
-              <option value="Nasal Mucosa">Nasal Mucosa</option>
-            </select>
-          </div>
-
-          <div className="charm-form-group">
-            <label>Administered Date & Time</label>
-            <input
-              type="datetime-local"
-              value={administeredAt}
-              onChange={(e) => setAdministeredAt(e.target.value)}
-              className="charm-input"
-            />
-          </div>
-
-          <div className="charm-form-group">
-            <label>Administered By</label>
-            <select
-              value={administeredBy}
-              onChange={(e) => setAdministeredBy(e.target.value)}
-              className="charm-select"
-            >
-              {staff.map((s) => (
-                <option key={s.id} value={s.id}>
-                  {formatDoctorName(s.name)} ({s.role})
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div className="charm-form-group">
-            <label>Ordered By (Clinician)</label>
-            <select
-              value={orderedBy}
-              onChange={(e) => setOrderedBy(e.target.value)}
-              className="charm-select"
-            >
-              {staff
-                .filter((s) => s.role === "doctor" || s.id === user.id)
-                .map((s) => (
-                  <option key={s.id} value={s.id}>
-                    {formatDoctorName(s.name)}
-                  </option>
-                ))}
-            </select>
-          </div>
-
-          <div className="charm-form-group">
-            <label>VIS Date Provided</label>
-            <input
-              type="date"
-              value={visGivenDate}
-              onChange={(e) => setVisGivenDate(e.target.value)}
-              className="charm-input"
-            />
-          </div>
-
-          <div className="charm-form-group" style={{ gridColumn: "1 / -1" }}>
-            <label>Adverse Reaction / Clinical Notes</label>
-            <textarea
-              rows={2}
-              placeholder="e.g. VIS information sheet handed to patient. No immediate acute allergic symptoms observed during 15-min waiting window."
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-              className="charm-input"
-            />
+            <div className="charm-form-group" style={{ gridColumn: "1 / -1" }}>
+              <label>
+                {status === "ordered"
+                  ? "Order Instructions / Clinical Indications for Nurse"
+                  : "Adverse Reaction / Clinical Notes"}
+              </label>
+              <textarea
+                rows={2}
+                placeholder={
+                  status === "ordered"
+                    ? "e.g. Administer prior to cardiology discharge. Check vitals post-vaccination."
+                    : "e.g. VIS information sheet handed to patient. No immediate acute allergic symptoms observed during 15-min waiting window."
+                }
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+                className="charm-input"
+              />
+            </div>
           </div>
         </div>
 
         <div className="charm-modal-footer">
-          <Button variant="secondary" onClick={onClose} disabled={saving}>
+          <Button variant="secondary" onClick={onClose} disabled={saving} type="button">
             Cancel
           </Button>
           <Button variant="primary" onClick={handleSave} disabled={saving}>
-            {saving ? "Saving Vaccine..." : "Record Vaccine"}
+            <ShieldCheck size={16} style={{ marginRight: 6 }} />
+            {saving
+              ? "Saving Vaccine..."
+              : status === "ordered"
+                ? "Place Vaccine Order"
+                : status === "historical"
+                  ? "Save Historical Record"
+                  : "Record Vaccine"}
           </Button>
         </div>
       </div>
@@ -2706,9 +2763,8 @@ export function VaccinesSection({
           </button>
           <button
             type="button"
-            className={`charm-subtab-btn ${
-              subTab === "Vaccine Orders" ? "active" : ""
-            }`}
+            className={`charm-subtab-btn ${subTab === "Vaccine Orders" ? "active" : ""
+              }`}
             onClick={() => setSubTab("Vaccine Orders")}
           >
             <FileText size={15} /> Vaccine Orders (
@@ -2823,8 +2879,8 @@ export function VaccinesSection({
                       {v.administered_at
                         ? dateTime(v.administered_at)
                         : v.created_at
-                        ? dateTime(v.created_at)
-                        : "—"}
+                          ? dateTime(v.created_at)
+                          : "—"}
                     </strong>
                   </td>
                   <td>
@@ -2947,6 +3003,7 @@ export function AddVitalsModal({
 
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [showCardioHemodynamics, setShowCardioHemodynamics] = useState(false);
 
   // Compute Height in CM
   const calculatedHeightCm = useMemo(() => {
@@ -3036,465 +3093,713 @@ export function AddVitalsModal({
       description="Record multi-metric vitals with live dynamic BMI auto-calculation and cardiology hemodynamics."
       onClose={onClose}
       wide
+      className="charm-clinical-modal charm-modal-container"
     >
       <div className="charm-modal-form">
-        {error && (
-          <div className="charm-alert charm-alert-danger">
-            <AlertCircle size={16} /> {error}
-          </div>
-        )}
-
-        <div className="charm-vitals-datetime-bar">
-          <div className="charm-form-group">
-            <label>Observation Timestamp *</label>
-            <input
-              type="datetime-local"
-              value={observedAt}
-              onChange={(e) => setObservedAt(e.target.value)}
-              className="charm-input"
-            />
-          </div>
-
-          {/* Dynamic Live BMI Card */}
-          <div className="charm-live-bmi-card">
-            <div>
-              <span className="charm-live-bmi-label">Calculated BMI</span>
-              <div className="charm-live-bmi-val">
-                {computedBmi > 0 ? computedBmi.toFixed(1) : "—"}
-                <small>kg/m²</small>
-              </div>
+        <div className="charm-modal-scroll-body">
+          {error && (
+            <div className="charm-alert charm-alert-danger" style={{ marginBottom: 14 }}>
+              <AlertCircle size={16} /> {error}
             </div>
-            {bmiClassification && (
-              <span
-                className="charm-bmi-pill"
-                style={{ backgroundColor: bmiClassification.color }}
-              >
-                {bmiClassification.label}
-              </span>
-            )}
-          </div>
-        </div>
+          )}
 
-        <div className="charm-vitals-groups">
-          {/* Physical Measurements */}
-          <div className="charm-vitals-panel">
-            <h4 className="charm-vitals-group-title">Height & Weight</h4>
-            <div className="charm-form-grid">
-              <div className="charm-form-group">
-                <div className="charm-label-row">
-                  <label>Height</label>
-                  <div className="charm-toggle-btns">
-                    <button
-                      type="button"
-                      className={`charm-mini-btn ${heightUnit === "cm" ? "active" : ""}`}
-                      onClick={() => setHeightUnit("cm")}
-                    >
-                      cm
-                    </button>
-                    <button
-                      type="button"
-                      className={`charm-mini-btn ${heightUnit === "ft_in" ? "active" : ""}`}
-                      onClick={() => setHeightUnit("ft_in")}
-                    >
-                      ft / in
-                    </button>
-                  </div>
-                </div>
-                {heightUnit === "cm" ? (
-                  <input
-                    type="number"
-                    value={heightCm}
-                    onChange={(e) => setHeightCm(e.target.value)}
-                    className="charm-input"
-                    placeholder="cm"
-                  />
-                ) : (
-                  <div className="charm-input-group">
-                    <input
-                      type="number"
-                      value={heightFt}
-                      onChange={(e) => setHeightFt(e.target.value)}
-                      className="charm-input"
-                      placeholder="ft"
-                    />
-                    <input
-                      type="number"
-                      value={heightIn}
-                      onChange={(e) => setHeightIn(e.target.value)}
-                      className="charm-input"
-                      placeholder="in"
-                    />
-                  </div>
-                )}
-              </div>
-
-              <div className="charm-form-group">
-                <div className="charm-label-row">
-                  <label>Weight</label>
-                  <div className="charm-toggle-btns">
-                    <button
-                      type="button"
-                      className={`charm-mini-btn ${weightUnit === "kg" ? "active" : ""}`}
-                      onClick={() => setWeightUnit("kg")}
-                    >
-                      kg
-                    </button>
-                    <button
-                      type="button"
-                      className={`charm-mini-btn ${weightUnit === "lbs" ? "active" : ""}`}
-                      onClick={() => setWeightUnit("lbs")}
-                    >
-                      lbs
-                    </button>
-                  </div>
-                </div>
-                {weightUnit === "kg" ? (
-                  <input
-                    type="number"
-                    step="0.1"
-                    value={weightKg}
-                    onChange={(e) => setWeightKg(e.target.value)}
-                    className="charm-input"
-                    placeholder="kg"
-                  />
-                ) : (
-                  <input
-                    type="number"
-                    step="0.1"
-                    value={weightLbs}
-                    onChange={(e) => setWeightLbs(e.target.value)}
-                    className="charm-input"
-                    placeholder="lbs"
-                  />
-                )}
-              </div>
+          {/* Observation Timestamp & Dynamic BMI Bar */}
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              background: "#f8fafc",
+              padding: "10px 14px",
+              borderRadius: "6px",
+              border: "1px solid #e2e8f0",
+              marginBottom: "14px",
+              flexWrap: "wrap",
+              gap: "12px",
+            }}
+          >
+            <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+              <Calendar size={15} color="#006699" />
+              <label style={{ fontSize: "12px", fontWeight: 600, color: "#334155" }}>
+                Observation Timestamp <span style={{ color: "#ef4444" }}>*</span>
+              </label>
+              <input
+                type="datetime-local"
+                value={observedAt}
+                onChange={(e) => setObservedAt(e.target.value)}
+                className="charm-input"
+                style={{ width: "205px", height: "34px", fontSize: "12px" }}
+              />
             </div>
-          </div>
 
-          {/* Blood Pressure & Hemodynamics */}
-          <div className="charm-vitals-panel">
-            <h4 className="charm-vitals-group-title">Blood Pressure & Position</h4>
-            <div className="charm-form-grid">
-              <div className="charm-form-group">
-                <label>BP (Systolic / Diastolic) *</label>
-                <div className="charm-input-group">
-                  <input
-                    type="number"
-                    placeholder="Sys (120)"
-                    value={bpSys}
-                    onChange={(e) => setBpSys(e.target.value)}
-                    className="charm-input"
-                  />
-                  <span className="charm-maen-sep">/</span>
-                  <input
-                    type="number"
-                    placeholder="Dia (80)"
-                    value={bpDia}
-                    onChange={(e) => setBpDia(e.target.value)}
-                    className="charm-input"
-                  />
-                  <span className="charm-input-addon">mmHg</span>
-                </div>
+            {/* Dynamic Live BMI Badge */}
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: "10px",
+                background: "#ffffff",
+                padding: "6px 14px",
+                borderRadius: "6px",
+                border: "1px solid #cbd5e1",
+                boxShadow: "0 1px 2px rgba(0, 0, 0, 0.04)",
+              }}
+            >
+              <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end" }}>
+                <span style={{ fontSize: "10px", fontWeight: 700, color: "#64748b", textTransform: "uppercase", letterSpacing: "0.5px" }}>
+                  Calculated BMI
+                </span>
+                <span style={{ fontSize: "17px", fontWeight: 800, color: "#0f172a", lineHeight: 1.1 }}>
+                  {computedBmi > 0 ? computedBmi.toFixed(1) : "—"}{" "}
+                  <small style={{ fontSize: "11px", fontWeight: 500, color: "#64748b" }}>kg/m²</small>
+                </span>
               </div>
-
-              <div className="charm-form-group">
-                <label>Position & Site</label>
-                <div className="charm-input-group">
-                  <select
-                    value={bpPosition}
-                    onChange={(e) => setBpPosition(e.target.value)}
-                    className="charm-select"
-                  >
-                    <option value="Sitting">Sitting</option>
-                    <option value="Standing">Standing</option>
-                    <option value="Supine">Supine</option>
-                  </select>
-                  <select
-                    value={bpSite}
-                    onChange={(e) => setBpSite(e.target.value)}
-                    className="charm-select"
-                  >
-                    <option value="Left Arm">Left Arm</option>
-                    <option value="Right Arm">Right Arm</option>
-                    <option value="Left Wrist">Left Wrist</option>
-                    <option value="Right Wrist">Right Wrist</option>
-                  </select>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Pulse, Respiration & SpO2 */}
-          <div className="charm-vitals-panel">
-            <h4 className="charm-vitals-group-title">Pulse, Respiration & Oxygen</h4>
-            <div className="charm-form-grid">
-              <div className="charm-form-group">
-                <label>Pulse (Heart Rate)</label>
-                <div className="charm-input-group">
-                  <input
-                    type="number"
-                    value={pulse}
-                    onChange={(e) => setPulse(e.target.value)}
-                    className="charm-input"
-                    placeholder="bpm"
-                  />
-                  <select
-                    value={pulseRhythm}
-                    onChange={(e) => setPulseRhythm(e.target.value)}
-                    className="charm-select"
-                  >
-                    <option value="Regular">Regular</option>
-                    <option value="Irregular">Irregular</option>
-                    <option value="Arrhythmia">Arrhythmia</option>
-                    <option value="Tachycardic">Tachycardic</option>
-                    <option value="Bradycardic">Bradycardic</option>
-                  </select>
-                </div>
-              </div>
-
-              <div className="charm-form-group">
-                <label>SpO₂ Oxygen Saturation</label>
-                <div className="charm-input-group">
-                  <input
-                    type="number"
-                    min={50}
-                    max={100}
-                    value={spo2}
-                    onChange={(e) => setSpo2(e.target.value)}
-                    className="charm-input"
-                  />
-                  <span className="charm-input-addon">% (Room Air)</span>
-                </div>
-              </div>
-
-              <div className="charm-form-group">
-                <label>Respiration Rate</label>
-                <div className="charm-input-group">
-                  <input
-                    type="number"
-                    value={respiration}
-                    onChange={(e) => setRespiration(e.target.value)}
-                    className="charm-input"
-                    placeholder="breaths/min"
-                  />
-                  <select
-                    value={respirationPattern}
-                    onChange={(e) => setRespirationPattern(e.target.value)}
-                    className="charm-select"
-                  >
-                    <option value="Normal">Normal</option>
-                    <option value="Shallow">Shallow</option>
-                    <option value="Labored">Labored</option>
-                    <option value="Tachypneic">Tachypneic</option>
-                  </select>
-                </div>
-              </div>
-
-              <div className="charm-form-group">
-                <div className="charm-label-row">
-                  <label>Temperature</label>
-                  <div className="charm-toggle-btns">
-                    <button
-                      type="button"
-                      className={`charm-mini-btn ${tempUnit === "F" ? "active" : ""}`}
-                      onClick={() => setTempUnit("F")}
-                    >
-                      °F
-                    </button>
-                    <button
-                      type="button"
-                      className={`charm-mini-btn ${tempUnit === "C" ? "active" : ""}`}
-                      onClick={() => setTempUnit("C")}
-                    >
-                      °C
-                    </button>
-                  </div>
-                </div>
-                <div className="charm-input-group">
-                  <input
-                    type="number"
-                    step="0.1"
-                    value={tempVal}
-                    onChange={(e) => setTempVal(e.target.value)}
-                    className="charm-input"
-                  />
-                  <select
-                    value={tempSite}
-                    onChange={(e) => setTempSite(e.target.value)}
-                    className="charm-select"
-                  >
-                    <option value="Oral">Oral</option>
-                    <option value="Axillary">Axillary</option>
-                    <option value="Tympanic">Tympanic</option>
-                    <option value="Temporal">Temporal</option>
-                  </select>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Pain Score */}
-          <div className="charm-vitals-panel">
-            <h4 className="charm-vitals-group-title">Pain Severity (0 - 10 Numeric Scale)</h4>
-            <div className="charm-pain-scale">
-              {[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((num) => (
-                <button
-                  key={num}
-                  type="button"
-                  className={`charm-pain-btn ${painScore === num ? "active" : ""}`}
+              {bmiClassification && (
+                <span
                   style={{
-                    backgroundColor:
-                      painScore === num
-                        ? num === 0
-                          ? "#16a34a"
-                          : num <= 3
-                          ? "#ca8a04"
-                          : num <= 6
-                          ? "#ea580c"
-                          : "#dc2626"
-                        : undefined,
+                    backgroundColor: bmiClassification.color,
+                    color: "#ffffff",
+                    fontSize: "11px",
+                    fontWeight: 700,
+                    padding: "3px 10px",
+                    borderRadius: "12px",
+                    letterSpacing: "0.3px",
                   }}
-                  onClick={() => setPainScore(num)}
                 >
-                  {num}
-                </button>
-              ))}
-              <span className="charm-pain-label">
-                {painScore === 0
-                  ? "No Pain"
-                  : painScore <= 3
-                  ? "Mild Pain"
-                  : painScore <= 6
-                  ? "Moderate Pain"
-                  : "Severe Pain"}
-              </span>
+                  {bmiClassification.label}
+                </span>
+              )}
             </div>
           </div>
 
-          {/* Cardiology & Sphygmocor Parameters */}
-          <div className="charm-vitals-panel charm-vitals-panel-cardio">
-            <h4 className="charm-vitals-group-title">
-              <Activity size={15} style={{ marginRight: 6, color: "#0284c7" }} />
-              Cardiology & Sphygmocor Hemodynamics
-            </h4>
-            <div className="charm-form-grid">
-              <div className="charm-form-group">
-                <label>Central BP (Sys / Dia)</label>
-                <div className="charm-input-group">
-                  <input
-                    type="number"
-                    value={centralSys}
-                    onChange={(e) => setCentralSys(e.target.value)}
-                    className="charm-input"
-                    placeholder="Sys"
-                  />
-                  <span className="charm-maen-sep">/</span>
-                  <input
-                    type="number"
-                    value={centralDia}
-                    onChange={(e) => setCentralDia(e.target.value)}
-                    className="charm-input"
-                    placeholder="Dia"
-                  />
-                  <span className="charm-input-addon">mmHg</span>
+          {/* Core Vitals Grid */}
+          <div style={{ display: "flex", flexDirection: "column", gap: "14px", marginBottom: "14px" }}>
+            {/* Card 1: Height & Weight */}
+            <div style={{ background: "#ffffff", border: "1px solid #e2e8f0", borderRadius: "6px", padding: "14px 16px" }}>
+              <div style={{ fontSize: "13px", fontWeight: 700, color: "#334155", marginBottom: "10px", display: "flex", alignItems: "center", gap: "6px" }}>
+                <Scale size={16} color="#00838f" /> Height & Weight
+              </div>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px" }}>
+                {/* Height */}
+                <div>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "6px" }}>
+                    <label style={{ fontSize: "12px", fontWeight: 600, color: "#475569" }}>Height</label>
+                    <div style={{ display: "inline-flex", background: "#f1f5f9", padding: "2px", borderRadius: "5px", border: "1px solid #e2e8f0" }}>
+                      <button
+                        type="button"
+                        style={{
+                          padding: "2px 8px",
+                          fontSize: "11px",
+                          fontWeight: 600,
+                          border: "none",
+                          borderRadius: "4px",
+                          cursor: "pointer",
+                          background: heightUnit === "cm" ? "#006699" : "transparent",
+                          color: heightUnit === "cm" ? "#ffffff" : "#64748b",
+                          boxShadow: heightUnit === "cm" ? "0 1px 2px rgba(0,0,0,0.1)" : "none",
+                          transition: "all 0.15s ease",
+                        }}
+                        onClick={() => setHeightUnit("cm")}
+                      >
+                        cm
+                      </button>
+                      <button
+                        type="button"
+                        style={{
+                          padding: "2px 8px",
+                          fontSize: "11px",
+                          fontWeight: 600,
+                          border: "none",
+                          borderRadius: "4px",
+                          cursor: "pointer",
+                          background: heightUnit === "ft_in" ? "#006699" : "transparent",
+                          color: heightUnit === "ft_in" ? "#ffffff" : "#64748b",
+                          boxShadow: heightUnit === "ft_in" ? "0 1px 2px rgba(0,0,0,0.1)" : "none",
+                          transition: "all 0.15s ease",
+                        }}
+                        onClick={() => setHeightUnit("ft_in")}
+                      >
+                        ft / in
+                      </button>
+                    </div>
+                  </div>
+                  {heightUnit === "cm" ? (
+                    <div style={{ position: "relative", display: "flex", alignItems: "center" }}>
+                      <input
+                        type="number"
+                        value={heightCm}
+                        onChange={(e) => setHeightCm(e.target.value)}
+                        className="charm-input"
+                        placeholder="Height in cm"
+                        style={{ width: "100%", height: "36px", paddingRight: "36px" }}
+                      />
+                      <span style={{ position: "absolute", right: "10px", fontSize: "11.5px", fontWeight: 600, color: "#94a3b8", pointerEvents: "none" }}>
+                        cm
+                      </span>
+                    </div>
+                  ) : (
+                    <div style={{ display: "flex", gap: "8px" }}>
+                      <div style={{ position: "relative", display: "flex", alignItems: "center", flex: 1 }}>
+                        <input
+                          type="number"
+                          value={heightFt}
+                          onChange={(e) => setHeightFt(e.target.value)}
+                          className="charm-input"
+                          placeholder="ft"
+                          style={{ width: "100%", height: "36px", paddingRight: "26px" }}
+                        />
+                        <span style={{ position: "absolute", right: "8px", fontSize: "11px", fontWeight: 600, color: "#94a3b8", pointerEvents: "none" }}>
+                          ft
+                        </span>
+                      </div>
+                      <div style={{ position: "relative", display: "flex", alignItems: "center", flex: 1 }}>
+                        <input
+                          type="number"
+                          value={heightIn}
+                          onChange={(e) => setHeightIn(e.target.value)}
+                          className="charm-input"
+                          placeholder="in"
+                          style={{ width: "100%", height: "36px", paddingRight: "26px" }}
+                        />
+                        <span style={{ position: "absolute", right: "8px", fontSize: "11px", fontWeight: 600, color: "#94a3b8", pointerEvents: "none" }}>
+                          in
+                        </span>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Weight */}
+                <div>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "6px" }}>
+                    <label style={{ fontSize: "12px", fontWeight: 600, color: "#475569" }}>Weight</label>
+                    <div style={{ display: "inline-flex", background: "#f1f5f9", padding: "2px", borderRadius: "5px", border: "1px solid #e2e8f0" }}>
+                      <button
+                        type="button"
+                        style={{
+                          padding: "2px 8px",
+                          fontSize: "11px",
+                          fontWeight: 600,
+                          border: "none",
+                          borderRadius: "4px",
+                          cursor: "pointer",
+                          background: weightUnit === "kg" ? "#006699" : "transparent",
+                          color: weightUnit === "kg" ? "#ffffff" : "#64748b",
+                          boxShadow: weightUnit === "kg" ? "0 1px 2px rgba(0,0,0,0.1)" : "none",
+                          transition: "all 0.15s ease",
+                        }}
+                        onClick={() => setWeightUnit("kg")}
+                      >
+                        kg
+                      </button>
+                      <button
+                        type="button"
+                        style={{
+                          padding: "2px 8px",
+                          fontSize: "11px",
+                          fontWeight: 600,
+                          border: "none",
+                          borderRadius: "4px",
+                          cursor: "pointer",
+                          background: weightUnit === "lbs" ? "#006699" : "transparent",
+                          color: weightUnit === "lbs" ? "#ffffff" : "#64748b",
+                          boxShadow: weightUnit === "lbs" ? "0 1px 2px rgba(0,0,0,0.1)" : "none",
+                          transition: "all 0.15s ease",
+                        }}
+                        onClick={() => setWeightUnit("lbs")}
+                      >
+                        lbs
+                      </button>
+                    </div>
+                  </div>
+                  {weightUnit === "kg" ? (
+                    <div style={{ position: "relative", display: "flex", alignItems: "center" }}>
+                      <input
+                        type="number"
+                        step="0.1"
+                        value={weightKg}
+                        onChange={(e) => setWeightKg(e.target.value)}
+                        className="charm-input"
+                        placeholder="Weight in kg"
+                        style={{ width: "100%", height: "36px", paddingRight: "36px" }}
+                      />
+                      <span style={{ position: "absolute", right: "10px", fontSize: "11.5px", fontWeight: 600, color: "#94a3b8", pointerEvents: "none" }}>
+                        kg
+                      </span>
+                    </div>
+                  ) : (
+                    <div style={{ position: "relative", display: "flex", alignItems: "center" }}>
+                      <input
+                        type="number"
+                        step="0.1"
+                        value={weightLbs}
+                        onChange={(e) => setWeightLbs(e.target.value)}
+                        className="charm-input"
+                        placeholder="Weight in lbs"
+                        style={{ width: "100%", height: "36px", paddingRight: "36px" }}
+                      />
+                      <span style={{ position: "absolute", right: "10px", fontSize: "11.5px", fontWeight: 600, color: "#94a3b8", pointerEvents: "none" }}>
+                        lbs
+                      </span>
+                    </div>
+                  )}
                 </div>
               </div>
+            </div>
 
-              <div className="charm-form-group">
-                <label>crPWV (Pulse Wave Velocity)</label>
-                <div className="charm-input-group">
-                  <input
-                    type="number"
-                    step="0.1"
-                    value={crPwv}
-                    onChange={(e) => setCrPwv(e.target.value)}
-                    className="charm-input"
-                  />
-                  <span className="charm-input-addon">m/s</span>
+            {/* Card 2: Blood Pressure & Position */}
+            <div style={{ background: "#ffffff", border: "1px solid #e2e8f0", borderRadius: "6px", padding: "14px 16px" }}>
+              <div style={{ fontSize: "13px", fontWeight: 700, color: "#334155", marginBottom: "10px", display: "flex", alignItems: "center", gap: "6px" }}>
+                <HeartPulse size={16} color="#dc2626" /> Blood Pressure & Position
+              </div>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px" }}>
+                <div>
+                  <label style={{ display: "block", fontSize: "12px", fontWeight: 600, color: "#475569", marginBottom: "6px" }}>
+                    BP (Systolic / Diastolic) <span style={{ color: "#ef4444" }}>*</span>
+                  </label>
+                  <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                    <input
+                      type="number"
+                      placeholder="Sys (120)"
+                      value={bpSys}
+                      onChange={(e) => setBpSys(e.target.value)}
+                      className="charm-input"
+                      style={{ width: "95px", height: "36px", textAlign: "center", fontWeight: 600, fontSize: "14px" }}
+                    />
+                    <span style={{ color: "#94a3b8", fontWeight: 700, fontSize: "16px" }}>/</span>
+                    <input
+                      type="number"
+                      placeholder="Dia (80)"
+                      value={bpDia}
+                      onChange={(e) => setBpDia(e.target.value)}
+                      className="charm-input"
+                      style={{ width: "95px", height: "36px", textAlign: "center", fontWeight: 600, fontSize: "14px" }}
+                    />
+                    <span style={{ background: "#f1f5f9", padding: "6px 10px", fontSize: "11px", fontWeight: 600, color: "#64748b", borderRadius: "4px", border: "1px solid #cbd5e1" }}>
+                      mmHg
+                    </span>
+                  </div>
+                </div>
+
+                <div>
+                  <label style={{ display: "block", fontSize: "12px", fontWeight: 600, color: "#475569", marginBottom: "6px" }}>
+                    Position & Anatomical Site
+                  </label>
+                  <div style={{ display: "flex", gap: "8px" }}>
+                    <select
+                      value={bpPosition}
+                      onChange={(e) => setBpPosition(e.target.value)}
+                      className="charm-select"
+                      style={{ flex: 1, height: "36px" }}
+                    >
+                      <option value="Sitting">Sitting</option>
+                      <option value="Standing">Standing</option>
+                      <option value="Supine">Supine</option>
+                    </select>
+                    <select
+                      value={bpSite}
+                      onChange={(e) => setBpSite(e.target.value)}
+                      className="charm-select"
+                      style={{ flex: 1, height: "36px" }}
+                    >
+                      <option value="Left Arm">Left Arm</option>
+                      <option value="Right Arm">Right Arm</option>
+                      <option value="Left Wrist">Left Wrist</option>
+                      <option value="Right Wrist">Right Wrist</option>
+                    </select>
+                  </div>
                 </div>
               </div>
+            </div>
 
-              <div className="charm-form-group">
-                <label>cfPWV (Aortic PWV)</label>
-                <div className="charm-input-group">
-                  <input
-                    type="number"
-                    step="0.1"
-                    value={cfPwv}
-                    onChange={(e) => setCfPwv(e.target.value)}
-                    className="charm-input"
-                  />
-                  <span className="charm-input-addon">m/s</span>
+            {/* Card 3: Pulse, SpO2, Respiration, Temp */}
+            <div style={{ background: "#ffffff", border: "1px solid #e2e8f0", borderRadius: "6px", padding: "14px 16px" }}>
+              <div style={{ fontSize: "13px", fontWeight: 700, color: "#334155", marginBottom: "10px", display: "flex", alignItems: "center", gap: "6px" }}>
+                <Activity size={16} color="#0284c7" /> Pulse, Respiration & Oxygen
+              </div>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px", rowGap: "14px" }}>
+                {/* Pulse */}
+                <div>
+                  <label style={{ display: "block", fontSize: "12px", fontWeight: 600, color: "#475569", marginBottom: "6px" }}>
+                    Pulse (Heart Rate)
+                  </label>
+                  <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
+                    <div style={{ position: "relative", display: "flex", alignItems: "center", width: "110px" }}>
+                      <input
+                        type="number"
+                        value={pulse}
+                        onChange={(e) => setPulse(e.target.value)}
+                        className="charm-input"
+                        placeholder="72"
+                        style={{ width: "100%", height: "36px", paddingRight: "36px", fontWeight: 600 }}
+                      />
+                      <span style={{ position: "absolute", right: "8px", fontSize: "11px", fontWeight: 600, color: "#94a3b8", pointerEvents: "none" }}>
+                        bpm
+                      </span>
+                    </div>
+                    <select
+                      value={pulseRhythm}
+                      onChange={(e) => setPulseRhythm(e.target.value)}
+                      className="charm-select"
+                      style={{ flex: 1, height: "36px" }}
+                    >
+                      <option value="Regular">Regular</option>
+                      <option value="Irregular">Irregular</option>
+                      <option value="Arrhythmia">Arrhythmia</option>
+                      <option value="Tachycardic">Tachycardic</option>
+                      <option value="Bradycardic">Bradycardic</option>
+                    </select>
+                  </div>
+                </div>
+
+                {/* SpO2 */}
+                <div>
+                  <label style={{ display: "block", fontSize: "12px", fontWeight: 600, color: "#475569", marginBottom: "6px" }}>
+                    SpO₂ Oxygen Saturation
+                  </label>
+                  <div style={{ position: "relative", display: "flex", alignItems: "center" }}>
+                    <input
+                      type="number"
+                      min={50}
+                      max={100}
+                      value={spo2}
+                      onChange={(e) => setSpo2(e.target.value)}
+                      className="charm-input"
+                      placeholder="98"
+                      style={{ width: "100%", height: "36px", paddingRight: "105px", fontWeight: 600 }}
+                    />
+                    <span style={{ position: "absolute", right: "8px", background: "#f1f5f9", padding: "3px 8px", fontSize: "11px", fontWeight: 600, color: "#64748b", borderRadius: "3px", border: "1px solid #cbd5e1", pointerEvents: "none" }}>
+                      % (Room Air)
+                    </span>
+                  </div>
+                </div>
+
+                {/* Respiration */}
+                <div>
+                  <label style={{ display: "block", fontSize: "12px", fontWeight: 600, color: "#475569", marginBottom: "6px" }}>
+                    Respiration Rate
+                  </label>
+                  <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
+                    <div style={{ position: "relative", display: "flex", alignItems: "center", width: "130px" }}>
+                      <input
+                        type="number"
+                        value={respiration}
+                        onChange={(e) => setRespiration(e.target.value)}
+                        className="charm-input"
+                        placeholder="16"
+                        style={{ width: "100%", height: "36px", paddingRight: "70px", fontWeight: 600 }}
+                      />
+                      <span style={{ position: "absolute", right: "8px", fontSize: "10px", fontWeight: 600, color: "#94a3b8", pointerEvents: "none" }}>
+                        breaths/m
+                      </span>
+                    </div>
+                    <select
+                      value={respirationPattern}
+                      onChange={(e) => setRespirationPattern(e.target.value)}
+                      className="charm-select"
+                      style={{ flex: 1, height: "36px" }}
+                    >
+                      <option value="Normal">Normal</option>
+                      <option value="Shallow">Shallow</option>
+                      <option value="Labored">Labored</option>
+                      <option value="Tachypneic">Tachypneic</option>
+                    </select>
+                  </div>
+                </div>
+
+                {/* Temperature */}
+                <div>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "6px" }}>
+                    <label style={{ fontSize: "12px", fontWeight: 600, color: "#475569" }}>Temperature</label>
+                    <div style={{ display: "inline-flex", background: "#f1f5f9", padding: "2px", borderRadius: "5px", border: "1px solid #e2e8f0" }}>
+                      <button
+                        type="button"
+                        style={{
+                          padding: "2px 8px",
+                          fontSize: "11px",
+                          fontWeight: 600,
+                          border: "none",
+                          borderRadius: "4px",
+                          cursor: "pointer",
+                          background: tempUnit === "F" ? "#006699" : "transparent",
+                          color: tempUnit === "F" ? "#ffffff" : "#64748b",
+                          boxShadow: tempUnit === "F" ? "0 1px 2px rgba(0,0,0,0.1)" : "none",
+                          transition: "all 0.15s ease",
+                        }}
+                        onClick={() => setTempUnit("F")}
+                      >
+                        °F
+                      </button>
+                      <button
+                        type="button"
+                        style={{
+                          padding: "2px 8px",
+                          fontSize: "11px",
+                          fontWeight: 600,
+                          border: "none",
+                          borderRadius: "4px",
+                          cursor: "pointer",
+                          background: tempUnit === "C" ? "#006699" : "transparent",
+                          color: tempUnit === "C" ? "#ffffff" : "#64748b",
+                          boxShadow: tempUnit === "C" ? "0 1px 2px rgba(0,0,0,0.1)" : "none",
+                          transition: "all 0.15s ease",
+                        }}
+                        onClick={() => setTempUnit("C")}
+                      >
+                        °C
+                      </button>
+                    </div>
+                  </div>
+                  <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
+                    <div style={{ position: "relative", display: "flex", alignItems: "center", width: "110px" }}>
+                      <input
+                        type="number"
+                        step="0.1"
+                        value={tempVal}
+                        onChange={(e) => setTempVal(e.target.value)}
+                        className="charm-input"
+                        placeholder={tempUnit === "F" ? "98.6" : "37.0"}
+                        style={{ width: "100%", height: "36px", paddingRight: "30px", fontWeight: 600 }}
+                      />
+                      <span style={{ position: "absolute", right: "8px", fontSize: "11.5px", fontWeight: 600, color: "#94a3b8", pointerEvents: "none" }}>
+                        °{tempUnit}
+                      </span>
+                    </div>
+                    <select
+                      value={tempSite}
+                      onChange={(e) => setTempSite(e.target.value)}
+                      className="charm-select"
+                      style={{ flex: 1, height: "36px" }}
+                    >
+                      <option value="Oral">Oral</option>
+                      <option value="Axillary">Axillary</option>
+                      <option value="Tympanic">Tympanic</option>
+                      <option value="Temporal">Temporal</option>
+                    </select>
+                  </div>
                 </div>
               </div>
+            </div>
 
-              <div className="charm-form-group">
-                <label>Estimated Vascular Age</label>
-                <div className="charm-input-group">
-                  <input
-                    type="number"
-                    value={vascularAge}
-                    onChange={(e) => setVascularAge(e.target.value)}
-                    className="charm-input"
-                  />
-                  <span className="charm-input-addon">Years</span>
+            {/* Card 4: Pain Severity Scale */}
+            <div style={{ background: "#ffffff", border: "1px solid #e2e8f0", borderRadius: "6px", padding: "10px 14px" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "6px" }}>
+                <div style={{ fontSize: "12.5px", fontWeight: 700, color: "#334155" }}>
+                  Pain Severity (0 - 10 Numeric Scale)
                 </div>
+                <span style={{ fontSize: "12px", fontWeight: 700, color: painScore === 0 ? "#16a34a" : painScore <= 3 ? "#ca8a04" : painScore <= 6 ? "#ea580c" : "#dc2626" }}>
+                  {painScore === 0 ? "0 — No Pain" : painScore <= 3 ? `${painScore} — Mild Pain` : painScore <= 6 ? `${painScore} — Moderate Pain` : `${painScore} — Severe Pain`}
+                </span>
               </div>
-
-              <div className="charm-form-group">
-                <label>Augmentation Index (AIx)</label>
-                <div className="charm-input-group">
-                  <input
-                    type="number"
-                    step="0.1"
-                    value={aix}
-                    onChange={(e) => setAix(e.target.value)}
-                    className="charm-input"
-                  />
-                  <span className="charm-input-addon">%</span>
-                </div>
-              </div>
-
-              <div className="charm-form-group">
-                <label>Blood Sugar (Glucose)</label>
-                <div className="charm-input-group">
-                  <input
-                    type="number"
-                    value={bloodSugar}
-                    onChange={(e) => setBloodSugar(e.target.value)}
-                    className="charm-input"
-                  />
-                  <select
-                    value={bloodSugarContext}
-                    onChange={(e) => setBloodSugarContext(e.target.value)}
-                    className="charm-select"
+              <div style={{ display: "flex", gap: "6px", alignItems: "center", flexWrap: "wrap" }}>
+                {[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((num) => (
+                  <button
+                    key={num}
+                    type="button"
+                    style={{
+                      width: "32px",
+                      height: "30px",
+                      borderRadius: "4px",
+                      border: painScore === num ? "none" : "1px solid #cbd5e1",
+                      background:
+                        painScore === num
+                          ? num === 0
+                            ? "#16a34a"
+                            : num <= 3
+                              ? "#ca8a04"
+                              : num <= 6
+                                ? "#ea580c"
+                                : "#dc2626"
+                          : "#ffffff",
+                      color: painScore === num ? "#ffffff" : "#334155",
+                      fontWeight: 700,
+                      fontSize: "12px",
+                      cursor: "pointer",
+                    }}
+                    onClick={() => setPainScore(num)}
                   >
-                    <option value="Fasting">Fasting (FBS)</option>
-                    <option value="Post-Prandial">Post-Prandial (PPBS)</option>
-                    <option value="Random">Random (RBS)</option>
-                  </select>
-                </div>
+                    {num}
+                  </button>
+                ))}
               </div>
             </div>
-          </div>
 
-          <div className="charm-form-group" style={{ gridColumn: "1 / -1" }}>
-            <label>Clinician Notes / Remarks</label>
-            <input
-              type="text"
-              placeholder="e.g. Pre-EECP session vitals. Patient comfortable, resting seated for 10 minutes prior."
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-              className="charm-input"
-            />
+            {/* Card 5: Collapsible Cardiology & SphygmoCor Hemodynamics */}
+            <div style={{ border: "1px solid #bae6fd", borderRadius: "6px", background: "#f0f9ff", overflow: "hidden" }}>
+              <button
+                type="button"
+                onClick={() => setShowCardioHemodynamics(!showCardioHemodynamics)}
+                style={{
+                  width: "100%",
+                  padding: "10px 14px",
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                  background: "transparent",
+                  border: "none",
+                  cursor: "pointer",
+                  textAlign: "left",
+                }}
+              >
+                <div style={{ display: "flex", alignItems: "center", gap: "8px", fontSize: "12.5px", fontWeight: 700, color: "#0369a1" }}>
+                  <Activity size={16} />
+                  <span>Cardiology & SphygmoCor Hemodynamics (Optional)</span>
+                </div>
+                <div style={{ display: "flex", alignItems: "center", gap: "6px", fontSize: "11px", color: "#0284c7" }}>
+                  <span>{showCardioHemodynamics ? "Hide Parameters" : "Show 8 Parameters (crPWV, Aix, MAP...)"}</span>
+                  <ChevronDown size={14} style={{ transform: showCardioHemodynamics ? "rotate(180deg)" : "none", transition: "transform 0.2s" }} />
+                </div>
+              </button>
+
+              {showCardioHemodynamics && (
+                <div style={{ padding: "12px 14px", borderTop: "1px solid #e0f2fe", background: "#ffffff" }}>
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
+                    <div>
+                      <label style={{ display: "block", fontSize: "11px", fontWeight: 600, color: "#475569", marginBottom: "4px" }}>
+                        Central BP (Sys / Dia)
+                      </label>
+                      <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                        <input
+                          type="number"
+                          value={centralSys}
+                          onChange={(e) => setCentralSys(e.target.value)}
+                          className="charm-input"
+                          placeholder="Sys"
+                          style={{ flex: 1, height: "32px" }}
+                        />
+                        <span>/</span>
+                        <input
+                          type="number"
+                          value={centralDia}
+                          onChange={(e) => setCentralDia(e.target.value)}
+                          className="charm-input"
+                          placeholder="Dia"
+                          style={{ flex: 1, height: "32px" }}
+                        />
+                        <span style={{ fontSize: "11px", color: "#64748b" }}>mmHg</span>
+                      </div>
+                    </div>
+
+                    <div>
+                      <label style={{ display: "block", fontSize: "11px", fontWeight: 600, color: "#475569", marginBottom: "4px" }}>
+                        crPWV (Pulse Wave Velocity)
+                      </label>
+                      <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                        <input
+                          type="number"
+                          step="0.1"
+                          value={crPwv}
+                          onChange={(e) => setCrPwv(e.target.value)}
+                          className="charm-input"
+                          style={{ flex: 1, height: "32px" }}
+                        />
+                        <span style={{ fontSize: "11px", color: "#64748b" }}>m/s</span>
+                      </div>
+                    </div>
+
+                    <div>
+                      <label style={{ display: "block", fontSize: "11px", fontWeight: 600, color: "#475569", marginBottom: "4px" }}>
+                        cfPWV (Aortic PWV)
+                      </label>
+                      <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                        <input
+                          type="number"
+                          step="0.1"
+                          value={cfPwv}
+                          onChange={(e) => setCfPwv(e.target.value)}
+                          className="charm-input"
+                          style={{ flex: 1, height: "32px" }}
+                        />
+                        <span style={{ fontSize: "11px", color: "#64748b" }}>m/s</span>
+                      </div>
+                    </div>
+
+                    <div>
+                      <label style={{ display: "block", fontSize: "11px", fontWeight: 600, color: "#475569", marginBottom: "4px" }}>
+                        Estimated Vascular Age
+                      </label>
+                      <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                        <input
+                          type="number"
+                          value={vascularAge}
+                          onChange={(e) => setVascularAge(e.target.value)}
+                          className="charm-input"
+                          style={{ flex: 1, height: "32px" }}
+                        />
+                        <span style={{ fontSize: "11px", color: "#64748b" }}>Years</span>
+                      </div>
+                    </div>
+
+                    <div>
+                      <label style={{ display: "block", fontSize: "11px", fontWeight: 600, color: "#475569", marginBottom: "4px" }}>
+                        Augmentation Index (AIx)
+                      </label>
+                      <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                        <input
+                          type="number"
+                          step="0.1"
+                          value={aix}
+                          onChange={(e) => setAix(e.target.value)}
+                          className="charm-input"
+                          style={{ flex: 1, height: "32px" }}
+                        />
+                        <span style={{ fontSize: "11px", color: "#64748b" }}>%</span>
+                      </div>
+                    </div>
+
+                    <div>
+                      <label style={{ display: "block", fontSize: "11px", fontWeight: 600, color: "#475569", marginBottom: "4px" }}>
+                        Blood Sugar (Glucose)
+                      </label>
+                      <div style={{ display: "flex", gap: "6px" }}>
+                        <input
+                          type="number"
+                          value={bloodSugar}
+                          onChange={(e) => setBloodSugar(e.target.value)}
+                          className="charm-input"
+                          style={{ flex: 1, height: "32px" }}
+                        />
+                        <select
+                          value={bloodSugarContext}
+                          onChange={(e) => setBloodSugarContext(e.target.value)}
+                          className="charm-select"
+                          style={{ width: "110px", height: "32px", fontSize: "11px" }}
+                        >
+                          <option value="Fasting">FBS</option>
+                          <option value="Post-Prandial">PPBS</option>
+                          <option value="Random">RBS</option>
+                        </select>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Clinician Notes */}
+            <div>
+              <label style={{ display: "block", fontSize: "12px", fontWeight: 600, color: "#475569", marginBottom: "4px" }}>
+                Clinician Notes / Remarks
+              </label>
+              <input
+                type="text"
+                placeholder="e.g. Pre-EECP session vitals. Patient comfortable, resting seated for 10 minutes prior."
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+                className="charm-input"
+                style={{ width: "100%", height: "34px" }}
+              />
+            </div>
           </div>
         </div>
 
+        {/* Sticky Pinned Footer */}
         <div className="charm-modal-footer">
-          <Button variant="secondary" onClick={onClose} disabled={saving}>
+          <Button variant="secondary" onClick={onClose} disabled={saving} type="button">
             Cancel
           </Button>
           <Button variant="primary" onClick={handleSave} disabled={saving}>
+            <Check size={16} style={{ marginRight: 6 }} />
             {saving ? "Saving Vitals..." : "Save Vitals Observation"}
           </Button>
         </div>
@@ -3582,16 +3887,15 @@ export function VitalsSection({
                         {v.observed_at
                           ? dateTime(v.observed_at)
                           : v.created_at
-                          ? dateTime(v.created_at)
-                          : "—"}
+                            ? dateTime(v.created_at)
+                            : "—"}
                       </strong>
                     </td>
                     <td>
                       <div className="charm-bp-cell">
                         <span
-                          className={`charm-bp-val ${
-                            sysHigh || diaHigh ? "charm-text-alert" : ""
-                          }`}
+                          className={`charm-bp-val ${sysHigh || diaHigh ? "charm-text-alert" : ""
+                            }`}
                         >
                           {v.bp_sys}/{v.bp_dia}
                         </span>
@@ -3622,13 +3926,12 @@ export function VitalsSection({
                     <td>
                       {v.bmi ? (
                         <span
-                          className={`charm-badge ${
-                            v.bmi >= 30
+                          className={`charm-badge ${v.bmi >= 30
                               ? "charm-badge-danger"
                               : v.bmi >= 25
-                              ? "charm-badge-warning"
-                              : "charm-badge-success"
-                          }`}
+                                ? "charm-badge-warning"
+                                : "charm-badge-success"
+                            }`}
                         >
                           {v.bmi}
                         </span>
@@ -4073,9 +4376,8 @@ export function InteractiveTrendChartModal({
               {/* Area under curve */}
               {points.length > 1 && (
                 <path
-                  d={`${polylinePath} L ${points[points.length - 1].x} ${
-                    padding.top + innerH
-                  } L ${points[0].x} ${padding.top + innerH} Z`}
+                  d={`${polylinePath} L ${points[points.length - 1].x} ${padding.top + innerH
+                    } L ${points[0].x} ${padding.top + innerH} Z`}
                   fill="url(#chartGradient)"
                 />
               )}
@@ -4307,9 +4609,8 @@ export function FlowsheetSection({
                       return (
                         <td
                           key={v.id || idx}
-                          className={`charm-matrix-val-cell ${
-                            isAlert ? "charm-matrix-alert" : ""
-                          }`}
+                          className={`charm-matrix-val-cell ${isAlert ? "charm-matrix-alert" : ""
+                            }`}
                         >
                           {val !== null ? val : "—"}
                         </td>

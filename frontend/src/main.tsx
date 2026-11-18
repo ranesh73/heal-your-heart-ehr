@@ -116,7 +116,12 @@ import {
   FloatingToolbar,
   useKeyboardShortcuts,
 } from "./settings";
-import { DASHBOARD_ICONS, HealYourHeartLogo } from "./DashboardIcons";
+import { DASHBOARD_ICONS } from "./DashboardIcons";
+import { HealYourHeartLogo } from "./HealYourHeartLogo";
+import { LandingPage } from "./LandingPage";
+import { LoginPage } from "./LoginPage";
+import { SignUpPage } from "./SignUpPage";
+import { ForgotPasswordPage } from "./ForgotPasswordPage";
 import "./styles.css";
 
 const launcherModules = [
@@ -157,7 +162,10 @@ const subscribe = (cb: () => void) => {
   addEventListener("hashchange", cb);
   return () => removeEventListener("hashchange", cb);
 };
-const snapshot = () => location.hash.slice(1) || "/home";
+const snapshot = () => {
+  const hash = location.hash.slice(1);
+  return hash || "/";
+};
 
 function Login({ onLogin }: { onLogin: () => void }) {
   const [showPassword, setShowPassword] = useState(false);
@@ -405,18 +413,25 @@ function Workspace() {
   };
 
   useEffect(() => {
-    const handleSettingUpdated = () => {
-      refresh();
+    const handleSettingUpdated = async () => {
+      await qc.invalidateQueries();
+      await qc.refetchQueries({ queryKey: ["me"] });
     };
     window.addEventListener("hyh_setting_updated", handleSettingUpdated);
+    window.addEventListener("hyh_facility_updated", handleSettingUpdated);
+    window.addEventListener("hyh_staff_updated", handleSettingUpdated);
+    window.addEventListener("hyh_resource_updated", handleSettingUpdated);
     window.addEventListener("hyh_appointment_statuses_updated", handleSettingUpdated);
     window.addEventListener("hyh_visit_types_updated", handleSettingUpdated);
     return () => {
       window.removeEventListener("hyh_setting_updated", handleSettingUpdated);
+      window.removeEventListener("hyh_facility_updated", handleSettingUpdated);
+      window.removeEventListener("hyh_staff_updated", handleSettingUpdated);
+      window.removeEventListener("hyh_resource_updated", handleSettingUpdated);
       window.removeEventListener("hyh_appointment_statuses_updated", handleSettingUpdated);
       window.removeEventListener("hyh_visit_types_updated", handleSettingUpdated);
     };
-  }, []);
+  }, [qc]);
 
   // Global Keyboard Shortcuts (Shift + K, Alt navigation, Escape)
   useKeyboardShortcuts({
@@ -469,11 +484,32 @@ function Workspace() {
     enabled: logged && search.length > 1,
   });
 
+  const cleanPath = path.startsWith("/") ? path : "/" + path;
+  if (cleanPath === "/" || cleanPath === "") {
+    return <LandingPage />;
+  }
+  if (cleanPath === "/login") {
+    return (
+      <LoginPage
+        onLoginSuccess={async () => {
+          await qc.refetchQueries({ queryKey: ["me"] });
+          navigate("/home");
+        }}
+      />
+    );
+  }
+  if (cleanPath === "/signup") {
+    return <SignUpPage />;
+  }
+  if (cleanPath === "/forgot-password") {
+    return <ForgotPasswordPage />;
+  }
+
   if (me.isLoading) return <Loading />;
   if (!logged)
     return (
-      <Login
-        onLogin={async () => {
+      <LoginPage
+        onLoginSuccess={async () => {
           await qc.refetchQueries({ queryKey: ["me"] });
           navigate("/home");
         }}
@@ -864,7 +900,7 @@ function Workspace() {
                           await api("/auth/logout", "POST", {});
                           setSession("", "");
                           qc.clear();
-                          navigate("/home");
+                          navigate("/");
                         }}
                       >
                         <LogOut size={14} />

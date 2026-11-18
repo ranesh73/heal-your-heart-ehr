@@ -1220,17 +1220,121 @@ main.main-patient-chart {
   left: 50%;
   top: 50%;
   transform: translate(-50%, -50%);
-  width: min(600px, 94vw);
-  max-height: 90vh;
-  overflow: auto;
+  width: min(640px, 94vw);
+  max-height: 88vh;
+  overflow-y: auto;
+  overflow-x: hidden;
   background: var(--bg-surface);
   border-radius: var(--radius-lg);
   border: 1px solid var(--border-default);
   box-shadow: var(--shadow-popover);
+  display: flex;
+  flex-direction: column;
 }
 
 .modal.wide {
-  width: min(1060px, 95vw);
+  width: min(940px, 95vw);
+}
+
+/* Modals with pinned headers and footers (Charm EHR Clinical Modals) */
+.modal.charm-clinical-modal,
+.modal.charm-modal-container,
+.modal:has(.charm-modal-footer),
+.modal:has(.charm-modal-scroll-body),
+.modal:has(.charm-modal-form) {
+  height: min(88vh, 820px) !important;
+  max-height: 88vh !important;
+  overflow: hidden !important;
+  display: flex !important;
+  flex-direction: column !important;
+  padding: 0 !important;
+}
+
+.modal.charm-clinical-modal > .modal-head,
+.modal.charm-modal-container > .modal-head,
+.modal:has(.charm-modal-form) > .modal-head,
+.modal-head {
+  flex: 0 0 auto !important;
+  flex-shrink: 0 !important;
+  height: auto !important;
+  min-height: auto !important;
+  max-height: none !important;
+  display: flex !important;
+  flex-direction: row !important;
+  align-items: flex-start !important;
+  justify-content: space-between !important;
+  gap: 16px !important;
+  padding: 14px 20px !important;
+  background: var(--bg-surface) !important;
+  position: sticky !important;
+  top: 0 !important;
+  z-index: 20 !important;
+  box-sizing: border-box !important;
+}
+
+.modal.charm-clinical-modal > form,
+.modal.charm-clinical-modal > div.charm-modal-form,
+.modal.charm-clinical-modal > div:not(.modal-head),
+.modal.charm-modal-container > form,
+.modal.charm-modal-container > div.charm-modal-form,
+.modal.charm-modal-container > div:not(.modal-head),
+.modal:has(.charm-modal-footer) > form,
+.modal:has(.charm-modal-footer) > div.charm-modal-form,
+.modal > form.charm-modal-form,
+.modal > div.charm-modal-form {
+  padding: 0 !important;
+  margin: 0 !important;
+  display: flex !important;
+  flex-direction: column !important;
+  flex: 1 1 0% !important;
+  min-height: 0 !important;
+  height: 100% !important;
+  overflow: hidden !important;
+}
+
+.charm-modal-scroll-body {
+  flex: 1 1 0% !important;
+  overflow-y: auto !important;
+  overflow-x: hidden !important;
+  min-height: 0 !important;
+  padding: 18px 24px 22px 24px !important;
+  box-sizing: border-box !important;
+}
+
+.charm-modal-scroll-body::-webkit-scrollbar {
+  width: 7px;
+}
+
+.charm-modal-scroll-body::-webkit-scrollbar-track {
+  background: #f1f5f9;
+  border-radius: 4px;
+}
+
+.charm-modal-scroll-body::-webkit-scrollbar-thumb {
+  background: #94a3b8;
+  border-radius: 4px;
+}
+
+.charm-modal-scroll-body::-webkit-scrollbar-thumb:hover {
+  background: #64748b;
+}
+
+.charm-modal-footer {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: flex-end !important;
+  gap: 12px !important;
+  padding: 12px 24px !important;
+  background: #f8fafc !important;
+  border-top: 1px solid #e2e8f0 !important;
+  position: relative !important;
+  bottom: 0 !important;
+  margin-top: auto !important;
+  flex-shrink: 0 !important;
+  box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.04) !important;
+  z-index: 20 !important;
+  border-bottom-left-radius: inherit;
+  border-bottom-right-radius: inherit;
 }
 
 .charm-modal-backdrop {
@@ -1258,7 +1362,7 @@ main.main-patient-chart {
 }
 
 .modal-head {
-  padding: 18px 22px;
+  padding: 14px 20px;
   border-bottom: 1px solid var(--border-default);
   display: flex;
   align-items: flex-start;
@@ -1267,7 +1371,8 @@ main.main-patient-chart {
   background: var(--bg-surface);
   position: sticky;
   top: 0;
-  z-index: 3;
+  z-index: 20;
+  flex-shrink: 0;
 }
 
 .modal-head h2 {
@@ -9872,9 +9977,15 @@ main.main-encounter {
   align-items: center;
   justify-content: flex-end;
   gap: 10px;
-  padding-top: 14px;
+  padding: 12px 20px;
   border-top: 1px solid #e2e8f0;
-  margin-top: 8px;
+  background: #ffffff;
+  position: sticky;
+  bottom: 0;
+  z-index: 20;
+  margin-top: auto;
+  flex-shrink: 0;
+  box-shadow: 0 -2px 6px rgba(0, 0, 0, 0.04);
 }
 
 /* ============================================================================
@@ -9886,18 +9997,18 @@ main.main-encounter {
   align-items: center;
   justify-content: space-between;
   background: #f8fafc;
-  padding: 12px 16px;
-  border-radius: 8px;
+  padding: 10px 14px;
+  border-radius: 6px;
   border: 1px solid #e2e8f0;
-  margin-bottom: 14px;
+  margin-bottom: 12px;
 }
 
 .charm-live-bmi-card {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
   background: #ffffff;
-  padding: 6px 14px;
+  padding: 4px 12px;
   border-radius: 6px;
   border: 1px solid #cbd5e1;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
@@ -9911,7 +10022,7 @@ main.main-encounter {
 }
 
 .charm-live-bmi-val {
-  font-size: 20px;
+  font-size: 18px;
   font-weight: 800;
   color: #0f172a;
 }
@@ -9924,8 +10035,8 @@ main.main-encounter {
 }
 
 .charm-bmi-pill {
-  padding: 4px 10px;
-  border-radius: 12px;
+  padding: 3px 8px;
+  border-radius: 10px;
   color: #ffffff;
   font-size: 11px;
   font-weight: 700;
@@ -9935,10 +10046,8 @@ main.main-encounter {
 .charm-vitals-groups {
   display: flex;
   flex-direction: column;
-  gap: 14px;
-  max-height: 60vh;
-  overflow-y: auto;
-  padding-right: 4px;
+  gap: 12px;
+  padding-bottom: 8px;
 }
 
 .charm-vitals-panel {
@@ -11100,29 +11209,41 @@ textarea.charm-input {
 
 .charm-mode-selector {
   display: flex;
-  gap: 8px;
+  gap: 6px;
   background: #f1f5f9;
   padding: 4px;
-  border-radius: 6px;
+  border-radius: 8px;
+  border: 1px solid #e2e8f0;
 }
 
 .charm-mode-pill {
   flex: 1;
-  padding: 6px 12px;
-  border: none;
+  padding: 8px 14px;
+  border: 1px solid transparent;
   background: transparent;
-  border-radius: 4px;
-  font-size: 12.5px;
+  border-radius: 6px;
+  font-size: 13px;
   font-weight: 500;
-  color: #475569;
+  color: #64748b;
   cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  transition: all 0.15s ease-in-out;
+}
+
+.charm-mode-pill:hover {
+  color: #1e293b;
+  background: rgba(255, 255, 255, 0.6);
 }
 
 .charm-mode-pill.active {
   background: #ffffff;
   color: #006699;
   font-weight: 600;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+  border-color: #cbd5e1;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
 }
 
 .charm-alert {
@@ -15176,6 +15297,12 @@ textarea.charm-input {
   padding: 12px 20px;
   background: #f8fafc;
   border-top: 1px solid #e2e8f0;
+  position: sticky;
+  bottom: 0;
+  z-index: 20;
+  margin-top: auto;
+  flex-shrink: 0;
+  box-shadow: 0 -2px 6px rgba(0, 0, 0, 0.04);
 }
 
 .charm-info-banner {

@@ -27,8 +27,8 @@ export async function api<T = any>(
     body === undefined
       ? undefined
       : isForm
-      ? body
-      : JSON.stringify(body);
+        ? body
+        : JSON.stringify(body);
 
   try {
     const response = await fetch(cleanPath, {

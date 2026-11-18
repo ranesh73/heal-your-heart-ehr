@@ -28,25 +28,7 @@ from app.seed import seed
 from app.security import password_hash
 from app.worker import run_once
 
-PASSWORD='Test-only-'+uuid4().hex
-
-
-@pytest.fixture(scope='session',autouse=True)
-def setup():
-    command.upgrade(Config('alembic.ini'),'head')
-    with SessionLocal() as db:
-        lock_writes(db); seed(db,PASSWORD); db.commit()
-    try:
-        from scripts.seed_medicine_catalogs import seed as seed_meds
-        seed_meds()
-    except Exception:
-        pass
-    try:
-        from scripts.seed_rx_catalogs import seed_rx
-        seed_rx()
-    except Exception:
-        pass
-    yield
+from tests.conftest import PASSWORD
 
 
 def client(role='doctor',facility=None):
@@ -1251,3 +1233,498 @@ def test_clinical_tasks_workflow_templates_lock_and_handoff():
     assert wf["total_count"] == 5
     assert wf["bottleneck"]["title"] == "Complete the Laboratory Testing"
     assert wf["bottleneck"]["assigned_to_name"] == "Sarala D"
+
+
+# ==============================================================================
+# CHARMHEALTH PATIENT PAYMENT & INVOICE ALLOCATION SUITE
+# ==============================================================================
+
+def create_billing_test_invoice(c, pat_id, total_paise=100000, lines=None):
+    if lines is None:
+        lines = [{'description': 'Cardiology Consultation', 'quantity': 1, 'unit_paise': total_paise}]
+    return ok(c.post('/api/invoices', json={
+        'patient_id': pat_id,
+        'lines': lines,
+    }))
+
+
+def test_billing_scenario_a_patient_no_outstanding_invoices():
+    c = client('reception')
+    p = patient(c)
+
+    res = ok(c.post('/api/billing/payments', json={
+        'patient_id': p['id'],
+        'amount_paise': 500000,  # Rs. 5000.00
+        'mode': 'UPI',
+        'reference': 'UPI-ADV-12345',
+        'description': 'Advance deposit for cardiology package',
+        'allocations': []
+    }))
+
+    receipt = res['receipt']
+    assert receipt['amount_paise'] == 500000
+    assert receipt['unused_paise'] == 500000
+    assert receipt['mode'] == 'UPI'
+    assert receipt['reference'] == 'UPI-ADV-12345'
+    assert receipt['receipt_number'].startswith('HYN-REC')
+    assert len(receipt['allocations']) == 0
+
+    all_recs = ok(c.get(f'/api/receipts?patient_id={p["id"]}'))
+    assert any(r['receipt_number'] == receipt['receipt_number'] and r['unused_paise'] == 500000 for r in all_recs)
+
+
+def test_billing_scenario_b_full_invoice_payment():
+    c = client('reception')
+    p = patient(c)
+    inv = create_billing_test_invoice(c, p['id'], total_paise=150000)
+
+    res = ok(c.post('/api/billing/payments', json={
+        'patient_id': p['id'],
+        'amount_paise': 150000,
+        'mode': 'Cash',
+        'allocations': [
+            {'invoice_id': inv['id'], 'amount_paise': 150000}
+        ]
+    }))
+
+    receipt = res['receipt']
+    assert receipt['amount_paise'] == 150000
+    assert receipt['unused_paise'] == 0
+
+    updated_inv = ok(c.get(f'/api/invoices/{inv["id"]}'))
+    assert updated_inv['balance_paise'] == 0
+    assert updated_inv['paid_paise'] == 150000
+    assert updated_inv['status'] == 'paid'
+
+
+def test_billing_scenario_b_partial_invoice_payment():
+    c = client('reception')
+    p = patient(c)
+    inv = create_billing_test_invoice(c, p['id'], total_paise=200000)
+
+    res = ok(c.post('/api/billing/payments', json={
+        'patient_id': p['id'],
+        'amount_paise': 80000,
+        'mode': 'Debit Card',
+        'allocations': [
+            {'invoice_id': inv['id'], 'amount_paise': 80000}
+        ]
+    }))
+
+    receipt = res['receipt']
+    assert receipt['unused_paise'] == 0
+
+    updated_inv = ok(c.get(f'/api/invoices/{inv["id"]}'))
+    assert updated_inv['balance_paise'] == 120000
+    assert updated_inv['paid_paise'] == 80000
+    assert updated_inv['status'] == 'partial'
+
+
+def test_billing_payment_across_multiple_invoices():
+    c = client('reception')
+    p = patient(c)
+    inv1 = create_billing_test_invoice(c, p['id'], total_paise=100000)
+    inv2 = create_billing_test_invoice(c, p['id'], total_paise=250000)
+
+    res = ok(c.post('/api/billing/payments', json={
+        'patient_id': p['id'],
+        'amount_paise': 300000,
+        'mode': 'Net Banking',
+        'allocations': [
+            {'invoice_id': inv1['id'], 'amount_paise': 100000},
+            {'invoice_id': inv2['id'], 'amount_paise': 200000},
+        ]
+    }))
+
+    receipt = res['receipt']
+    assert receipt['amount_paise'] == 300000
+    assert receipt['unused_paise'] == 0
+    assert len(receipt['allocations']) == 2
+
+    u1 = ok(c.get(f'/api/invoices/{inv1["id"]}'))
+    assert u1['balance_paise'] == 0 and u1['status'] == 'paid'
+
+    u2 = ok(c.get(f'/api/invoices/{inv2["id"]}'))
+    assert u2['balance_paise'] == 50000 and u2['status'] == 'partial'
+
+
+def test_billing_payment_greater_than_total_outstanding_excess_unused():
+    c = client('reception')
+    p = patient(c)
+    inv = create_billing_test_invoice(c, p['id'], total_paise=100000)
+
+    res = ok(c.post('/api/billing/payments', json={
+        'patient_id': p['id'],
+        'amount_paise': 350000,
+        'mode': 'Cash',
+        'allocations': [
+            {'invoice_id': inv['id'], 'amount_paise': 100000}
+        ]
+    }))
+
+    receipt = res['receipt']
+    assert receipt['amount_paise'] == 350000
+    assert receipt['unused_paise'] == 250000
+
+    u = ok(c.get(f'/api/invoices/{inv["id"]}'))
+    assert u['balance_paise'] == 0 and u['status'] == 'paid'
+
+
+def test_billing_payment_without_allocation_when_invoices_exist():
+    c = client('reception')
+    p = patient(c)
+    inv = create_billing_test_invoice(c, p['id'], total_paise=500000)
+
+    res = ok(c.post('/api/billing/payments', json={
+        'patient_id': p['id'],
+        'amount_paise': 200000,
+        'mode': 'UPI',
+        'allocations': []
+    }))
+
+    receipt = res['receipt']
+    assert receipt['unused_paise'] == 200000
+
+    u = ok(c.get(f'/api/invoices/{inv["id"]}'))
+    assert u['balance_paise'] == 500000 and u['status'] == 'unpaid'
+
+
+def test_billing_write_off_with_valid_reason():
+    c = client('reception')
+    p = patient(c)
+    inv = create_billing_test_invoice(c, p['id'], total_paise=100000)
+
+    res = ok(c.post('/api/billing/payments', json={
+        'patient_id': p['id'],
+        'amount_paise': 80000,
+        'mode': 'Cash',
+        'allocations': [
+            {
+                'invoice_id': inv['id'],
+                'amount_paise': 80000,
+                'write_off_paise': 20000,
+                'write_off_reason': 'Rounding Adjustment',
+                'comments': 'Approved by clinic manager'
+            }
+        ]
+    }))
+
+    receipt = res['receipt']
+    assert receipt['amount_paise'] == 80000
+    assert receipt['unused_paise'] == 0
+
+    u = ok(c.get(f'/api/invoices/{inv["id"]}'))
+    assert u['paid_paise'] == 80000
+    assert u['credited_paise'] == 20000
+    assert u['balance_paise'] == 0
+    assert u['status'] == 'paid'
+
+
+def test_billing_write_off_without_reason_rejected():
+    c = client('reception')
+    p = patient(c)
+    inv = create_billing_test_invoice(c, p['id'], total_paise=100000)
+
+    ok(c.post('/api/billing/payments', json={
+        'patient_id': p['id'],
+        'amount_paise': 80000,
+        'allocations': [
+            {
+                'invoice_id': inv['id'],
+                'amount_paise': 80000,
+                'write_off_paise': 20000,
+                'write_off_reason': ''
+            }
+        ]
+    }), 422)
+
+
+def test_billing_invalid_negative_allocation_rejected():
+    c = client('reception')
+    p = patient(c)
+    inv = create_billing_test_invoice(c, p['id'], total_paise=100000)
+
+    ok(c.post('/api/billing/payments', json={
+        'patient_id': p['id'],
+        'amount_paise': 50000,
+        'allocations': [{'invoice_id': inv['id'], 'amount_paise': -1000}]
+    }), 422)
+
+
+def test_billing_allocation_exceeds_invoice_due_rejected():
+    c = client('reception')
+    p = patient(c)
+    inv = create_billing_test_invoice(c, p['id'], total_paise=100000)
+
+    ok(c.post('/api/billing/payments', json={
+        'patient_id': p['id'],
+        'amount_paise': 200000,
+        'allocations': [{'invoice_id': inv['id'], 'amount_paise': 150000}]
+    }), 409)
+
+
+def test_billing_payment_for_another_patient_invoice_rejected():
+    c = client('reception')
+    p1 = patient(c, 'PatientOne')
+    p2 = patient(c, 'PatientTwo')
+    inv2 = create_billing_test_invoice(c, p2['id'], total_paise=100000)
+
+    ok(c.post('/api/billing/payments', json={
+        'patient_id': p1['id'],
+        'amount_paise': 100000,
+        'allocations': [{'invoice_id': inv2['id'], 'amount_paise': 100000}]
+    }), 422)
+
+
+def test_billing_cross_facility_invoice_allocation_rejected():
+    c1 = client('reception')
+    c2 = client('doctor')
+    me = c2.get('/api/auth/me').json()
+    roy_id = next(x['id'] for x in me['facilities'] if x['code'] == 'HYR')
+    hyn_id = c1.headers['X-Facility-ID']
+
+    p1 = ok(c1.post('/api/patients', json={
+        'first_name': 'MultiBranch' + uuid4().hex[:6],
+        'last_name': 'Patient',
+        'dob': '1985-05-20',
+        'sex': 'Male',
+        'facility_ids': [hyn_id, roy_id]
+    }))
+
+    inv1 = create_billing_test_invoice(c1, p1['id'], total_paise=100000)
+
+    c2.headers['X-Facility-ID'] = roy_id
+
+    ok(c2.post('/api/billing/payments', json={
+        'patient_id': p1['id'],
+        'amount_paise': 100000,
+        'allocations': [{'invoice_id': inv1['id'], 'amount_paise': 100000}]
+    }), 403)
+
+
+def test_billing_cancelled_invoice_allocation_rejected():
+    c = client('reception')
+    p = patient(c)
+    inv = create_billing_test_invoice(c, p['id'], total_paise=100000)
+
+    ok(c.post(f'/api/invoices/{inv["id"]}/cancel', json={'version': inv['version']}))
+
+    ok(c.post('/api/billing/payments', json={
+        'patient_id': p['id'],
+        'amount_paise': 100000,
+        'allocations': [{'invoice_id': inv['id'], 'amount_paise': 100000}]
+    }), 409)
+
+
+def test_billing_receipt_voiding_restores_balances():
+    c = client('reception')
+    p = patient(c)
+    inv = create_billing_test_invoice(c, p['id'], total_paise=250000)
+
+    res = ok(c.post('/api/billing/payments', json={
+        'patient_id': p['id'],
+        'amount_paise': 200000,
+        'allocations': [
+            {'invoice_id': inv['id'], 'amount_paise': 150000}
+        ]
+    }))
+    receipt = res['receipt']
+    assert receipt['unused_paise'] == 50000
+
+    u = ok(c.get(f'/api/invoices/{inv["id"]}'))
+    assert u['balance_paise'] == 100000 and u['status'] == 'partial'
+
+    void_res = ok(c.post(f'/api/receipts/{receipt["id"]}/void'))
+    assert 'voided' in void_res['message'].lower()
+
+    restored_inv = ok(c.get(f'/api/invoices/{inv["id"]}'))
+    assert restored_inv['balance_paise'] == 250000
+    assert restored_inv['paid_paise'] == 0
+    assert restored_inv['status'] == 'unpaid'
+
+    recs = ok(c.get(f'/api/receipts?patient_id={p["id"]}'))
+    voided_rec = next(r for r in recs if r['receipt_number'] == receipt['receipt_number'])
+    assert voided_rec['is_void'] is True
+    assert voided_rec['unused_paise'] == 0
+
+
+def test_billing_idempotent_duplicate_submission():
+    c = client('reception')
+    p = patient(c)
+    inv = create_billing_test_invoice(c, p['id'], total_paise=100000)
+
+    idem_key = f"test_idem_{uuid4().hex}"
+    payload = {
+        'patient_id': p['id'],
+        'amount_paise': 100000,
+        'mode': 'Cash',
+        'idempotency_key': idem_key,
+        'allocations': [{'invoice_id': inv['id'], 'amount_paise': 100000}]
+    }
+
+    first = ok(c.post('/api/billing/payments', json=payload))
+    assert first['replayed'] is False
+
+    second = ok(c.post('/api/billing/payments', json=payload))
+    assert second['replayed'] is True
+    assert second['receipt']['id'] == first['receipt']['id']
+
+    ok(c.post('/api/billing/payments', json={**payload, 'amount_paise': 50000}), 409)
+
+
+def test_billing_concurrent_payment_requests_do_not_double_allocate():
+    c1 = client('reception')
+    c2 = client('reception')
+    p = patient(c1)
+    inv = create_billing_test_invoice(c1, p['id'], total_paise=100000)
+
+    req1 = {
+        'patient_id': p['id'],
+        'amount_paise': 100000,
+        'idempotency_key': f"c1_{uuid4().hex}",
+        'allocations': [{'invoice_id': inv['id'], 'amount_paise': 100000}]
+    }
+    req2 = {
+        'patient_id': p['id'],
+        'amount_paise': 100000,
+        'idempotency_key': f"c2_{uuid4().hex}",
+        'allocations': [{'invoice_id': inv['id'], 'amount_paise': 100000}]
+    }
+
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        responses = list(pool.map(
+            lambda r: (c1 if r == 0 else c2).post('/api/billing/payments', json=req1 if r == 0 else req2),
+            [0, 1]
+        ))
+
+    codes = sorted(r.status_code for r in responses)
+    assert codes == [200, 409]
+
+    final_inv = ok(c1.get(f'/api/invoices/{inv["id"]}'))
+    assert final_inv['balance_paise'] == 0
+    assert final_inv['paid_paise'] == 100000
+    assert final_inv['status'] == 'paid'
+
+
+def test_invoice_bulk_actions_and_draft_only_deletion():
+    c = client('reception')
+    p = patient(c)
+
+    # 1. Create a draft invoice
+    draft_payload = {
+        'patient_id': p['id'],
+        'status': 'draft',
+        'lines': [{'description': 'Consultation Draft', 'quantity': 1, 'unit_paise': 50000}]
+    }
+    draft_inv = ok(c.post('/api/invoices', json=draft_payload))
+    assert draft_inv['status'] == 'draft'
+
+    # 2. Create an active unpaid invoice
+    active_inv = create_billing_test_invoice(c, p['id'], total_paise=120000)
+    assert active_inv['status'] == 'unpaid'
+
+    # 3. Test flag and clear_flags
+    flag_res = ok(c.post('/api/invoices/bulk-action', json={
+        'invoice_ids': [active_inv['id']],
+        'action': 'flag'
+    }))
+    assert flag_res['count'] == 1
+    fetch1 = ok(c.get(f"/api/invoices/{active_inv['id']}"))
+    assert fetch1['is_flagged'] is True
+
+    clear_flag_res = ok(c.post('/api/invoices/bulk-action', json={
+        'invoice_ids': [active_inv['id']],
+        'action': 'clear_flags'
+    }))
+    assert clear_flag_res['count'] == 1
+    fetch2 = ok(c.get(f"/api/invoices/{active_inv['id']}"))
+    assert fetch2['is_flagged'] is False
+
+    # 4. Test mark_as_mailed
+    mail_res = ok(c.post('/api/invoices/bulk-action', json={
+        'invoice_ids': [active_inv['id']],
+        'action': 'mark_as_mailed'
+    }))
+    assert mail_res['count'] == 1
+    fetch3 = ok(c.get(f"/api/invoices/{active_inv['id']}"))
+    assert fetch3['is_mailed'] is True
+    assert fetch3['mailed_at'] is not None
+
+    # 5. Test sent_for_collection and clear_collection
+    coll_res = ok(c.post('/api/invoices/bulk-action', json={
+        'invoice_ids': [active_inv['id']],
+        'action': 'sent_for_collection'
+    }))
+    assert coll_res['count'] == 1
+    fetch4 = ok(c.get(f"/api/invoices/{active_inv['id']}"))
+    assert fetch4['sent_for_collection'] is True
+
+    clear_coll = ok(c.post('/api/invoices/bulk-action', json={
+        'invoice_ids': [active_inv['id']],
+        'action': 'clear_collection'
+    }))
+    assert clear_coll['count'] == 1
+    fetch5 = ok(c.get(f"/api/invoices/{active_inv['id']}"))
+    assert fetch5['sent_for_collection'] is False
+
+    # 6. Test add_notes
+    notes_res = ok(c.post('/api/invoices/bulk-action', json={
+        'invoice_ids': [active_inv['id']],
+        'action': 'add_notes',
+        'notes': 'Called patient regarding balance due.'
+    }))
+    assert notes_res['count'] == 1
+    fetch6 = ok(c.get(f"/api/invoices/{active_inv['id']}"))
+    assert 'Called patient regarding balance due.' in fetch6['notes']
+
+    # 7. Test set_follow_up
+    fu_res = ok(c.post('/api/invoices/bulk-action', json={
+        'invoice_ids': [active_inv['id']],
+        'action': 'set_follow_up',
+        'follow_up_date': '2026-12-01'
+    }))
+    assert fu_res['count'] == 1
+    fetch7 = ok(c.get(f"/api/invoices/{active_inv['id']}"))
+    assert fetch7['follow_up_date'] == '2026-12-01'
+
+    # 8. Test add_procedure
+    proc_res = ok(c.post('/api/invoices/bulk-action', json={
+        'invoice_ids': [active_inv['id']],
+        'action': 'add_procedure',
+        'procedure': {'code': '93000', 'description': 'ECG 12-Lead', 'quantity': 1, 'unit_paise': 30000}
+    }))
+    assert proc_res['count'] == 1
+    fetch8 = ok(c.get(f"/api/invoices/{active_inv['id']}"))
+    assert fetch8['total_paise'] == 150000  # 120000 + 30000
+    assert any(line['code'] == '93000' for line in fetch8['lines'])
+
+    # 9. Test deleting active (non-draft) invoice is rejected with 409
+    del_active_err = ok(c.post('/api/invoices/bulk-action', json={
+        'invoice_ids': [active_inv['id']],
+        'action': 'delete'
+    }), 409)
+    assert 'Only Draft invoices can be deleted' in del_active_err['detail']
+
+    del_active_single_err = ok(c.delete(f"/api/invoices/{active_inv['id']}"), 409)
+    assert 'Only Draft invoices can be deleted' in del_active_single_err['detail']
+
+    # 10. Test deleting draft invoice succeeds
+    del_draft_res = ok(c.post('/api/invoices/bulk-action', json={
+        'invoice_ids': [draft_inv['id']],
+        'action': 'delete'
+    }))
+    assert del_draft_res['count'] == 1
+    ok(c.get(f"/api/invoices/{draft_inv['id']}"), 404)
+
+
+def test_invoice_pdf_generation_templates():
+    c = client('reception')
+    p = patient(c)
+    inv = create_billing_test_invoice(c, p['id'], total_paise=95000)
+
+    for template in ('standard', 'superbill', 'envelope'):
+        res = c.get(f"/api/invoices/{inv['id']}/pdf?template={template}")
+        assert res.status_code == 200
+        assert res.headers['content-type'] == 'application/pdf'
+        assert res.content.startswith(b'%PDF-1.4')
+        assert len(res.content) > 500

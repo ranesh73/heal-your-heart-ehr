@@ -49,6 +49,8 @@ class User(Entity, Base):
     email = Column(String(160), unique=True, nullable=False)
     name = Column(String(120), nullable=False)
     role = Column(String(24), nullable=False)
+    phone = Column(String(40), nullable=True)
+    title = Column(String(100), nullable=True)
     password_hash = Column(String(300), nullable=False)
     active = Column(Boolean, nullable=False, default=True)
     __table_args__ = (CheckConstraint("role IN ('admin','doctor','assistant','therapist','reception','billing')"),)
@@ -71,6 +73,27 @@ class StaffSession(Base):
 class LoginAttempt(Entity, Base):
     __tablename__ = 'login_attempts'
     key = Column(String(64), index=True, nullable=False)
+
+
+class OtpToken(Entity, Base):
+    __tablename__ = 'otp_tokens'
+    identifier = Column(String(160), index=True, nullable=False)
+    otp_hash = Column(String(64), nullable=False)
+    purpose = Column(String(40), default='password_reset', nullable=False)
+    expires_at = Column(DateTime, nullable=False)
+    attempts = Column(Integer, default=0, nullable=False)
+
+
+class SignupRequest(Entity, Base):
+    __tablename__ = 'signup_requests'
+    first_name = Column(String(80), nullable=False)
+    last_name = Column(String(80), nullable=False)
+    email = Column(String(160), index=True, nullable=False)
+    phone = Column(String(40), nullable=False)
+    practice_name = Column(String(160), nullable=False)
+    specialty = Column(String(100), nullable=False)
+    status = Column(String(30), default='pending_approval', nullable=False)
+    notes = Column(Text, nullable=True)
 
 
 class Resource(Entity, Base):
@@ -548,6 +571,14 @@ class Invoice(PatientRecord, Base):
     discount_paise = Column(Integer, default=0, nullable=False)
     total_paise = Column(Integer, nullable=False)
     status = Column(String(30), default='unpaid', nullable=False)
+    is_flagged = Column(Boolean, default=False, nullable=False)
+    is_mailed = Column(Boolean, default=False, nullable=False)
+    mailed_at = Column(DateTime, nullable=True)
+    sent_for_collection = Column(Boolean, default=False, nullable=False)
+    collection_at = Column(DateTime, nullable=True)
+    notes = Column(Text, default='', nullable=False)
+    follow_up_date = Column(Date, nullable=True)
+    due_date = Column(Date, nullable=True)
     __table_args__ = (CheckConstraint('total_paise >= 0 AND discount_paise >= 0'),)
 
 
@@ -580,6 +611,30 @@ class Credit(Entity, Base):
     reason = Column(Text, nullable=False)
     actor_id = Column(ForeignKey('users.id'), nullable=False)
     __table_args__ = (CheckConstraint('amount_paise > 0'),)
+
+
+class BillingReceipt(PatientRecord, Base):
+    __tablename__ = 'billing_receipts'
+    receipt_number = Column(String(50), unique=True, nullable=False, index=True)
+    amount_paise = Column(Integer, nullable=False)
+    unused_paise = Column(Integer, default=0, nullable=False)
+    mode = Column(String(50), default='Cash', nullable=False)
+    reference = Column(String(100), default='', nullable=False)
+    other_reference = Column(String(100), default='', nullable=False)
+    description = Column(Text, default='', nullable=False)
+    payment_from = Column(String(50), default='Patient', nullable=False)
+    is_void = Column(Boolean, default=False, nullable=False)
+    idempotency_key = Column(String(80), unique=True, nullable=True)
+
+
+class ReceiptAllocation(Entity, Base):
+    __tablename__ = 'receipt_allocations'
+    receipt_id = Column(ForeignKey('billing_receipts.id', ondelete='CASCADE'), nullable=False, index=True)
+    invoice_id = Column(ForeignKey('invoices.id'), nullable=False, index=True)
+    amount_paise = Column(Integer, default=0, nullable=False)
+    write_off_paise = Column(Integer, default=0, nullable=False)
+    write_off_reason = Column(Text, default='', nullable=False)
+    comments = Column(Text, default='', nullable=False)
 
 
 class Task(PatientRecord, Base):
@@ -912,4 +967,18 @@ class UserPreference(Entity, Base):
     data = Column(Text, nullable=False, default='{}')
     updated_at = Column(DateTime, default=now, onupdate=now)
     __table_args__ = (UniqueConstraint('user_id', 'section'),)
+
+
+class AppSetting(Entity, Base):
+    __tablename__ = 'app_settings'
+    scope = Column(String(30), nullable=False, default='global', index=True)
+    facility_id = Column(ForeignKey('facilities.id'), nullable=True, index=True)
+    user_id = Column(ForeignKey('users.id'), nullable=True, index=True)
+    category = Column(String(60), nullable=False, index=True)
+    option = Column(String(80), nullable=False, index=True)
+    setting_key = Column(String(140), nullable=False, index=True)
+    value = Column(Text, nullable=False, default='{}')
+    updated_by = Column(String(120), nullable=True)
+    updated_at = Column(DateTime, default=now, onupdate=now)
+    __table_args__ = (UniqueConstraint('scope', 'facility_id', 'user_id', 'setting_key', name='uq_app_setting'),)
 
