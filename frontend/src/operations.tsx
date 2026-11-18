@@ -304,9 +304,15 @@ function AppointmentStatusDropdown({
   appointment: Row;
   statuses: { id: string; name: string; color: string }[];
 }) {
-  const { refresh, notify } = useApp();
+  const { refresh, notify, user } = useApp();
   const [open, setOpen] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [gateModal, setGateModal] = useState<{
+    openSteps: string[];
+    rawMessage: string;
+  } | null>(null);
+  const [overrideReason, setOverrideReason] = useState("");
+  const [overriding, setOverriding] = useState(false);
   const [position, setPosition] = useState<{
     top: number;
     left: number;
@@ -421,8 +427,16 @@ function AppointmentStatusDropdown({
       await refresh();
       notify("Status updated.");
       setOpen(false);
-    } catch (err) {
-      notify(err instanceof Error ? err.message : "Unable to update status.");
+    } catch (err: any) {
+      const msg = err instanceof Error ? err.message : String(err);
+      if (msg.includes("open required steps")) {
+        const match = msg.match(/open required steps:\s*([^.]+)/i);
+        const steps = match ? match[1].split(",").map((s: string) => s.trim()) : [];
+        setGateModal({ openSteps: steps, rawMessage: msg });
+        setOpen(false);
+      } else {
+        notify(msg || "Unable to update status.");
+      }
     } finally {
       setSaving(false);
     }
@@ -544,6 +558,99 @@ function AppointmentStatusDropdown({
           </div>,
           document.body,
         )}
+      {gateModal && (
+        <Modal
+          title="Checkout Blocked: Open Workflow Steps"
+          onClose={() => {
+            setGateModal(null);
+            setOverrideReason("");
+          }}
+        >
+          <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+            <p style={{ margin: 0, color: "#b91c1c", fontWeight: 500 }}>
+              This appointment cannot be completed because the following required workflow steps are still open:
+            </p>
+            <ul style={{ margin: 0, paddingLeft: 20, color: "#1e293b" }}>
+              {gateModal.openSteps.length > 0 ? (
+                gateModal.openSteps.map((stepKey) => (
+                  <li key={stepKey} style={{ fontFamily: "monospace", fontSize: 13, marginBottom: 4 }}>
+                    {stepKey}
+                  </li>
+                ))
+              ) : (
+                <li>{gateModal.rawMessage}</li>
+              )}
+            </ul>
+
+            {user && ["doctor", "admin"].includes(user.role) ? (
+              <div style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: 8 }}>
+                <label style={{ fontSize: 13, fontWeight: 500, color: "#334155" }}>
+                  Override Reason (required to force completion):
+                </label>
+                <textarea
+                  value={overrideReason}
+                  onChange={(e) => setOverrideReason(e.target.value)}
+                  placeholder="Enter clinical rationale or administrative authorization for override..."
+                  rows={3}
+                  style={{ width: "100%", padding: 8, borderRadius: 4, border: "1px solid #cbd5e1", fontSize: 13 }}
+                />
+                <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginTop: 4 }}>
+                  <Button
+                    variant="ghost"
+                    onClick={() => {
+                      setGateModal(null);
+                      setOverrideReason("");
+                    }}
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    variant="primary"
+                    disabled={overriding || !overrideReason.trim()}
+                    onClick={async () => {
+                      setOverriding(true);
+                      try {
+                        await api("/appointments/" + appointment.id + "/status", "POST", {
+                          version: appointment.version,
+                          status: "completed",
+                          reason: overrideReason.trim(),
+                        });
+                        await refresh();
+                        notify("Appointment completed with override.");
+                        setGateModal(null);
+                        setOverrideReason("");
+                      } catch (e: any) {
+                        notify(e instanceof Error ? e.message : "Override failed");
+                      } finally {
+                        setOverriding(false);
+                      }
+                    }}
+                  >
+                    {overriding ? "Saving..." : "Confirm Override & Complete"}
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              <div style={{ marginTop: 8 }}>
+                <p style={{ margin: 0, fontSize: 13, color: "#64748b" }}>
+                  Only doctors or administrators may authorize a checkout override for open workflow steps.
+                </p>
+                <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 12 }}>
+                  <Button
+                    variant="secondary"
+                    onClick={() => {
+                      setGateModal(null);
+                      setOverrideReason("");
+                    }}
+                  >
+                    Close
+                  </Button>
+                </div>
+              </div>
+            )}
+          </div>
+        </Modal>
+      )}
     </>
   );
 }

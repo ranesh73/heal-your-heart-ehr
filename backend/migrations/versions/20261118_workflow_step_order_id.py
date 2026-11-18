@@ -22,7 +22,7 @@ def upgrade():
 
     with op.batch_alter_table('workflow_steps', schema=None) as batch_op:
         if 'order_id' not in existing_columns:
-            batch_op.add_column(sa.Column('order_id', sa.String(64), sa.ForeignKey('clinical_orders.id', name='fk_workflow_steps_order_id', ondelete='SET NULL'), nullable=True))
+            batch_op.add_column(sa.Column('order_id', sa.String(64), nullable=True))
             batch_op.create_index('ix_workflow_steps_order_id', ['order_id'], unique=False)
             batch_op.create_unique_constraint('uq_workflow_steps_instance_order', ['instance_id', 'order_id'])
 

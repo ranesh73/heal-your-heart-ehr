@@ -34,6 +34,11 @@ class AiChatResponse(BaseModel):
     service_available: bool
     mode: str
     context_loaded: bool
+    type: Optional[str] = None
+    action_id: Optional[str] = None
+    tool: Optional[str] = None
+    args: Optional[Dict[str, Any]] = None
+    summary: Optional[str] = None
 
 
 @router.get("/status")
@@ -335,3 +340,94 @@ def step_cancel(step_id: str, c: Context = Depends(context)) -> Dict[str, Any]:
     )
     c.db.commit()
     return result
+
+
+@router.post("/actions/{id}/confirm")
+def confirm_pending_action(id: str, c: Context = Depends(context)) -> Dict[str, Any]:
+    """
+    Executes a pending safe_write action after explicit human confirmation.
+    Enforces authentication, same user identity, facility scoping, not expired,
+    and replay prevention (one-time confirmation).
+    """
+    import json
+    check_ai_access(c.user.role, c.user.active)
+    action = c.db.get(m.AIPendingAction, id)
+    if not action or action.facility_id != c.facility_id:
+        raise HTTPException(status_code=404, detail="Pending action not found")
+    if action.user_id != c.user.id:
+        raise HTTPException(status_code=403, detail="Only the initiating user may confirm this action")
+    if action.status != "pending":
+        raise HTTPException(status_code=409, detail=f"Action is no longer pending (current status: {action.status})")
+    if action.expires_at <= m.now():
+        action.status = "expired"
+        action.resolved_at = m.now()
+        c.db.commit()
+        raise HTTPException(status_code=409, detail="Pending action has expired")
+
+    parsed_args = json.loads(action.args_json)
+    ctx = ToolContext(
+        db=c.db,
+        user_id=c.user.id,
+        role=c.user.role,
+        facility_id=c.facility_id,
+        user_name=c.user.name
+    )
+    result = execute_tool(ctx, action.tool, parsed_args)
+
+    action.status = "confirmed"
+    action.resolved_at = m.now()
+
+    c.db.add(m.AuditEvent(
+        facility_id=c.facility_id,
+        actor_id=c.user.id,
+        action="ai_action_confirmed",
+        entity_type="ai_pending_action",
+        entity_id=action.id,
+        detail=f"Tool: {action.tool}; Status: confirmed"
+    ))
+    c.db.commit()
+
+    result_payload = result
+    if hasattr(result, "id"):
+        result_payload = {"id": result.id, "status": getattr(result, "status", "ok")}
+
+    return {
+        "status": "confirmed",
+        "action_id": action.id,
+        "tool": action.tool,
+        "result": result_payload
+    }
+
+
+@router.post("/actions/{id}/reject")
+def reject_pending_action(id: str, c: Context = Depends(context)) -> Dict[str, Any]:
+    """
+    Rejects a pending safe_write action upon user cancellation.
+    Enforces authentication, user identity, facility scoping, and audits rejection.
+    """
+    check_ai_access(c.user.role, c.user.active)
+    action = c.db.get(m.AIPendingAction, id)
+    if not action or action.facility_id != c.facility_id:
+        raise HTTPException(status_code=404, detail="Pending action not found")
+    if action.user_id != c.user.id:
+        raise HTTPException(status_code=403, detail="Only the initiating user may reject this action")
+    if action.status != "pending":
+        raise HTTPException(status_code=409, detail=f"Action is not pending (status: {action.status})")
+
+    action.status = "rejected"
+    action.resolved_at = m.now()
+
+    c.db.add(m.AuditEvent(
+        facility_id=c.facility_id,
+        actor_id=c.user.id,
+        action="ai_action_rejected",
+        entity_type="ai_pending_action",
+        entity_id=action.id,
+        detail=f"Tool: {action.tool}; Status: rejected"
+    ))
+    c.db.commit()
+
+    return {
+        "status": "rejected",
+        "action_id": action.id
+    }

@@ -899,7 +899,7 @@ class WorkflowStep(Entity, Base):
         UniqueConstraint('instance_id', 'order_id', name='uq_workflow_steps_instance_order'),
     )
     instance_id = Column(ForeignKey('workflow_instances.id', ondelete='CASCADE'), nullable=False, index=True)
-    order_id = Column(ForeignKey('clinical_orders.id', ondelete='SET NULL'), nullable=True, index=True)
+    order_id = Column(String(36), nullable=True, index=True)
     step_key = Column(String(50), nullable=False)
     step_type = Column(String(30), nullable=False)  # 'vitals', 'intake', 'review', 'custom', 'order_lab', etc.
     assignee_role = Column(String(30), nullable=False)
@@ -928,5 +928,16 @@ class WorkflowEvent(Entity, Base):
     actor_id = Column(ForeignKey('users.id'), nullable=False)
     actor_type = Column(String(20), nullable=False)  # 'user' or 'automation'
     timestamp = Column(DateTime, nullable=False, default=now)
+
+
+class AIPendingAction(Entity, Base):
+    __tablename__ = 'ai_pending_actions'
+    facility_id = Column(ForeignKey('facilities.id'), nullable=False, index=True)
+    user_id = Column(ForeignKey('users.id'), nullable=False, index=True)
+    tool = Column(String(100), nullable=False)
+    args_json = Column(Text, nullable=False)
+    status = Column(String(30), nullable=False, default='pending')  # pending, confirmed, rejected, expired
+    expires_at = Column(DateTime, nullable=False)
+    resolved_at = Column(DateTime, nullable=True)
 
 

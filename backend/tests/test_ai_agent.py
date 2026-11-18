@@ -504,7 +504,9 @@ def test_tool_registry_invariants_and_risk_classes():
 
     # Invariant 1: Registered tool set equals explicit allowlist
     assert set(TOOL_REGISTRY.keys()) == ALLOWLISTED_TOOLS
-    assert len(TOOL_REGISTRY) == 6
+    assert len(TOOL_REGISTRY) == 8
+    assert "get_patient_journey" in TOOL_REGISTRY
+    assert "update_workflow_step" in TOOL_REGISTRY
 
     # Invariant 2: Every registered tool has a valid non-forbidden risk class
     valid_risk_classes = {RISK_READ, RISK_SAFE_WRITE, RISK_PROPOSE_CLINICAL}
@@ -781,5 +783,234 @@ def test_role_by_tool_matrix_across_all_six_roles():
                     # Permitted
                     result = execute_tool(ctx, tool_name, args)
                     assert result is not None
+
+
+# 23. Phase 4: Confirm-Before-Write Lifecycle and Endpoints
+def test_phase4_confirm_before_write_lifecycle():
+    from datetime import datetime, timedelta
+    from app import models as m
+
+    c_rec = client("reception")
+    c_doc = client("doctor")
+    p = patient(c_rec)
+    me_doc = c_doc.get("/api/auth/me").json()
+    doc_id = me_doc["user"]["id"]
+    fac_id = c_doc.headers["X-Facility-ID"]
+
+    # 1. Store a safe_write action in ai_pending_actions
+    with SessionLocal() as db:
+        pending_act = m.AIPendingAction(
+            facility_id=fac_id,
+            user_id=doc_id,
+            tool="create_administrative_task",
+            args_json=json.dumps({
+                "patient_id": p["id"],
+                "assignee_id": doc_id,
+                "title": "Follow up cardiac enzyme lab",
+                "priority": "high"
+            }),
+            status="pending",
+            expires_at=m.now() + timedelta(minutes=10)
+        )
+        db.add(pending_act)
+        db.commit()
+        act_id = pending_act.id
+
+    # 2. Cross-user rejection: reception cannot confirm doctor's pending action -> 403
+    cross_user = c_rec.post(f"/api/ai/actions/{act_id}/confirm")
+    assert cross_user.status_code == 403
+    assert "initiating user" in cross_user.json()["detail"]
+
+    # 3. Doctor confirms action -> 200, executes execute_tool
+    conf_res = c_doc.post(f"/api/ai/actions/{act_id}/confirm")
+    assert conf_res.status_code == 200
+    assert conf_res.json()["status"] == "confirmed"
+    assert conf_res.json()["action_id"] == act_id
+
+    # Verify task was actually created in DB
+    with SessionLocal() as db:
+        action_after = db.get(m.AIPendingAction, act_id)
+        assert action_after.status == "confirmed"
+        assert action_after.resolved_at is not None
+
+        # Verify task exists
+        task = db.scalar(select(m.Task).where(m.Task.title == "Follow up cardiac enzyme lab"))
+        assert task is not None
+        assert task.priority == "high"
+
+        # Verify audit event recorded
+        audit = db.scalar(
+            select(m.AuditEvent).where(
+                m.AuditEvent.action == "ai_action_confirmed",
+                m.AuditEvent.entity_id == act_id
+            )
+        )
+        assert audit is not None
+
+    # 4. Replay prevention: confirming already confirmed action -> 409 Conflict
+    replay_res = c_doc.post(f"/api/ai/actions/{act_id}/confirm")
+    assert replay_res.status_code == 409
+    assert "no longer pending" in replay_res.json()["detail"]
+
+    # 5. Reject lifecycle
+    with SessionLocal() as db:
+        act_reject = m.AIPendingAction(
+            facility_id=fac_id,
+            user_id=doc_id,
+            tool="create_administrative_task",
+            args_json=json.dumps({
+                "patient_id": p["id"],
+                "assignee_id": doc_id,
+                "title": "Unwanted task"
+            }),
+            status="pending",
+            expires_at=m.now() + timedelta(minutes=10)
+        )
+        db.add(act_reject)
+        db.commit()
+        reject_id = act_reject.id
+
+    reject_res = c_doc.post(f"/api/ai/actions/{reject_id}/reject")
+    assert reject_res.status_code == 200
+    assert reject_res.json()["status"] == "rejected"
+
+    # Reject second time -> 409
+    reject_repeat = c_doc.post(f"/api/ai/actions/{reject_id}/reject")
+    assert reject_repeat.status_code == 409
+
+    # 6. Expired action -> 409
+    with SessionLocal() as db:
+        act_expired = m.AIPendingAction(
+            facility_id=fac_id,
+            user_id=doc_id,
+            tool="create_administrative_task",
+            args_json=json.dumps({"patient_id": p["id"], "assignee_id": doc_id, "title": "Expired task"}),
+            status="pending",
+            expires_at=m.now() - timedelta(minutes=1)
+        )
+        db.add(act_expired)
+        db.commit()
+        expired_id = act_expired.id
+
+    exp_res = c_doc.post(f"/api/ai/actions/{expired_id}/confirm")
+    assert exp_res.status_code == 409
+    assert "expired" in exp_res.json()["detail"]
+
+
+# 24. Phase 4: New Tools (get_patient_journey and update_workflow_step)
+def test_phase4_new_tools_journey_and_step_update():
+    from fastapi import HTTPException
+    from app.ai_tools import execute_tool, ToolContext, GetPatientJourneyArgs, UpdateWorkflowStepArgs
+
+    c_rec = client("reception")
+    c_doc = client("doctor")
+    p = patient(c_rec)
+    appt = ok(c_rec.post("/api/appointments", json=booking(c_rec, p, day=29, hour=15)))[0]
+    ok(c_rec.post(f"/api/appointments/{appt['id']}/status", json={"status": "checked-in", "version": appt["version"]}))
+
+    with SessionLocal() as db:
+        doc_user = db.scalar(select(m.User).where(m.User.email == "doctor@demo.local"))
+        rec_user = db.scalar(select(m.User).where(m.User.email == "reception@demo.local"))
+        fac_id = c_doc.headers["X-Facility-ID"]
+
+        ctx_doc = ToolContext(db=db, user_id=doc_user.id, role="doctor", facility_id=fac_id)
+        ctx_rec = ToolContext(db=db, user_id=rec_user.id, role="reception", facility_id=fac_id)
+
+        # 1. get_patient_journey for clinical role (doctor)
+        journey_doc = execute_tool(ctx_doc, "get_patient_journey", GetPatientJourneyArgs(patient_id=p["id"]))
+        assert journey_doc["patient_id"] == p["id"]
+        assert journey_doc["appointment_id"] == appt["id"]
+        assert journey_doc["instance_status"] == "active"
+        assert journey_doc["clinical_access"] is True
+        assert len(journey_doc["open_steps"]) >= 2
+
+        # 2. get_patient_journey for non-clinical role (reception)
+        journey_rec = execute_tool(ctx_rec, "get_patient_journey", GetPatientJourneyArgs(appointment_id=appt["id"]))
+        assert journey_rec["appointment_id"] == appt["id"]
+        assert journey_rec["clinical_access"] is False
+        assert len(journey_rec["open_steps"]) >= 2
+        # Ensure operational metadata present
+        first_step = journey_rec["open_steps"][0]
+        assert "step_key" in first_step
+        assert "status" in first_step
+
+        vitals_step = next(s for s in journey_doc["open_steps"] if s["step_key"] == "step_triage_vitals")
+
+        # 3. update_workflow_step: Assistant acknowledges vitals step
+        asst_user = db.scalar(select(m.User).where(m.User.email == "assistant@demo.local"))
+        ctx_asst = ToolContext(db=db, user_id=asst_user.id, role="assistant", facility_id=fac_id)
+        step_res = execute_tool(
+            ctx_asst,
+            "update_workflow_step",
+            UpdateWorkflowStepArgs(step_id=vitals_step["id"], action="acknowledge")
+        )
+        assert step_res["new_status"] == "acknowledged"
+
+        # 4. Unauthorized role update: Reception cannot start vitals step -> 403
+        with pytest.raises(HTTPException) as exc_info:
+            execute_tool(
+                ctx_rec,
+                "update_workflow_step",
+                UpdateWorkflowStepArgs(step_id=vitals_step["id"], action="start")
+            )
+        assert exc_info.value.status_code == 403
+
+
+# 25. Phase 4: Agent loop safe_write interception and prompt injection defense
+def test_phase4_agent_loop_safe_write_interception_and_injection_defense():
+    import unittest.mock
+    from app.ai_service import execute_agent_query
+
+    c_doc = client("doctor")
+    p = patient(c_doc)
+    fac_id = c_doc.headers["X-Facility-ID"]
+    doc_id = c_doc.get("/api/auth/me").json()["user"]["id"]
+
+    # 1. When model emits a safe_write tool call, loop STOPS and returns action_confirmation_required
+    mock_tool_call_resp = {
+        "message": {
+            "role": "assistant",
+            "content": "I will create a task for the nurse to follow up on blood pressure.",
+            "tool_calls": [
+                {
+                    "function": {
+                        "name": "create_administrative_task",
+                        "arguments": {
+                            "patient_id": p["id"],
+                            "assignee_id": doc_id,
+                            "title": "BP Recheck follow-up",
+                            "priority": "normal"
+                        }
+                    }
+                }
+            ]
+        },
+        "prompt_eval_count": 350,
+        "eval_count": 50
+    }
+
+    with unittest.mock.patch("app.ai_service.check_ollama_status", return_value={"available": True, "provider": "ollama", "model": "qwen2.5:7b"}), \
+         unittest.mock.patch("app.ai_service.call_ollama_chat", return_value=mock_tool_call_resp):
+
+        with SessionLocal() as db:
+            result = execute_agent_query(
+                db=db,
+                facility_id=fac_id,
+                actor_id=doc_id,
+                actor_role="doctor",
+                message="Please schedule a BP follow up task for patient",
+                patient_id=p["id"]
+            )
+            assert result["mode"] == "action_confirmation_required"
+            assert result["type"] == "action_confirmation_required"
+            assert result["tool"] == "create_administrative_task"
+            assert result["action_id"] is not None
+
+            # Verify action exists in DB as pending
+            act = db.get(m.AIPendingAction, result["action_id"])
+            assert act is not None
+            assert act.status == "pending"
+            assert "BP Recheck" in act.args_json
+
 
 

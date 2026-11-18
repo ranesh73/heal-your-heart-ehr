@@ -344,7 +344,7 @@ def create_record(kind:str,data:dict,c=Depends(context)):
                 action="workflow_order_hook_failed",
                 entity_type="clinical_orders",
                 entity_id=row.id,
-                detail=f"Order workflow hook failed: {str(hook_err)[:500]}"
+                detail=hook_err.__class__.__name__
             ))
             c.db.add(m.Job(
                 facility_id=c.facility_id,
@@ -401,11 +401,26 @@ def record_status(kind:str,identifier:str,data:s.StatusChange,c=Depends(context)
             return serialize(row)
     if kind == 'orders' and str(data.status).lower() in ('cancelled', 'expired', 'discontinued'):
         try:
-            from .workflow_engine import WorkflowEngine
-            WorkflowEngine().handle_order_cancelled(c.db, row, c.user.id, c.user.role)
+            with c.db.begin_nested():
+                from .workflow_engine import WorkflowEngine
+                WorkflowEngine().handle_order_cancelled(c.db, row, c.user.id, c.user.role)
         except Exception as cancel_err:
             import logging
             logging.getLogger('ehr.workflow').warning('Order cancellation hook failed: %s', cancel_err)
+            c.db.add(m.AuditEvent(
+                facility_id=c.facility_id,
+                actor_id=c.user.id,
+                action="workflow_order_cancel_hook_failed",
+                entity_type="clinical_orders",
+                entity_id=row.id,
+                detail=cancel_err.__class__.__name__
+            ))
+            c.db.add(m.Job(
+                facility_id=c.facility_id,
+                kind="workflow_order_cancel_hook_retry",
+                status="pending",
+                result=json.dumps({"order_id": row.id, "facility_id": c.facility_id, "actor_id": c.user.id, "actor_role": c.user.role})
+            ))
     row.status=data.status; row.version+=1; c.audit('status_'+kind,row)
     return serialize(row)
 
@@ -617,11 +632,26 @@ def update_record(kind:str,identifier:str,data:dict,c=Depends(context)):
 
     if kind == 'orders' and str(data.get('status', '')).lower() in ('cancelled', 'expired', 'discontinued'):
         try:
-            from .workflow_engine import WorkflowEngine
-            WorkflowEngine().handle_order_cancelled(c.db, row, c.user.id, c.user.role)
+            with c.db.begin_nested():
+                from .workflow_engine import WorkflowEngine
+                WorkflowEngine().handle_order_cancelled(c.db, row, c.user.id, c.user.role)
         except Exception as cancel_err:
             import logging
             logging.getLogger('ehr.workflow').warning('Order cancellation hook failed: %s', cancel_err)
+            c.db.add(m.AuditEvent(
+                facility_id=c.facility_id,
+                actor_id=c.user.id,
+                action="workflow_order_cancel_hook_failed",
+                entity_type="clinical_orders",
+                entity_id=row.id,
+                detail=cancel_err.__class__.__name__
+            ))
+            c.db.add(m.Job(
+                facility_id=c.facility_id,
+                kind="workflow_order_cancel_hook_retry",
+                status="pending",
+                result=json.dumps({"order_id": row.id, "facility_id": c.facility_id, "actor_id": c.user.id, "actor_role": c.user.role})
+            ))
 
     row.version+=1; c.audit('update_'+kind,row)
     return serialize(row)
@@ -860,6 +890,27 @@ def create_injection_order(data: s.InjectionOrderInput, c=Depends(context)):
     c.db.add(row)
     c.audit('create_injection_order', row)
     c.db.flush()
+    try:
+        with c.db.begin_nested():
+            from .workflow_engine import WorkflowEngine
+            WorkflowEngine().handle_order_created(c.db, row, c.user.id)
+    except Exception as hook_err:
+        import logging
+        logging.getLogger('ehr.workflow').warning('Injection order workflow hook failed: %s', hook_err)
+        c.db.add(m.AuditEvent(
+            facility_id=c.facility_id,
+            actor_id=c.user.id,
+            action="workflow_order_hook_failed",
+            entity_type="injection_orders",
+            entity_id=row.id,
+            detail=hook_err.__class__.__name__
+        ))
+        c.db.add(m.Job(
+            facility_id=c.facility_id,
+            kind="workflow_order_hook_retry",
+            status="pending",
+            result=json.dumps({"order_id": row.id, "facility_id": c.facility_id, "actor_id": c.user.id})
+        ))
     d = serialize(row)
     d['name'] = row.medication_name_snapshot
     p = c.db.get(m.Patient, row.patient_id)
@@ -884,6 +935,28 @@ def update_injection_order(identifier: str, data: s.InjectionOrderUpdateInput, c
     row.updated_at = datetime.now()
     row.version += 1
     c.audit('update_injection_order', row)
+    if str(row.status).lower() in ('cancelled', 'expired', 'discontinued'):
+        try:
+            with c.db.begin_nested():
+                from .workflow_engine import WorkflowEngine
+                WorkflowEngine().handle_order_cancelled(c.db, row, c.user.id, c.user.role)
+        except Exception as cancel_err:
+            import logging
+            logging.getLogger('ehr.workflow').warning('Injection order cancellation hook failed: %s', cancel_err)
+            c.db.add(m.AuditEvent(
+                facility_id=c.facility_id,
+                actor_id=c.user.id,
+                action="workflow_order_cancel_hook_failed",
+                entity_type="injection_orders",
+                entity_id=row.id,
+                detail=cancel_err.__class__.__name__
+            ))
+            c.db.add(m.Job(
+                facility_id=c.facility_id,
+                kind="workflow_order_cancel_hook_retry",
+                status="pending",
+                result=json.dumps({"order_id": row.id, "facility_id": c.facility_id, "actor_id": c.user.id, "actor_role": c.user.role})
+            ))
     d = serialize(row)
     d['name'] = row.medication_name_snapshot
     return d
@@ -899,6 +972,27 @@ def delete_injection_order(identifier: str, c=Depends(context)):
     row.updated_at = datetime.now()
     row.version += 1
     c.audit('cancel_injection_order', row)
+    try:
+        with c.db.begin_nested():
+            from .workflow_engine import WorkflowEngine
+            WorkflowEngine().handle_order_cancelled(c.db, row, c.user.id, c.user.role)
+    except Exception as cancel_err:
+        import logging
+        logging.getLogger('ehr.workflow').warning('Injection order cancellation hook failed: %s', cancel_err)
+        c.db.add(m.AuditEvent(
+            facility_id=c.facility_id,
+            actor_id=c.user.id,
+            action="workflow_order_cancel_hook_failed",
+            entity_type="injection_orders",
+            entity_id=row.id,
+            detail=cancel_err.__class__.__name__
+        ))
+        c.db.add(m.Job(
+            facility_id=c.facility_id,
+            kind="workflow_order_cancel_hook_retry",
+            status="pending",
+            result=json.dumps({"order_id": row.id, "facility_id": c.facility_id, "actor_id": c.user.id, "actor_role": c.user.role})
+        ))
     return {'status': 'cancelled', 'id': identifier}
 
 

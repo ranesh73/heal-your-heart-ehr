@@ -51,6 +51,8 @@ ALLOWLISTED_TOOLS: Set[str] = {
     "create_administrative_task",
     "send_staff_notification",
     "trigger_patient_arrival_workflow",
+    "get_patient_journey",
+    "update_workflow_step",
 }
 
 # Forbidden clinical actions strictly prohibited for any AI tool
@@ -120,6 +122,17 @@ class SendStaffNotificationArgs(ToolArgs):
 
 class TriggerPatientArrivalWorkflowArgs(ToolArgs):
     appointment_id: str = Field(..., min_length=1, description="Checked-in appointment ID")
+
+
+class GetPatientJourneyArgs(ToolArgs):
+    patient_id: Optional[str] = Field(None, description="Patient ID to fetch journey for")
+    appointment_id: Optional[str] = Field(None, description="Appointment ID to fetch journey for")
+
+
+class UpdateWorkflowStepArgs(ToolArgs):
+    step_id: str = Field(..., min_length=1, description="Workflow step ID")
+    action: Literal["acknowledge", "start", "block", "unblock", "complete"] = Field(..., description="Action to perform on workflow step")
+    reason: Optional[str] = Field(None, description="Optional notes or written reason for action")
 
 
 # ---------------------------------------------------------------------------
@@ -367,6 +380,100 @@ def _handle_trigger_patient_arrival_workflow(ctx: ToolContext, args: TriggerPati
     )
 
 
+def _handle_get_patient_journey(ctx: ToolContext, args: GetPatientJourneyArgs) -> Dict[str, Any]:
+    from .security import CLINICAL
+    query = select(m.WorkflowInstance).where(m.WorkflowInstance.facility_id == ctx.facility_id)
+    if args.appointment_id:
+        query = query.where(m.WorkflowInstance.appointment_id == args.appointment_id)
+    elif args.patient_id:
+        query = query.where(m.WorkflowInstance.patient_id == args.patient_id).order_by(m.WorkflowInstance.created_at.desc())
+    else:
+        raise HTTPException(status_code=422, detail="Either patient_id or appointment_id must be provided")
+
+    instance = ctx.db.scalars(query).first()
+    if not instance:
+        return {
+            "status": "no_active_workflow",
+            "message": "No workflow instance found for this patient or appointment."
+        }
+
+    steps = ctx.db.scalars(
+        select(m.WorkflowStep).where(m.WorkflowStep.instance_id == instance.id).order_by(m.WorkflowStep.created_at.asc())
+    ).all()
+
+    now_time = m.now()
+    open_steps = []
+    completed_steps = []
+    has_overdue = False
+    is_clinical = ctx.role in CLINICAL
+
+    for s in steps:
+        is_overdue = bool(s.due_at and s.due_at < now_time and s.status not in ("completed", "cancelled", "skipped"))
+        if is_overdue:
+            has_overdue = True
+
+        assignee_name = None
+        if s.assigned_user_id:
+            u = ctx.db.get(m.User, s.assigned_user_id)
+            if u:
+                assignee_name = u.name
+
+        step_info = {
+            "id": s.id,
+            "step_key": s.step_key,
+            "step_type": s.step_type,
+            "assignee_role": s.assignee_role,
+            "assigned_user_id": s.assigned_user_id,
+            "assignee_name": assignee_name,
+            "status": s.status,
+            "required": s.required,
+            "is_overdue": is_overdue,
+            "due_at": s.due_at.isoformat() if s.due_at else None,
+            "updated_at": s.updated_at.isoformat() if s.updated_at else None,
+        }
+
+        if s.status in ("completed", "skipped", "cancelled"):
+            completed_steps.append(step_info)
+        else:
+            open_steps.append(step_info)
+
+    return {
+        "instance_id": instance.id,
+        "patient_id": instance.patient_id,
+        "appointment_id": instance.appointment_id,
+        "template_key": instance.template_key,
+        "instance_status": instance.status,
+        "has_overdue_steps": has_overdue,
+        "open_steps": open_steps,
+        "completed_steps": completed_steps,
+        "clinical_access": is_clinical
+    }
+
+
+def _handle_update_workflow_step(ctx: ToolContext, args: UpdateWorkflowStepArgs) -> Dict[str, Any]:
+    from .workflow_engine import WorkflowEngine
+    engine = WorkflowEngine()
+    action_map = {
+        "acknowledge": "acknowledged",
+        "start": "in_progress",
+        "block": "blocked",
+        "unblock": "in_progress",
+        "complete": "completed"
+    }
+    target_status = action_map.get(args.action)
+    if not target_status:
+        raise HTTPException(status_code=422, detail=f"Unsupported action: {args.action}")
+
+    return engine.transition_step(
+        db=ctx.db,
+        step_id=args.step_id,
+        target_status=target_status,
+        actor_id=ctx.user_id,
+        actor_role=ctx.role,
+        facility_id=ctx.facility_id
+    )
+
+
 # ---------------------------------------------------------------------------
 # Tool Registry & Definition
 # ---------------------------------------------------------------------------
@@ -429,6 +536,22 @@ TOOL_REGISTRY: Dict[str, ToolDefinition] = {
         args_schema=TriggerPatientArrivalWorkflowArgs,
         handler=_handle_trigger_patient_arrival_workflow,
         allowed_roles=ADMINISTRATIVE_WRITE_ROLES,
+    ),
+    "get_patient_journey": ToolDefinition(
+        name="get_patient_journey",
+        description="Retrieves active workflow instance, current step, open steps with assignees, completed steps with timestamps, and overdue flags",
+        risk_class=RISK_READ,
+        args_schema=GetPatientJourneyArgs,
+        handler=_handle_get_patient_journey,
+        allowed_roles=STAFF_ROLES,
+    ),
+    "update_workflow_step": ToolDefinition(
+        name="update_workflow_step",
+        description="Transitions a workflow step status (acknowledge, start, block, unblock, complete)",
+        risk_class=RISK_SAFE_WRITE,
+        args_schema=UpdateWorkflowStepArgs,
+        handler=_handle_update_workflow_step,
+        allowed_roles=STAFF_ROLES,
     ),
 }
 
@@ -641,6 +764,37 @@ def execute_tool(
                 detail=f"Target staff member is not an active member of facility {ctx.facility_id}"
             )
 
+    # 4e. Workflow step facility ownership
+    step_id = getattr(validated_args, "step_id", None)
+    if step_id:
+        step = ctx.db.get(m.WorkflowStep, step_id)
+        if not step:
+            ctx.db.add(m.AuditEvent(
+                facility_id=ctx.facility_id,
+                actor_id=ctx.user_id,
+                action="ai_tool_rejected",
+                entity_type="workflow_steps",
+                entity_id=str(step_id),
+                detail=f"Tool: {name}; Status: rejected; Reason: Step not found 404; step_id: {step_id}; ActorType: {ctx.actor_type}"
+            ))
+            ctx.db.flush()
+            raise HTTPException(status_code=404, detail="Workflow step not found")
+        inst = ctx.db.get(m.WorkflowInstance, step.instance_id)
+        if not inst or inst.facility_id != ctx.facility_id:
+            ctx.db.add(m.AuditEvent(
+                facility_id=ctx.facility_id,
+                actor_id=ctx.user_id,
+                action="ai_tool_rejected",
+                entity_type="workflow_steps",
+                entity_id=str(step_id),
+                detail=f"Tool: {name}; Status: rejected; Reason: Cross-facility step not found; step_id: {step_id}; ActorType: {ctx.actor_type}"
+            ))
+            ctx.db.flush()
+            raise HTTPException(
+                status_code=404,
+                detail=f"Workflow step not found in facility {ctx.facility_id}"
+            )
+
     # -----------------------------------------------------------------------
     # Step 5: Tool Execution
     # -----------------------------------------------------------------------
@@ -652,6 +806,7 @@ def execute_tool(
     target_patient_id = patient_id
     target_appointment_id = appointment_id
     target_task_id = task_id
+    target_step_id = step_id
     if isinstance(result, m.Task):
         target_task_id = result.id
     elif isinstance(result, dict) and "task_id" in result:
@@ -666,6 +821,9 @@ def execute_tool(
     elif target_task_id:
         res_entity_type = "tasks"
         res_entity_id = str(target_task_id)
+    elif target_step_id:
+        res_entity_type = "workflow_steps"
+        res_entity_id = str(target_step_id)
     else:
         res_entity_type = "ai_tool"
         res_entity_id = name
@@ -676,7 +834,7 @@ def execute_tool(
         action=f"ai_tool_executed:{name}",
         entity_type=res_entity_type,
         entity_id=res_entity_id,
-        detail=f"Tool: {name}; Status: success; Risk: {tool_def.risk_class}; patient_id: {target_patient_id or ''}; appointment_id: {target_appointment_id or ''}; task_id: {target_task_id or ''}; ActorType: {ctx.actor_type}"
+        detail=f"Tool: {name}; Status: success; Risk: {tool_def.risk_class}; patient_id: {target_patient_id or ''}; appointment_id: {target_appointment_id or ''}; task_id: {target_task_id or ''}; step_id: {target_step_id or ''}; ActorType: {ctx.actor_type}"
     ))
     ctx.db.flush()
     return result
@@ -823,3 +981,29 @@ def get_available_tools_for_role(role: str) -> List[Dict[str, Any]]:
                 "parameters": list(tool_def.args_schema.model_fields.keys())
             })
     return results
+
+
+def get_ollama_tools_for_role(role: str) -> List[Dict[str, Any]]:
+    """
+    Formats tool schemas in Ollama function calling format for tools allowed for this role.
+    Exposes ONLY tools permitted for the specific role.
+    """
+    tools = []
+    for tool_name, tool_def in TOOL_REGISTRY.items():
+        if role in tool_def.allowed_roles:
+            schema = tool_def.args_schema.model_json_schema()
+            properties = schema.get("properties", {})
+            required = schema.get("required", [])
+            tools.append({
+                "type": "function",
+                "function": {
+                    "name": tool_def.name,
+                    "description": tool_def.description,
+                    "parameters": {
+                        "type": "object",
+                        "properties": properties,
+                        "required": required
+                    }
+                }
+            })
+    return tools

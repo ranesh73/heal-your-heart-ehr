@@ -95,15 +95,49 @@ def run_once() -> bool:
                 order_id = payload.get('order_id')
                 actor_id = payload.get('actor_id', job.id)
                 order = db.get(m.ClinicalOrder, order_id) if order_id else None
+                if not order and order_id:
+                    order = db.get(m.InjectionOrder, order_id)
                 if order:
-                    engine = WorkflowEngine()
-                    step = engine.handle_order_created(db, order, actor_id)
-                    job.status = 'completed'
-                    job.result = json.dumps({'status': 'success', 'step_id': step.id if step else None})
-                    job.completed_at = now()
+                    order_status = str(getattr(order, 'status', '')).lower()
+                    if order_status in ('cancelled', 'expired', 'discontinued'):
+                        job.status = 'completed'
+                        job.result = json.dumps({'status': 'skipped', 'reason': 'order_cancelled'})
+                        job.completed_at = now()
+                    else:
+                        engine = WorkflowEngine()
+                        step = engine.handle_order_created(db, order, actor_id)
+                        job.status = 'completed'
+                        job.result = json.dumps({'status': 'success', 'step_id': step.id if step else None})
+                        job.completed_at = now()
                 else:
                     job.status = 'failed'
                     job.result = json.dumps({'error': 'Order not found for retry'})
+                    job.completed_at = now()
+
+            elif job.kind == 'workflow_order_cancel_hook_retry':
+                from .workflow_engine import WorkflowEngine
+                from . import models as m
+                payload = {}
+                if job.result:
+                    try:
+                        payload = json.loads(job.result)
+                    except Exception:
+                        pass
+                order_id = payload.get('order_id')
+                actor_id = payload.get('actor_id', job.id)
+                actor_role = payload.get('actor_role', 'admin')
+                order = db.get(m.ClinicalOrder, order_id) if order_id else None
+                if not order and order_id:
+                    order = db.get(m.InjectionOrder, order_id)
+                if order:
+                    engine = WorkflowEngine()
+                    engine.handle_order_cancelled(db, order, actor_id, actor_role)
+                    job.status = 'completed'
+                    job.result = json.dumps({'status': 'success'})
+                    job.completed_at = now()
+                else:
+                    job.status = 'failed'
+                    job.result = json.dumps({'error': 'Order not found for cancel retry'})
                     job.completed_at = now()
 
             else:

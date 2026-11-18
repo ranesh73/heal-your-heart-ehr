@@ -824,7 +824,8 @@ def test_phase2b_step_1_migration_fresh_db_schema_parity():
         "workflow_instances",
         "workflow_steps",
         "step_dependencies",
-        "workflow_events"
+        "workflow_events",
+        "ai_pending_actions"
     }
     for wt in workflow_tables:
         assert wt in table_names, f"Table {wt} must exist after upgrade head on fresh DB"
@@ -841,6 +842,9 @@ def test_phase2b_step_1_migration_fresh_db_schema_parity():
 
     event_cols = {c["name"] for c in insp.get_columns("workflow_events")}
     assert {"id", "created_at", "version", "instance_id", "step_id", "event_type", "actor_id", "actor_type", "timestamp"}.issubset(event_cols)
+
+    pending_cols = {c["name"] for c in insp.get_columns("ai_pending_actions")}
+    assert {"id", "created_at", "version", "facility_id", "user_id", "tool", "args_json", "status", "expires_at", "resolved_at"}.issubset(pending_cols)
 
 
 def test_phase2b_step_2_task_step_synchronization_lifecycle():
@@ -1516,5 +1520,350 @@ def test_phase3_b2_checkout_allowed_after_all_steps_completed_and_instance_compl
     })
     assert cancel_res.status_code == 200
     assert cancel_res.json()["status"] == "cancelled"
+
+
+# ===========================================================================
+# PART A TESTS: Phase 4 Fixes
+# ===========================================================================
+
+def test_phase4_a2_real_values_order_type_map_case_insensitivity_and_ecg():
+    """
+    A2: Verifies ORDER_TYPE_MAP case-insensitivity, real values, ECG mapping,
+    and that unmapped types record an 'order_type_unmapped' workflow event without failure.
+    """
+    c_rec = client("reception")
+    c_doc = client("doctor")
+    p = patient(c_rec)
+    appt = ok(c_rec.post("/api/appointments", json=booking(c_rec, p, day=29, hour=11)))[0]
+    ok(c_rec.post(f"/api/appointments/{appt['id']}/status", json={"status": "checked-in", "version": appt["version"]}))
+
+    # 1. ECG order with lowercase "ecg"
+    ecg_order = ok(c_doc.post("/api/records/orders", json={
+        "patient_id": p["id"],
+        "kind": "ecg",
+        "name": "12-Lead Resting ECG",
+        "instructions": "Calibrate at 25mm/s"
+    }))
+    with SessionLocal() as db:
+        step = db.scalar(select(m.WorkflowStep).where(m.WorkflowStep.order_id == ecg_order["id"]))
+        assert step is not None
+        assert step.step_type == "order_ecg"
+        assert step.assignee_role == "assistant"
+
+    # 2. ECG order with uppercase "ECG"
+    ecg_order_upper = ok(c_doc.post("/api/records/orders", json={
+        "patient_id": p["id"],
+        "kind": "ECG",
+        "name": "Exercise Stress ECG Monitoring",
+        "instructions": "Bruce protocol"
+    }))
+    with SessionLocal() as db:
+        step_upper = db.scalar(select(m.WorkflowStep).where(m.WorkflowStep.order_id == ecg_order_upper["id"]))
+        assert step_upper is not None
+        assert step_upper.step_type == "order_ecg"
+        assert step_upper.assignee_role == "assistant"
+
+    # 3. Unmapped order type (e.g. "dietary" or "counseling")
+    unmapped_order = ok(c_doc.post("/api/records/orders", json={
+        "patient_id": p["id"],
+        "kind": "dietary",
+        "name": "Cardiac Low-Sodium Diet Consultation",
+        "instructions": "Evaluate daily sodium intake"
+    }))
+    assert unmapped_order["id"] is not None
+    with SessionLocal() as db:
+        step_unmapped = db.scalar(select(m.WorkflowStep).where(m.WorkflowStep.order_id == unmapped_order["id"]))
+        assert step_unmapped is None, "Unmapped order kind must NOT create a workflow step"
+
+        # Confirms 'order_type_unmapped' event was appended
+        ev = db.scalar(
+            select(m.WorkflowEvent).where(
+                m.WorkflowEvent.event_type == "order_type_unmapped"
+            ).order_by(m.WorkflowEvent.id.desc())
+        )
+        assert ev is not None
+        doc_id = c_doc.get("/api/auth/me").json()["user"]["id"]
+        assert ev.actor_id == doc_id
+
+
+def test_phase4_a2_injections_module_workflow_expansion():
+    """
+    A2: Verifies injection orders created through the dedicated injections module
+    (/injections/orders) add an order_injection workflow step to the active instance,
+    and cancelling the injection order cancels the step.
+    """
+    c_rec = client("reception")
+    c_doc = client("doctor")
+    p = patient(c_rec)
+    appt = ok(c_rec.post("/api/appointments", json=booking(c_rec, p, day=29, hour=12)))[0]
+    ok(c_rec.post(f"/api/appointments/{appt['id']}/status", json={"status": "checked-in", "version": appt["version"]}))
+
+    # Clinician creates injection order via dedicated injections endpoint
+    inj_order = ok(c_doc.post("/api/injections/orders", json={
+        "patient_id": p["id"],
+        "medication_name_snapshot": "Furosemide 20mg/2mL",
+        "dosage": "20mg",
+        "route": "Intravenous (IV)",
+        "site": "Left Antecubital",
+        "frequency": "Stat",
+        "nurse_note": "Administer slow IV push over 2 minutes",
+        "comments": "Cardiac acute edema protocol"
+    }))
+    assert inj_order["id"] is not None
+
+    with SessionLocal() as db:
+        step = db.scalar(select(m.WorkflowStep).where(m.WorkflowStep.order_id == inj_order["id"]))
+        assert step is not None, "Injection order must add a workflow step"
+        assert step.step_type == "order_injection"
+        assert step.assignee_role == "assistant"
+        assert step.status == "pending"
+
+    # Cancel the injection order via DELETE
+    cancel_res = c_doc.delete(f"/api/injections/orders/{inj_order['id']}")
+    assert cancel_res.status_code == 200
+
+    with SessionLocal() as db:
+        step_cancelled = db.scalar(select(m.WorkflowStep).where(m.WorkflowStep.order_id == inj_order["id"]))
+        assert step_cancelled.status == "cancelled"
+
+
+def test_phase4_a3_order_create_and_cancel_savepoints_and_worker_retry():
+    """
+    A3: Verifies:
+    1. Create-hook failure rolls back savepoint, audits exception CLASS NAME only, and enqueues retry.
+    2. Cancel-hook failure rolls back savepoint, audits exception CLASS NAME only, and enqueues retry.
+    3. Worker retry job skips orders that are cancelled and never recreates a step for them.
+    """
+    c_rec = client("reception")
+    c_doc = client("doctor")
+    p = patient(c_rec)
+    appt = ok(c_rec.post("/api/appointments", json=booking(c_rec, p, day=29, hour=14)))[0]
+    ok(c_rec.post(f"/api/appointments/{appt['id']}/status", json={"status": "checked-in", "version": appt["version"]}))
+
+    from app.workflow_engine import WorkflowEngine
+
+    # 1. Test create hook failure
+    with unittest.mock.patch.object(WorkflowEngine, "handle_order_created", side_effect=ZeroDivisionError("simulated math error")):
+        order = ok(c_doc.post("/api/records/orders", json={
+            "patient_id": p["id"],
+            "kind": "Lab",
+            "name": "Serum Potassium Check"
+        }))
+        assert order["id"] is not None
+
+    with SessionLocal() as db:
+        audit = db.scalar(
+            select(m.AuditEvent).where(
+                m.AuditEvent.entity_id == order["id"],
+                m.AuditEvent.action == "workflow_order_hook_failed"
+            ).order_by(m.AuditEvent.id.desc())
+        )
+        assert audit is not None
+        assert audit.detail == "ZeroDivisionError", "Audit detail must be exception CLASS NAME only"
+
+        job = db.scalar(
+            select(m.Job).where(
+                m.Job.kind == "workflow_order_hook_retry",
+                m.Job.status == "pending"
+            ).order_by(m.Job.id.desc())
+        )
+        assert job is not None
+
+    # 2. Test cancel hook failure
+    with unittest.mock.patch.object(WorkflowEngine, "handle_order_cancelled", side_effect=KeyError("simulated key error")):
+        cancel_res = c_doc.post(f"/api/records/orders/{order['id']}/status", json={
+            "status": "cancelled",
+            "version": order["version"],
+            "reason": "Test cancel hook failure"
+        })
+        assert cancel_res.status_code == 200
+
+    with SessionLocal() as db:
+        cancel_audit = db.scalar(
+            select(m.AuditEvent).where(
+                m.AuditEvent.entity_id == order["id"],
+                m.AuditEvent.action == "workflow_order_cancel_hook_failed"
+            ).order_by(m.AuditEvent.id.desc())
+        )
+        assert cancel_audit is not None
+        assert cancel_audit.detail == "KeyError", "Audit detail must be exception CLASS NAME only"
+
+        cancel_job = db.scalar(
+            select(m.Job).where(
+                m.Job.kind == "workflow_order_cancel_hook_retry",
+                m.Job.status == "pending"
+            ).order_by(m.Job.id.desc())
+        )
+        assert cancel_job is not None
+
+    # 3. Test that worker retry job skips orders that are cancelled and never recreates a step for them
+    from app import worker
+    worker_ran = False
+    for _ in range(15):
+        if not worker.run_once():
+            break
+        worker_ran = True
+
+    assert worker_ran
+    with SessionLocal() as db:
+        # Check that retry job for the cancelled order was skipped
+        j_refreshed = db.get(m.Job, job.id)
+        assert j_refreshed.status == "completed"
+        res_data = json.loads(j_refreshed.result)
+        assert res_data.get("status") == "skipped"
+        assert res_data.get("reason") == "order_cancelled"
+
+        # Confirm step was NOT created
+        step_created = db.scalar(select(m.WorkflowStep).where(m.WorkflowStep.order_id == order["id"]))
+        assert step_created is None
+
+
+def test_phase4_a4_checkout_gate_coverage_all_paths():
+    """
+    A4: Verifies checkout gate covers all code paths that set appointment status to 'completed':
+    - POST /api/appointments/{id}/status
+    - PUT /api/appointments/{id}
+    - PATCH /api/appointments/{id}
+    """
+    c_rec = client("reception")
+    c_doc = client("doctor")
+    p = patient(c_rec)
+    appt = ok(c_rec.post("/api/appointments", json=booking(c_rec, p, day=29, hour=16)))[0]
+    ok(c_rec.post(f"/api/appointments/{appt['id']}/status", json={"status": "checked-in", "version": appt["version"]}))
+
+    # Path 1: POST /status
+    res1 = c_rec.post(f"/api/appointments/{appt['id']}/status", json={
+        "status": "completed",
+        "version": appt["version"] + 1
+    })
+    assert res1.status_code == 409
+    assert "open required steps" in res1.json()["detail"]
+
+    # Path 2: PUT /appointments/{id}
+    res2 = c_rec.put(f"/api/appointments/{appt['id']}", json={
+        "status": "completed"
+    })
+    assert res2.status_code == 409
+    assert "open required steps" in res2.json()["detail"]
+
+    # Path 3: PATCH /appointments/{id}
+    res3 = c_rec.patch(f"/api/appointments/{appt['id']}", json={
+        "status": "completed"
+    })
+    assert res3.status_code == 409
+    assert "open required steps" in res3.json()["detail"]
+
+    # Doctor override on POST /status with reason succeeds
+    res_override = c_doc.post(f"/api/appointments/{appt['id']}/status", json={
+        "status": "completed",
+        "version": appt["version"] + 1,
+        "reason": "Authorized clinical checkout override for outpatient follow-up"
+    })
+    assert res_override.status_code == 200
+    assert res_override.json()["status"] == "completed"
+
+
+def test_phase4_a6_assignment_fewest_open_tasks_spread_evenly():
+    """
+    A6: Verifies assistant and reception steps choose the active role-holder
+    in the facility with the FEWEST open workflow tasks (ties broken by user id).
+    Verifies that with three assistants, tasks spread evenly across them.
+    """
+    from app.workflow_engine import WorkflowEngine
+    engine = WorkflowEngine()
+
+    with SessionLocal() as db:
+        f = db.query(m.Facility).first()
+        inst = db.query(m.WorkflowInstance).first()
+
+        # Create 3 assistants with clean slate in facility f
+        asst_users = []
+        for i in range(1, 4):
+            uid = f"test-asst-spread-{i:02d}"
+            u = db.get(m.User, uid)
+            if not u:
+                u = m.User(
+                    id=uid,
+                    name=f"Assistant {i}",
+                    email=f"asst{i}@test.org",
+                    role="assistant",
+                    password_hash="test_hash",
+                    active=True
+                )
+                db.add(u)
+                db.flush()
+                db.add(m.UserFacility(user_id=u.id, facility_id=f.id))
+            asst_users.append(u)
+        db.commit()
+
+        # First resolution: all have 0 open tasks -> picks asst_users[0] by lowest ID
+        picked_1 = engine._find_active_facility_user_by_role(db, f.id, "assistant")
+        assert picked_1.id == asst_users[0].id
+
+        # Create real tasks for task_id foreign key
+        t1 = m.Task(
+            facility_id=f.id,
+            patient_id=inst.patient_id,
+            author_id=asst_users[0].id,
+            assignee_id=asst_users[0].id,
+            title="Task 1",
+            status="pending"
+        )
+        t2 = m.Task(
+            facility_id=f.id,
+            patient_id=inst.patient_id,
+            author_id=asst_users[1].id,
+            assignee_id=asst_users[1].id,
+            title="Task 2",
+            status="pending"
+        )
+        db.add(t1)
+        db.add(t2)
+        db.flush()
+
+        # Simulate assigning task to asst_users[0]
+        step1 = m.WorkflowStep(
+            instance_id=inst.id,
+            step_key="step_sim_1",
+            step_type="vitals",
+            assignee_role="assistant",
+            assigned_user_id=asst_users[0].id,
+            task_id=t1.id,
+            status="in_progress",
+            required=True
+        )
+        db.add(step1)
+        db.commit()
+
+        # Second resolution: asst 1 has 1 task, asst 2 and 3 have 0 -> picks asst_users[1]
+        picked_2 = engine._find_active_facility_user_by_role(db, f.id, "assistant")
+        assert picked_2.id == asst_users[1].id
+
+        # Simulate assigning task to asst_users[1]
+        step2 = m.WorkflowStep(
+            instance_id=inst.id,
+            step_key="step_sim_2",
+            step_type="vitals",
+            assignee_role="assistant",
+            assigned_user_id=asst_users[1].id,
+            task_id=t2.id,
+            status="in_progress",
+            required=True
+        )
+        db.add(step2)
+        db.commit()
+
+        # Third resolution: asst 1 and 2 have 1 task, asst 3 has 0 -> picks asst_users[2]
+        picked_3 = engine._find_active_facility_user_by_role(db, f.id, "assistant")
+        assert picked_3.id == asst_users[2].id
+
+        # Clean up simulated steps and tasks
+        db.delete(step1)
+        db.delete(step2)
+        db.flush()
+        db.delete(t1)
+        db.delete(t2)
+        db.commit()
+
 
 

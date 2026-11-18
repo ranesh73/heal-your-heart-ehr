@@ -14,6 +14,16 @@ import {
 } from "lucide-react";
 import { api, Row } from "./api";
 
+interface PendingActionInfo {
+  actionId: string;
+  tool: string;
+  args: Record<string, any>;
+  summary: string;
+  status: "pending" | "confirming" | "confirmed" | "rejected" | "error";
+  result?: any;
+  error?: string;
+}
+
 interface Message {
   id: string;
   sender: "user" | "assistant";
@@ -21,6 +31,7 @@ interface Message {
   timestamp: string;
   mode?: string;
   isError?: boolean;
+  confirmation?: PendingActionInfo;
 }
 
 interface AICopilotDrawerProps {
@@ -114,12 +125,20 @@ Restricted clinical actions (such as signing encounters or prescribing medicatio
         patient_id: selectedPatientId || undefined,
       });
 
+      const isConfirmation = res.type === "action_confirmation_required";
       const assistantMsg: Message = {
         id: "a-" + Date.now(),
         sender: "assistant",
-        text: res.response,
+        text: res.summary || res.response,
         timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
         mode: res.mode,
+        confirmation: isConfirmation && res.action_id ? {
+          actionId: res.action_id,
+          tool: res.tool || "action",
+          args: res.args || {},
+          summary: res.summary || res.response,
+          status: "pending"
+        } : undefined
       };
       setMessages((prev) => [...prev, assistantMsg]);
     } catch (err: any) {
@@ -133,6 +152,82 @@ Restricted clinical actions (such as signing encounters or prescribing medicatio
       setMessages((prev) => [...prev, errorMsg]);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleConfirmAction = async (msgId: string, actionId: string) => {
+    setMessages((prev) =>
+      prev.map((m) =>
+        m.id === msgId && m.confirmation
+          ? { ...m, confirmation: { ...m.confirmation, status: "confirming" } }
+          : m
+      )
+    );
+    try {
+      const res = await api(`/ai/actions/${actionId}/confirm`, "POST");
+      setMessages((prev) =>
+        prev.map((m) =>
+          m.id === msgId && m.confirmation
+            ? {
+                ...m,
+                confirmation: {
+                  ...m.confirmation,
+                  status: "confirmed",
+                  result: res.result,
+                },
+              }
+            : m
+        )
+      );
+    } catch (err: any) {
+      setMessages((prev) =>
+        prev.map((m) =>
+          m.id === msgId && m.confirmation
+            ? {
+                ...m,
+                confirmation: {
+                  ...m.confirmation,
+                  status: "error",
+                  error: err.message || "Action expired or confirmation failed",
+                },
+              }
+            : m
+        )
+      );
+    }
+  };
+
+  const handleRejectAction = async (msgId: string, actionId: string) => {
+    try {
+      await api(`/ai/actions/${actionId}/reject`, "POST");
+      setMessages((prev) =>
+        prev.map((m) =>
+          m.id === msgId && m.confirmation
+            ? {
+                ...m,
+                confirmation: {
+                  ...m.confirmation,
+                  status: "rejected",
+                },
+              }
+            : m
+        )
+      );
+    } catch (err: any) {
+      setMessages((prev) =>
+        prev.map((m) =>
+          m.id === msgId && m.confirmation
+            ? {
+                ...m,
+                confirmation: {
+                  ...m.confirmation,
+                  status: "error",
+                  error: err.message || "Failed to cancel action",
+                },
+              }
+            : m
+        )
+      );
     }
   };
 
@@ -242,6 +337,80 @@ Restricted clinical actions (such as signing encounters or prescribing medicatio
                   }`}
                 >
                   <p className="whitespace-pre-wrap leading-relaxed">{m.text}</p>
+
+                  {m.confirmation && (
+                    <div className="mt-2.5 rounded-xl border border-amber-300 bg-amber-50/70 p-3 shadow-sm text-left">
+                      <div className="flex items-center justify-between pb-1.5 border-b border-amber-200">
+                        <span className="flex items-center gap-1.5 font-bold text-amber-900 text-xs">
+                          <ShieldAlert className="h-4 w-4 text-amber-600" /> Action Confirmation Required
+                        </span>
+                        <span className="rounded bg-amber-200/70 px-1.5 py-0.5 text-[10px] font-semibold text-amber-800">
+                          Expires in 10m
+                        </span>
+                      </div>
+
+                      <div className="mt-2 space-y-1 text-[11px] text-slate-700">
+                        <p className="font-semibold text-slate-900">
+                          Action: <code className="bg-white px-1.5 py-0.5 rounded border border-amber-200 font-mono text-teal-800">{m.confirmation.tool}</code>
+                        </p>
+                        <div className="mt-1 bg-white/90 p-2 rounded border border-amber-200 space-y-0.5">
+                          {Object.entries(m.confirmation.args).map(([k, v]) => (
+                            <div key={k} className="flex gap-2 text-[11px]">
+                              <span className="font-medium text-slate-500 capitalize">{k.replace(/_/g, " ")}:</span>
+                              <span className="font-semibold text-slate-800">{String(v)}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+
+                      {m.confirmation.status === "pending" && (
+                        <div className="mt-3 flex items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={() => handleConfirmAction(m.id, m.confirmation!.actionId)}
+                            className="flex-1 rounded-lg bg-teal-700 py-1.5 px-3 text-xs font-semibold text-white shadow-sm hover:bg-teal-800 transition"
+                          >
+                            Confirm & Execute
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleRejectAction(m.id, m.confirmation!.actionId)}
+                            className="rounded-lg bg-slate-200 py-1.5 px-3 text-xs font-medium text-slate-700 hover:bg-slate-300 transition"
+                          >
+                            Cancel
+                          </button>
+                        </div>
+                      )}
+
+                      {m.confirmation.status === "confirming" && (
+                        <div className="mt-3 flex items-center justify-center gap-2 text-xs text-teal-800 font-medium">
+                          <Loader2 className="h-4 w-4 animate-spin text-teal-600" />
+                          <span>Executing action...</span>
+                        </div>
+                      )}
+
+                      {m.confirmation.status === "confirmed" && (
+                        <div className="mt-2.5 rounded-lg bg-emerald-100/90 border border-emerald-300 p-2 flex items-center gap-2 text-xs text-emerald-900 font-semibold">
+                          <CheckCircle2 className="h-4 w-4 text-emerald-700 shrink-0" />
+                          <span>Action Confirmed & Executed Successfully</span>
+                        </div>
+                      )}
+
+                      {m.confirmation.status === "rejected" && (
+                        <div className="mt-2.5 rounded-lg bg-slate-200/80 border border-slate-300 p-2 flex items-center gap-2 text-xs text-slate-700">
+                          <X className="h-4 w-4 text-slate-500 shrink-0" />
+                          <span>Action Cancelled by User</span>
+                        </div>
+                      )}
+
+                      {m.confirmation.status === "error" && (
+                        <div className="mt-2.5 rounded-lg bg-rose-100 border border-rose-300 p-2 flex items-center gap-2 text-xs text-rose-800">
+                          <AlertCircle className="h-4 w-4 text-rose-600 shrink-0" />
+                          <span>{m.confirmation.error || "Action expired or failed"}</span>
+                        </div>
+                      )}
+                    </div>
+                  )}
                   <div
                     className={`mt-1 flex items-center justify-end gap-1.5 text-[10px] ${
                       m.sender === "user" ? "text-teal-200" : "text-slate-400"

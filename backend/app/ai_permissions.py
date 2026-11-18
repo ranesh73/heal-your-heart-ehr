@@ -43,7 +43,7 @@ RESTRICTED_INTENT_PATTERNS: List[Tuple[str, re.Pattern]] = [
     # 1. Encounter Signing, Sealing, Finalizing, Closing
     (
         'sign_or_seal_encounter',
-        re.compile(r'\b(sign|seal|finalize|approve|lock|close)\b(?:\s+[\w\'-]+){0,5}\s+\b(encounter|chart|note|record|visit|soap|consult|consultation|documentation)\b', re.IGNORECASE)
+        re.compile(r'\b(sign|seal|finalize|approve|lock|close)\b(?:\s+[\w\'\.\-]+){0,5}\s+\b(encounter|chart|note|record|visit|soap|consult|consultation|documentation)\b', re.IGNORECASE)
     ),
     (
         'approve_and_sign',
@@ -51,7 +51,7 @@ RESTRICTED_INTENT_PATTERNS: List[Tuple[str, re.Pattern]] = [
     ),
     (
         'seal_the_record',
-        re.compile(r'\bseal\b(?:\s+[\w\'-]+){0,4}\s+\b(record|encounter|chart|note)\b', re.IGNORECASE)
+        re.compile(r'\bseal\b(?:\s+[\w\'\.\-]+){0,4}\s+\b(record|encounter|chart|note)\b', re.IGNORECASE)
     ),
     # 2. Prescribing, Writing Orders for Medications / Drugs
     (
@@ -60,25 +60,25 @@ RESTRICTED_INTENT_PATTERNS: List[Tuple[str, re.Pattern]] = [
     ),
     (
         'write_order_for_drug',
-        re.compile(r'\b(write|place|issue|submit|create)\b(?:\s+[\w\'-]+){0,4}\s+\b(order|prescription|rx)\b(?:\s+[\w\'-]+){0,4}\s+\b(drug|medication|medicine|substance)\b', re.IGNORECASE)
+        re.compile(r'\b(write|place|issue|submit|create)\b(?:\s+[\w\'\.\-]+){0,4}\s+\b(order|prescription|rx)\b(?:\s+[\w\'\.\-]+){0,4}\s+\b(drug|medication|medicine|substance)\b', re.IGNORECASE)
     ),
     (
         'order_medication',
-        re.compile(r'\b(order|dispense)\b(?:\s+[\w\'-]+){0,4}\s+\b(medication|drug|medicine|tablets?|capsules?|dose)\b', re.IGNORECASE)
+        re.compile(r'\b(order|dispense)\b(?:\s+[\w\'\.\-]+){0,4}\s+\b(medication|drug|medicine|tablets?|capsules?|dose)\b', re.IGNORECASE)
     ),
     # 3. Clinical Orders Finalizing / Lab Results Approval
     (
         'finalize_clinical_order',
-        re.compile(r'\b(finalize|approve|authorize|verify)\b(?:\s+[\w\'-]+){0,5}\s+\b(clinical\s+order|lab\s+order|imaging\s+order|lab\s+result|test\s+result|order)\b', re.IGNORECASE)
+        re.compile(r'\b(finalize|approve|authorize|verify)\b(?:\s+[\w\'\.\-]+){0,5}\s+\b(clinical\s+order|lab\s+order|imaging\s+order|lab\s+result|test\s+result|order)\b', re.IGNORECASE)
     ),
     # 4. Modifying Signed Records / Treatment Plan Alterations
     (
         'modify_signed_record',
-        re.compile(r'\b(modify|change|alter|edit|amend)\b(?:\s+[\w\'-]+){0,4}\s+\b(signed|sealed)\b', re.IGNORECASE)
+        re.compile(r'\b(modify|change|alter|edit|amend)\b(?:\s+[\w\'\.\-]+){0,4}\s+\b(signed|sealed)\b', re.IGNORECASE)
     ),
     (
         'alter_treatment_plan',
-        re.compile(r'\b(change|alter|modify|cancel)\b(?:\s+[\w\'-]+){0,4}\s+\b(treatment\s+plan|eecp\s+plan|therapy\s+plan)\b', re.IGNORECASE)
+        re.compile(r'\b(change|alter|modify|cancel)\b(?:\s+[\w\'\.\-]+){0,4}\s+\b(treatment\s+plan|eecp\s+plan|therapy\s+plan)\b', re.IGNORECASE)
     ),
 ]
 
@@ -90,6 +90,8 @@ TOOL_PERMISSIONS: Dict[str, Set[str]] = {
     'create_administrative_task': ADMINISTRATIVE_WRITE_ROLES,
     'send_staff_notification': ADMINISTRATIVE_WRITE_ROLES,
     'trigger_patient_arrival_workflow': ADMINISTRATIVE_WRITE_ROLES,
+    'get_patient_journey': STAFF_ROLES,
+    'update_workflow_step': STAFF_ROLES,
 }
 
 

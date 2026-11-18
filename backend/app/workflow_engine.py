@@ -13,7 +13,7 @@ import logging
 from datetime import datetime, date, timedelta
 from typing import List, Dict, Any, Optional, Set
 from dataclasses import dataclass, field
-from sqlalchemy import select, and_
+from sqlalchemy import select, and_, func
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError
 from fastapi import HTTPException
@@ -36,14 +36,15 @@ VALID_STEP_TRANSITIONS: Dict[str, Set[str]] = {
 }
 
 
-# Phase 3: Code-level map from order type to step type and assignee_role
+# Phase 3/4: Code-level map from order type to step type and assignee_role (case-insensitive keys)
 ORDER_TYPE_MAP: Dict[str, Dict[str, str]] = {
-    "Lab": {"step_type": "order_lab", "assignee_role": "assistant", "prefix": "Fulfill Lab Order"},
-    "Imaging": {"step_type": "order_imaging", "assignee_role": "assistant", "prefix": "Fulfill Imaging Order"},
-    "Image": {"step_type": "order_imaging", "assignee_role": "assistant", "prefix": "Fulfill Imaging Order"},
-    "Injection": {"step_type": "order_injection", "assignee_role": "assistant", "prefix": "Administer Injection"},
-    "Vaccine": {"step_type": "order_vaccine", "assignee_role": "assistant", "prefix": "Administer Vaccine"},
-    "Referral": {"step_type": "order_referral", "assignee_role": "reception", "prefix": "Process Referral"},
+    "lab": {"step_type": "order_lab", "assignee_role": "assistant", "prefix": "Fulfill Lab Order"},
+    "imaging": {"step_type": "order_imaging", "assignee_role": "assistant", "prefix": "Fulfill Imaging Order"},
+    "image": {"step_type": "order_imaging", "assignee_role": "assistant", "prefix": "Fulfill Imaging Order"},
+    "ecg": {"step_type": "order_ecg", "assignee_role": "assistant", "prefix": "Perform ECG Tracing"},
+    "injection": {"step_type": "order_injection", "assignee_role": "assistant", "prefix": "Administer Injection"},
+    "vaccine": {"step_type": "order_vaccine", "assignee_role": "assistant", "prefix": "Administer Vaccine"},
+    "referral": {"step_type": "order_referral", "assignee_role": "reception", "prefix": "Process Referral"},
 }
 
 
@@ -315,11 +316,16 @@ class WorkflowEngine:
 
                 if step.order_id:
                     order = db.get(m.ClinicalOrder, step.order_id)
+                    if not order:
+                        order = db.get(m.InjectionOrder, step.order_id)
                     if order:
-                        order_info = ORDER_TYPE_MAP.get(order.kind, {})
+                        order_kind = getattr(order, 'kind', None) or 'Injection'
+                        order_name = getattr(order, 'name', None) or getattr(order, 'medication_name_snapshot', 'Medication')
+                        order_info = ORDER_TYPE_MAP.get(str(order_kind).strip().lower(), {})
                         prefix = order_info.get("prefix", "Fulfill Order")
-                        title = f"{prefix}: {order.name}{token_info}"
-                        desc = f"Order: {order.kind} - {order.name}\nInstructions: {order.instructions or 'None'}"
+                        title = f"{prefix}: {order_name}{token_info}"
+                        instructions = getattr(order, 'instructions', None) or getattr(order, 'nurse_note', None) or getattr(order, 'comments', None) or 'None'
+                        desc = f"Order: {order_kind} - {order_name}\nInstructions: {instructions}"
                         priority = "high"
                     else:
                         title = f"{step.step_key}{token_info}"
@@ -602,37 +608,92 @@ class WorkflowEngine:
         facility_id: str,
         role: str
     ) -> Optional[m.User]:
+        # Count open workflow tasks assigned to users with this role in the facility
+        # Chooses active role-holder with FEWEST open tasks, ties broken by user id
+        subq = (
+            select(
+                m.WorkflowStep.assigned_user_id.label("user_id"),
+                func.count(m.WorkflowStep.id).label("open_count")
+            )
+            .where(
+                m.WorkflowStep.status.notin_(['completed', 'skipped', 'cancelled']),
+                m.WorkflowStep.task_id.isnot(None)
+            )
+            .group_by(m.WorkflowStep.assigned_user_id)
+            .subquery()
+        )
+
         return db.scalar(
-            select(m.User).join(
+            select(m.User)
+            .join(
                 m.UserFacility,
                 m.User.id == m.UserFacility.user_id
-            ).where(
+            )
+            .outerjoin(subq, m.User.id == subq.c.user_id)
+            .where(
                 m.UserFacility.facility_id == facility_id,
                 m.User.role == role,
                 m.User.active == True
-            ).limit(1)
+            )
+            .order_by(
+                func.coalesce(subq.c.open_count, 0).asc(),
+                m.User.id.asc()
+            )
+            .limit(1)
         )
 
     def handle_order_created(
         self,
         db: Session,
-        order: m.ClinicalOrder,
+        order: Any,
         actor_id: str
     ) -> Optional[m.WorkflowStep]:
         """
-        Phase 3: Order expansion hook.
-        When a clinician places an order that requires staff work (lab, imaging, injection, etc.),
+        Phase 3/4: Order expansion hook.
+        When a clinician places an order that requires staff work (lab, imaging, ecg, injection, etc.),
         the engine adds a required workflow step to the active workflow instance for that appointment.
         - Idempotent: Unique on (instance_id, order_id) ensures repeated hooks never duplicate steps.
-        - If no active instance exists, records a workflow event and returns None without failing.
+        - Case-insensitive order type matching.
+        - Unmapped order types record 'order_type_unmapped' workflow event without failing.
+        - If no active instance exists, records 'order_unlinked' workflow event and returns None without failing.
         """
-        order_info = ORDER_TYPE_MAP.get(order.kind)
+        order_kind = getattr(order, 'kind', None) or ('Injection' if hasattr(order, 'medication_name_snapshot') else 'unknown')
+        order_info = ORDER_TYPE_MAP.get(str(order_kind or "").strip().lower())
+
+        # If order kind is not mapped to staff workflow, record event and return cleanly
         if not order_info:
+            instance = None
+            if getattr(order, 'encounter_id', None):
+                enc = db.get(m.Encounter, order.encounter_id)
+                if enc and enc.appointment_id:
+                    instance = db.scalar(
+                        select(m.WorkflowInstance).where(
+                            m.WorkflowInstance.appointment_id == enc.appointment_id,
+                            m.WorkflowInstance.status == 'active'
+                        )
+                    )
+            if not instance:
+                instance = db.scalar(
+                    select(m.WorkflowInstance).where(
+                        m.WorkflowInstance.patient_id == order.patient_id,
+                        m.WorkflowInstance.facility_id == order.facility_id,
+                        m.WorkflowInstance.status == 'active'
+                    ).order_by(m.WorkflowInstance.created_at.desc())
+                )
+            db.add(m.WorkflowEvent(
+                instance_id=instance.id if instance else None,
+                step_id=None,
+                event_type="order_type_unmapped",
+                actor_id=actor_id,
+                actor_type="user",
+                timestamp=m.now()
+            ))
+            db.flush()
             return None
 
         # 1. Resolve active workflow instance for this appointment
         instance = None
-        if order.encounter_id:
+        if getattr(order, 'encounter_id', None):
             enc = db.get(m.Encounter, order.encounter_id)
             if enc and enc.appointment_id:
                 instance = db.scalar(
@@ -706,7 +767,7 @@ class WorkflowEngine:
     def handle_order_cancelled(
         self,
         db: Session,
-        order: m.ClinicalOrder,
+        order: Any,
         actor_id: str,
         actor_role: str
     ) -> Optional[m.WorkflowStep]:
