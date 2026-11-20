@@ -24,6 +24,7 @@ import { CharmPracticeBilling } from "./charmPatientBilling";
 import { PatientWorkflowProgressBar } from "./clinicalTasks";
 import { PatientAlertBadgePopover } from "./patientAlerts";
 import { CalendarStickyNotePopover } from "./patientQuickNotes";
+import { ClinicalAnalyticsPage } from "./clinicalAnalytics";
 import {
   api,
   branch,
@@ -5460,16 +5461,7 @@ export function InventoryPage() {
 }
 
 export function AnalyticsPage() {
-  return (
-    <>
-      <PageHeading
-        eyebrow="Practice Intelligence"
-        title="Analytics & Performance"
-        description="Branch metrics, appointment outcomes, and clinical volume trends."
-      />
-      <Analytics />
-    </>
-  );
+  return <ClinicalAnalyticsPage />;
 }
 
 export function OperationsPage({ initialTab = "Schedule" }: { initialTab?: string } = {}) {

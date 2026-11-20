@@ -2076,3 +2076,157 @@ def test_patient_quick_notes_and_calendar_sticky_notes():
     assert ok(c.get(f"/api/patients/{p['id']}/quick-notes")) == []
     cal_after = next(x for x in ok(c.get("/api/appointments")) if x["id"] == appt["id"])
     assert cal_after["quick_notes"] == []
+
+
+def test_referrals_management_workflow():
+    c = client('doctor')
+    p = patient(c)
+
+    # 1. External Providers directory
+    providers = ok(c.get('/api/external-providers'))
+    assert len(providers) >= 5
+    assert any('Pradeep Nayar' in pr['full_name'] for pr in providers)
+
+    new_prov = ok(c.post('/api/external-providers', json={
+        'prefix': 'Dr',
+        'first_name': 'Kavitha',
+        'last_name': 'R',
+        'specialty': 'Endocrinology & Diabetology',
+        'practice_name': 'Gleneagles Global Health City',
+        'city': 'Chennai',
+        'state': 'Tamil Nadu',
+        'phone': '9840998877',
+    }))
+    assert new_prov['full_name'] == 'Dr Kavitha R'
+
+    # 2. Create Outbound Referral
+    ref = ok(c.post('/api/referrals', json={
+        'direction': 'out',
+        'patient_id': p['id'],
+        'referral_from_name': 'Dr. Ramasamy S',
+        'referral_to_type': 'external',
+        'referral_to_name': new_prov['full_name'],
+        'referral_to_provider_id': new_prov['id'],
+        'referral_reason': 'Diabetic management prior to completing 35-hour EECP course',
+        'priority': 'Normal',
+        'referral_notes': '<p>Patient referred for glycemic control optimization.</p>',
+        'diagnoses_json': [{'code': 'E11.9', 'description': 'Type 2 diabetes mellitus'}],
+        'insurance_json': [{'provider': 'Star Health', 'policy_number': 'SH-12345'}],
+        'request_status': 'Draft',
+    }))
+    assert ref['patient_id'] == p['id']
+    assert ref['direction'] == 'out'
+    assert ref['response_status'] == 'Pending'
+    assert ref['referral_to_details']['specialty'] == 'Endocrinology & Diabetology'
+
+    # 3. Patient referrals list & Global referrals list
+    pat_refs = ok(c.get(f"/api/patients/{p['id']}/referrals"))
+    assert len(pat_refs) == 1
+    assert pat_refs[0]['id'] == ref['id']
+
+    global_refs = ok(c.get('/api/referrals?direction=out&response_status=Pending'))
+    assert any(x['id'] == ref['id'] for x in global_refs)
+
+    # 4. Save Response -> auto-transitions status to 'To Be Reviewed'
+    updated_resp = ok(c.post(f"/api/referrals/{ref['id']}/response", json={
+        'response_notes': 'Patient examined. Fasting blood sugar 124 mg/dL. Safe to continue EECP therapy.',
+        'attachments_json': [],
+    }))
+    assert updated_resp['response_status'] == 'To Be Reviewed'
+    assert updated_resp['response'] is not None
+    assert 'Safe to continue EECP' in updated_resp['response']['response_notes']
+    assert updated_resp['response']['is_signed'] is False
+
+    # 5. Doctor signs response -> auto-transitions status to 'Reviewed'
+    signed = ok(c.post(f"/api/referrals/{ref['id']}/response/sign"))
+    assert signed['response_status'] == 'Reviewed'
+    assert signed['response']['is_signed'] is True
+    assert signed['response']['signed_by_name'] != ''
+
+    # 6. Referral printable PDF generation with official letterhead
+    pdf_resp = c.get(f"/api/referrals/{ref['id']}/pdf")
+    assert pdf_resp.status_code == 200
+    assert pdf_resp.headers['content-type'] == 'application/pdf'
+    assert pdf_resp.content.startswith(b'%PDF-')
+
+    # 7. Delete referral
+    del_res = ok(c.delete(f"/api/referrals/{ref['id']}"))
+    assert del_res['deleted'] is True
+    assert ok(c.get(f"/api/patients/{p['id']}/referrals")) == []
+
+
+def test_referral_response_attachment_upload():
+    c = client('doctor')
+    p = patient(c)
+
+    # 1. Create Outbound Referral
+    ref = ok(c.post('/api/referrals', json={
+        'direction': 'out',
+        'patient_id': p['id'],
+        'referral_from_name': 'Dr. Ramasamy S',
+        'referral_to_type': 'external',
+        'referral_to_name': 'Dr. Pradeep Nayar G',
+        'referral_reason': 'Specialist cardiology clearance',
+        'priority': 'Normal',
+        'referral_notes': '<p>Echo and ECG requested.</p>',
+        'diagnoses_json': [],
+        'insurance_json': [],
+        'request_status': 'Sent',
+    }))
+
+    # 2. Upload PDF file for referral response
+    pdf_bytes = b'%PDF-1.4 sample clinical echo report content'
+    upload_res = ok(c.post(
+        f"/api/referrals/{ref['id']}/upload-attachment",
+        data={'target': 'response'},
+        files={'file': ('Echo_Report_2026.pdf', pdf_bytes, 'application/pdf')},
+    ))
+    assert upload_res['referral_id'] == ref['id']
+    assert upload_res['filename'] == 'Echo_Report_2026.pdf'
+    assert upload_res['content_type'] == 'application/pdf'
+    assert upload_res['file_size'] == len(pdf_bytes)
+    assert 'url' in upload_res
+    assert upload_res['attachment']['document_id'] is not None
+
+    # Verify referral response status transitioned to 'To Be Reviewed'
+    ref_updated = ok(c.get(f"/api/referrals/{ref['id']}"))
+    assert ref_updated['response_status'] == 'To Be Reviewed'
+    assert len(ref_updated['response']['attachments_json']) == 1
+    att1 = ref_updated['response']['attachments_json'][0]
+    assert att1['name'] == 'Echo_Report_2026.pdf'
+
+    # 3. Upload PNG image scan for response
+    png_bytes = b'\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR' + b'sample_ecg_data'
+    upload_png = ok(c.post(
+        f"/api/referrals/{ref['id']}/upload-attachment",
+        data={'target': 'response'},
+        files={'file': ('ECG Scan [Neelankarai].png', png_bytes, 'image/png')},
+    ))
+    # Verify filename sanitized (special characters replaced)
+    assert upload_png['filename'] == 'ECG_Scan__Neelankarai_.png'
+    assert upload_png['content_type'] == 'image/png'
+
+    # Verify both attachments are stored in response
+    ref_after = ok(c.get(f"/api/referrals/{ref['id']}"))
+    assert len(ref_after['response']['attachments_json']) == 2
+
+    # 4. Direct download of attachment
+    att_id = upload_res['id']
+    dl = c.get(f"/api/referrals/{ref['id']}/attachments/{att_id}/download")
+    assert dl.status_code == 200
+    assert dl.content == pdf_bytes
+
+    # 5. Document download via document_id
+    doc_dl = c.get(f"/api/documents/{upload_res['document_id']}/download")
+    assert doc_dl.status_code == 200
+    assert doc_dl.content == pdf_bytes
+
+    # 6. Exceeding max file size returns 413
+    huge_bytes = b'X' * (25 * 1024 * 1024 + 50)
+    huge_resp = c.post(
+        f"/api/referrals/{ref['id']}/upload-attachment",
+        data={'target': 'response'},
+        files={'file': ('huge.pdf', huge_bytes, 'application/pdf')},
+    )
+    assert huge_resp.status_code == 413
+

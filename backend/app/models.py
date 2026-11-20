@@ -748,6 +748,80 @@ class PatientQuickNote(Base):
     )
 
 
+class ExternalProvider(Base):
+    __tablename__ = 'external_providers'
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid4()))
+    prefix = Column(String(20), nullable=False, default='Dr')
+    first_name = Column(String(100), nullable=False)
+    last_name = Column(String(100), nullable=False)
+    middle_name = Column(String(100), nullable=False, default='')
+    specialty = Column(String(120), nullable=False, default='')
+    practice_name = Column(String(200), nullable=False, default='')
+    about = Column(Text, nullable=False, default='')
+    fax = Column(String(50), nullable=False, default='')
+    phone = Column(String(50), nullable=False, default='')
+    extn = Column(String(20), nullable=False, default='')
+    website = Column(String(250), nullable=False, default='')
+    email = Column(String(160), nullable=False, default='')
+    direct_address = Column(String(200), nullable=False, default='')
+    address_line1 = Column(String(200), nullable=False, default='')
+    address_line2 = Column(String(200), nullable=False, default='')
+    city = Column(String(100), nullable=False, default='')
+    state = Column(String(100), nullable=False, default='')
+    country = Column(String(100), nullable=False, default='India')
+    postal_code = Column(String(30), nullable=False, default='')
+    id_qualifier = Column(String(60), nullable=False, default='')
+    identifier_value = Column(String(100), nullable=False, default='')
+    created_at = Column(DateTime(timezone=True), nullable=False, default=now)
+
+
+class Referral(Base):
+    __tablename__ = 'referrals'
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid4()))
+    facility_id = Column(ForeignKey('facilities.id'), nullable=False, index=True)
+    direction = Column(String(10), nullable=False, default='out', index=True)
+    patient_id = Column(ForeignKey('patients.id', ondelete='CASCADE'), nullable=False, index=True)
+    referral_from_name = Column(String(180), nullable=False)
+    referral_from_id = Column(String(36), nullable=True)
+    referral_to_type = Column(String(20), nullable=False, default='external')
+    referral_to_name = Column(String(180), nullable=False)
+    referral_to_provider_id = Column(String(36), nullable=True)
+    referral_reason = Column(String(300), nullable=False, default='')
+    referral_date = Column(Date, nullable=False, index=True)
+    priority = Column(String(20), nullable=False, default='Normal')
+    related_encounter_id = Column(String(36), nullable=True)
+    referral_notes = Column(Text, nullable=False, default='')
+    diagnoses_json = Column(JSON().with_variant(JSONB, 'postgresql'), nullable=False, default=list)
+    insurance_json = Column(JSON().with_variant(JSONB, 'postgresql'), nullable=False, default=list)
+    attachments_json = Column(JSON().with_variant(JSONB, 'postgresql'), nullable=False, default=list)
+    request_status = Column(String(20), nullable=False, default='Draft', index=True)
+    response_status = Column(String(30), nullable=False, default='Pending', index=True)
+    created_by = Column(ForeignKey('users.id'), nullable=True)
+    created_at = Column(DateTime(timezone=True), nullable=False, default=now)
+    updated_at = Column(DateTime(timezone=True), nullable=False, default=now, onupdate=now)
+    __table_args__ = (
+        CheckConstraint("direction IN ('out','in')", name='ck_referrals_direction'),
+        CheckConstraint("referral_to_type IN ('external','internal')", name='ck_referrals_to_type'),
+        CheckConstraint("priority IN ('Normal','Urgent','Stat')", name='ck_referrals_priority'),
+        CheckConstraint("request_status IN ('Draft','Sent','Completed')", name='ck_referrals_request_status'),
+        CheckConstraint("response_status IN ('Pending','To Be Reviewed','Reviewed')", name='ck_referrals_response_status'),
+    )
+
+
+class ReferralResponse(Base):
+    __tablename__ = 'referral_responses'
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid4()))
+    referral_id = Column(ForeignKey('referrals.id', ondelete='CASCADE'), nullable=False, unique=True, index=True)
+    response_date = Column(Date, nullable=False)
+    response_notes = Column(Text, nullable=False, default='')
+    attachments_json = Column(JSON().with_variant(JSONB, 'postgresql'), nullable=False, default=list)
+    is_signed = Column(Boolean, nullable=False, default=False)
+    signed_by_id = Column(ForeignKey('users.id'), nullable=True)
+    signed_at = Column(DateTime(timezone=True), nullable=True)
+    created_at = Column(DateTime(timezone=True), nullable=False, default=now)
+    updated_at = Column(DateTime(timezone=True), nullable=False, default=now, onupdate=now)
+
+
 class RecallType(Base):
     __tablename__ = 'recall_types'
     id = Column(String(36), primary_key=True, default=lambda: str(uuid4()))

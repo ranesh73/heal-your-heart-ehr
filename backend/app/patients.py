@@ -280,6 +280,7 @@ def chart(identifier:str,c=Depends(context)):
     result['appointments']=[serialize(x) for x in rows(m.Appointment)]
     result['tasks']=[serialize(x) for x in rows(m.Task) if x.assignee_id==c.user.id or c.user.role in {'doctor','admin','reception'}]
     if c.user.role in CLINICAL:
+        result['referrals'] = [serialize(x) for x in c.db.scalars(select(m.Referral).where(m.Referral.patient_id == row.id).order_by(m.Referral.created_at.desc())).all()]
         for key,model in [('history',m.History),('diagnoses',m.Diagnosis),('allergies',m.Allergy),
                            ('medications',m.Medication),('injections',m.Injection),('vaccines',m.Vaccine),
                            ('vitals',m.Vital),('orders',m.ClinicalOrder),('documents',m.Document),

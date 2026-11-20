@@ -111,6 +111,7 @@ import {
   QuickNoteFormModal,
   CalendarStickyNotePopover,
 } from "./patientQuickNotes";
+import { PatientReferralsTab } from "./referralsManagement";
 import { PatientRecallsView } from "./patientRecalls";
 import {
   DiagnosisTemplatesModal,
@@ -932,7 +933,7 @@ export function PatientChart({ id }: { id: string }) {
     { id: "Lab Records", label: "Lab Records", count: (chart.orders || []).filter((o: any) => o.kind === 'Lab').length || "" },
     { id: "Images", label: "Images", count: (chart.orders || []).filter((o: any) => o.kind === 'Image' || o.kind === 'Imaging').length || "" },
     { id: "Documents", label: "Documents", count: chart.documents?.length || 0 },
-    { id: "Referrals", label: "Referrals", count: "" },
+    { id: "Referrals", label: "Referrals", count: chart.referrals?.length || "" },
     { id: "Appointments", label: "Appointments", count: chart.appointments?.length || 0 },
     { id: "Messages", label: "Messages", count: chart.messages?.length || 0 },
     { id: "Chat History", label: "Chat History", count: "" },
@@ -2232,16 +2233,7 @@ export function PatientChart({ id }: { id: string }) {
             }
 
             if (resolvedSection === "Referrals") {
-              return (
-                <Panel
-                  title="Specialist Referrals"
-                  actions={
-                    <AddButton onClick={() => setModal("entries")}>New Referral</AddButton>
-                  }
-                >
-                  <Empty title="No Specialist Referrals" body="External referrals and cardiologist consultations appear here." />
-                </Panel>
-              );
+              return <PatientReferralsTab patient={p} />;
             }
 
             if (resolvedSection === "Appointments") {

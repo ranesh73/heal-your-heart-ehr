@@ -31,6 +31,14 @@ export async function api<T = any>(
         : JSON.stringify(body);
 
   try {
+    const storedToken =
+      (typeof localStorage !== "undefined" &&
+        (localStorage.getItem("token") ||
+          localStorage.getItem("auth_token") ||
+          localStorage.getItem("ehr_token"))) ||
+      (typeof sessionStorage !== "undefined" &&
+        (sessionStorage.getItem("token") || sessionStorage.getItem("auth_token")));
+
     const response = await fetch(cleanPath, {
       method,
       credentials: "same-origin",
@@ -38,24 +46,32 @@ export async function api<T = any>(
         ...(isForm ? {} : { "Content-Type": "application/json" }),
         "X-CSRF-Token": csrf,
         "X-Facility-ID": branch,
+        ...(storedToken ? { Authorization: `Bearer ${storedToken}` } : {}),
       },
       body: payload,
     });
     if (!response.ok) {
       if (response.status === 401) {
-        throw new Error("Session expired. Please sign in again.");
+        const err: any = new Error("Session expired. Please sign in again.");
+        err.status = 401;
+        throw err;
       }
       if (response.status === 403) {
-        throw new Error("Access restricted. You do not have permission for this clinical action.");
+        const err: any = new Error("Access restricted. You do not have permission for this clinical action.");
+        err.status = 403;
+        throw err;
       }
       const data = await response
         .json()
         .catch(() => ({ detail: `Request failed with status ${response.status}` }));
-      throw new Error(
+      const errorObj: any = new Error(
         typeof data.detail === "string"
           ? data.detail
           : "Please check the supplied values",
       );
+      errorObj.status = response.status;
+      errorObj.response = { data, status: response.status };
+      throw errorObj;
     }
     return response.json();
   } catch (err: any) {

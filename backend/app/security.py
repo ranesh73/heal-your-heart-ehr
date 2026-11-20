@@ -76,6 +76,9 @@ class Context:
 
 def context(request: Request, db=Depends(get_db)):
     raw = request.cookies.get('ehr_session','')
+    auth_header = request.headers.get('Authorization', '')
+    if not raw and auth_header.startswith('Bearer '):
+        raw = auth_header[7:].strip()
     session = db.get(StaffSession,digest(raw)) if raw else None
     if not session or session.expires_at <= now():
         raise HTTPException(401,'Please sign in')
@@ -84,8 +87,12 @@ def context(request: Request, db=Depends(get_db)):
         raise HTTPException(401,'Please sign in')
     if request.method not in ('GET','HEAD','OPTIONS'):
         csrf = request.headers.get('X-CSRF-Token','')
-        if not hmac.compare_digest(csrf,session.csrf):
-            raise HTTPException(403,'Invalid session verification token')
+        if auth_header.startswith('Bearer '):
+            if csrf and not hmac.compare_digest(csrf, session.csrf):
+                raise HTTPException(403, 'Invalid session verification token')
+        else:
+            if not hmac.compare_digest(csrf,session.csrf):
+                raise HTTPException(403,'Invalid session verification token')
     facilities = list(db.scalars(select(UserFacility.facility_id).join(Facility).where(UserFacility.user_id==user.id,Facility.active==True)))
     branch = request.headers.get('X-Facility-ID') or (facilities[0] if facilities else '')
     if branch not in facilities:
