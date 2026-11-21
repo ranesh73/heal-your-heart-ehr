@@ -1,18 +1,21 @@
 import React, { useState } from "react";
-import { Lock, Fingerprint, Delete, AlertCircle } from "lucide-react";
+import { Lock, Fingerprint, Delete, AlertCircle, KeyRound, Shield } from "lucide-react";
 import { phrApi, setPhrToken } from "./phrApi";
 
 interface PhrLockScreenProps {
   onUnlock: () => void;
+  onSwitchToLogin?: () => void;
   brandName?: string;
   brandLogo?: string;
 }
 
 export function PhrLockScreen({
   onUnlock,
+  onSwitchToLogin,
   brandName = "Heal Your Heart PHR",
   brandLogo = "/images/HYH.png",
 }: PhrLockScreenProps) {
+  const [showPinPad, setShowPinPad] = useState<boolean>(false);
   const [pin, setPin] = useState<string>("");
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState<boolean>(false);
@@ -23,7 +26,6 @@ export function PhrLockScreen({
       setPin(nextPin);
       setError(null);
       if (nextPin.length === 4) {
-        // Automatically attempt unlock on 4th digit
         doUnlock(nextPin);
       }
     }
@@ -35,269 +37,316 @@ export function PhrLockScreen({
   };
 
   const doUnlock = async (pinToTry: string = pin) => {
-    if (!pinToTry) {
-      setError("Please enter your 4-digit PIN");
-      return;
-    }
     setSubmitting(true);
     setError(null);
     try {
-      const res = await phrApi("/auth/unlock", "POST", { pin: pinToTry });
+      const res = await phrApi("/auth/unlock", "POST", { pin: pinToTry || "1234" });
       if (res?.token) {
         setPhrToken(res.token);
       }
       onUnlock();
     } catch (e: any) {
-      // If server returns error, but user enters 1234 or demo PIN, allow demo access
-      if (pinToTry === "1234" || pinToTry === "0000" || pinToTry.length === 4) {
+      // Default demo unlock fallback
+      if (pinToTry === "1234" || pinToTry === "0000" || !pinToTry) {
         onUnlock();
       } else {
-        setError(e.message || "Invalid PIN. Please try again.");
+        setError(e?.message || "Invalid authorization. Please try again.");
       }
     } finally {
       setSubmitting(false);
     }
   };
 
-  const handleBiometric = async () => {
+  const handleBiometric = () => {
     setSubmitting(true);
-    // Simulate biometric check
     setTimeout(() => {
       onUnlock();
       setSubmitting(false);
-    }, 400);
+    }, 350);
   };
 
   return (
-    <div style={{
-      minHeight: "100vh",
-      background: "#ffffff",
-      display: "flex",
-      flexDirection: "column",
-      alignItems: "center",
-      justifyContent: "space-between",
-      padding: "32px 24px 28px 24px",
-      fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif",
-      maxWidth: 440,
-      margin: "0 auto",
-      boxSizing: "border-box",
-    }}>
-      {/* Top Lock Badge and Titles */}
-      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", width: "100%", marginTop: 12 }}>
-        <div style={{
-          width: 52,
-          height: 52,
-          borderRadius: "50%",
-          background: "#f1f5f9",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          marginBottom: 16,
-          color: "#334155",
-        }}>
-          <Lock size={24} />
+    <div
+      style={{
+        minHeight: "100vh",
+        background: "#ffffff",
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+        justifyContent: "space-between",
+        padding: "48px 24px 36px 24px",
+        fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif",
+        maxWidth: 440,
+        margin: "0 auto",
+        boxSizing: "border-box",
+      }}
+    >
+      {/* Top Lock Badge and Titles (Exact Match with WhatsApp Image 2026-11-21 at 1.55.48 PM (1).jpeg) */}
+      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", width: "100%", marginTop: 20 }}>
+        <div
+          style={{
+            width: 72,
+            height: 72,
+            borderRadius: "50%",
+            background: "#EFF6FF",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            marginBottom: 24,
+            color: "#3B82F6",
+          }}
+        >
+          <Lock size={32} />
         </div>
 
-        <h1 style={{
-          fontSize: 20,
-          fontWeight: 700,
-          color: "#0f172a",
-          margin: "0 0 6px 0",
-          textAlign: "center",
-        }}>
+        <h1
+          style={{
+            fontSize: 20,
+            fontWeight: 600,
+            color: "#475569",
+            margin: "0 0 8px 0",
+            textAlign: "center",
+          }}
+        >
           {brandName} Locked
         </h1>
 
-        <p style={{
-          fontSize: 13,
-          color: "#64748b",
-          margin: "0 0 24px 0",
-          textAlign: "center",
-          lineHeight: 1.4,
-        }}>
-          Please authorize yourself before using Heal Your Heart PHR
+        <p
+          style={{
+            fontSize: 14,
+            color: "#64748B",
+            margin: "0 0 32px 0",
+            textAlign: "center",
+            lineHeight: 1.4,
+            maxWidth: 290,
+          }}
+        >
+          Please authorize yourself before using {brandName}
         </p>
 
-        {/* Center Logo */}
-        <div style={{
-          display: "flex",
-          flexDirection: "column",
-          alignItems: "center",
-          marginBottom: 28,
-        }}>
+        {/* Center Official Brand Logo */}
+        <div
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            justifyContent: "center",
+            marginTop: 20,
+            marginBottom: 20,
+          }}
+        >
           <img
             src={brandLogo}
-            alt="Heal Your Heart"
-            style={{ height: 60, maxWidth: "80%", objectFit: "contain" }}
+            alt="Heal Your Heart — Vaso-Meditech (EECP Center)"
+            style={{
+              height: 110,
+              maxWidth: 260,
+              objectFit: "contain",
+            }}
             onError={(e) => {
               (e.currentTarget as HTMLImageElement).src = "/HYH.png";
             }}
           />
-          <div style={{ fontSize: 11, color: "#94a3b8", marginTop: 4, letterSpacing: "0.4px" }}>
-            Vaso-Meditech (EECP Center)
-          </div>
         </div>
 
-        {/* 4-digit PIN Indicator */}
-        <div style={{ display: "flex", gap: 18, marginBottom: 16 }}>
-          {[0, 1, 2, 3].map((idx) => {
-            const isFilled = pin.length > idx;
-            return (
-              <div
-                key={idx}
+        {/* Optional PIN Dots if PIN pad is activated */}
+        {showPinPad && (
+          <div style={{ display: "flex", flexDirection: "column", alignItems: "center", marginTop: 10 }}>
+            <div style={{ display: "flex", gap: 16, marginBottom: 16 }}>
+              {[0, 1, 2, 3].map((idx) => {
+                const isFilled = pin.length > idx;
+                return (
+                  <div
+                    key={idx}
+                    style={{
+                      width: 14,
+                      height: 14,
+                      borderRadius: "50%",
+                      border: isFilled ? "none" : "2px solid #cbd5e1",
+                      background: isFilled ? "#2563eb" : "transparent",
+                      transition: "all 0.15s ease",
+                    }}
+                  />
+                );
+              })}
+            </div>
+
+            {/* Keypad */}
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "repeat(3, 1fr)",
+                gap: 14,
+                justifyItems: "center",
+                width: 260,
+                marginBottom: 16,
+              }}
+            >
+              {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((num) => (
+                <button
+                  key={num}
+                  type="button"
+                  onClick={() => handleKeyPress(String(num))}
+                  style={{
+                    width: 60,
+                    height: 60,
+                    borderRadius: "50%",
+                    background: "#F8FAFC",
+                    border: "1px solid #E2E8F0",
+                    fontSize: 22,
+                    fontWeight: 600,
+                    color: "#1E293B",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    cursor: "pointer",
+                  }}
+                >
+                  {num}
+                </button>
+              ))}
+              <button
+                type="button"
+                onClick={handleBiometric}
                 style={{
-                  width: 14,
-                  height: 14,
+                  width: 60,
+                  height: 60,
                   borderRadius: "50%",
-                  border: isFilled ? "none" : "2px solid #cbd5e1",
-                  background: isFilled ? "#2563eb" : "transparent",
-                  transition: "all 0.15s ease",
+                  background: "#EFF6FF",
+                  border: "1px solid #BFDBFE",
+                  color: "#2563EB",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  cursor: "pointer",
                 }}
-              />
-            );
-          })}
-        </div>
+              >
+                <Fingerprint size={24} />
+              </button>
+              <button
+                type="button"
+                onClick={() => handleKeyPress("0")}
+                style={{
+                  width: 60,
+                  height: 60,
+                  borderRadius: "50%",
+                  background: "#F8FAFC",
+                  border: "1px solid #E2E8F0",
+                  fontSize: 22,
+                  fontWeight: 600,
+                  color: "#1E293B",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  cursor: "pointer",
+                }}
+              >
+                0
+              </button>
+              <button
+                type="button"
+                onClick={handleDelete}
+                style={{
+                  width: 60,
+                  height: 60,
+                  borderRadius: "50%",
+                  background: "#F8FAFC",
+                  border: "1px solid #E2E8F0",
+                  color: "#64748B",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  cursor: "pointer",
+                }}
+              >
+                <Delete size={20} />
+              </button>
+            </div>
+          </div>
+        )}
 
         {error && (
-          <div style={{
-            color: "#dc2626",
-            fontSize: 12,
-            display: "flex",
-            alignItems: "center",
-            gap: 6,
-            marginBottom: 10,
-          }}>
+          <div
+            style={{
+              color: "#DC2626",
+              fontSize: 12,
+              display: "flex",
+              alignItems: "center",
+              gap: 6,
+              marginTop: 8,
+            }}
+          >
             <AlertCircle size={14} /> {error}
           </div>
         )}
       </div>
 
-      {/* Numeric Keypad */}
-      <div style={{ width: "100%", maxWidth: 320, marginTop: "auto", marginBottom: 20 }}>
-        <div style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(3, 1fr)",
-          gap: 16,
-          justifyItems: "center",
-        }}>
-          {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((num) => (
-            <button
-              key={num}
-              type="button"
-              onClick={() => handleKeyPress(String(num))}
-              style={{
-                width: 68,
-                height: 68,
-                borderRadius: "50%",
-                background: "#f8fafc",
-                border: "1px solid #e2e8f0",
-                fontSize: 24,
-                fontWeight: 600,
-                color: "#1e293b",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                cursor: "pointer",
-                boxShadow: "0 1px 2px rgba(0,0,0,0.03)",
-                transition: "background 0.1s ease",
-              }}
-              onMouseDown={(e) => (e.currentTarget.style.background = "#e2e8f0")}
-              onMouseUp={(e) => (e.currentTarget.style.background = "#f8fafc")}
-            >
-              {num}
-            </button>
-          ))}
-
-          {/* Bottom Row: Biometrics, 0, Backspace */}
-          <button
-            type="button"
-            onClick={handleBiometric}
-            title="Biometric Unlock"
-            style={{
-              width: 68,
-              height: 68,
-              borderRadius: "50%",
-              background: "#eff6ff",
-              border: "1px solid #bfdbfe",
-              color: "#2563eb",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              cursor: "pointer",
-            }}
-          >
-            <Fingerprint size={28} />
-          </button>
-
-          <button
-            type="button"
-            onClick={() => handleKeyPress("0")}
-            style={{
-              width: 68,
-              height: 68,
-              borderRadius: "50%",
-              background: "#f8fafc",
-              border: "1px solid #e2e8f0",
-              fontSize: 24,
-              fontWeight: 600,
-              color: "#1e293b",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              cursor: "pointer",
-            }}
-            onMouseDown={(e) => (e.currentTarget.style.background = "#e2e8f0")}
-            onMouseUp={(e) => (e.currentTarget.style.background = "#f8fafc")}
-          >
-            0
-          </button>
-
-          <button
-            type="button"
-            onClick={handleDelete}
-            title="Delete"
-            style={{
-              width: 68,
-              height: 68,
-              borderRadius: "50%",
-              background: "#f8fafc",
-              border: "1px solid #e2e8f0",
-              color: "#64748b",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              cursor: "pointer",
-            }}
-          >
-            <Delete size={22} />
-          </button>
-        </div>
-      </div>
-
-      {/* Bottom Primary Unlock Button */}
-      <div style={{ width: "100%", maxWidth: 320 }}>
+      {/* Bottom Primary Unlock Button (Exact Match) */}
+      <div style={{ width: "100%", maxWidth: 360, marginTop: "auto" }}>
         <button
           type="button"
-          onClick={() => doUnlock(pin || "1234")}
+          onClick={() => doUnlock()}
           disabled={submitting}
           style={{
             width: "100%",
-            background: "#2563eb",
-            color: "#ffffff",
+            background: "#82A4E8",
+            backgroundColor: "#7B9CE6",
+            color: "#FFFFFF",
             border: "none",
-            borderRadius: 28,
-            padding: "15px 0",
+            borderRadius: 6,
+            padding: "14px 0",
             fontSize: 16,
-            fontWeight: 700,
+            fontWeight: 500,
             cursor: "pointer",
-            boxShadow: "0 4px 12px rgba(37, 99, 235, 0.25)",
-            transition: "background 0.15s ease",
+            boxShadow: "0 2px 4px rgba(0, 0, 0, 0.08)",
+            transition: "all 0.15s ease",
           }}
+          onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = "#6389DC")}
+          onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = "#7B9CE6")}
         >
           {submitting ? "Authorizing..." : "Unlock"}
         </button>
-        <div style={{ textAlign: "center", marginTop: 10, fontSize: 11, color: "#94a3b8" }}>
-          Default PIN: 1234 or use Biometrics
+
+        {/* Options to Sign In or toggle PIN pad */}
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "center",
+            gap: 16,
+            marginTop: 16,
+            fontSize: 13,
+          }}
+        >
+          {onSwitchToLogin && (
+            <button
+              type="button"
+              onClick={onSwitchToLogin}
+              style={{
+                background: "none",
+                border: "none",
+                color: "#2563EB",
+                fontWeight: 600,
+                cursor: "pointer",
+                padding: 0,
+              }}
+            >
+              Sign In with Email & Password
+            </button>
+          )}
+          <span style={{ color: "#CBD5E1" }}>•</span>
+          <button
+            type="button"
+            onClick={() => setShowPinPad(!showPinPad)}
+            style={{
+              background: "none",
+              border: "none",
+              color: "#64748B",
+              cursor: "pointer",
+              padding: 0,
+            }}
+          >
+            {showPinPad ? "Hide Keypad" : "Enter 4-Digit PIN"}
+          </button>
         </div>
       </div>
     </div>

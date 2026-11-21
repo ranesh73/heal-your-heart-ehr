@@ -1,6 +1,7 @@
 import io
 import csv
 from datetime import datetime
+from uuid import uuid4
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Response
 from sqlalchemy import select, or_, func, delete
 from . import models as m, schemas as s
@@ -8,6 +9,7 @@ from .patient_alerts import active_alerts_for_patients
 from .quick_notes import quick_notes_for_patients
 from .security import context, CLINICAL, BILLING, check_version, next_number
 from .serialization import serialize, patient_out, encounter_out, invoice_out, plan_out
+from .phr_service import extract_6digit_patient_id, hash_password_bcrypt
 
 router=APIRouter(prefix='/api/patients')
 
@@ -332,3 +334,108 @@ def chart(identifier:str,c=Depends(context)):
     result['messages']=[serialize(x) for x in rows(m.Message) if c.user.id in (x.author_id,x.recipient_id)]
     c.audit('view_patient',row)
     return result
+
+
+# ============================================================================
+# PHR ACCESS MANAGEMENT ENDPOINTS (1-Click Enable / Reset / Revoke)
+# ============================================================================
+
+@router.get('/{identifier}/phr-access')
+def get_patient_phr_access(identifier: str, c=Depends(context)):
+    patient = c.patient(identifier)
+    acc = c.db.scalar(select(m.PatientPhrAccount).where(m.PatientPhrAccount.patient_id == patient.id))
+    six_digit_id = extract_6digit_patient_id(patient.mrn or patient.id)
+    return {
+        "patient_id": patient.id,
+        "mrn": patient.mrn,
+        "email": patient.email or "",
+        "patient_id_6digit": six_digit_id,
+        "enabled": bool(acc and acc.is_active),
+        "is_active": bool(acc.is_active) if acc else False,
+        "has_account": acc is not None,
+        "login_url": "/phr/login",
+        "last_login_at": acc.last_login_at.isoformat() if acc and acc.last_login_at else None,
+    }
+
+
+@router.post('/{identifier}/phr-access/enable')
+def enable_patient_phr_access(identifier: str, c=Depends(context)):
+    patient = c.patient(identifier)
+    email = (patient.email or "").strip().lower()
+    if not email:
+        raise HTTPException(400, "Please enter and save an Email Address for this patient before enabling PHR access.")
+
+    six_digit_id = extract_6digit_patient_id(patient.mrn or patient.id)
+    hashed_pw = hash_password_bcrypt(six_digit_id)
+
+    acc = c.db.scalar(select(m.PatientPhrAccount).where(m.PatientPhrAccount.patient_id == patient.id))
+    if acc:
+        acc.phone_or_email = email
+        acc.password_hash = hashed_pw
+        acc.is_active = True
+    else:
+        # Avoid uniqueness collision on email if another test row had it
+        existing = c.db.scalar(select(m.PatientPhrAccount).where(m.PatientPhrAccount.phone_or_email == email))
+        if existing and existing.patient_id != patient.id:
+            existing.phone_or_email = f"prev_{existing.patient_id}_{email}"
+        acc = m.PatientPhrAccount(
+            id=str(uuid4()),
+            patient_id=patient.id,
+            phone_or_email=email,
+            password_hash=hashed_pw,
+            is_active=True,
+            created_at=m.now(),
+        )
+        c.db.add(acc)
+
+    c.audit('enable_phr_access', patient)
+    c.db.commit()
+
+    return {
+        "status": "ok",
+        "enabled": True,
+        "email": email,
+        "login_url": "/phr/login",
+        "default_password": six_digit_id,
+        "message": "PHR Access enabled successfully",
+    }
+
+
+@router.post('/{identifier}/phr-access/reset-password')
+def reset_patient_phr_password(identifier: str, c=Depends(context)):
+    patient = c.patient(identifier)
+    acc = c.db.scalar(select(m.PatientPhrAccount).where(m.PatientPhrAccount.patient_id == patient.id))
+    if not acc:
+        raise HTTPException(404, "No PHR account found for this patient. Please enable PHR access first.")
+
+    six_digit_id = extract_6digit_patient_id(patient.mrn or patient.id)
+    acc.password_hash = hash_password_bcrypt(six_digit_id)
+    acc.is_active = True
+    c.audit('reset_phr_password', patient)
+    c.db.commit()
+
+    return {
+        "status": "ok",
+        "enabled": True,
+        "email": patient.email or acc.phone_or_email,
+        "login_url": "/phr/login",
+        "default_password": six_digit_id,
+        "message": f"Password reset to 6-digit Patient ID ({six_digit_id}).",
+    }
+
+
+@router.post('/{identifier}/phr-access/disable')
+def disable_patient_phr_access(identifier: str, c=Depends(context)):
+    patient = c.patient(identifier)
+    acc = c.db.scalar(select(m.PatientPhrAccount).where(m.PatientPhrAccount.patient_id == patient.id))
+    if acc:
+        acc.is_active = False
+        c.db.execute(delete(m.PatientPhrSession).where(m.PatientPhrSession.patient_id == patient.id))
+        c.audit('disable_phr_access', patient)
+        c.db.commit()
+
+    return {
+        "status": "ok",
+        "enabled": False,
+        "message": "PHR access has been revoked.",
+    }

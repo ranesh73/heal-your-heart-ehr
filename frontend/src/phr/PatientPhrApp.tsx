@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import {
-  Home,
-  Activity,
+  LayoutGrid,
+  Accessibility,
   Plus,
   Bell,
   Megaphone,
@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import { phrApi, getPhrToken, clearPhrToken } from "./phrApi";
 import { PhrLockScreen } from "./PhrLockScreen";
+import { PhrLoginPage } from "./PhrLoginPage";
 import { PhrDashboardTab } from "./PhrDashboardTab";
 import { PhrMyHealthTab } from "./PhrMyHealthTab";
 import { PhrAppointmentRequestModal } from "./PhrAppointmentRequestModal";
@@ -32,8 +33,8 @@ interface PatientPhrAppProps {
 }
 
 export function PatientPhrApp({ path }: PatientPhrAppProps) {
-  // Lock state
-  const [isLocked, setIsLocked] = useState<boolean>(true);
+  const isLoginUrl = (path === "/phr/login") || (typeof window !== "undefined" && (window.location.hash.includes("/phr/login") || window.location.pathname.includes("/phr/login")));
+  const [viewMode, setViewMode] = useState<"lock" | "login" | "app">(isLoginUrl ? "login" : "lock");
   const [activeTab, setActiveTab] = useState<"dashboard" | "my-health">("dashboard");
 
   // Portal Data State
@@ -118,26 +119,43 @@ export function PatientPhrApp({ path }: PatientPhrAppProps) {
   }, []);
 
   const handleUnlock = () => {
-    setIsLocked(false);
+    setViewMode("app");
   };
 
   const handleLockApp = () => {
-    setIsLocked(true);
+    setViewMode("lock");
   };
 
   const handleLogout = () => {
     clearPhrToken();
-    setIsLocked(true);
+    setViewMode("login");
   };
 
   const firstName = patient?.first_name || "Hariharan";
   const initials = `${(patient?.first_name || "H")[0]}${(patient?.last_name || "S")[0]}`.toUpperCase();
 
+  // If on login screen
+  if (viewMode === "login") {
+    return (
+      <PhrLoginPage
+        onSuccess={(p) => {
+          if (p) setPatient(p);
+          setViewMode("app");
+          refreshData();
+        }}
+        onBackToLock={() => setViewMode("lock")}
+        brandName="Heal Your Heart PHR"
+        brandLogo="/images/HYH.png"
+      />
+    );
+  }
+
   // If locked, render official App Lock Screen
-  if (isLocked) {
+  if (viewMode === "lock") {
     return (
       <PhrLockScreen
         onUnlock={handleUnlock}
+        onSwitchToLogin={() => setViewMode("login")}
         brandName="Heal Your Heart PHR"
         brandLogo="/images/HYH.png"
       />
@@ -147,44 +165,44 @@ export function PatientPhrApp({ path }: PatientPhrAppProps) {
   return (
     <div style={{
       minHeight: "100vh",
-      background: "#f8fafc",
+      background: "#F5F7FA",
       fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif",
-      color: "#0f172a",
+      color: "#0F172A",
     }}>
       {/* Mobile Frame Container */}
       <div style={{
         maxWidth: 480,
         minHeight: "100vh",
         margin: "0 auto",
-        background: "#ffffff",
+        background: "#F8FAFC",
         boxShadow: "0 0 25px rgba(0,0,0,0.06)",
         position: "relative",
         display: "flex",
         flexDirection: "column",
       }}>
-        {/* PERSISTENT TOP HEADER */}
+        {/* PERSISTENT TOP HEADER (Exact match to WhatsApp Image 2026-11-21 at 1.55.48 PM (2).jpeg) */}
         <header style={{
           position: "sticky",
           top: 0,
           zIndex: 100,
-          background: "#ffffff",
-          borderBottom: "1px solid #f1f5f9",
-          padding: "14px 20px",
+          background: "#F8FAFC",
+          padding: "16px 20px 12px 20px",
           display: "flex",
           alignItems: "center",
           justifyContent: "space-between",
         }}>
-          {/* Greeting */}
-          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-            <div>
-              <div style={{ fontSize: 11, color: "#64748b", fontWeight: 500 }}>Welcome back,</div>
-              <h1 style={{ fontSize: 18, fontWeight: 700, margin: 0, color: "#0f172a" }}>
-                Hi {firstName}
-              </h1>
-            </div>
-          </div>
+          {/* Large Bold Greeting */}
+          <h1 style={{
+            fontSize: 26,
+            fontWeight: 800,
+            color: "#000000",
+            margin: 0,
+            letterSpacing: "-0.5px",
+          }}>
+            Hi {firstName}
+          </h1>
 
-          {/* Right Header Icons: Announcements Megaphone & Avatar */}
+          {/* Right Header Icons */}
           <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
             {/* Announcements Megaphone with Red Badge */}
             <button
@@ -195,56 +213,56 @@ export function PatientPhrApp({ path }: PatientPhrAppProps) {
               aria-label="Announcements"
               style={{
                 position: "relative",
-                background: "#f1f5f9",
+                background: "#EFF6FF",
                 border: "none",
                 borderRadius: "50%",
-                width: 38,
-                height: 38,
+                width: 40,
+                height: 40,
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
                 cursor: "pointer",
-                color: "#1e293b",
+                color: "#0284C7",
               }}
             >
-              <Megaphone size={19} />
+              <Megaphone size={20} />
               {unreadAnnouncementsCount > 0 && (
                 <span style={{
                   position: "absolute",
                   top: -2,
                   right: -2,
-                  background: "#ef4444",
-                  color: "#ffffff",
-                  fontSize: 10,
+                  background: "#EF4444",
+                  color: "#FFFFFF",
+                  fontSize: 11,
                   fontWeight: 700,
-                  width: 18,
-                  height: 18,
+                  width: 19,
+                  height: 19,
                   borderRadius: "50%",
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "center",
-                  border: "2px solid #ffffff",
+                  border: "2px solid #FFFFFF",
                 }}>
                   {unreadAnnouncementsCount}
                 </span>
               )}
             </button>
 
-            {/* Avatar Initials Circle */}
+            {/* Lavender Avatar Initials Circle (HS) */}
             <button
               onClick={() => setModalProfile(true)}
               aria-label="Patient Profile"
               style={{
-                width: 38,
-                height: 38,
+                width: 40,
+                height: 40,
                 borderRadius: "50%",
-                background: "#2563eb",
-                color: "#ffffff",
+                background: "#D8E2FF",
+                color: "#1E3A8A",
                 border: "none",
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
-                fontSize: 14,
+                fontSize: 15,
                 fontWeight: 700,
                 cursor: "pointer",
                 boxShadow: "0 2px 5px rgba(37,99,235,0.2)",
@@ -269,6 +287,7 @@ export function PatientPhrApp({ path }: PatientPhrAppProps) {
                 setClinicalInitialSection("Vitals");
                 setModalClinical(true);
               }}
+              onOpenProfilePassword={() => setModalProfile(true)}
               onNavigateTab={setActiveTab}
             />
           ) : (
@@ -303,19 +322,19 @@ export function PatientPhrApp({ path }: PatientPhrAppProps) {
           )}
         </main>
 
-        {/* FLOATING BLUE '+' QUICK-ACTION BUTTON */}
+        {/* FLOATING BLUE '+' QUICK-ACTION BUTTON (Matching Screenshots) */}
         <button
           onClick={() => setQuickActionDrawer(true)}
           aria-label="Quick Actions"
           style={{
             position: "fixed",
             bottom: 74,
-            right: "calc(50% - 215px)",
+            right: "max(20px, calc(50% - 215px))",
             width: 52,
             height: 52,
             borderRadius: "50%",
-            background: "#2563eb",
-            color: "#ffffff",
+            background: "#2563EB",
+            color: "#FFFFFF",
             border: "none",
             display: "flex",
             alignItems: "center",
@@ -331,12 +350,12 @@ export function PatientPhrApp({ path }: PatientPhrAppProps) {
           <Plus size={26} strokeWidth={2.5} />
         </button>
 
-        {/* BOTTOM TAB BAR (DASHBOARD | MY HEALTH) */}
+        {/* BOTTOM TAB BAR (DASHBOARD | MY HEALTH - Matching Screenshots) */}
         <nav style={{
           position: "sticky",
           bottom: 0,
-          background: "#ffffff",
-          borderTop: "1px solid #e2e8f0",
+          background: "#FFFFFF",
+          borderTop: "1px solid #E5E7EB",
           display: "flex",
           justifyContent: "space-around",
           padding: "8px 0 10px 0",
@@ -353,10 +372,10 @@ export function PatientPhrApp({ path }: PatientPhrAppProps) {
               alignItems: "center",
               gap: 3,
               cursor: "pointer",
-              color: activeTab === "dashboard" ? "#2563eb" : "#94a3b8",
+              color: activeTab === "dashboard" ? "#2563EB" : "#94A3B8",
             }}
           >
-            <Home size={22} strokeWidth={activeTab === "dashboard" ? 2.5 : 1.8} />
+            <LayoutGrid size={22} strokeWidth={activeTab === "dashboard" ? 2.4 : 1.8} />
             <span style={{ fontSize: 11, fontWeight: activeTab === "dashboard" ? 700 : 500 }}>
               Dashboard
             </span>
@@ -373,10 +392,10 @@ export function PatientPhrApp({ path }: PatientPhrAppProps) {
               alignItems: "center",
               gap: 3,
               cursor: "pointer",
-              color: activeTab === "my-health" ? "#2563eb" : "#94a3b8",
+              color: activeTab === "my-health" ? "#2563EB" : "#94A3B8",
             }}
           >
-            <Activity size={22} strokeWidth={activeTab === "my-health" ? 2.5 : 1.8} />
+            <Accessibility size={22} strokeWidth={activeTab === "my-health" ? 2.4 : 1.8} />
             <span style={{ fontSize: 11, fontWeight: activeTab === "my-health" ? 700 : 500 }}>
               My Health
             </span>

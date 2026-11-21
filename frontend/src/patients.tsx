@@ -825,6 +825,77 @@ export function PatientChart({ id }: { id: string }) {
     queryKey: ["chart", branch, id],
     queryFn: () => api("/patients/" + id),
   });
+
+  const { data: phrAccessData, refetch: refetchPhrAccess } = useQuery({
+    queryKey: ["phr-access", id],
+    queryFn: () => api<any>(`/patients/${id}/phr-access`),
+    enabled: Boolean(id),
+  });
+
+  const [phrCredentialsModal, setPhrCredentialsModal] = useState<{
+    email: string;
+    loginUrl: string;
+    password: string;
+    actionType: "enabled" | "reset";
+  } | null>(null);
+  const [phrActionLoading, setPhrActionLoading] = useState(false);
+
+  const handleEnablePhr = async (patientEmail?: string) => {
+    if (!patientEmail || !patientEmail.trim() || patientEmail === "—") {
+      notify("Please enter and save an Email Address for this patient before enabling PHR access.");
+      return;
+    }
+    setPhrActionLoading(true);
+    try {
+      const res = await api<any>(`/patients/${id}/phr-access/enable`, "POST");
+      await refetchPhrAccess();
+      setPhrCredentialsModal({
+        email: res.email,
+        loginUrl: `${window.location.origin}/#/phr/login`,
+        password: res.default_password,
+        actionType: "enabled",
+      });
+      notify("PHR Access enabled successfully!");
+    } catch (err: any) {
+      notify(err?.message || "Failed to enable PHR access");
+    } finally {
+      setPhrActionLoading(false);
+    }
+  };
+
+  const handleResetPhrPassword = async () => {
+    if (!window.confirm("Reset this patient's PHR password back to their 6-digit Patient ID?")) return;
+    setPhrActionLoading(true);
+    try {
+      const res = await api<any>(`/patients/${id}/phr-access/reset-password`, "POST");
+      await refetchPhrAccess();
+      setPhrCredentialsModal({
+        email: res.email,
+        loginUrl: `${window.location.origin}/#/phr/login`,
+        password: res.default_password,
+        actionType: "reset",
+      });
+      notify("PHR password reset to 6-digit Patient ID.");
+    } catch (err: any) {
+      notify(err?.message || "Failed to reset password");
+    } finally {
+      setPhrActionLoading(false);
+    }
+  };
+
+  const handleRevokePhrAccess = async () => {
+    if (!window.confirm("Are you sure you want to revoke PHR portal access for this patient?")) return;
+    setPhrActionLoading(true);
+    try {
+      await api<any>(`/patients/${id}/phr-access/disable`, "POST");
+      await refetchPhrAccess();
+      notify("Patient PHR access has been revoked.");
+    } catch (err: any) {
+      notify(err?.message || "Failed to revoke PHR access");
+    } finally {
+      setPhrActionLoading(false);
+    }
+  };
   useEffect(() => {
     const hashQuery = window.location.hash.includes("?")
       ? window.location.hash.split("?")[1]
@@ -950,6 +1021,164 @@ export function PatientChart({ id }: { id: string }) {
 
   return (
     <div className="charm-chart-page">
+      {phrCredentialsModal && (
+        <div
+          style={{
+            position: "fixed",
+            inset: 0,
+            background: "rgba(15, 23, 42, 0.55)",
+            zIndex: 10000,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            padding: 16,
+          }}
+        >
+          <div
+            style={{
+              background: "#FFFFFF",
+              borderRadius: 12,
+              width: "100%",
+              maxWidth: 460,
+              boxShadow: "0 20px 25px -5px rgba(0, 0, 0, 0.2)",
+              overflow: "hidden",
+            }}
+          >
+            <div
+              style={{
+                background: "#00A896",
+                color: "#FFFFFF",
+                padding: "16px 20px",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+              }}
+            >
+              <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700 }}>
+                {phrCredentialsModal.actionType === "enabled"
+                  ? "Heal Your Heart PHR Access Enabled"
+                  : "PHR Password Reset Successful"}
+              </h3>
+              <button
+                type="button"
+                onClick={() => setPhrCredentialsModal(null)}
+                style={{
+                  background: "none",
+                  border: "none",
+                  color: "#FFFFFF",
+                  cursor: "pointer",
+                  fontSize: 18,
+                  lineHeight: 1,
+                  padding: 2,
+                }}
+              >
+                ✕
+              </button>
+            </div>
+
+            <div style={{ padding: "20px" }}>
+              <p style={{ fontSize: 13, color: "#475569", margin: "0 0 16px 0", lineHeight: 1.5 }}>
+                Share these patient portal login credentials with the patient. They can sign in on their smartphone or computer.
+              </p>
+
+              <div
+                style={{
+                  background: "#F8FAFC",
+                  border: "1px solid #E2E8F0",
+                  borderRadius: 8,
+                  padding: "14px 16px",
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: 10,
+                  fontSize: 13,
+                }}
+              >
+                <div>
+                  <span style={{ color: "#64748B", display: "block", fontSize: 11, fontWeight: 700, textTransform: "uppercase" }}>
+                    PHR Login URL
+                  </span>
+                  <a
+                    href={phrCredentialsModal.loginUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    style={{ color: "#2563EB", fontWeight: 600, wordBreak: "break-all" }}
+                  >
+                    {phrCredentialsModal.loginUrl}
+                  </a>
+                </div>
+
+                <div>
+                  <span style={{ color: "#64748B", display: "block", fontSize: 11, fontWeight: 700, textTransform: "uppercase" }}>
+                    Login Email
+                  </span>
+                  <span style={{ color: "#0F172A", fontWeight: 600 }}>{phrCredentialsModal.email}</span>
+                </div>
+
+                <div>
+                  <span style={{ color: "#64748B", display: "block", fontSize: 11, fontWeight: 700, textTransform: "uppercase" }}>
+                    Temporary Password (6-Digit Patient ID)
+                  </span>
+                  <span
+                    style={{
+                      display: "inline-block",
+                      marginTop: 2,
+                      background: "#E0F2FE",
+                      color: "#0369A1",
+                      fontFamily: "monospace",
+                      fontSize: 17,
+                      fontWeight: 700,
+                      padding: "4px 10px",
+                      borderRadius: 6,
+                      letterSpacing: 2,
+                    }}
+                  >
+                    {phrCredentialsModal.password}
+                  </span>
+                </div>
+              </div>
+
+              <div style={{ display: "flex", justifyContent: "flex-end", gap: 10, marginTop: 20 }}>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const text = `Heal Your Heart PHR Login Credentials\nPortal URL: ${phrCredentialsModal.loginUrl}\nEmail: ${phrCredentialsModal.email}\nTemporary Password: ${phrCredentialsModal.password}\n\nPlease change your password after initial login.`;
+                    navigator.clipboard.writeText(text);
+                    notify("Credentials copied to clipboard!");
+                  }}
+                  style={{
+                    background: "#00A896",
+                    color: "#FFFFFF",
+                    border: "none",
+                    borderRadius: 6,
+                    padding: "9px 16px",
+                    fontSize: 13,
+                    fontWeight: 600,
+                    cursor: "pointer",
+                  }}
+                >
+                  Copy Credentials
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setPhrCredentialsModal(null)}
+                  style={{
+                    background: "#F1F5F9",
+                    color: "#475569",
+                    border: "1px solid #CBD5E1",
+                    borderRadius: 6,
+                    padding: "9px 16px",
+                    fontSize: 13,
+                    fontWeight: 600,
+                    cursor: "pointer",
+                  }}
+                >
+                  Done
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
       {activePatientAlerts.length > 0 && dismissedAlertsPopupId !== p.id && activeSection !== "Alerts" && (
         <PatientChartAlertsPopup
           alerts={activePatientAlerts}
@@ -1372,7 +1601,82 @@ export function PatientChart({ id }: { id: string }) {
                       <dt>Contact Phone</dt>
                       <dd>{p.phone || "—"}</dd>
                       <dt>Email Address</dt>
-                      <dd>{p.email || "—"}</dd>
+                      <dd style={{ display: "flex", alignItems: "center", flexWrap: "wrap", gap: 8 }}>
+                        <span>{p.email || "—"}</span>
+                        {!phrAccessData?.enabled ? (
+                          <button
+                            type="button"
+                            disabled={phrActionLoading}
+                            onClick={() => handleEnablePhr(p.email)}
+                            style={{
+                              background: "#00A896",
+                              color: "#FFFFFF",
+                              border: "none",
+                              borderRadius: 4,
+                              padding: "2px 8px",
+                              fontSize: 12,
+                              fontWeight: 600,
+                              cursor: phrActionLoading ? "not-allowed" : "pointer",
+                              display: "inline-flex",
+                              alignItems: "center",
+                              gap: 4,
+                            }}
+                          >
+                            {phrActionLoading ? "Enabling..." : "Enable PHR Access"}
+                          </button>
+                        ) : (
+                          <div style={{ display: "inline-flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                            <span
+                              style={{
+                                background: "#E8F5E9",
+                                color: "#2E7D32",
+                                padding: "2px 8px",
+                                borderRadius: 12,
+                                fontSize: 12,
+                                fontWeight: 700,
+                                display: "inline-flex",
+                                alignItems: "center",
+                                gap: 4,
+                              }}
+                            >
+                              PHR Access Active ✔
+                            </span>
+                            <button
+                              type="button"
+                              onClick={handleResetPhrPassword}
+                              disabled={phrActionLoading}
+                              style={{
+                                background: "none",
+                                border: "none",
+                                color: "#1976D2",
+                                textDecoration: "underline",
+                                cursor: "pointer",
+                                fontSize: 12,
+                                padding: 0,
+                              }}
+                            >
+                              Reset Password to 6-Digit ID
+                            </button>
+                            <span style={{ color: "#CBD5E1" }}>|</span>
+                            <button
+                              type="button"
+                              onClick={handleRevokePhrAccess}
+                              disabled={phrActionLoading}
+                              style={{
+                                background: "none",
+                                border: "none",
+                                color: "#D32F2F",
+                                textDecoration: "underline",
+                                cursor: "pointer",
+                                fontSize: 12,
+                                padding: 0,
+                              }}
+                            >
+                              Revoke Access
+                            </button>
+                          </div>
+                        )}
+                      </dd>
                       <dt>Residential Address</dt>
                       <dd>
                         {[p.address, p.area, p.city, p.state, p.postal_code]

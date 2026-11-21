@@ -1,27 +1,13 @@
 import React, { useState, useEffect } from "react";
 import { api } from "../../api";
 import {
-  Shield,
-  Smartphone,
-  Share2,
-  Code2,
-  Info,
   Check,
-  Save,
   Plus,
   Trash2,
   Edit2,
   ExternalLink,
   Copy,
-  Building,
-  UserCheck,
-  FileText,
-  AlertCircle,
-  Clock,
-  Phone,
-  Link as LinkIcon,
-  HelpCircle,
-  Lock,
+  X,
 } from "lucide-react";
 
 interface PhrSettingsPageProps {
@@ -29,86 +15,189 @@ interface PhrSettingsPageProps {
   onTabChange?: (tabId: string) => void;
 }
 
+const DEFAULT_EXCLUDED_MEMBERS = [
+  "Vanitha M",
+  "Rabini M",
+  "Susan Sekar",
+  "Jamuna M",
+  "Sarala D",
+  "Vijayalakshmi K",
+  "Dr. Elakkiya M",
+];
+
+const SIX_FACILITIES = [
+  {
+    code: "HUH001",
+    name: "Heal Your Heart Neelankarai - HUH001",
+    url: "https://ehr.healyourheart.in/phr/login?facility_id=HUH001",
+  },
+  {
+    code: "HUH002",
+    name: "Heal Your Heart Royapettah - HUH002",
+    url: "https://ehr.healyourheart.in/phr/login?facility_id=HUH002",
+  },
+  {
+    code: "4R",
+    name: "4R Health & Wellness",
+    url: "https://ehr.healyourheart.in/phr/login?facility_id=4R",
+  },
+  {
+    code: "HUH003",
+    name: "Heal Your Heart - Manapakkam - HUH003",
+    url: "https://ehr.healyourheart.in/phr/login?facility_id=HUH003",
+  },
+  {
+    code: "005",
+    name: "Heal Your Heart-Madurai - 005",
+    url: "https://ehr.healyourheart.in/phr/login?facility_id=005",
+  },
+  {
+    code: "004",
+    name: "Heal Your Heart-Tirunelveli - 004",
+    url: "https://ehr.healyourheart.in/phr/login?facility_id=004",
+  },
+];
+
 export function PhrSettingsPage({ activeOptionId, onTabChange }: PhrSettingsPageProps) {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
 
   // Settings State
-  const [settings, setSettings] = useState<{
-    modules: Record<string, boolean>;
-    messaging_prefs: Record<string, any>;
-    shared_clinical_sections: string[];
-    refill_prefs: Record<string, any>;
-    practice_prefs: Record<string, any>;
-    custom_app_menu: Record<string, any>;
-    facilities: any[];
-    staff_members: any[];
-  }>({
-    modules: {},
-    messaging_prefs: {},
-    shared_clinical_sections: [],
-    refill_prefs: {},
-    practice_prefs: {},
-    custom_app_menu: {},
-    facilities: [],
-    staff_members: [],
+  const [modules, setModules] = useState<Record<string, boolean>>({
+    clinical_summary: true,
+    visit_summary: true,
+    appointments: true,
+    billing: true,
+    questionnaire: true,
+    announcements: true,
+    messages: true,
   });
 
-  // Useful Info state
+  const [messagingPrefs, setMessagingPrefs] = useState<Record<string, any>>({
+    patient_category: "All Patients",
+    allow_patient_messages: true,
+    restrict_message_count: false,
+    max_chars: 500,
+    allow_share_documents: true,
+    allow_to: "both",
+    recipients: "all",
+    excluded_member_ids: DEFAULT_EXCLUDED_MEMBERS,
+  });
+
+  const [selectedFacilityForSharedData, setSelectedFacilityForSharedData] = useState(
+    "Heal Your Heart-Tirunelveli - 004"
+  );
+  const [sharedDataMembers, setSharedDataMembers] = useState("");
+
+  const [refillPrefs, setRefillPrefs] = useState<Record<string, any>>({
+    allow_rx_refill: true,
+    allow_supplement_refill: false,
+    notify_provider: true,
+    other_member_enabled: true,
+    other_members: "",
+  });
+
+  const [practicePrefs, setPracticePrefs] = useState<Record<string, any>>({
+    in_house_care_team_only_booking: false,
+  });
+
+  const [sharedClinicalSections, setSharedClinicalSections] = useState<Record<string, boolean>>({
+    smoking_status: true,
+    procedures: true,
+    diagnoses: true,
+    medications: true,
+    allergies: true,
+    vitals: true,
+    growth_chart: true,
+    vaccines: true,
+    implanted_devices: true,
+    goals: true,
+    health_concerns: true,
+    care_team: false,
+  });
+
+  const [customAppMenu, setCustomAppMenu] = useState<Record<string, boolean>>({
+    appointments: true,
+    messages: true,
+    document: true,
+    questionnaire: true,
+    medications: true,
+    lab_results: true,
+    billing: true,
+    visit_summary: true,
+    announcements: true,
+    useful_info: true,
+    about: true,
+  });
+
+  const [customAppSubTab, setCustomAppSubTab] = useState<
+    "MAIN MENU" | "MAPS" | "ABOUT" | "LOGIN" | "APP DETAILS"
+  >("MAIN MENU");
+
+  // Useful Info State
   const [usefulInfoList, setUsefulInfoList] = useState<any[]>([]);
   const [editingItem, setEditingItem] = useState<any | null>(null);
   const [showItemModal, setShowItemModal] = useState(false);
 
-  // Announcements state
-  const [announcements, setAnnouncements] = useState<any[]>([]);
-  const [newAnnouncement, setNewAnnouncement] = useState({ title: "", body: "" });
-  const [showAnnounceModal, setShowAnnounceModal] = useState(false);
-
-  // Custom App Sub-tab
-  const [customAppSubTab, setCustomAppSubTab] = useState<"MAIN MENU" | "MAPS" | "ABOUT" | "LOGIN" | "APP DETAILS">("MAIN MENU");
-  const [copiedCode, setCopiedCode] = useState<string | null>(null);
+  const [newExcludedMember, setNewExcludedMember] = useState("");
 
   const showToastMsg = (msg: string) => {
     setToast(msg);
-    setTimeout(() => setToast(null), 4000);
+    setTimeout(() => setToast(null), 3500);
   };
 
-  const loadAll = async () => {
+  const loadSettings = async () => {
     setLoading(true);
     try {
       const data = await api<any>("/settings/phr");
       if (data) {
-        setSettings(data);
+        if (data.modules) setModules((prev) => ({ ...prev, ...data.modules }));
+        if (data.messaging_prefs) setMessagingPrefs((prev) => ({ ...prev, ...data.messaging_prefs }));
+        if (data.shared_clinical_sections) {
+          if (Array.isArray(data.shared_clinical_sections)) {
+            const map: Record<string, boolean> = {};
+            data.shared_clinical_sections.forEach((k: string) => (map[k.toLowerCase()] = true));
+            setSharedClinicalSections((prev) => ({ ...prev, ...map }));
+          } else {
+            setSharedClinicalSections((prev) => ({ ...prev, ...data.shared_clinical_sections }));
+          }
+        }
+        if (data.refill_prefs) setRefillPrefs((prev) => ({ ...prev, ...data.refill_prefs }));
+        if (data.practice_prefs) setPracticePrefs((prev) => ({ ...prev, ...data.practice_prefs }));
+        if (data.custom_app_menu) {
+          setCustomAppMenu((prev) => ({
+            ...prev,
+            ...(data.custom_app_menu.menu_items || data.custom_app_menu),
+          }));
+        }
       }
+
       const info = await api<any[]>("/settings/phr/useful-info");
       if (info) setUsefulInfoList(info);
-
-      const ann = await api<any[]>("/settings/phr/announcements");
-      if (ann) setAnnouncements(ann);
     } catch (e: any) {
-      console.error("Failed to load PHR settings:", e);
+      console.warn("Using offline PHR settings:", e);
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    loadAll();
+    loadSettings();
   }, []);
 
   const savePreferences = async () => {
     setSaving(true);
     try {
       await api("/settings/phr/preferences", "PUT", {
-        modules: settings.modules,
-        messaging_prefs: settings.messaging_prefs,
-        refill_prefs: settings.refill_prefs,
-        practice_prefs: settings.practice_prefs,
+        modules,
+        messaging_prefs: messagingPrefs,
+        refill_prefs: refillPrefs,
+        practice_prefs: practicePrefs,
       });
-      showToastMsg("PHR preferences saved successfully!");
+      showToastMsg("Preferences saved successfully!");
     } catch (e: any) {
-      alert(e.message || "Failed to save preferences");
+      alert(e?.message || "Failed to save preferences");
     } finally {
       setSaving(false);
     }
@@ -118,11 +207,11 @@ export function PhrSettingsPage({ activeOptionId, onTabChange }: PhrSettingsPage
     setSaving(true);
     try {
       await api("/settings/phr/share-clinical-data", "PUT", {
-        shared_clinical_sections: settings.shared_clinical_sections,
+        shared_clinical_sections: sharedClinicalSections,
       });
-      showToastMsg("Shared clinical sections updated successfully!");
+      showToastMsg("Share Clinical Data settings saved!");
     } catch (e: any) {
-      alert(e.message || "Failed to save clinical sections");
+      alert(e?.message || "Failed to save settings");
     } finally {
       setSaving(false);
     }
@@ -132,14 +221,31 @@ export function PhrSettingsPage({ activeOptionId, onTabChange }: PhrSettingsPage
     setSaving(true);
     try {
       await api("/settings/phr/custom-app", "PUT", {
-        custom_app_menu: settings.custom_app_menu,
+        menu_items: customAppMenu,
+        app_name: "Heal Your Heart PHR",
       });
-      showToastMsg("Custom app menu saved successfully!");
+      showToastMsg("Custom App Menu saved successfully!");
     } catch (e: any) {
-      alert(e.message || "Failed to save custom app menu");
+      alert(e?.message || "Failed to save custom app menu");
     } finally {
       setSaving(false);
     }
+  };
+
+  const removeExcludedMember = (name: string) => {
+    setMessagingPrefs((prev) => ({
+      ...prev,
+      excluded_member_ids: (prev.excluded_member_ids || []).filter((x: string) => x !== name),
+    }));
+  };
+
+  const addExcludedMember = () => {
+    if (!newExcludedMember.trim()) return;
+    setMessagingPrefs((prev) => ({
+      ...prev,
+      excluded_member_ids: [...(prev.excluded_member_ids || []), newExcludedMember.trim()],
+    }));
+    setNewExcludedMember("");
   };
 
   const saveUsefulInfoItem = async (e: React.FormEvent) => {
@@ -172,809 +278,1043 @@ export function PhrSettingsPage({ activeOptionId, onTabChange }: PhrSettingsPage
     }
   };
 
-  const copyToClipboard = (text: string, label: string) => {
-    navigator.clipboard.writeText(text);
-    setCopiedCode(label);
-    setTimeout(() => setCopiedCode(null), 2500);
-  };
-
   if (loading) {
     return (
-      <div style={{ padding: "40px", textAlign: "center", color: "#64748b" }}>
+      <div style={{ padding: 40, textAlign: "center", color: "#64748B" }}>
         Loading Heal Your Heart PHR settings...
       </div>
     );
   }
 
+  // Common Orange Save Button style
+  const orangeSaveBtn = (
+    <button
+      type="button"
+      onClick={savePreferences}
+      disabled={saving}
+      style={{
+        background: "#FF9800",
+        color: "#FFFFFF",
+        border: "none",
+        borderRadius: 4,
+        padding: "5px 16px",
+        fontSize: 13,
+        fontWeight: 600,
+        cursor: "pointer",
+        marginTop: 12,
+        boxShadow: "0 1px 2px rgba(0,0,0,0.1)",
+      }}
+    >
+      {saving ? "Saving..." : "Save"}
+    </button>
+  );
+
   return (
-    <div style={{ background: "#ffffff", borderRadius: 8, border: "1px solid #e2e8f0", padding: "24px 28px", boxShadow: "0 1px 3px rgba(0,0,0,0.04)" }}>
+    <div
+      style={{
+        background: "#FFFFFF",
+        padding: "16px 24px",
+        fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif",
+        color: "#333333",
+      }}
+    >
       {toast && (
-        <div style={{
-          position: "fixed",
-          bottom: 24,
-          right: 24,
-          backgroundColor: "#16a34a",
-          color: "#ffffff",
-          padding: "12px 20px",
-          borderRadius: 6,
-          boxShadow: "0 4px 12px rgba(0,0,0,0.15)",
-          display: "flex",
-          alignItems: "center",
-          gap: 8,
-          zIndex: 9999,
-          fontWeight: 500,
-          fontSize: 13,
-        }}>
+        <div
+          style={{
+            position: "fixed",
+            bottom: 24,
+            right: 24,
+            backgroundColor: "#16A34A",
+            color: "#FFFFFF",
+            padding: "10px 18px",
+            borderRadius: 6,
+            boxShadow: "0 4px 12px rgba(0,0,0,0.15)",
+            display: "flex",
+            alignItems: "center",
+            gap: 8,
+            zIndex: 9999,
+            fontWeight: 500,
+            fontSize: 13,
+          }}
+        >
           <Check size={16} /> {toast}
         </div>
       )}
 
-      {/* Header Banner */}
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", borderBottom: "1px solid #f1f5f9", paddingBottom: 16, marginBottom: 24 }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
-          <img
-            src="/images/HYH.png"
-            alt="Heal Your Heart"
-            style={{ height: 42, objectFit: "contain" }}
-            onError={(e) => {
-              // fallback
-              (e.currentTarget as HTMLImageElement).src = "/HYH.png";
-            }}
-          />
-          <div>
-            <h2 style={{ fontSize: 18, fontWeight: 700, margin: 0, color: "#0f172a" }}>
-              Heal Your Heart PHR Portal & App Configuration
-            </h2>
-            <p style={{ margin: "3px 0 0 0", fontSize: 12, color: "#64748b" }}>
-              Vaso-Meditech (EECP Center) · Patient Portal & Branded Mobile Experience
-            </p>
-          </div>
-        </div>
-        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          <a
-            href="/#/phr"
-            target="_blank"
-            rel="noopener noreferrer"
-            style={{
-              display: "inline-flex",
-              alignItems: "center",
-              gap: 6,
-              background: "#eff6ff",
-              color: "#2563eb",
-              border: "1px solid #bfdbfe",
-              padding: "7px 14px",
-              borderRadius: 6,
-              fontSize: 12,
-              fontWeight: 600,
-              textDecoration: "none",
-            }}
-          >
-            <ExternalLink size={14} /> Open Patient PHR Portal
-          </a>
-        </div>
-      </div>
-
-      {/* TAB 1: PREFERENCES */}
+      {/* =========================================================================
+          TAB 1: PREFERENCES (Exact match to WhatsApp Image 2026-11-21 at 1.55.48 PM (4).jpeg & media_1795252465054_76dd5977.png)
+         ========================================================================= */}
       {activeOptionId === "phr-preferences" && (
-        <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
-          {/* Section A: PHR Feature Modules */}
+        <div style={{ display: "flex", flexDirection: "column", gap: 28 }}>
+          {/* Section 1: PHR Modules */}
           <div>
-            <h3 style={{ fontSize: 14, fontWeight: 700, color: "#1e293b", margin: "0 0 4px 0", textTransform: "uppercase", letterSpacing: "0.5px" }}>
-              PHR Feature Modules
+            <h3 style={{ fontSize: 15, fontWeight: 700, color: "#2B3A4A", margin: "0 0 10px 0" }}>
+              PHR Modules
             </h3>
-            <p style={{ fontSize: 12, color: "#64748b", margin: "0 0 16px 0" }}>
-              Enable or disable patient self-service features in the Heal Your Heart patient portal.
-            </p>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: 12 }}>
-              {[
-                { key: "appointments", label: "Appointments Booking & Status", desc: "Allows patients to view and request appointments" },
-                { key: "messages", label: "Secure Doctor Messaging", desc: "Direct 2-way patient-provider communications" },
-                { key: "questionnaires", label: "Intake Questionnaires", desc: "Patient EECP pre-assessment questionnaires" },
-                { key: "reminders", label: "Automated Reminders", desc: "Recall, follow-up and appointment notices" },
-                { key: "wellness", label: "Cardiac Rehab & Wellness", desc: "EECP exercise and lifestyle goals" },
-                { key: "share_sections", label: "Clinical Chart Sharing", desc: "Access to lab reports, vitals and diagnoses" },
-                { key: "billing", label: "Billing, Invoices & Receipts", desc: "View invoices, fee receipts and balances" },
-                { key: "documents", label: "Documents & Records Upload", desc: "Patient chart PDFs and phone report uploads" },
-                { key: "prescriptions", label: "Prescriptions & Refill Requests", desc: "View medications and request refills" },
-                { key: "labs", label: "Diagnostic Labs Results", desc: "View blood work, lipid profiles and biomarkers" },
-                { key: "images", label: "Images (ECG, 2D Echo, SphygmoCor)", desc: "Inline PDF preview of cardiovascular imaging" },
-                { key: "useful_info", label: "Useful Clinic Info & Helplines", desc: "Emergency contacts and practice guidelines" },
-              ].map((m) => {
-                const checked = settings.modules[m.key] !== false;
-                return (
-                  <label
-                    key={m.key}
-                    style={{
-                      display: "flex",
-                      alignItems: "flex-start",
-                      gap: 12,
-                      padding: "12px 14px",
-                      borderRadius: 6,
-                      border: checked ? "1px solid #bfdbfe" : "1px solid #e2e8f0",
-                      background: checked ? "#f8faff" : "#fafafa",
-                      cursor: "pointer",
-                    }}
-                  >
+            {/* Yellow Notice Banner */}
+            <div
+              style={{
+                background: "#FCF8E3",
+                border: "1px solid #FAEBCC",
+                color: "#8A6D3B",
+                padding: "10px 14px",
+                borderRadius: 4,
+                fontSize: 13,
+                marginBottom: 16,
+              }}
+            >
+              Choose the modules to be shown to your patients in CharmHealth Patient Portal
+            </div>
+
+            {/* 2-Column Checkboxes */}
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px 30px", maxWidth: 600 }}>
+              <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, cursor: "pointer" }}>
+                <input
+                  type="checkbox"
+                  checked={modules.clinical_summary !== false}
+                  onChange={(e) => setModules({ ...modules, clinical_summary: e.target.checked })}
+                  style={{ accentColor: "#2563EB" }}
+                />
+                Clinical Summary
+              </label>
+
+              <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, cursor: "pointer" }}>
+                <input
+                  type="checkbox"
+                  checked={modules.visit_summary !== false}
+                  onChange={(e) => setModules({ ...modules, visit_summary: e.target.checked })}
+                  style={{ accentColor: "#2563EB" }}
+                />
+                Visit Summary
+              </label>
+
+              <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, cursor: "pointer" }}>
+                <input
+                  type="checkbox"
+                  checked={modules.appointments !== false}
+                  onChange={(e) => setModules({ ...modules, appointments: e.target.checked })}
+                  style={{ accentColor: "#2563EB" }}
+                />
+                Appointments
+              </label>
+
+              <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, cursor: "pointer" }}>
+                <input
+                  type="checkbox"
+                  checked={modules.billing !== false}
+                  onChange={(e) => setModules({ ...modules, billing: e.target.checked })}
+                  style={{ accentColor: "#2563EB" }}
+                />
+                Billing
+              </label>
+
+              <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, cursor: "pointer" }}>
+                <input
+                  type="checkbox"
+                  checked={modules.questionnaire !== false}
+                  onChange={(e) => setModules({ ...modules, questionnaire: e.target.checked })}
+                  style={{ accentColor: "#2563EB" }}
+                />
+                Questionnaire
+              </label>
+
+              <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, cursor: "pointer" }}>
+                <input
+                  type="checkbox"
+                  checked={modules.announcements !== false}
+                  onChange={(e) => setModules({ ...modules, announcements: e.target.checked })}
+                  style={{ accentColor: "#2563EB" }}
+                />
+                Announcements
+              </label>
+
+              <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, cursor: "pointer" }}>
+                <input
+                  type="checkbox"
+                  checked={modules.messages !== false}
+                  onChange={(e) => setModules({ ...modules, messages: e.target.checked })}
+                  style={{ accentColor: "#2563EB" }}
+                />
+                Messages
+              </label>
+            </div>
+
+            {orangeSaveBtn}
+          </div>
+
+          {/* Section 2: Messages / Documents */}
+          <div>
+            <h3 style={{ fontSize: 15, fontWeight: 700, color: "#2B3A4A", margin: "0 0 10px 0" }}>
+              Messages / Documents
+            </h3>
+            {/* Yellow Notice Banner */}
+            <div
+              style={{
+                background: "#FCF8E3",
+                border: "1px solid #FAEBCC",
+                color: "#8A6D3B",
+                padding: "10px 14px",
+                borderRadius: 4,
+                fontSize: 13,
+                marginBottom: 16,
+                lineHeight: 1.45,
+              }}
+            >
+              Patients can communicate with your practice members and share documents from CharmHealth Patient Portal. You can turn-off this feature or restrict the number of messages sent by patients. By default, this configuration applies to all patients. If required, you can create patient groups using Patient Category field (under Settings &gt; Patient &gt; Categories) and configure different values for each group.
+            </div>
+
+            <div style={{ display: "flex", flexDirection: "column", gap: 12, maxWidth: 650 }}>
+              {/* Patient Category */}
+              <div style={{ display: "grid", gridTemplateColumns: "220px 1fr", alignItems: "center" }}>
+                <label style={{ fontSize: 13, color: "#333333" }}>Patient Category</label>
+                <select
+                  value={messagingPrefs.patient_category || "All Patients"}
+                  onChange={(e) => setMessagingPrefs({ ...messagingPrefs, patient_category: e.target.value })}
+                  style={{ padding: "5px 10px", borderRadius: 4, border: "1px solid #CCCCCC", fontSize: 13, maxWidth: 220 }}
+                >
+                  <option value="All Patients">All Patients</option>
+                  <option value="Cardiology">Cardiology</option>
+                  <option value="EECP Patients">EECP Patients</option>
+                </select>
+              </div>
+
+              {/* Allow patients to send message */}
+              <div style={{ display: "grid", gridTemplateColumns: "220px 1fr", alignItems: "center" }}>
+                <label style={{ fontSize: 13, color: "#333333" }}>Allow patients to send message from PHR</label>
+                <div style={{ display: "flex", gap: 16, fontSize: 13 }}>
+                  <label style={{ display: "flex", alignItems: "center", gap: 5, cursor: "pointer" }}>
                     <input
-                      type="checkbox"
-                      checked={checked}
-                      onChange={(e) =>
-                        setSettings({
-                          ...settings,
-                          modules: { ...settings.modules, [m.key]: e.target.checked },
-                        })
-                      }
-                      style={{ marginTop: 3, accentColor: "#2563eb", width: 16, height: 16 }}
+                      type="radio"
+                      name="allow_patient_messages"
+                      checked={messagingPrefs.allow_patient_messages !== false}
+                      onChange={() => setMessagingPrefs({ ...messagingPrefs, allow_patient_messages: true })}
                     />
-                    <div>
-                      <div style={{ fontSize: 13, fontWeight: 600, color: "#1e293b" }}>{m.label}</div>
-                      <div style={{ fontSize: 11, color: "#64748b", marginTop: 2 }}>{m.desc}</div>
-                    </div>
+                    Yes
                   </label>
-                );
-              })}
-            </div>
-          </div>
-
-          <div style={{ borderTop: "1px solid #f1f5f9" }} />
-
-          {/* Section B: Messaging & Document Rules */}
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 24 }}>
-            <div>
-              <h3 style={{ fontSize: 14, fontWeight: 700, color: "#1e293b", margin: "0 0 4px 0", textTransform: "uppercase", letterSpacing: "0.5px" }}>
-                Messages & Document Rules
-              </h3>
-              <p style={{ fontSize: 12, color: "#64748b", margin: "0 0 14px 0" }}>
-                Upload thresholds and communication rules.
-              </p>
-
-              <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-                <label style={{ display: "flex", alignItems: "center", gap: 10, cursor: "pointer" }}>
-                  <input
-                    type="checkbox"
-                    checked={settings.messaging_prefs.allow_patient_uploads !== false}
-                    onChange={(e) =>
-                      setSettings({
-                        ...settings,
-                        messaging_prefs: { ...settings.messaging_prefs, allow_patient_uploads: e.target.checked },
-                      })
-                    }
-                    style={{ accentColor: "#2563eb", width: 16, height: 16 }}
-                  />
-                  <span style={{ fontSize: 13, fontWeight: 500, color: "#334155" }}>
-                    Allow patients to upload medical records & PDFs from phone
-                  </span>
-                </label>
-
-                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                  <span style={{ fontSize: 13, color: "#475569" }}>Max upload file size:</span>
-                  <select
-                    value={settings.messaging_prefs.max_upload_size_mb || 25}
-                    onChange={(e) =>
-                      setSettings({
-                        ...settings,
-                        messaging_prefs: { ...settings.messaging_prefs, max_upload_size_mb: parseInt(e.target.value) },
-                      })
-                    }
-                    style={{ padding: "6px 10px", borderRadius: 6, border: "1px solid #cbd5e1", fontSize: 12 }}
-                  >
-                    <option value={5}>5 MB</option>
-                    <option value={10}>10 MB</option>
-                    <option value={25}>25 MB (Recommended)</option>
-                    <option value={50}>50 MB</option>
-                  </select>
+                  <label style={{ display: "flex", alignItems: "center", gap: 5, cursor: "pointer" }}>
+                    <input
+                      type="radio"
+                      name="allow_patient_messages"
+                      checked={messagingPrefs.allow_patient_messages === false}
+                      onChange={() => setMessagingPrefs({ ...messagingPrefs, allow_patient_messages: false })}
+                    />
+                    No
+                  </label>
                 </div>
+              </div>
 
-                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                  <span style={{ fontSize: 13, color: "#475569" }}>Character limit per patient message:</span>
-                  <input
-                    type="number"
-                    value={settings.messaging_prefs.char_limit_per_message || 500}
-                    onChange={(e) =>
-                      setSettings({
-                        ...settings,
-                        messaging_prefs: { ...settings.messaging_prefs, char_limit_per_message: parseInt(e.target.value) || 500 },
-                      })
-                    }
-                    style={{ width: 90, padding: "6px 10px", borderRadius: 6, border: "1px solid #cbd5e1", fontSize: 12 }}
-                  />
+              {/* Restrict number of messages */}
+              <div style={{ display: "grid", gridTemplateColumns: "220px 1fr", alignItems: "center" }}>
+                <label style={{ fontSize: 13, color: "#333333" }}>Restrict number of messages from patient</label>
+                <div style={{ display: "flex", gap: 16, fontSize: 13 }}>
+                  <label style={{ display: "flex", alignItems: "center", gap: 5, cursor: "pointer" }}>
+                    <input
+                      type="radio"
+                      name="restrict_message_count"
+                      checked={messagingPrefs.restrict_message_count === true}
+                      onChange={() => setMessagingPrefs({ ...messagingPrefs, restrict_message_count: true })}
+                    />
+                    Yes
+                  </label>
+                  <label style={{ display: "flex", alignItems: "center", gap: 5, cursor: "pointer" }}>
+                    <input
+                      type="radio"
+                      name="restrict_message_count"
+                      checked={messagingPrefs.restrict_message_count !== true}
+                      onChange={() => setMessagingPrefs({ ...messagingPrefs, restrict_message_count: false })}
+                    />
+                    No
+                  </label>
+                </div>
+              </div>
+
+              {/* Number of characters allowed */}
+              <div style={{ display: "grid", gridTemplateColumns: "220px 1fr", alignItems: "center" }}>
+                <label style={{ fontSize: 13, color: "#333333" }}>Number of characters allowed in a patient message</label>
+                <input
+                  type="number"
+                  value={messagingPrefs.max_chars || 500}
+                  onChange={(e) => setMessagingPrefs({ ...messagingPrefs, max_chars: parseInt(e.target.value) || 500 })}
+                  style={{ width: 120, padding: "5px 8px", borderRadius: 4, border: "1px solid #CCCCCC", fontSize: 13 }}
+                />
+              </div>
+
+              {/* Allow patients to share documents */}
+              <div style={{ display: "grid", gridTemplateColumns: "220px 1fr", alignItems: "center" }}>
+                <label style={{ fontSize: 13, color: "#333333" }}>Allow patients to share documents from PHR</label>
+                <div style={{ display: "flex", gap: 16, fontSize: 13 }}>
+                  <label style={{ display: "flex", alignItems: "center", gap: 5, cursor: "pointer" }}>
+                    <input
+                      type="radio"
+                      name="allow_share_documents"
+                      checked={messagingPrefs.allow_share_documents !== false}
+                      onChange={() => setMessagingPrefs({ ...messagingPrefs, allow_share_documents: true })}
+                    />
+                    Yes
+                  </label>
+                  <label style={{ display: "flex", alignItems: "center", gap: 5, cursor: "pointer" }}>
+                    <input
+                      type="radio"
+                      name="allow_share_documents"
+                      checked={messagingPrefs.allow_share_documents === false}
+                      onChange={() => setMessagingPrefs({ ...messagingPrefs, allow_share_documents: false })}
+                    />
+                    No
+                  </label>
                 </div>
               </div>
             </div>
 
-            {/* Section C: Refill Preferences */}
-            <div>
-              <h3 style={{ fontSize: 14, fontWeight: 700, color: "#1e293b", margin: "0 0 4px 0", textTransform: "uppercase", letterSpacing: "0.5px" }}>
-                Prescription & Refill Requests
-              </h3>
-              <p style={{ fontSize: 12, color: "#64748b", margin: "0 0 14px 0" }}>
-                Allow patients to request repeat prescriptions online.
-              </p>
+            {orangeSaveBtn}
+          </div>
 
-              <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-                <label style={{ display: "flex", alignItems: "center", gap: 10, cursor: "pointer" }}>
-                  <input
-                    type="checkbox"
-                    checked={settings.refill_prefs.allow_refill_requests !== false}
-                    onChange={(e) =>
-                      setSettings({
-                        ...settings,
-                        refill_prefs: { ...settings.refill_prefs, allow_refill_requests: e.target.checked },
-                      })
-                    }
-                    style={{ accentColor: "#2563eb", width: 16, height: 16 }}
-                  />
-                  <span style={{ fontSize: 13, fontWeight: 500, color: "#334155" }}>
-                    Enable &apos;Request Refill&apos; button on active medications
-                  </span>
-                </label>
+          {/* Section 3: Patient Message Preferences */}
+          <div>
+            <h3 style={{ fontSize: 15, fontWeight: 700, color: "#2B3A4A", margin: "0 0 10px 0" }}>
+              Patient Message Preferences
+            </h3>
 
-                <label style={{ display: "flex", alignItems: "center", gap: 10, cursor: "pointer" }}>
-                  <input
-                    type="checkbox"
-                    checked={settings.refill_prefs.notify_prescribing_doctor !== false}
-                    onChange={(e) =>
-                      setSettings({
-                        ...settings,
-                        refill_prefs: { ...settings.refill_prefs, notify_prescribing_doctor: e.target.checked },
-                      })
-                    }
-                    style={{ accentColor: "#2563eb", width: 16, height: 16 }}
-                  />
-                  <span style={{ fontSize: 13, fontWeight: 500, color: "#334155" }}>
-                    Notify prescribing cardiologist immediately via task
-                  </span>
-                </label>
-
-                <div>
-                  <span style={{ fontSize: 12, color: "#64748b" }}>Refill Notification Email:</span>
-                  <input
-                    type="email"
-                    value={settings.refill_prefs.refill_notification_email || "pharmacy@healyourheart.in"}
-                    onChange={(e) =>
-                      setSettings({
-                        ...settings,
-                        refill_prefs: { ...settings.refill_prefs, refill_notification_email: e.target.value },
-                      })
-                    }
-                    style={{ width: "100%", marginTop: 4, padding: "6px 10px", borderRadius: 6, border: "1px solid #cbd5e1", fontSize: 12 }}
-                  />
+            <div style={{ display: "flex", flexDirection: "column", gap: 12, maxWidth: 680 }}>
+              {/* Allow messages to */}
+              <div style={{ display: "grid", gridTemplateColumns: "220px 1fr", alignItems: "center" }}>
+                <label style={{ fontSize: 13, color: "#333333" }}>Allow messages to</label>
+                <div style={{ display: "flex", gap: 14, fontSize: 13 }}>
+                  <label style={{ display: "flex", alignItems: "center", gap: 5, cursor: "pointer" }}>
+                    <input
+                      type="radio"
+                      name="allow_to"
+                      checked={messagingPrefs.allow_to === "groups"}
+                      onChange={() => setMessagingPrefs({ ...messagingPrefs, allow_to: "groups" })}
+                    />
+                    Groups Only
+                  </label>
+                  <label style={{ display: "flex", alignItems: "center", gap: 5, cursor: "pointer" }}>
+                    <input
+                      type="radio"
+                      name="allow_to"
+                      checked={messagingPrefs.allow_to === "members"}
+                      onChange={() => setMessagingPrefs({ ...messagingPrefs, allow_to: "members" })}
+                    />
+                    Members Only
+                  </label>
+                  <label style={{ display: "flex", alignItems: "center", gap: 5, cursor: "pointer" }}>
+                    <input
+                      type="radio"
+                      name="allow_to"
+                      checked={messagingPrefs.allow_to === "both" || !messagingPrefs.allow_to}
+                      onChange={() => setMessagingPrefs({ ...messagingPrefs, allow_to: "both" })}
+                    />
+                    Both Groups and Members
+                  </label>
                 </div>
               </div>
-            </div>
-          </div>
 
-          <div style={{ borderTop: "1px solid #f1f5f9" }} />
-
-          {/* Section D: Practice & App Lock Preferences */}
-          <div>
-            <h3 style={{ fontSize: 14, fontWeight: 700, color: "#1e293b", margin: "0 0 4px 0", textTransform: "uppercase", letterSpacing: "0.5px" }}>
-              App Security & Portal Behavior
-            </h3>
-            <p style={{ fontSize: 12, color: "#64748b", margin: "0 0 14px 0" }}>
-              Configure PIN lock and patient profile editing.
-            </p>
-
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20 }}>
-              <label style={{ display: "flex", alignItems: "flex-start", gap: 10, cursor: "pointer" }}>
-                <input
-                  type="checkbox"
-                  checked={settings.practice_prefs.require_app_lock_pin !== false}
-                  onChange={(e) =>
-                    setSettings({
-                      ...settings,
-                      practice_prefs: { ...settings.practice_prefs, require_app_lock_pin: e.target.checked },
-                    })
-                  }
-                  style={{ marginTop: 2, accentColor: "#2563eb", width: 16, height: 16 }}
-                />
-                <div>
-                  <div style={{ fontSize: 13, fontWeight: 600, color: "#334155" }}>
-                    Enforce 4-Digit PIN App Lock Screen
-                  </div>
-                  <div style={{ fontSize: 11, color: "#64748b" }}>
-                    Renders &quot;Heal Your Heart PHR Locked&quot; screen requiring PIN or biometric authorization before viewing medical data.
-                  </div>
+              {/* Message Recipients */}
+              <div style={{ display: "grid", gridTemplateColumns: "220px 1fr", alignItems: "center" }}>
+                <label style={{ fontSize: 13, color: "#333333" }}>Message Recipients</label>
+                <div style={{ display: "flex", gap: 14, fontSize: 13 }}>
+                  <label style={{ display: "flex", alignItems: "center", gap: 5, cursor: "pointer" }}>
+                    <input
+                      type="radio"
+                      name="recipients"
+                      checked={messagingPrefs.recipients === "all" || !messagingPrefs.recipients}
+                      onChange={() => setMessagingPrefs({ ...messagingPrefs, recipients: "all" })}
+                    />
+                    All Members
+                  </label>
+                  <label style={{ display: "flex", alignItems: "center", gap: 5, cursor: "pointer" }}>
+                    <input
+                      type="radio"
+                      name="recipients"
+                      checked={messagingPrefs.recipients === "in_house"}
+                      onChange={() => setMessagingPrefs({ ...messagingPrefs, recipients: "in_house" })}
+                    />
+                    In-house Care Team Members Only
+                  </label>
                 </div>
-              </label>
+              </div>
 
-              <label style={{ display: "flex", alignItems: "flex-start", gap: 10, cursor: "pointer" }}>
-                <input
-                  type="checkbox"
-                  checked={settings.practice_prefs.allow_profile_demographics_edit !== false}
-                  onChange={(e) =>
-                    setSettings({
-                      ...settings,
-                      practice_prefs: { ...settings.practice_prefs, allow_profile_demographics_edit: e.target.checked },
-                    })
-                  }
-                  style={{ marginTop: 2, accentColor: "#2563eb", width: 16, height: 16 }}
-                />
-                <div>
-                  <div style={{ fontSize: 13, fontWeight: 600, color: "#334155" }}>
-                    Allow Demographics Profile Updates
-                  </div>
-                  <div style={{ fontSize: 11, color: "#64748b" }}>
-                    Allows patient to request edits to contact phone, address, and emergency contact details.
-                  </div>
-                </div>
-              </label>
-            </div>
-          </div>
-
-          {/* Action Row */}
-          <div style={{ display: "flex", justifyContent: "flex-end", paddingTop: 16, borderTop: "1px solid #f1f5f9" }}>
-            <button
-              onClick={savePreferences}
-              disabled={saving}
-              style={{
-                background: "#ea580c",
-                color: "#ffffff",
-                border: "none",
-                padding: "10px 22px",
-                borderRadius: 6,
-                fontWeight: 600,
-                fontSize: 13,
-                cursor: "pointer",
-                display: "inline-flex",
-                alignItems: "center",
-                gap: 8,
-              }}
-            >
-              <Save size={15} /> {saving ? "Saving..." : "Save Preferences"}
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* TAB 2: SHARE CLINICAL DATA */}
-      {activeOptionId === "share-clinical-data" && (
-        <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
-          <div>
-            <h3 style={{ fontSize: 14, fontWeight: 700, color: "#1e293b", margin: "0 0 4px 0", textTransform: "uppercase", letterSpacing: "0.5px" }}>
-              Share Clinical Data
-            </h3>
-            <p style={{ fontSize: 12, color: "#64748b", margin: "0 0 16px 0" }}>
-              Select which clinical chart sections from the EHR are shared with patients in their PHR portal under <strong>Share Sections</strong>.
-            </p>
-          </div>
-
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
-            {[
-              { id: "Diagnoses", label: "Diagnoses & Problem List", desc: "ICD-10 codes, angina classification, and chronic conditions" },
-              { id: "Medications", label: "Medications & Prescriptions", desc: "Active cardiovascular Rx, supplements and dosage instructions" },
-              { id: "Allergies", label: "Allergies & Adverse Reactions", desc: "Drug, food, and environmental hypersensitivities" },
-              { id: "Vitals", label: "Vitals & Biometrics", desc: "Blood Pressure, Weight, Height, BMI and Pulse records" },
-              { id: "Procedures", label: "Procedures & EECP History", desc: "EECP counterpulsation sessions, angioplasty, and interventions" },
-              { id: "Vaccines", label: "Vaccines & Immunizations", desc: "Pneumococcal, influenza, and hepatitis records" },
-              { id: "Implanted Devices", label: "Implanted Devices", desc: "Stents, pacemakers, ICDs, and graft records" },
-              { id: "Goals", label: "Goals & Care Plan", desc: "Target BP, target LDL, target weight, and EECP milestones" },
-              { id: "Health Concerns", label: "Health Concerns", desc: "Patient symptoms, shortness of breath, and fatigue logs" },
-              { id: "Smoking Status", label: "Smoking & Lifestyle Status", desc: "Tobacco history, cessation advice, and physical activity" },
-              { id: "Consultation Notes (Signed Only)", label: "Consultation Notes (Signed Only)", desc: "Completed and digitally signed cardiologist SOAP notes" },
-              { id: "EECP Session Summary", label: "EECP Session Summary", desc: "Completed cuff pressure, augmentation ratio, and duration logs" },
-            ].map((item) => {
-              const isChecked = settings.shared_clinical_sections.includes(item.id);
-              return (
-                <label
-                  key={item.id}
-                  style={{
-                    display: "flex",
-                    alignItems: "flex-start",
-                    gap: 12,
-                    padding: "14px 16px",
-                    borderRadius: 6,
-                    border: isChecked ? "1px solid #bfdbfe" : "1px solid #e2e8f0",
-                    background: isChecked ? "#f0f7ff" : "#ffffff",
-                    cursor: "pointer",
-                  }}
-                >
-                  <input
-                    type="checkbox"
-                    checked={isChecked}
-                    onChange={(e) => {
-                      if (e.target.checked) {
-                        setSettings({
-                          ...settings,
-                          shared_clinical_sections: [...settings.shared_clinical_sections, item.id],
-                        });
-                      } else {
-                        setSettings({
-                          ...settings,
-                          shared_clinical_sections: settings.shared_clinical_sections.filter((x) => x !== item.id),
-                        });
-                      }
-                    }}
-                    style={{ marginTop: 3, accentColor: "#2563eb", width: 16, height: 16 }}
-                  />
-                  <div>
-                    <div style={{ fontSize: 13, fontWeight: 600, color: "#1e293b" }}>{item.label}</div>
-                    <div style={{ fontSize: 11, color: "#64748b", marginTop: 2 }}>{item.desc}</div>
-                  </div>
+              {/* Exclude specific members from receiving patient messages */}
+              <div style={{ display: "grid", gridTemplateColumns: "220px 1fr", alignItems: "flex-start" }}>
+                <label style={{ fontSize: 13, color: "#333333", paddingTop: 6 }}>
+                  Exclude specific members from receiving patient messages
                 </label>
-              );
-            })}
-          </div>
-
-          <div style={{ display: "flex", justifyContent: "flex-end", paddingTop: 16, borderTop: "1px solid #f1f5f9" }}>
-            <button
-              onClick={saveShareClinicalData}
-              disabled={saving}
-              style={{
-                background: "#ea580c",
-                color: "#ffffff",
-                border: "none",
-                padding: "10px 24px",
-                borderRadius: 6,
-                fontWeight: 600,
-                fontSize: 13,
-                cursor: "pointer",
-                display: "inline-flex",
-                alignItems: "center",
-                gap: 8,
-              }}
-            >
-              <Save size={15} /> {saving ? "Saving..." : "Save"}
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* TAB 3: PATIENT PORTAL EMBED */}
-      {activeOptionId === "patient-portal-embed" && (
-        <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
-          <div>
-            <h3 style={{ fontSize: 14, fontWeight: 700, color: "#1e293b", margin: "0 0 4px 0", textTransform: "uppercase", letterSpacing: "0.5px" }}>
-              Patient Portal Embed
-            </h3>
-            <p style={{ fontSize: 12, color: "#64748b", margin: "0 0 16px 0" }}>
-              Embed our official <strong>Heal Your Heart PHR</strong> on your practice website or share direct portal links with patients.
-            </p>
-          </div>
-
-          {/* Direct URL */}
-          <div style={{ background: "#f8fafc", padding: "16px 20px", borderRadius: 6, border: "1px solid #e2e8f0" }}>
-            <div style={{ fontSize: 12, fontWeight: 600, color: "#475569", marginBottom: 6 }}>
-              Direct Heal Your Heart PHR Portal URL:
-            </div>
-            <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
-              <input
-                readOnly
-                value={`${window.location.origin}/#/phr`}
-                style={{ flex: 1, padding: "8px 12px", borderRadius: 6, border: "1px solid #cbd5e1", fontSize: 13, background: "#ffffff", fontFamily: "monospace" }}
-              />
-              <button
-                onClick={() => copyToClipboard(`${window.location.origin}/#/phr`, "direct-url")}
-                style={{
-                  background: copiedCode === "direct-url" ? "#16a34a" : "#2563eb",
-                  color: "#ffffff",
-                  border: "none",
-                  padding: "8px 16px",
-                  borderRadius: 6,
-                  fontSize: 12,
-                  fontWeight: 600,
-                  cursor: "pointer",
-                  display: "inline-flex",
-                  alignItems: "center",
-                  gap: 6,
-                }}
-              >
-                {copiedCode === "direct-url" ? <Check size={14} /> : <Copy size={14} />}
-                {copiedCode === "direct-url" ? "Copied!" : "Copy URL"}
-              </button>
-            </div>
-          </div>
-
-          {/* HTML Iframe Embed Code */}
-          <div style={{ background: "#f8fafc", padding: "16px 20px", borderRadius: 6, border: "1px solid #e2e8f0" }}>
-            <div style={{ fontSize: 12, fontWeight: 600, color: "#475569", marginBottom: 6 }}>
-              Website Embed HTML (Responsive Iframe):
-            </div>
-            <textarea
-              readOnly
-              rows={3}
-              value={`<iframe src="${window.location.origin}/#/phr" width="100%" height="820" frameborder="0" style="border:none; border-radius:12px; box-shadow:0 4px 20px rgba(0,0,0,0.08);" title="Heal Your Heart PHR"></iframe>`}
-              style={{ width: "100%", padding: "10px 12px", borderRadius: 6, border: "1px solid #cbd5e1", fontSize: 12, background: "#ffffff", fontFamily: "monospace" }}
-            />
-            <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 8 }}>
-              <button
-                onClick={() => copyToClipboard(`<iframe src="${window.location.origin}/#/phr" width="100%" height="820" frameborder="0" style="border:none; border-radius:12px; box-shadow:0 4px 20px rgba(0,0,0,0.08);" title="Heal Your Heart PHR"></iframe>`, "iframe-code")}
-                style={{
-                  background: copiedCode === "iframe-code" ? "#16a34a" : "#475569",
-                  color: "#ffffff",
-                  border: "none",
-                  padding: "6px 14px",
-                  borderRadius: 6,
-                  fontSize: 12,
-                  fontWeight: 600,
-                  cursor: "pointer",
-                  display: "inline-flex",
-                  alignItems: "center",
-                  gap: 6,
-                }}
-              >
-                {copiedCode === "iframe-code" ? <Check size={14} /> : <Copy size={14} />}
-                {copiedCode === "iframe-code" ? "Copied!" : "Copy Snippet"}
-              </button>
-            </div>
-          </div>
-
-          {/* Facility Specific Links for all 6 branches */}
-          <div>
-            <div style={{ fontSize: 13, fontWeight: 700, color: "#1e293b", marginBottom: 12 }}>
-              Facility Specific Portal Links (All 6 Centers):
-            </div>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(340px, 1fr))", gap: 14 }}>
-              {settings.facilities.map((fac) => (
                 <div
-                  key={fac.code}
                   style={{
-                    border: "1px solid #e2e8f0",
-                    borderRadius: 6,
-                    padding: "14px 16px",
-                    background: "#ffffff",
+                    border: "1px solid #CCCCCC",
+                    borderRadius: 4,
+                    padding: "8px 10px",
+                    background: "#FFFFFF",
+                    display: "flex",
+                    flexWrap: "wrap",
+                    gap: 6,
+                    minHeight: 46,
                   }}
                 >
-                  <div style={{ fontSize: 13, fontWeight: 700, color: "#0f172a" }}>{fac.name}</div>
-                  <div style={{ fontSize: 11, color: "#64748b", margin: "3px 0 8px 0" }}>{fac.address}</div>
-                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
-                    <span style={{ fontSize: 11, fontFamily: "monospace", color: "#2563eb", background: "#eff6ff", padding: "2px 6px", borderRadius: 4 }}>
-                      {fac.code}
-                    </span>
-                    <button
-                      onClick={() => copyToClipboard(`${window.location.origin}/#/phr?facility=${fac.code}`, fac.code)}
+                  {(messagingPrefs.excluded_member_ids || DEFAULT_EXCLUDED_MEMBERS).map((name: string) => (
+                    <span
+                      key={name}
                       style={{
-                        background: copiedCode === fac.code ? "#16a34a" : "#f1f5f9",
-                        color: copiedCode === fac.code ? "#ffffff" : "#334155",
-                        border: "1px solid #cbd5e1",
-                        padding: "5px 12px",
-                        borderRadius: 4,
-                        fontSize: 11,
-                        fontWeight: 600,
-                        cursor: "pointer",
+                        background: "#F1F5F9",
+                        border: "1px solid #CBD5E1",
+                        borderRadius: 3,
+                        padding: "2px 8px",
+                        fontSize: 12,
+                        color: "#334155",
                         display: "inline-flex",
                         alignItems: "center",
-                        gap: 4,
+                        gap: 6,
                       }}
                     >
-                      {copiedCode === fac.code ? <Check size={12} /> : <Copy size={12} />}
-                      {copiedCode === fac.code ? "Copied" : "Copy Branch Link"}
+                      {name}
+                      <button
+                        type="button"
+                        onClick={() => removeExcludedMember(name)}
+                        style={{
+                          background: "none",
+                          border: "none",
+                          color: "#64748B",
+                          cursor: "pointer",
+                          padding: 0,
+                          fontSize: 11,
+                          lineHeight: 1,
+                        }}
+                      >
+                        ✕
+                      </button>
+                    </span>
+                  ))}
+                  <div style={{ display: "inline-flex", alignItems: "center", gap: 4, marginTop: 2 }}>
+                    <input
+                      type="text"
+                      placeholder="Add member..."
+                      value={newExcludedMember}
+                      onChange={(e) => setNewExcludedMember(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") {
+                          e.preventDefault();
+                          addExcludedMember();
+                        }
+                      }}
+                      style={{
+                        border: "none",
+                        outline: "none",
+                        fontSize: 12,
+                        width: 110,
+                        padding: "2px 4px",
+                      }}
+                    />
+                    <button
+                      type="button"
+                      onClick={addExcludedMember}
+                      style={{
+                        background: "#E2E8F0",
+                        border: "none",
+                        borderRadius: 3,
+                        padding: "2px 6px",
+                        fontSize: 11,
+                        cursor: "pointer",
+                      }}
+                    >
+                      +
                     </button>
                   </div>
                 </div>
-              ))}
+              </div>
             </div>
+
+            {orangeSaveBtn}
+          </div>
+
+          {/* Section 4: Patient Shared Data */}
+          <div>
+            <h3 style={{ fontSize: 15, fontWeight: 700, color: "#2B3A4A", margin: "0 0 10px 0" }}>
+              Patient Shared Data
+            </h3>
+
+            <div style={{ display: "flex", flexDirection: "column", gap: 12, maxWidth: 680 }}>
+              <div style={{ display: "grid", gridTemplateColumns: "220px 1fr", alignItems: "center" }}>
+                <label style={{ fontSize: 13, color: "#333333" }}>Facility</label>
+                <select
+                  value={selectedFacilityForSharedData}
+                  onChange={(e) => setSelectedFacilityForSharedData(e.target.value)}
+                  style={{ padding: "5px 10px", borderRadius: 4, border: "1px solid #CCCCCC", fontSize: 13, maxWidth: 300 }}
+                >
+                  {SIX_FACILITIES.map((f) => (
+                    <option key={f.code} value={f.name}>
+                      {f.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div style={{ display: "grid", gridTemplateColumns: "220px 1fr", alignItems: "center" }}>
+                <label style={{ fontSize: 13, color: "#333333" }}>
+                  Members to be notified when patients share data from PHR
+                </label>
+                <input
+                  type="text"
+                  placeholder="select members"
+                  value={sharedDataMembers}
+                  onChange={(e) => setSharedDataMembers(e.target.value)}
+                  style={{ padding: "6px 10px", borderRadius: 4, border: "1px solid #CCCCCC", fontSize: 13, width: "100%", maxWidth: 380 }}
+                />
+              </div>
+            </div>
+
+            {orangeSaveBtn}
+          </div>
+
+          {/* Section 5: Refills */}
+          <div>
+            <h3 style={{ fontSize: 15, fontWeight: 700, color: "#2B3A4A", margin: "0 0 10px 0" }}>
+              Refills
+            </h3>
+
+            <div style={{ display: "flex", flexDirection: "column", gap: 12, maxWidth: 680 }}>
+              <div style={{ display: "grid", gridTemplateColumns: "220px 1fr", alignItems: "center" }}>
+                <label style={{ fontSize: 13, color: "#333333" }}>Allow patients to request from PHR</label>
+                <div style={{ display: "flex", gap: 16, fontSize: 13 }}>
+                  <label style={{ display: "flex", alignItems: "center", gap: 6, cursor: "pointer" }}>
+                    <input
+                      type="checkbox"
+                      checked={refillPrefs.allow_rx_refill !== false}
+                      onChange={(e) => setRefillPrefs({ ...refillPrefs, allow_rx_refill: e.target.checked })}
+                    />
+                    Rx refill requests
+                  </label>
+                  <label style={{ display: "flex", alignItems: "center", gap: 6, cursor: "pointer" }}>
+                    <input
+                      type="checkbox"
+                      checked={refillPrefs.allow_supplement_refill === true}
+                      onChange={(e) => setRefillPrefs({ ...refillPrefs, allow_supplement_refill: e.target.checked })}
+                    />
+                    Supplement refill requests
+                  </label>
+                </div>
+              </div>
+
+              <div style={{ display: "grid", gridTemplateColumns: "220px 1fr", alignItems: "flex-start" }}>
+                <label style={{ fontSize: 13, color: "#333333", paddingTop: 4 }}>Send refill notification to</label>
+                <div style={{ display: "flex", flexDirection: "column", gap: 8, fontSize: 13 }}>
+                  <label style={{ display: "flex", alignItems: "center", gap: 6, cursor: "pointer" }}>
+                    <input
+                      type="radio"
+                      name="notify_provider"
+                      checked={refillPrefs.notify_provider !== false}
+                      onChange={() => setRefillPrefs({ ...refillPrefs, notify_provider: true })}
+                    />
+                    Respective Provider
+                  </label>
+
+                  <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                    <label style={{ display: "flex", alignItems: "center", gap: 6, cursor: "pointer" }}>
+                      <input
+                        type="checkbox"
+                        checked={refillPrefs.other_member_enabled !== false}
+                        onChange={(e) => setRefillPrefs({ ...refillPrefs, other_member_enabled: e.target.checked })}
+                      />
+                      Other member
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="select members"
+                      value={refillPrefs.other_members || ""}
+                      onChange={(e) => setRefillPrefs({ ...refillPrefs, other_members: e.target.value })}
+                      style={{ padding: "4px 8px", borderRadius: 4, border: "1px solid #CCCCCC", fontSize: 12, width: 180 }}
+                    />
+                    <span style={{ fontSize: 11, color: "#666666" }}>
+                      (ensure member(s) is part of all facilities to handle notifications received across facilities)
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {orangeSaveBtn}
+          </div>
+
+          {/* Section 6: Practice Preferences */}
+          <div>
+            <h3 style={{ fontSize: 15, fontWeight: 700, color: "#2B3A4A", margin: "0 0 10px 0" }}>
+              Practice Preferences
+            </h3>
+
+            <div style={{ display: "grid", gridTemplateColumns: "360px 1fr", alignItems: "center", maxWidth: 680 }}>
+              <label style={{ fontSize: 13, color: "#333333" }}>
+                Show only In-house Care Team members of the patient while booking appointment
+              </label>
+              <div style={{ display: "flex", gap: 16, fontSize: 13 }}>
+                <label style={{ display: "flex", alignItems: "center", gap: 5, cursor: "pointer" }}>
+                  <input
+                    type="radio"
+                    name="in_house_care_team_only_booking"
+                    checked={practicePrefs.in_house_care_team_only_booking === true}
+                    onChange={() => setPracticePrefs({ in_house_care_team_only_booking: true })}
+                  />
+                  Yes
+                </label>
+                <label style={{ display: "flex", alignItems: "center", gap: 5, cursor: "pointer" }}>
+                  <input
+                    type="radio"
+                    name="in_house_care_team_only_booking"
+                    checked={practicePrefs.in_house_care_team_only_booking !== true}
+                    onChange={() => setPracticePrefs({ in_house_care_team_only_booking: false })}
+                  />
+                  No
+                </label>
+              </div>
+            </div>
+
+            {orangeSaveBtn}
           </div>
         </div>
       )}
 
-      {/* TAB 4: CUSTOM APP */}
-      {activeOptionId === "custom-app" && (
-        <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+      {/* =========================================================================
+          TAB 2: SHARE CLINICAL DATA (Exact match to media_1795252465058_db4ff29a.png)
+         ========================================================================= */}
+      {activeOptionId === "share-clinical-data" && (
+        <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
           <div>
-            <h3 style={{ fontSize: 14, fontWeight: 700, color: "#1e293b", margin: "0 0 4px 0", textTransform: "uppercase", letterSpacing: "0.5px" }}>
-              Custom App Configuration
+            <h3 style={{ fontSize: 15, fontWeight: 700, color: "#2B3A4A", margin: "0 0 8px 0" }}>
+              Share Clinical Data
             </h3>
-            <p style={{ fontSize: 12, color: "#64748b", margin: "0 0 16px 0" }}>
-              Customize the Heal Your Heart branded mobile application menu and details.
+            <p style={{ fontSize: 13, color: "#555555", margin: "0 0 6px 0", lineHeight: 1.5 }}>
+              Meaningful Use requirement mandates providing access to patients or their representatives, to view, download and transmit their health information below.
+            </p>
+            <p style={{ fontSize: 13, color: "#555555", margin: "0 0 18px 0", lineHeight: 1.5 }}>
+              This is a global settings applicable to all patients that have Patient Portal account. You can also share records to specific patients from Patient Dashboard &gt; Share Clinical Data section.
             </p>
           </div>
 
-          {/* Sub-tabs: MAIN MENU | MAPS | ABOUT | LOGIN | APP DETAILS */}
-          <div style={{ display: "flex", gap: 4, borderBottom: "1px solid #e2e8f0", paddingBottom: 2 }}>
-            {(["MAIN MENU", "MAPS", "ABOUT", "LOGIN", "APP DETAILS"] as const).map((sub) => (
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px 40px", maxWidth: 600 }}>
+            {/* Column 1 */}
+            <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+              <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, cursor: "pointer" }}>
+                <input
+                  type="checkbox"
+                  checked={sharedClinicalSections.smoking_status !== false}
+                  onChange={(e) => setSharedClinicalSections({ ...sharedClinicalSections, smoking_status: e.target.checked })}
+                />
+                Smoking Status
+              </label>
+
+              <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, cursor: "pointer" }}>
+                <input
+                  type="checkbox"
+                  checked={sharedClinicalSections.procedures !== false}
+                  onChange={(e) => setSharedClinicalSections({ ...sharedClinicalSections, procedures: e.target.checked })}
+                />
+                Procedures
+              </label>
+
+              <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, cursor: "pointer" }}>
+                <input
+                  type="checkbox"
+                  checked={sharedClinicalSections.diagnoses !== false}
+                  onChange={(e) => setSharedClinicalSections({ ...sharedClinicalSections, diagnoses: e.target.checked })}
+                />
+                Diagnoses
+              </label>
+
+              <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, cursor: "pointer" }}>
+                <input
+                  type="checkbox"
+                  checked={sharedClinicalSections.medications !== false}
+                  onChange={(e) => setSharedClinicalSections({ ...sharedClinicalSections, medications: e.target.checked })}
+                />
+                Medications
+              </label>
+
+              <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, cursor: "pointer" }}>
+                <input
+                  type="checkbox"
+                  checked={sharedClinicalSections.allergies !== false}
+                  onChange={(e) => setSharedClinicalSections({ ...sharedClinicalSections, allergies: e.target.checked })}
+                />
+                Allergies
+              </label>
+
+              <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, cursor: "pointer" }}>
+                <input
+                  type="checkbox"
+                  checked={sharedClinicalSections.vitals !== false}
+                  onChange={(e) => setSharedClinicalSections({ ...sharedClinicalSections, vitals: e.target.checked })}
+                />
+                Vitals
+              </label>
+            </div>
+
+            {/* Column 2 */}
+            <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+              <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, cursor: "pointer" }}>
+                <input
+                  type="checkbox"
+                  checked={sharedClinicalSections.growth_chart !== false}
+                  onChange={(e) => setSharedClinicalSections({ ...sharedClinicalSections, growth_chart: e.target.checked })}
+                />
+                Growth Chart
+              </label>
+
+              <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, cursor: "pointer" }}>
+                <input
+                  type="checkbox"
+                  checked={sharedClinicalSections.vaccines !== false}
+                  onChange={(e) => setSharedClinicalSections({ ...sharedClinicalSections, vaccines: e.target.checked })}
+                />
+                Vaccines
+              </label>
+
+              <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, cursor: "pointer" }}>
+                <input
+                  type="checkbox"
+                  checked={sharedClinicalSections.implanted_devices !== false}
+                  onChange={(e) => setSharedClinicalSections({ ...sharedClinicalSections, implanted_devices: e.target.checked })}
+                />
+                Implanted Devices
+              </label>
+
+              <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, cursor: "pointer" }}>
+                <input
+                  type="checkbox"
+                  checked={sharedClinicalSections.goals !== false}
+                  onChange={(e) => setSharedClinicalSections({ ...sharedClinicalSections, goals: e.target.checked })}
+                />
+                Goals
+              </label>
+
+              <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, cursor: "pointer" }}>
+                <input
+                  type="checkbox"
+                  checked={sharedClinicalSections.health_concerns !== false}
+                  onChange={(e) => setSharedClinicalSections({ ...sharedClinicalSections, health_concerns: e.target.checked })}
+                />
+                Health Concerns
+              </label>
+
+              <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, cursor: "pointer" }}>
+                <input
+                  type="checkbox"
+                  checked={sharedClinicalSections.care_team === true}
+                  onChange={(e) => setSharedClinicalSections({ ...sharedClinicalSections, care_team: e.target.checked })}
+                />
+                Care Team
+              </label>
+            </div>
+          </div>
+
+          <div style={{ marginTop: 16 }}>
+            <button
+              type="button"
+              onClick={saveShareClinicalData}
+              disabled={saving}
+              style={{
+                background: "#FF9800",
+                color: "#FFFFFF",
+                border: "none",
+                borderRadius: 4,
+                padding: "6px 20px",
+                fontSize: 13,
+                fontWeight: 600,
+                cursor: "pointer",
+                boxShadow: "0 1px 2px rgba(0,0,0,0.1)",
+              }}
+            >
+              {saving ? "Saving..." : "Save"}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* =========================================================================
+          TAB 3: PATIENT PORTAL EMBED (Exact match to media_1795252465066_4acbecd4.png)
+         ========================================================================= */}
+      {activeOptionId === "patient-portal-embed" && (
+        <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+          <div>
+            <h3 style={{ fontSize: 15, fontWeight: 700, color: "#2B3A4A", margin: "0 0 6px 0" }}>
+              Patient Portal Embed
+            </h3>
+            <p style={{ fontSize: 13, color: "#555555", margin: "0 0 14px 0", lineHeight: 1.45 }}>
+              Patient Portal Embed feature enables you to embed CharmHealth Patient Portal login URL in your practice website and allows patients to access your practice specific login page.
+            </p>
+            <div style={{ fontSize: 13, color: "#333333", lineHeight: 1.5, marginBottom: 16 }}>
+              <div style={{ fontWeight: 600, marginBottom: 4 }}>Options</div>
+              <div style={{ marginBottom: 6 }}>
+                <strong>1. Patient Portal Embed Code with Button</strong>
+                <br />
+                <span style={{ color: "#666666" }}>
+                  Embed this code snippet, if you do not have a patient portal button/link in your website. This code creates a &apos;Patient Portal&apos; button with link to patient portal login page.
+                </span>
+              </div>
+              <div>
+                <strong>2. Patient Portal URL</strong>
+                <br />
+                <span style={{ color: "#666666" }}>
+                  If you already have a patient portal button/link in your website, change the existing URL with this new URL that is specific to your practice.
+                </span>
+              </div>
+            </div>
+          </div>
+
+          {/* 6 Facilities Cards */}
+          <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
+            {SIX_FACILITIES.map((fac) => {
+              const snippet = `<div style="font-size:14px; margin:20px 0;"><a href="${fac.url}" target="_blank" class="charm-btn" style="text-decoration:none; background:#00A896; color:#ffffff; padding:10px 18px; border-radius:4px; font-weight:bold;">Patient Portal</a></div>`;
+
+              return (
+                <div key={fac.code}>
+                  <div style={{ fontSize: 13, fontWeight: 700, color: "#00838F", marginBottom: 6 }}>
+                    Facility: {fac.name}
+                  </div>
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+                    {/* Left box: Embed Code */}
+                    <div style={{ border: "1px solid #B2DFDB", borderRadius: 4, overflow: "hidden" }}>
+                      <div
+                        style={{
+                          background: "#26A69A",
+                          color: "#FFFFFF",
+                          padding: "6px 12px",
+                          fontSize: 12,
+                          fontWeight: 700,
+                        }}
+                      >
+                        Patient Portal Embed Code with Button
+                      </div>
+                      <textarea
+                        readOnly
+                        rows={6}
+                        value={snippet}
+                        style={{
+                          width: "100%",
+                          padding: "10px 12px",
+                          border: "none",
+                          fontSize: 12,
+                          fontFamily: "monospace",
+                          boxSizing: "border-box",
+                          outline: "none",
+                          background: "#FAFAFA",
+                          resize: "none",
+                        }}
+                      />
+                    </div>
+
+                    {/* Right box: Portal URL */}
+                    <div style={{ border: "1px solid #B2DFDB", borderRadius: 4, overflow: "hidden" }}>
+                      <div
+                        style={{
+                          background: "#26A69A",
+                          color: "#FFFFFF",
+                          padding: "6px 12px",
+                          fontSize: 12,
+                          fontWeight: 700,
+                        }}
+                      >
+                        Patient Portal URL
+                      </div>
+                      <textarea
+                        readOnly
+                        rows={6}
+                        value={fac.url}
+                        style={{
+                          width: "100%",
+                          padding: "10px 12px",
+                          border: "none",
+                          fontSize: 12,
+                          fontFamily: "monospace",
+                          boxSizing: "border-box",
+                          outline: "none",
+                          background: "#FAFAFA",
+                          resize: "none",
+                        }}
+                      />
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* =========================================================================
+          TAB 4: CUSTOM APP (Exact match to media_1795252465056_2fbb0e56.png)
+         ========================================================================= */}
+      {activeOptionId === "custom-app" && (
+        <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+          {/* Top Banner with Right Subscription Charges Table */}
+          <div
+            style={{
+              background: "#FFFDF6",
+              border: "1px solid #F6ECD5",
+              borderRadius: 4,
+              padding: "16px 20px",
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+              gap: 20,
+            }}
+          >
+            <div style={{ flex: 1, fontSize: 13, color: "#444444", lineHeight: 1.5 }}>
+              Build your own Practice Branded Patient App. Customize your logo and other branding information on the Mobile App and make it available in AppStores for your patients to download.
+            </div>
+
+            {/* Subscription charges box on right */}
+            <div
+              style={{
+                borderLeft: "1px solid #E0D9C8",
+                paddingLeft: 20,
+                minWidth: 240,
+                fontSize: 12,
+                color: "#333333",
+              }}
+            >
+              <div style={{ fontWeight: 700, marginBottom: 4 }}>Annual Subscription Charges</div>
+              <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 2 }}>
+                <span>1st Year</span>
+                <span>: $ 500</span>
+              </div>
+              <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
+                <span>Subsequent Year(s)</span>
+                <span>: $ 250</span>
+              </div>
+              <div style={{ fontSize: 11, color: "#666666", marginTop: 4 }}>
+                Unlimited Patient Downloads
+              </div>
+            </div>
+          </div>
+
+          {/* Sub Tabs: MAIN MENU | MAPS | ABOUT | LOGIN | APP DETAILS */}
+          <div style={{ display: "flex", gap: 20, borderBottom: "1px solid #E0E0E0", marginTop: 8, paddingBottom: 2 }}>
+            {(["MAIN MENU", "MAPS", "ABOUT", "LOGIN", "APP DETAILS"] as const).map((tab) => (
               <button
-                key={sub}
-                onClick={() => setCustomAppSubTab(sub)}
+                key={tab}
+                type="button"
+                onClick={() => setCustomAppSubTab(tab)}
                 style={{
-                  padding: "8px 16px",
-                  fontSize: 12,
-                  fontWeight: 600,
+                  background: "none",
                   border: "none",
-                  borderBottom: customAppSubTab === sub ? "2px solid #2563eb" : "2px solid transparent",
-                  background: "transparent",
-                  color: customAppSubTab === sub ? "#2563eb" : "#64748b",
+                  borderBottom: customAppSubTab === tab ? "2px solid #FF9800" : "2px solid transparent",
+                  color: customAppSubTab === tab ? "#FF9800" : "#666666",
+                  fontSize: 13,
+                  fontWeight: customAppSubTab === tab ? 700 : 500,
+                  padding: "6px 4px",
                   cursor: "pointer",
                 }}
               >
-                {sub}
+                {tab}
               </button>
             ))}
           </div>
 
-          {/* SUB-TAB: MAIN MENU */}
+          {/* MAIN MENU Tab Content */}
           {customAppSubTab === "MAIN MENU" && (
-            <div>
-              <p style={{ fontSize: 12, color: "#64748b", marginBottom: 12 }}>
-                Toggle which items appear inside the patient mobile application menu.
-              </p>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+            <div style={{ marginTop: 12 }}>
+              <div style={{ fontSize: 13, color: "#666666", marginBottom: 14 }}>
+                Choose the modules to be shown to your patients.
+              </div>
+
+              <div style={{ display: "flex", flexDirection: "column", gap: 10, maxWidth: 300 }}>
                 {[
                   { key: "appointments", label: "Appointments" },
                   { key: "messages", label: "Messages" },
+                  { key: "document", label: "Document" },
                   { key: "questionnaire", label: "Questionnaire" },
-                  { key: "reminders", label: "Reminders" },
-                  { key: "wellness", label: "Wellness" },
-                  { key: "share_sections", label: "Share Sections (Clinical)" },
-                  { key: "invoices", label: "Invoices" },
-                  { key: "receipts", label: "Receipts" },
-                  { key: "documents", label: "Documents" },
-                  { key: "prescriptions", label: "Prescriptions" },
-                  { key: "labs", label: "Labs" },
-                  { key: "images", label: "Images" },
+                  { key: "medications", label: "Medications" },
+                  { key: "lab_results", label: "Lab results" },
+                  { key: "billing", label: "Billing" },
+                  { key: "visit_summary", label: "Visit summary" },
+                  { key: "announcements", label: "Announcements" },
                   { key: "useful_info", label: "Useful Info" },
                   { key: "about", label: "About" },
-                ].map((item) => {
-                  const isEnabled = settings.custom_app_menu[item.key] !== false;
-                  return (
-                    <label
-                      key={item.key}
-                      style={{
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "space-between",
-                        padding: "10px 14px",
-                        border: "1px solid #e2e8f0",
-                        borderRadius: 6,
-                        background: isEnabled ? "#ffffff" : "#f8fafc",
-                        cursor: "pointer",
-                      }}
-                    >
-                      <span style={{ fontSize: 13, fontWeight: 500, color: "#334155" }}>{item.label}</span>
-                      <input
-                        type="checkbox"
-                        checked={isEnabled}
-                        onChange={(e) =>
-                          setSettings({
-                            ...settings,
-                            custom_app_menu: {
-                              ...settings.custom_app_menu,
-                              [item.key]: e.target.checked,
-                            },
-                          })
-                        }
-                        style={{ accentColor: "#2563eb", width: 16, height: 16 }}
-                      />
-                    </label>
-                  );
-                })}
+                ].map((item) => (
+                  <label key={item.key} style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, cursor: "pointer" }}>
+                    <input
+                      type="checkbox"
+                      checked={customAppMenu[item.key] !== false}
+                      onChange={(e) => setCustomAppMenu({ ...customAppMenu, [item.key]: e.target.checked })}
+                    />
+                    {item.label}
+                  </label>
+                ))}
+              </div>
+
+              {/* Bottom Note */}
+              <div style={{ fontSize: 12, color: "#555555", marginTop: 24, marginBottom: 16 }}>
+                A dummy patient will be created in your account as part of this process. This is required by Apple/Google, as part of their approval process.
+              </div>
+
+              {/* Teal Buttons SAVE & SUBMIT */}
+              <div style={{ display: "flex", gap: 12 }}>
+                <button
+                  type="button"
+                  onClick={saveCustomApp}
+                  disabled={saving}
+                  style={{
+                    background: "#00ACC1",
+                    color: "#FFFFFF",
+                    border: "none",
+                    borderRadius: 3,
+                    padding: "7px 24px",
+                    fontSize: 13,
+                    fontWeight: 700,
+                    cursor: "pointer",
+                  }}
+                >
+                  SAVE
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    saveCustomApp();
+                    alert("Application submitted for AppStore review packaging!");
+                  }}
+                  style={{
+                    background: "#00ACC1",
+                    color: "#FFFFFF",
+                    border: "none",
+                    borderRadius: 3,
+                    padding: "7px 24px",
+                    fontSize: 13,
+                    fontWeight: 700,
+                    cursor: "pointer",
+                  }}
+                >
+                  SUBMIT
+                </button>
               </div>
             </div>
           )}
 
-          {/* SUB-TAB: MAPS */}
-          {customAppSubTab === "MAPS" && (
-            <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-              <div style={{ fontSize: 13, fontWeight: 600, color: "#1e293b" }}>Clinic Navigation & Google Maps</div>
-              <p style={{ fontSize: 12, color: "#64748b" }}>
-                All 6 Heal Your Heart centers will display direct Google Maps navigation links on patient appointment cards.
-              </p>
-              {settings.facilities.map((fac) => (
-                <div key={fac.code} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 14px", border: "1px solid #e2e8f0", borderRadius: 6 }}>
-                  <div>
-                    <div style={{ fontSize: 13, fontWeight: 600 }}>{fac.name}</div>
-                    <div style={{ fontSize: 11, color: "#64748b" }}>{fac.address} · {fac.phone}</div>
-                  </div>
-                  <span style={{ color: "#16a34a", fontSize: 12, fontWeight: 600 }}>Enabled</span>
-                </div>
-              ))}
+          {customAppSubTab !== "MAIN MENU" && (
+            <div style={{ padding: "30px 10px", color: "#666666", fontSize: 13 }}>
+              {customAppSubTab} configurations are auto-managed based on practice license and AppStore provisioning.
             </div>
           )}
-
-          {/* SUB-TAB: ABOUT */}
-          {customAppSubTab === "ABOUT" && (
-            <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-              <div style={{ fontSize: 13, fontWeight: 600, color: "#1e293b" }}>About Heal Your Heart</div>
-              <textarea
-                rows={5}
-                defaultValue="Heal Your Heart is a unit of Vaso-Meditech, dedicated to providing advanced Non-Invasive EECP (Enhanced External Counterpulsation) therapy and cardiovascular wellness. Headquartered in Chennai with branches across Tamil Nadu, our expert team helps patients treat refractory angina, heart failure, and promote natural collateral circulation."
-                style={{ width: "100%", padding: "10px 12px", borderRadius: 6, border: "1px solid #cbd5e1", fontSize: 13 }}
-              />
-            </div>
-          )}
-
-          {/* SUB-TAB: LOGIN */}
-          {customAppSubTab === "LOGIN" && (
-            <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-              <div style={{ fontSize: 13, fontWeight: 600, color: "#1e293b" }}>Patient Login & Lock Screen Customization</div>
-              <label style={{ display: "flex", alignItems: "center", gap: 10, cursor: "pointer" }}>
-                <input type="checkbox" defaultChecked style={{ accentColor: "#2563eb", width: 16, height: 16 }} />
-                <span style={{ fontSize: 13, color: "#334155" }}>Allow TouchID / FaceID biometric quick unlock</span>
-              </label>
-              <label style={{ display: "flex", alignItems: "center", gap: 10, cursor: "pointer" }}>
-                <input type="checkbox" defaultChecked style={{ accentColor: "#2563eb", width: 16, height: 16 }} />
-                <span style={{ fontSize: 13, color: "#334155" }}>Remember patient PIN on verified mobile device</span>
-              </label>
-            </div>
-          )}
-
-          {/* SUB-TAB: APP DETAILS */}
-          {customAppSubTab === "APP DETAILS" && (
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
-              <div>
-                <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: "#475569", marginBottom: 4 }}>
-                  App Name
-                </label>
-                <input
-                  type="text"
-                  defaultValue="Heal Your Heart PHR"
-                  style={{ width: "100%", padding: "8px 12px", borderRadius: 6, border: "1px solid #cbd5e1", fontSize: 13 }}
-                />
-              </div>
-              <div>
-                <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: "#475569", marginBottom: 4 }}>
-                  App Subtitle
-                </label>
-                <input
-                  type="text"
-                  defaultValue="Vaso-Meditech (EECP Center)"
-                  style={{ width: "100%", padding: "8px 12px", borderRadius: 6, border: "1px solid #cbd5e1", fontSize: 13 }}
-                />
-              </div>
-              <div>
-                <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: "#475569", marginBottom: 4 }}>
-                  Support Email
-                </label>
-                <input
-                  type="text"
-                  defaultValue="support@healyourheart.in"
-                  style={{ width: "100%", padding: "8px 12px", borderRadius: 6, border: "1px solid #cbd5e1", fontSize: 13 }}
-                />
-              </div>
-              <div>
-                <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: "#475569", marginBottom: 4 }}>
-                  Emergency Helpline
-                </label>
-                <input
-                  type="text"
-                  defaultValue="+91 90030 70065"
-                  style={{ width: "100%", padding: "8px 12px", borderRadius: 6, border: "1px solid #cbd5e1", fontSize: 13 }}
-                />
-              </div>
-            </div>
-          )}
-
-          <div style={{ display: "flex", justifyContent: "flex-end", paddingTop: 16, borderTop: "1px solid #f1f5f9" }}>
-            <button
-              onClick={saveCustomApp}
-              disabled={saving}
-              style={{
-                background: "#ea580c",
-                color: "#ffffff",
-                border: "none",
-                padding: "10px 24px",
-                borderRadius: 6,
-                fontWeight: 600,
-                fontSize: 13,
-                cursor: "pointer",
-                display: "inline-flex",
-                alignItems: "center",
-                gap: 8,
-              }}
-            >
-              <Save size={15} /> {saving ? "Saving..." : "SAVE"}
-            </button>
-          </div>
         </div>
       )}
 
-      {/* TAB 5: USEFUL INFO */}
-      {activeOptionId === "useful-info" && (
-        <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+      {/* =========================================================================
+          TAB 5: USEFUL INFO (List & CRUD modal)
+         ========================================================================= */}
+      {activeOptionId === "phr-useful-info" && (
+        <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
             <div>
-              <h3 style={{ fontSize: 14, fontWeight: 700, color: "#1e293b", margin: "0 0 4px 0", textTransform: "uppercase", letterSpacing: "0.5px" }}>
-                Useful Info & Practice Resources
+              <h3 style={{ fontSize: 15, fontWeight: 700, color: "#2B3A4A", margin: "0 0 4px 0" }}>
+                Useful Info
               </h3>
-              <p style={{ fontSize: 12, color: "#64748b", margin: 0 }}>
-                Emergency contacts, clinic hours, policies, and heart health resources shown in the PHR.
+              <p style={{ fontSize: 13, color: "#666666", margin: 0 }}>
+                Information, guidelines, and helplines displayed to patients in the PHR portal under Useful Info.
               </p>
             </div>
             <button
+              type="button"
               onClick={() => {
                 setEditingItem({
                   title: "",
-                  category: "Contact",
+                  category: "General Info",
                   content_or_url: "",
                   display_order: usefulInfoList.length + 1,
                   is_active: true,
@@ -982,184 +1322,183 @@ export function PhrSettingsPage({ activeOptionId, onTabChange }: PhrSettingsPage
                 setShowItemModal(true);
               }}
               style={{
-                background: "#2563eb",
-                color: "#ffffff",
+                background: "#FF9800",
+                color: "#FFFFFF",
                 border: "none",
-                padding: "8px 16px",
-                borderRadius: 6,
+                borderRadius: 4,
+                padding: "6px 14px",
+                fontSize: 13,
                 fontWeight: 600,
-                fontSize: 12,
                 cursor: "pointer",
                 display: "inline-flex",
                 alignItems: "center",
                 gap: 6,
               }}
             >
-              <Plus size={14} /> + Add New Resource
+              <Plus size={14} /> + Add New
             </button>
           </div>
 
-          {/* Table */}
-          <div style={{ border: "1px solid #e2e8f0", borderRadius: 6, overflow: "hidden" }}>
-            <table style={{ width: "100%", borderCollapse: "collapse", textAlign: "left", fontSize: 13 }}>
-              <thead>
-                <tr style={{ background: "#f8fafc", borderBottom: "1px solid #e2e8f0", color: "#475569", fontSize: 12, fontWeight: 600 }}>
-                  <th style={{ padding: "10px 14px", width: 50 }}>#</th>
-                  <th style={{ padding: "10px 14px" }}>Title</th>
-                  <th style={{ padding: "10px 14px" }}>Category</th>
-                  <th style={{ padding: "10px 14px" }}>Content / Phone / Link</th>
-                  <th style={{ padding: "10px 14px", width: 80 }}>Status</th>
-                  <th style={{ padding: "10px 14px", width: 100, textAlign: "right" }}>Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {usefulInfoList.map((item, idx) => (
-                  <tr key={item.id} style={{ borderBottom: "1px solid #f1f5f9" }}>
-                    <td style={{ padding: "10px 14px", color: "#94a3b8" }}>{item.display_order || idx + 1}</td>
-                    <td style={{ padding: "10px 14px", fontWeight: 600, color: "#1e293b" }}>{item.title}</td>
-                    <td style={{ padding: "10px 14px" }}>
-                      <span style={{
+          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+            {usefulInfoList.map((item) => (
+              <div
+                key={item.id}
+                style={{
+                  background: "#F8FAFC",
+                  border: "1px solid #E2E8F0",
+                  borderRadius: 6,
+                  padding: "14px 18px",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                }}
+              >
+                <div>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                    <span style={{ fontSize: 14, fontWeight: 700, color: "#0F172A" }}>{item.title}</span>
+                    <span
+                      style={{
+                        background: "#E0F2FE",
+                        color: "#0369A1",
                         fontSize: 11,
-                        padding: "2px 8px",
-                        borderRadius: 12,
-                        background: item.category === "Contact" ? "#dcfce7" : item.category === "Policy" ? "#fef3c7" : "#e0e7ff",
-                        color: item.category === "Contact" ? "#15803d" : item.category === "Policy" ? "#b45309" : "#4338ca",
+                        padding: "1px 6px",
+                        borderRadius: 4,
                         fontWeight: 600,
-                      }}>
-                        {item.category}
-                      </span>
-                    </td>
-                    <td style={{ padding: "10px 14px", color: "#475569", maxWidth: 360, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                      {item.content_or_url}
-                    </td>
-                    <td style={{ padding: "10px 14px" }}>
-                      <span style={{ fontSize: 11, color: item.is_active ? "#16a34a" : "#94a3b8", fontWeight: 600 }}>
-                        {item.is_active ? "Active" : "Hidden"}
-                      </span>
-                    </td>
-                    <td style={{ padding: "10px 14px", textAlign: "right" }}>
-                      <button
-                        onClick={() => {
-                          setEditingItem(item);
-                          setShowItemModal(true);
-                        }}
-                        style={{ background: "none", border: "none", color: "#2563eb", cursor: "pointer", marginRight: 8 }}
-                      >
-                        <Edit2 size={14} />
-                      </button>
-                      <button
-                        onClick={() => deleteUsefulInfoItem(item.id)}
-                        style={{ background: "none", border: "none", color: "#dc2626", cursor: "pointer" }}
-                      >
-                        <Trash2 size={14} />
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      )}
+                      }}
+                    >
+                      {item.category}
+                    </span>
+                  </div>
+                  <div style={{ fontSize: 12, color: "#64748B", marginTop: 4 }}>
+                    {item.content_or_url}
+                  </div>
+                </div>
 
-      {/* MODAL: Useful Info Add / Edit */}
-      {showItemModal && editingItem && (
-        <div style={{
-          position: "fixed",
-          inset: 0,
-          background: "rgba(15, 23, 42, 0.45)",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          zIndex: 9999,
-        }}>
-          <div style={{ background: "#ffffff", borderRadius: 8, padding: 24, width: "100%", maxWidth: 520, boxShadow: "0 10px 25px rgba(0,0,0,0.2)" }}>
-            <h3 style={{ fontSize: 16, fontWeight: 700, margin: "0 0 16px 0", color: "#0f172a" }}>
-              {editingItem.id ? "Edit Resource" : "Add New Resource"}
-            </h3>
-            <form onSubmit={saveUsefulInfoItem} style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-              <div>
-                <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: "#475569", marginBottom: 4 }}>
-                  Title
-                </label>
-                <input
-                  required
-                  type="text"
-                  value={editingItem.title}
-                  onChange={(e) => setEditingItem({ ...editingItem, title: e.target.value })}
-                  placeholder="e.g., 24/7 Cardiac Emergency Helpline"
-                  style={{ width: "100%", padding: "8px 12px", borderRadius: 6, border: "1px solid #cbd5e1", fontSize: 13 }}
-                />
-              </div>
-
-              <div>
-                <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: "#475569", marginBottom: 4 }}>
-                  Category
-                </label>
-                <select
-                  value={editingItem.category}
-                  onChange={(e) => setEditingItem({ ...editingItem, category: e.target.value })}
-                  style={{ width: "100%", padding: "8px 12px", borderRadius: 6, border: "1px solid #cbd5e1", fontSize: 13 }}
-                >
-                  <option value="Contact">Contact / Helpline</option>
-                  <option value="Policy">Clinic Policy / Hours</option>
-                  <option value="Link">Health Guide / Website Link</option>
-                </select>
-              </div>
-
-              <div>
-                <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: "#475569", marginBottom: 4 }}>
-                  Content / Telephone Number / URL
-                </label>
-                <textarea
-                  required
-                  rows={3}
-                  value={editingItem.content_or_url}
-                  onChange={(e) => setEditingItem({ ...editingItem, content_or_url: e.target.value })}
-                  placeholder="e.g., +91 90030 70065 or https://healyourheart.in/eecp-guide"
-                  style={{ width: "100%", padding: "8px 12px", borderRadius: 6, border: "1px solid #cbd5e1", fontSize: 13 }}
-                />
-              </div>
-
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                <label style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer" }}>
-                  <input
-                    type="checkbox"
-                    checked={editingItem.is_active}
-                    onChange={(e) => setEditingItem({ ...editingItem, is_active: e.target.checked })}
-                    style={{ accentColor: "#2563eb", width: 16, height: 16 }}
-                  />
-                  <span style={{ fontSize: 13, color: "#334155" }}>Active & Visible in PHR</span>
-                </label>
-
-                <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                  <span style={{ fontSize: 12, color: "#64748b" }}>Order:</span>
-                  <input
-                    type="number"
-                    value={editingItem.display_order || 1}
-                    onChange={(e) => setEditingItem({ ...editingItem, display_order: parseInt(e.target.value) || 1 })}
-                    style={{ width: 60, padding: "4px 8px", borderRadius: 4, border: "1px solid #cbd5e1", fontSize: 12 }}
-                  />
+                <div style={{ display: "flex", gap: 8 }}>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setEditingItem(item);
+                      setShowItemModal(true);
+                    }}
+                    style={{
+                      background: "none",
+                      border: "none",
+                      color: "#2563EB",
+                      cursor: "pointer",
+                      padding: 4,
+                    }}
+                  >
+                    <Edit2 size={16} />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => deleteUsefulInfoItem(item.id)}
+                    style={{
+                      background: "none",
+                      border: "none",
+                      color: "#DC2626",
+                      cursor: "pointer",
+                      padding: 4,
+                    }}
+                  >
+                    <Trash2 size={16} />
+                  </button>
                 </div>
               </div>
-
-              <div style={{ display: "flex", justifyContent: "flex-end", gap: 10, marginTop: 12 }}>
-                <button
-                  type="button"
-                  onClick={() => setShowItemModal(false)}
-                  style={{ background: "#f1f5f9", color: "#475569", border: "none", padding: "8px 16px", borderRadius: 6, fontSize: 12, fontWeight: 600, cursor: "pointer" }}
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  style={{ background: "#2563eb", color: "#ffffff", border: "none", padding: "8px 18px", borderRadius: 6, fontSize: 12, fontWeight: 600, cursor: "pointer" }}
-                >
-                  Save Resource
-                </button>
-              </div>
-            </form>
+            ))}
           </div>
+
+          {/* Add / Edit Modal */}
+          {showItemModal && (
+            <div
+              style={{
+                position: "fixed",
+                inset: 0,
+                background: "rgba(0,0,0,0.4)",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                zIndex: 10000,
+              }}
+            >
+              <form
+                onSubmit={saveUsefulInfoItem}
+                style={{
+                  background: "#FFFFFF",
+                  borderRadius: 8,
+                  padding: "24px",
+                  width: "100%",
+                  maxWidth: 440,
+                  boxShadow: "0 10px 25px rgba(0,0,0,0.15)",
+                }}
+              >
+                <h4 style={{ margin: "0 0 16px 0", fontSize: 16, fontWeight: 700 }}>
+                  {editingItem?.id ? "Edit Useful Info" : "Add Useful Info"}
+                </h4>
+
+                <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                  <div>
+                    <label style={{ display: "block", fontSize: 12, fontWeight: 600, marginBottom: 4 }}>
+                      Title
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      value={editingItem?.title || ""}
+                      onChange={(e) => setEditingItem({ ...editingItem, title: e.target.value })}
+                      style={{ width: "100%", padding: "7px 10px", borderRadius: 4, border: "1px solid #CBD5E1", fontSize: 13, boxSizing: "border-box" }}
+                    />
+                  </div>
+
+                  <div>
+                    <label style={{ display: "block", fontSize: 12, fontWeight: 600, marginBottom: 4 }}>
+                      Category
+                    </label>
+                    <select
+                      value={editingItem?.category || "General Info"}
+                      onChange={(e) => setEditingItem({ ...editingItem, category: e.target.value })}
+                      style={{ width: "100%", padding: "7px 10px", borderRadius: 4, border: "1px solid #CBD5E1", fontSize: 13, boxSizing: "border-box" }}
+                    >
+                      <option value="General Info">General Info</option>
+                      <option value="Emergency Helpline">Emergency Helpline</option>
+                      <option value="Counterpulsation Guide">Counterpulsation Guide</option>
+                      <option value="Diet & Lifestyle">Diet & Lifestyle</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label style={{ display: "block", fontSize: 12, fontWeight: 600, marginBottom: 4 }}>
+                      Content / Helpline / URL
+                    </label>
+                    <textarea
+                      rows={3}
+                      required
+                      value={editingItem?.content_or_url || ""}
+                      onChange={(e) => setEditingItem({ ...editingItem, content_or_url: e.target.value })}
+                      style={{ width: "100%", padding: "7px 10px", borderRadius: 4, border: "1px solid #CBD5E1", fontSize: 13, boxSizing: "border-box" }}
+                    />
+                  </div>
+                </div>
+
+                <div style={{ display: "flex", justifyContent: "flex-end", gap: 10, marginTop: 18 }}>
+                  <button
+                    type="button"
+                    onClick={() => setShowItemModal(false)}
+                    style={{ background: "#F1F5F9", border: "1px solid #CBD5E1", borderRadius: 4, padding: "6px 14px", fontSize: 13, cursor: "pointer" }}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    style={{ background: "#FF9800", color: "#FFFFFF", border: "none", borderRadius: 4, padding: "6px 16px", fontSize: 13, fontWeight: 600, cursor: "pointer" }}
+                  >
+                    Save Item
+                  </button>
+                </div>
+              </form>
+            </div>
+          )}
         </div>
       )}
     </div>

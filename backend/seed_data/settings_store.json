@@ -332,6 +332,48 @@
       "assigned_charm_message": true,
       "completed_charm_message": false,
       "sort_by": "Due Date"
+    },
+    "facility:0c0a4ad0-1c82-4a6a-b438-4df2f1a15e53:phr:preferences": {
+      "modules": {
+        "clinical_summary": true,
+        "visit_summary": true,
+        "appointments": true,
+        "billing": true,
+        "questionnaire": true,
+        "announcements": true,
+        "messages": true
+      },
+      "messaging_prefs": {
+        "patient_category": "All Patients",
+        "allow_patient_messages": true,
+        "restrict_message_count": false,
+        "max_chars": 500,
+        "allow_share_documents": true
+      }
+    },
+    "facility:0c0a4ad0-1c82-4a6a-b438-4df2f1a15e53:phr:share-clinical-data": {
+      "shared_clinical_sections": {
+        "smoking_status": true,
+        "procedures": true,
+        "diagnoses": true,
+        "medications": true,
+        "allergies": true,
+        "vitals": true,
+        "growth_chart": true,
+        "vaccines": true,
+        "implanted_devices": true,
+        "goals": true,
+        "health_concerns": true,
+        "care_team": false
+      }
+    },
+    "facility:0c0a4ad0-1c82-4a6a-b438-4df2f1a15e53:phr:custom-app": {
+      "menu_items": {
+        "appointments": true,
+        "messages": true,
+        "billing": true
+      },
+      "app_name": "Heal Your Heart PHR"
     }
   },
   "appointment_statuses": [

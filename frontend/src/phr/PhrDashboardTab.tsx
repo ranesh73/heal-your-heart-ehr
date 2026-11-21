@@ -1,19 +1,15 @@
-import React from "react";
+import React, { useState } from "react";
 import {
   Calendar,
   Clock,
   MapPin,
-  User,
-  HeartPulse,
-  Activity,
-  Plus,
-  ChevronRight,
-  FileText,
-  MessageSquare,
-  Pill,
   Scale,
   Ruler,
-  CalendarCheck,
+  Heart,
+  ChevronRight,
+  ShieldCheck,
+  X,
+  Sparkles,
 } from "lucide-react";
 
 interface VitalsData {
@@ -44,6 +40,7 @@ interface PhrDashboardTabProps {
   onOpenUpload: () => void;
   onOpenRefills: () => void;
   onOpenClinicalRecords: () => void;
+  onOpenProfilePassword?: () => void;
   onNavigateTab: (tab: "dashboard" | "my-health") => void;
 }
 
@@ -55,8 +52,11 @@ export function PhrDashboardTab({
   onOpenUpload,
   onOpenRefills,
   onOpenClinicalRecords,
+  onOpenProfilePassword,
   onNavigateTab,
 }: PhrDashboardTabProps) {
+  const [showFirstLoginBanner, setShowFirstLoginBanner] = useState<boolean>(true);
+
   const hasUpcoming = upcomingAppointments && upcomingAppointments.length > 0;
   const nextAppt = hasUpcoming ? upcomingAppointments[0] : null;
 
@@ -89,345 +89,412 @@ export function PhrDashboardTab({
   };
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 20, paddingBottom: 80 }}>
-      {/* 3 VITALS SUMMARY CARDS (Top Row matching screenshot) */}
-      <div>
-        <div style={{
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-          marginBottom: 10,
-        }}>
-          <span style={{ fontSize: 13, fontWeight: 700, color: "#1e293b", textTransform: "uppercase", letterSpacing: "0.5px" }}>
-            Latest Vitals
-          </span>
+    <div style={{ display: "flex", flexDirection: "column", gap: 20, paddingBottom: 90 }}>
+      {/* First-Login Dismissible Security Banner */}
+      {showFirstLoginBanner && (
+        <div
+          style={{
+            background: "#EFF6FF",
+            border: "1px solid #BFDBFE",
+            borderRadius: 12,
+            padding: "12px 14px",
+            display: "flex",
+            alignItems: "flex-start",
+            justifyContent: "space-between",
+            gap: 10,
+          }}
+        >
+          <div style={{ display: "flex", alignItems: "flex-start", gap: 10 }}>
+            <ShieldCheck size={18} color="#2563EB" style={{ flexShrink: 0, marginTop: 2 }} />
+            <div>
+              <div style={{ fontSize: 13, fontWeight: 600, color: "#1E40AF" }}>
+                Welcome to Heal Your Heart PHR!
+              </div>
+              <div style={{ fontSize: 12, color: "#3B82F6", marginTop: 2 }}>
+                For your account privacy, you can update your initial 6-digit ID password anytime.{" "}
+                {onOpenProfilePassword && (
+                  <button
+                    type="button"
+                    onClick={onOpenProfilePassword}
+                    style={{
+                      background: "none",
+                      border: "none",
+                      color: "#1D4ED8",
+                      fontWeight: 700,
+                      textDecoration: "underline",
+                      cursor: "pointer",
+                      padding: 0,
+                    }}
+                  >
+                    Change Password
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
           <button
-            onClick={onOpenClinicalRecords}
+            type="button"
+            onClick={() => setShowFirstLoginBanner(false)}
             style={{
               background: "none",
               border: "none",
-              color: "#2563eb",
-              fontSize: 12,
-              fontWeight: 600,
+              color: "#94A3B8",
               cursor: "pointer",
-              padding: 0,
+              padding: 2,
             }}
           >
-            View History
+            <X size={16} />
           </button>
         </div>
+      )}
 
-        <div style={{
+      {/* 3 VITALS SUMMARY CARDS (Exact match to WhatsApp Image 2026-11-21 at 1.55.48 PM.jpeg) */}
+      <div
+        style={{
           display: "grid",
           gridTemplateColumns: "repeat(3, 1fr)",
-          gap: 10,
-        }}>
-          {/* Card 1: Weight */}
-          <div style={{
-            background: "#ffffff",
-            borderRadius: 12,
-            padding: "14px 12px",
-            border: "1px solid #e2e8f0",
-            boxShadow: "0 1px 3px rgba(0,0,0,0.03)",
+          gap: 12,
+        }}
+      >
+        {/* Card 1: Weight (Mint Tint #D7EFEA) */}
+        <div
+          onClick={onOpenClinicalRecords}
+          style={{
+            background: "#D7EFEA",
+            borderRadius: 14,
+            padding: "16px 10px 14px 10px",
             display: "flex",
             flexDirection: "column",
-            justifyContent: "space-between",
-            minHeight: 90,
-          }}>
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-              <span style={{ fontSize: 12, fontWeight: 600, color: "#64748b" }}>Weight</span>
-              <Scale size={16} color="#3b82f6" />
-            </div>
-            <div style={{ margin: "6px 0 2px 0" }}>
-              <span style={{ fontSize: 19, fontWeight: 700, color: "#0f172a" }}>
-                {vitals?.weight_kg ? `${vitals.weight_kg}` : "74"}
-              </span>
-              <span style={{ fontSize: 12, color: "#64748b", marginLeft: 4 }}>kg</span>
-            </div>
-            <div style={{ fontSize: 10, color: "#94a3b8" }}>
-              {vitals?.observed_at ? formatDate(vitals.observed_at) : "Nov 20, 2026"}
-            </div>
-          </div>
-
-          {/* Card 2: Height */}
-          <div style={{
-            background: "#ffffff",
-            borderRadius: 12,
-            padding: "14px 12px",
-            border: "1px solid #e2e8f0",
-            boxShadow: "0 1px 3px rgba(0,0,0,0.03)",
-            display: "flex",
-            flexDirection: "column",
-            justifyContent: "space-between",
-            minHeight: 90,
-          }}>
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-              <span style={{ fontSize: 12, fontWeight: 600, color: "#64748b" }}>Height</span>
-              <Ruler size={16} color="#10b981" />
-            </div>
-            <div style={{ margin: "6px 0 2px 0" }}>
-              <span style={{ fontSize: 19, fontWeight: 700, color: "#0f172a" }}>
-                {vitals?.height_cm ? `${vitals.height_cm}` : "175"}
-              </span>
-              <span style={{ fontSize: 12, color: "#64748b", marginLeft: 4 }}>cm</span>
-            </div>
-            <div style={{ fontSize: 10, color: "#10b981", fontWeight: 600 }}>
-              BMI: {vitals?.bmi || "24.2 Normal"}
-            </div>
-          </div>
-
-          {/* Card 3: Blood Pressure */}
-          <div style={{
-            background: "#ffffff",
-            borderRadius: 12,
-            padding: "14px 12px",
-            border: "1px solid #e2e8f0",
-            boxShadow: "0 1px 3px rgba(0,0,0,0.03)",
-            display: "flex",
-            flexDirection: "column",
-            justifyContent: "space-between",
-            minHeight: 90,
-          }}>
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-              <span style={{ fontSize: 12, fontWeight: 600, color: "#64748b" }}>Blood Pressure</span>
-              <HeartPulse size={16} color="#ef4444" />
-            </div>
-            <div style={{ margin: "6px 0 2px 0" }}>
-              <span style={{ fontSize: 18, fontWeight: 700, color: "#0f172a" }}>
-                {vitals?.bp_sys && vitals?.bp_dia ? `${vitals.bp_sys}/${vitals.bp_dia}` : "122/78"}
-              </span>
-              <span style={{ fontSize: 11, color: "#64748b", marginLeft: 3 }}>mmHg</span>
-            </div>
-            <div style={{ fontSize: 10, color: "#16a34a", fontWeight: 600 }}>
-              Optimal
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* UPCOMING APPOINTMENTS CARD */}
-      <div>
-        <div style={{
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-          marginBottom: 10,
-        }}>
-          <span style={{ fontSize: 13, fontWeight: 700, color: "#1e293b", textTransform: "uppercase", letterSpacing: "0.5px" }}>
-            Upcoming Appointments
-          </span>
-          <button
-            onClick={onOpenBookAppointment}
+            alignItems: "center",
+            justifyContent: "center",
+            cursor: "pointer",
+            boxShadow: "0 1px 2px rgba(0,0,0,0.02)",
+            minHeight: 110,
+            boxSizing: "border-box",
+          }}
+        >
+          <div
             style={{
-              background: "none",
-              border: "none",
-              color: "#2563eb",
-              fontSize: 12,
-              fontWeight: 600,
-              cursor: "pointer",
-              padding: 0,
-            }}
-          >
-            + Book Now
-          </button>
-        </div>
-
-        {nextAppt ? (
-          <div style={{
-            background: "#ffffff",
-            borderRadius: 14,
-            border: "1px solid #e2e8f0",
-            padding: "18px 20px",
-            boxShadow: "0 2px 6px rgba(0,0,0,0.04)",
-          }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 12 }}>
-              <div>
-                <span style={{
-                  fontSize: 11,
-                  fontWeight: 700,
-                  textTransform: "uppercase",
-                  padding: "3px 8px",
-                  borderRadius: 12,
-                  background: "#dcfce7",
-                  color: "#15803d",
-                }}>
-                  {nextAppt.status || "Confirmed"}
-                </span>
-                <h3 style={{ fontSize: 16, fontWeight: 700, color: "#0f172a", margin: "8px 0 3px 0" }}>
-                  {nextAppt.reason || "Cardiology & EECP Follow-Up"}
-                </h3>
-                <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 13, color: "#475569" }}>
-                  <User size={14} color="#64748b" /> {nextAppt.provider_name || "Dr. Prem Sekar"}
-                </div>
-              </div>
-
-              <div style={{
-                background: "#eff6ff",
-                border: "1px solid #bfdbfe",
-                borderRadius: 10,
-                padding: "8px 12px",
-                textAlign: "center",
-              }}>
-                <div style={{ fontSize: 11, fontWeight: 700, color: "#2563eb", textTransform: "uppercase" }}>
-                  {formatDate(nextAppt.scheduled_at).split(",")[0]}
-                </div>
-                <div style={{ fontSize: 13, fontWeight: 700, color: "#1e293b" }}>
-                  {formatTime(nextAppt.scheduled_at)}
-                </div>
-              </div>
-            </div>
-
-            <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: "#64748b", borderTop: "1px solid #f1f5f9", paddingTop: 10 }}>
-              <MapPin size={14} color="#64748b" />
-              <span>{nextAppt.facility_name || "Heal Your Heart Neelankarai - HUH001"}</span>
-            </div>
-          </div>
-        ) : (
-          <div style={{
-            background: "#ffffff",
-            borderRadius: 14,
-            border: "1px solid #e2e8f0",
-            padding: "28px 20px",
-            textAlign: "center",
-            boxShadow: "0 2px 6px rgba(0,0,0,0.03)",
-          }}>
-            <div style={{
-              width: 50,
-              height: 50,
-              borderRadius: "50%",
-              background: "#f1f5f9",
+              width: 32,
+              height: 32,
+              borderRadius: 8,
+              background: "#14B8A6",
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
-              margin: "0 auto 12px auto",
-              color: "#64748b",
-            }}>
-              <Calendar size={24} />
+              color: "#FFFFFF",
+              marginBottom: 8,
+            }}
+          >
+            <Scale size={18} />
+          </div>
+          <span style={{ fontSize: 13, fontWeight: 500, color: "#1F2937", marginBottom: 4 }}>
+            Weight
+          </span>
+          <span style={{ fontSize: 15, fontWeight: 700, color: "#111827" }}>
+            {vitals?.weight_kg ? `${vitals.weight_kg} kg` : "-"}
+          </span>
+        </div>
+
+        {/* Card 2: Height (Peach Tint #FBEAE1) */}
+        <div
+          onClick={onOpenClinicalRecords}
+          style={{
+            background: "#FBEAE1",
+            borderRadius: 14,
+            padding: "16px 10px 14px 10px",
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            justifyContent: "center",
+            cursor: "pointer",
+            boxShadow: "0 1px 2px rgba(0,0,0,0.02)",
+            minHeight: 110,
+            boxSizing: "border-box",
+          }}
+        >
+          <div
+            style={{
+              width: 32,
+              height: 32,
+              borderRadius: 8,
+              background: "#F97316",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              color: "#FFFFFF",
+              marginBottom: 8,
+            }}
+          >
+            <Ruler size={18} />
+          </div>
+          <span style={{ fontSize: 13, fontWeight: 500, color: "#1F2937", marginBottom: 4 }}>
+            Height
+          </span>
+          <span style={{ fontSize: 15, fontWeight: 700, color: "#111827" }}>
+            {vitals?.height_cm ? `${vitals.height_cm} cm` : "-"}
+          </span>
+        </div>
+
+        {/* Card 3: Blood Pressure (Rose Tint #FCEAEF) */}
+        <div
+          onClick={onOpenClinicalRecords}
+          style={{
+            background: "#FCEAEF",
+            borderRadius: 14,
+            padding: "16px 10px 14px 10px",
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            justifyContent: "center",
+            cursor: "pointer",
+            boxShadow: "0 1px 2px rgba(0,0,0,0.02)",
+            minHeight: 110,
+            boxSizing: "border-box",
+          }}
+        >
+          <div
+            style={{
+              width: 32,
+              height: 32,
+              borderRadius: 8,
+              background: "#F43F5E",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              color: "#FFFFFF",
+              marginBottom: 8,
+            }}
+          >
+            <Heart size={18} />
+          </div>
+          <span style={{ fontSize: 12, fontWeight: 500, color: "#1F2937", marginBottom: 4, textAlign: "center" }}>
+            Blood Pressure
+          </span>
+          <span style={{ fontSize: 15, fontWeight: 700, color: "#111827" }}>
+            {vitals?.bp_sys && vitals?.bp_dia ? `${vitals.bp_sys}/${vitals.bp_dia}` : "-"}
+          </span>
+        </div>
+      </div>
+
+      {/* UPCOMING APPOINTMENTS SECTION */}
+      <div>
+        <h2
+          style={{
+            fontSize: 16,
+            fontWeight: 700,
+            color: "#111827",
+            margin: "8px 0 12px 2px",
+          }}
+        >
+          Upcoming Appointments
+        </h2>
+
+        {nextAppt ? (
+          <div
+            style={{
+              background: "#FFFFFF",
+              borderRadius: 16,
+              border: "1px solid #F1F5F9",
+              padding: "20px",
+              boxShadow: "0 1px 3px rgba(0,0,0,0.03)",
+            }}
+          >
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 12 }}>
+              <div>
+                <span
+                  style={{
+                    fontSize: 11,
+                    fontWeight: 700,
+                    textTransform: "uppercase",
+                    padding: "3px 8px",
+                    borderRadius: 12,
+                    background: "#EFF6FF",
+                    color: "#2563EB",
+                  }}
+                >
+                  {nextAppt.status || "Confirmed"}
+                </span>
+                <h3 style={{ fontSize: 16, fontWeight: 700, color: "#0F172A", margin: "8px 0 2px 0" }}>
+                  {nextAppt.reason || "Cardiology & EECP Session"}
+                </h3>
+                <div style={{ fontSize: 13, color: "#64748B" }}>
+                  With {nextAppt.provider_name || "Dr. Prem Sekar"}
+                </div>
+              </div>
             </div>
-            <div style={{ fontSize: 15, fontWeight: 600, color: "#1e293b", marginBottom: 4 }}>
-              No upcoming appointments
+
+            <div style={{ display: "flex", flexDirection: "column", gap: 6, fontSize: 13, color: "#334155", margin: "14px 0" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <Calendar size={16} color="#3B82F6" />
+                <span>{formatDate(nextAppt.scheduled_at)}</span>
+              </div>
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <Clock size={16} color="#3B82F6" />
+                <span>{formatTime(nextAppt.scheduled_at)} ({nextAppt.duration_minutes || 30} mins)</span>
+              </div>
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <MapPin size={16} color="#3B82F6" />
+                <span>{nextAppt.facility_name}</span>
+              </div>
             </div>
-            <div style={{ fontSize: 12, color: "#64748b", marginBottom: 16 }}>
-              Schedule your next EECP counterpulsation session or consultation.
-            </div>
+
             <button
+              type="button"
               onClick={onOpenBookAppointment}
               style={{
-                background: "#2563eb",
-                color: "#ffffff",
+                width: "100%",
+                background: "#2563EB",
+                color: "#FFFFFF",
                 border: "none",
-                borderRadius: 20,
-                padding: "9px 22px",
-                fontSize: 13,
+                borderRadius: 8,
+                padding: "10px 0",
+                fontSize: 14,
                 fontWeight: 600,
                 cursor: "pointer",
-                boxShadow: "0 2px 6px rgba(37,99,235,0.2)",
               }}
+            >
+              Request Follow-up / Reschedule
+            </button>
+          </div>
+        ) : (
+          /* Empty state matching exact calendar graphic & "Book Now" in screenshot */
+          <div
+            style={{
+              background: "#FFFFFF",
+              borderRadius: 16,
+              border: "1px solid #F1F5F9",
+              padding: "40px 20px 36px 20px",
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              justifyContent: "center",
+              boxShadow: "0 1px 3px rgba(0,0,0,0.03)",
+            }}
+          >
+            {/* Calendar with Sparkles Graphic */}
+            <div style={{ position: "relative", marginBottom: 18 }}>
+              {/* Little sparkle dots */}
+              <div
+                style={{
+                  position: "absolute",
+                  top: -8,
+                  left: -10,
+                  width: 6,
+                  height: 6,
+                  borderRadius: "50%",
+                  background: "#34D399",
+                }}
+              />
+              <div
+                style={{
+                  position: "absolute",
+                  top: 2,
+                  right: -12,
+                  width: 6,
+                  height: 6,
+                  borderRadius: "50%",
+                  background: "#C084FC",
+                }}
+              />
+              <div
+                style={{
+                  position: "absolute",
+                  bottom: -2,
+                  right: -14,
+                  width: 5,
+                  height: 5,
+                  borderRadius: "50%",
+                  background: "#F472B6",
+                }}
+              />
+
+              {/* Vector Calendar icon box */}
+              <div
+                style={{
+                  width: 64,
+                  height: 64,
+                  borderRadius: 12,
+                  background: "#FFFFFF",
+                  border: "2px solid #E2E8F0",
+                  overflow: "hidden",
+                  boxShadow: "0 4px 10px rgba(0,0,0,0.06)",
+                  display: "flex",
+                  flexDirection: "column",
+                }}
+              >
+                {/* Header blue bar */}
+                <div
+                  style={{
+                    height: 18,
+                    background: "#3B82F6",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-around",
+                    padding: "0 8px",
+                  }}
+                >
+                  <div style={{ width: 4, height: 4, borderRadius: "50%", background: "#FFFFFF" }} />
+                  <div style={{ width: 4, height: 4, borderRadius: "50%", background: "#FFFFFF" }} />
+                </div>
+                {/* Calendar grid cells */}
+                <div
+                  style={{
+                    flex: 1,
+                    display: "grid",
+                    gridTemplateColumns: "repeat(3, 1fr)",
+                    gap: 3,
+                    padding: "5px 6px",
+                    background: "#F8FAFC",
+                  }}
+                >
+                  {[1, 2, 3, 4, 5, 6].map((i) => (
+                    <div
+                      key={i}
+                      style={{
+                        background: i % 2 === 0 ? "#3B82F6" : "#93C5FD",
+                        borderRadius: 3,
+                      }}
+                    />
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            <div
+              style={{
+                fontSize: 16,
+                fontWeight: 600,
+                color: "#1E293B",
+                marginBottom: 16,
+                textAlign: "center",
+              }}
+            >
+              No upcoming appointments
+            </div>
+
+            <button
+              type="button"
+              onClick={onOpenBookAppointment}
+              style={{
+                background: "#3B82F6",
+                color: "#FFFFFF",
+                border: "none",
+                borderRadius: 6,
+                padding: "9px 26px",
+                fontSize: 14,
+                fontWeight: 600,
+                cursor: "pointer",
+                boxShadow: "0 2px 6px rgba(59, 130, 246, 0.3)",
+                transition: "background 0.15s ease",
+              }}
+              onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = "#2563EB")}
+              onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = "#3B82F6")}
             >
               Book Now
             </button>
           </div>
         )}
-      </div>
-
-      {/* QUICK ACTIONS GRID */}
-      <div>
-        <div style={{ fontSize: 13, fontWeight: 700, color: "#1e293b", textTransform: "uppercase", letterSpacing: "0.5px", marginBottom: 10 }}>
-          Quick Actions
-        </div>
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-          <button
-            onClick={onOpenBookAppointment}
-            style={{
-              background: "#ffffff",
-              border: "1px solid #e2e8f0",
-              borderRadius: 12,
-              padding: "14px 16px",
-              textAlign: "left",
-              cursor: "pointer",
-              display: "flex",
-              alignItems: "center",
-              gap: 12,
-            }}
-          >
-            <div style={{ width: 36, height: 36, borderRadius: 10, background: "#eff6ff", color: "#2563eb", display: "flex", alignItems: "center", justifyContent: "center" }}>
-              <CalendarCheck size={18} />
-            </div>
-            <div>
-              <div style={{ fontSize: 13, fontWeight: 600, color: "#0f172a" }}>Request Visit</div>
-              <div style={{ fontSize: 11, color: "#64748b" }}>Choose center & date</div>
-            </div>
-          </button>
-
-          <button
-            onClick={onOpenMessages}
-            style={{
-              background: "#ffffff",
-              border: "1px solid #e2e8f0",
-              borderRadius: 12,
-              padding: "14px 16px",
-              textAlign: "left",
-              cursor: "pointer",
-              display: "flex",
-              alignItems: "center",
-              gap: 12,
-            }}
-          >
-            <div style={{ width: 36, height: 36, borderRadius: 10, background: "#ecfdf5", color: "#059669", display: "flex", alignItems: "center", justifyContent: "center" }}>
-              <MessageSquare size={18} />
-            </div>
-            <div>
-              <div style={{ fontSize: 13, fontWeight: 600, color: "#0f172a" }}>Ask Doctor</div>
-              <div style={{ fontSize: 11, color: "#64748b" }}>Secure messaging</div>
-            </div>
-          </button>
-
-          <button
-            onClick={onOpenUpload}
-            style={{
-              background: "#ffffff",
-              border: "1px solid #e2e8f0",
-              borderRadius: 12,
-              padding: "14px 16px",
-              textAlign: "left",
-              cursor: "pointer",
-              display: "flex",
-              alignItems: "center",
-              gap: 12,
-            }}
-          >
-            <div style={{ width: 36, height: 36, borderRadius: 10, background: "#fef3c7", color: "#d97706", display: "flex", alignItems: "center", justifyContent: "center" }}>
-              <FileText size={18} />
-            </div>
-            <div>
-              <div style={{ fontSize: 13, fontWeight: 600, color: "#0f172a" }}>Upload Report</div>
-              <div style={{ fontSize: 11, color: "#64748b" }}>Attach PDFs/photos</div>
-            </div>
-          </button>
-
-          <button
-            onClick={onOpenRefills}
-            style={{
-              background: "#ffffff",
-              border: "1px solid #e2e8f0",
-              borderRadius: 12,
-              padding: "14px 16px",
-              textAlign: "left",
-              cursor: "pointer",
-              display: "flex",
-              alignItems: "center",
-              gap: 12,
-            }}
-          >
-            <div style={{ width: 36, height: 36, borderRadius: 10, background: "#f3e8ff", color: "#7c3aed", display: "flex", alignItems: "center", justifyContent: "center" }}>
-              <Pill size={18} />
-            </div>
-            <div>
-              <div style={{ fontSize: 13, fontWeight: 600, color: "#0f172a" }}>Request Refill</div>
-              <div style={{ fontSize: 11, color: "#64748b" }}>Rx & Supplements</div>
-            </div>
-          </button>
-        </div>
       </div>
     </div>
   );

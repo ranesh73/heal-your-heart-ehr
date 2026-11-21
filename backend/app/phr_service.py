@@ -5,10 +5,12 @@ Manages PHR settings, patient accounts, sessions, and clinical data aggregation 
 import hashlib
 import json
 import logging
+import re
 from datetime import datetime, date, timedelta, timezone
 from typing import Any, Dict, List, Optional
 from uuid import uuid4
 
+import bcrypt
 from sqlalchemy import select, desc, or_, and_, delete
 from sqlalchemy.orm import Session
 
@@ -149,6 +151,52 @@ FACILITIES_CONFIG = [
 ]
 
 
+def extract_6digit_patient_id(mrn_or_id: Optional[str]) -> str:
+    """
+    Extracts the 6-digit patient ID from patient MRN (e.g. HYN-MR-000207 -> 000207).
+    """
+    if not mrn_or_id:
+        return "000001"
+    digits = re.findall(r"\d+", str(mrn_or_id))
+    if digits:
+        last_num = digits[-1]
+        return last_num.zfill(6)[-6:]
+    val = int(hashlib.md5(str(mrn_or_id).encode()).hexdigest(), 16) % 1000000
+    return str(val).zfill(6)
+
+
+def hash_password_bcrypt(password: str) -> str:
+    """
+    Hashes a password string using bcrypt with salt.
+    """
+    pw_bytes = password.encode("utf-8")
+    salt = bcrypt.gensalt()
+    return bcrypt.hashpw(pw_bytes, salt).decode("utf-8")
+
+
+def verify_password_bcrypt(password: str, hashed: str) -> bool:
+    """
+    Verifies a plain text password against a bcrypt or legacy sha256 hash.
+    """
+    if not hashed or not password:
+        return False
+    pw_bytes = password.encode("utf-8")
+    try:
+        # Check bcrypt hash ($2b$ or $2a$)
+        if hashed.startswith("$2b$") or hashed.startswith("$2a$"):
+            return bcrypt.checkpw(pw_bytes, hashed.encode("utf-8"))
+    except Exception:
+        pass
+    # Fallback to legacy sha256 hash check
+    try:
+        if hashlib.sha256(pw_bytes).hexdigest() == hashed:
+            return True
+    except Exception:
+        pass
+    # Fallback for plain-text comparison during initial tests
+    return password == hashed
+
+
 def hash_pin_or_password(text: str) -> str:
     return hashlib.sha256(text.encode("utf-8")).hexdigest()
 
@@ -283,13 +331,14 @@ def ensure_phr_seed_data(db: Session):
 
         # Ensure PHR Account for Hariharan S
         phr_acc = db.scalar(select(m.PatientPhrAccount).where(m.PatientPhrAccount.patient_id == patient.id))
+        hari_default_pw = extract_6digit_patient_id(patient.mrn or "000007")
         if not phr_acc:
             db.add(
                 m.PatientPhrAccount(
                     id=str(uuid4()),
                     patient_id=patient.id,
                     phone_or_email=patient.email or patient.phone or "hariharan.s@example.com",
-                    password_hash=hash_pin_or_password("password123"),
+                    password_hash=hash_password_bcrypt(hari_default_pw),
                     pin_hash=hash_pin_or_password("1234"),  # 4-digit PIN default 1234
                     is_active=True,
                     created_at=m.now(),

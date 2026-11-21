@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { X, User, Phone, MapPin, Mail, Lock, LogOut, ChevronRight, Check, Activity, ShieldCheck } from "lucide-react";
+import { X, User, Phone, MapPin, Mail, Lock, LogOut, ChevronRight, Check, Activity, ShieldCheck, KeyRound, AlertCircle } from "lucide-react";
 import { phrApi, clearPhrToken } from "./phrApi";
 
 interface PhrProfileModalProps {
@@ -23,6 +23,12 @@ export function PhrProfileModal({ patient, onClose, onLockApp, onLogout }: PhrPr
   const [appleHealthSync, setAppleHealthSync] = useState(true);
   const [analyticsSync, setAnalyticsSync] = useState(true);
   const [showDemographics, setShowDemographics] = useState(false);
+  const [showChangePassword, setShowChangePassword] = useState(false);
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [passwordError, setPasswordError] = useState<string | null>(null);
+  const [passwordSuccess, setPasswordSuccess] = useState<string | null>(null);
   const [phone, setPhone] = useState(patient?.phone || "+91 98400 12345");
   const [address, setAddress] = useState(patient?.address || "No. 42, Beach Road, Neelankarai, Chennai - 600115");
   const [emergencyContact, setEmergencyContact] = useState(patient?.emergency_contact || "S. Sundaram (Father) - +91 98400 98765");
@@ -48,6 +54,45 @@ export function PhrProfileModal({ patient, onClose, onLockApp, onLogout }: PhrPr
       }, 1200);
     } catch (e: any) {
       alert(e.message || "Failed to update demographics");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleChangePassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setPasswordError(null);
+    setPasswordSuccess(null);
+
+    if (!currentPassword.trim()) {
+      setPasswordError("Please enter your current password or 6-digit ID");
+      return;
+    }
+    if (newPassword.length < 4) {
+      setPasswordError("New password must be at least 4 characters long");
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      setPasswordError("New passwords do not match");
+      return;
+    }
+
+    setSaving(true);
+    try {
+      await phrApi("/auth/change-password", "POST", {
+        current_password: currentPassword.trim(),
+        new_password: newPassword.trim(),
+      });
+      setPasswordSuccess("Password updated successfully!");
+      setCurrentPassword("");
+      setNewPassword("");
+      setConfirmPassword("");
+      setTimeout(() => {
+        setShowChangePassword(false);
+        setPasswordSuccess(null);
+      }, 1500);
+    } catch (err: any) {
+      setPasswordError(err?.message || "Failed to update password. Check your current password.");
     } finally {
       setSaving(false);
     }
@@ -207,6 +252,94 @@ export function PhrProfileModal({ patient, onClose, onLockApp, onLogout }: PhrPr
               {saved ? "Saved Successfully!" : saving ? "Saving..." : "Save Demographics"}
             </button>
           </form>
+        ) : showChangePassword ? (
+          /* Change Password View */
+          <form onSubmit={handleChangePassword} style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
+              <span style={{ fontSize: 14, fontWeight: 700, color: "#1e293b" }}>Change Password</span>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowChangePassword(false);
+                  setPasswordError(null);
+                  setPasswordSuccess(null);
+                }}
+                style={{ background: "none", border: "none", color: "#2563eb", fontSize: 12, fontWeight: 600, cursor: "pointer" }}
+              >
+                Back
+              </button>
+            </div>
+
+            {passwordError && (
+              <div style={{ background: "#fef2f2", color: "#dc2626", padding: "8px 12px", borderRadius: 6, fontSize: 12, display: "flex", alignItems: "center", gap: 6 }}>
+                <AlertCircle size={14} /> {passwordError}
+              </div>
+            )}
+
+            {passwordSuccess && (
+              <div style={{ background: "#f0fdf4", color: "#16a34a", padding: "8px 12px", borderRadius: 6, fontSize: 12, display: "flex", alignItems: "center", gap: 6 }}>
+                <Check size={14} /> {passwordSuccess}
+              </div>
+            )}
+
+            <div>
+              <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: "#475569", marginBottom: 4 }}>
+                Current Password (or 6-Digit Patient ID)
+              </label>
+              <input
+                type="password"
+                value={currentPassword}
+                onChange={(e) => setCurrentPassword(e.target.value)}
+                placeholder="Enter current password or 6-digit ID"
+                style={{ width: "100%", padding: "10px 12px", borderRadius: 8, border: "1px solid #cbd5e1", fontSize: 13, boxSizing: "border-box" }}
+              />
+            </div>
+
+            <div>
+              <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: "#475569", marginBottom: 4 }}>
+                New Password
+              </label>
+              <input
+                type="password"
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
+                placeholder="At least 4 characters"
+                style={{ width: "100%", padding: "10px 12px", borderRadius: 8, border: "1px solid #cbd5e1", fontSize: 13, boxSizing: "border-box" }}
+              />
+            </div>
+
+            <div>
+              <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: "#475569", marginBottom: 4 }}>
+                Confirm New Password
+              </label>
+              <input
+                type="password"
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                placeholder="Re-enter new password"
+                style={{ width: "100%", padding: "10px 12px", borderRadius: 8, border: "1px solid #cbd5e1", fontSize: 13, boxSizing: "border-box" }}
+              />
+            </div>
+
+            <button
+              type="submit"
+              disabled={saving}
+              style={{
+                width: "100%",
+                background: "#2563eb",
+                color: "#ffffff",
+                border: "none",
+                borderRadius: 20,
+                padding: "12px 0",
+                fontSize: 14,
+                fontWeight: 700,
+                cursor: "pointer",
+                marginTop: 6,
+              }}
+            >
+              {saving ? "Updating..." : "Update Password"}
+            </button>
+          </form>
         ) : (
           /* Profile Menu Sections */
           <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
@@ -221,6 +354,25 @@ export function PhrProfileModal({ patient, onClose, onLockApp, onLogout }: PhrPr
                   style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 16px", cursor: "pointer", background: "#ffffff" }}
                 >
                   <span style={{ fontSize: 13, fontWeight: 600, color: "#1e293b" }}>Demographics</span>
+                  <ChevronRight size={16} color="#94a3b8" />
+                </div>
+              </div>
+            </div>
+
+            {/* Account Security */}
+            <div>
+              <div style={{ fontSize: 11, fontWeight: 700, color: "#64748b", textTransform: "uppercase", letterSpacing: "0.5px", marginBottom: 8 }}>
+                Account Security
+              </div>
+              <div style={{ border: "1px solid #e2e8f0", borderRadius: 12, overflow: "hidden" }}>
+                <div
+                  onClick={() => setShowChangePassword(true)}
+                  style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 16px", cursor: "pointer", background: "#ffffff" }}
+                >
+                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                    <KeyRound size={15} color="#2563eb" />
+                    <span style={{ fontSize: 13, fontWeight: 600, color: "#1e293b" }}>Change Password</span>
+                  </div>
                   <ChevronRight size={16} color="#94a3b8" />
                 </div>
               </div>
