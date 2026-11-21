@@ -1,0 +1,25 @@
+{
+  "name": "Heal Your Heart PHR",
+  "short_name": "HYH PHR",
+  "description": "Personal Cardiac & Health Record Portal by Heal Your Heart — Vaso-Meditech (EECP Center)",
+  "start_url": "/phr/login",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#F5F7FA",
+  "theme_color": "#0D9488",
+  "icons": [
+    {
+      "src": "/icons/hyh-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icons/hyh-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

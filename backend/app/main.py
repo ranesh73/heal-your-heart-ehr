@@ -155,13 +155,40 @@ def shutdown_background_tasks():
 @app.get('/api/health')
 def health(): return {'status':'ok','mode':'development','external_integrations':False}
 
-FRONTEND=Path(__file__).resolve().parents[2]/'frontend'/'dist'
+FRONTEND = Path(__file__).resolve().parents[2] / 'frontend' / 'dist'
+FRONTEND_PUBLIC = Path(__file__).resolve().parents[2] / 'frontend' / 'public'
+
+# PWA Web App Manifest endpoint
+MANIFEST_FILE = FRONTEND / 'manifest.webmanifest' if (FRONTEND / 'manifest.webmanifest').exists() else (FRONTEND_PUBLIC / 'manifest.webmanifest')
+if MANIFEST_FILE.exists():
+    @app.get('/manifest.webmanifest')
+    @app.get('/manifest.json')
+    def get_manifest():
+        return FileResponse(MANIFEST_FILE, media_type='application/manifest+json')
+
 if FRONTEND.exists():
-    app.mount('/assets',StaticFiles(directory=FRONTEND/'assets'),name='assets')
-    if (FRONTEND/'images').exists():
-        app.mount('/images',StaticFiles(directory=FRONTEND/'images'),name='images')
+    app.mount('/assets', StaticFiles(directory=FRONTEND / 'assets'), name='assets')
+    if (FRONTEND / 'images').exists():
+        app.mount('/images', StaticFiles(directory=FRONTEND / 'images'), name='images')
+    if (FRONTEND / 'icons').exists():
+        app.mount('/icons', StaticFiles(directory=FRONTEND / 'icons'), name='icons')
+
     @app.get('/{path:path}')
-    def spa(path:str):
+    def spa(path: str):
         if path.startswith('api/') or path in ('docs', 'redoc', 'openapi.json'):
-            return JSONResponse({'detail':'Not found'},status_code=404)
-        return FileResponse(FRONTEND/'index.html')
+            return JSONResponse({'detail': 'Not found'}, status_code=404)
+        target = FRONTEND / path
+        if path and target.is_file():
+            media_type = None
+            if path.endswith('.webmanifest') or path.endswith('.json'):
+                media_type = 'application/manifest+json'
+            elif path.endswith('.js'):
+                media_type = 'application/javascript'
+            elif path.endswith('.png'):
+                media_type = 'image/png'
+            elif path.endswith('.ico'):
+                media_type = 'image/x-icon'
+            elif path.endswith('.svg'):
+                media_type = 'image/svg+xml'
+            return FileResponse(target, media_type=media_type)
+        return FileResponse(FRONTEND / 'index.html')

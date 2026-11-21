@@ -1,1 +1,40 @@
-<!doctype html><html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/><meta name="theme-color" content="#145e63"/><title>Heal Your Heart EHR</title></head><body><div id="root"></div><script type="module" src="/src/main.tsx"></script></body></html>
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#0D9488" />
+    <meta name="description" content="Personal Cardiac & Health Record Portal by Heal Your Heart — Vaso-Meditech (EECP Center)" />
+    
+    <!-- PWA Web App Manifest -->
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <link rel="alternate" type="application/json" href="/manifest.json" />
+
+    <!-- Favicon & Touch Icons -->
+    <link rel="icon" type="image/png" href="/icons/hyh-192.png" />
+    <link rel="apple-touch-icon" href="/icons/hyh-192.png" />
+    <link rel="apple-touch-icon" sizes="192x192" href="/icons/hyh-192.png" />
+    <link rel="apple-touch-icon" sizes="512x512" href="/icons/hyh-512.png" />
+
+    <!-- iOS PWA Meta Tags -->
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <meta name="apple-mobile-web-app-title" content="HYH PHR" />
+
+    <title>Heal Your Heart PHR & EHR</title>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+    <script>
+      if ("serviceWorker" in navigator) {
+        window.addEventListener("load", () => {
+          navigator.serviceWorker
+            .register("/sw.js")
+            .then((reg) => console.log("PWA Service Worker active with scope:", reg.scope))
+            .catch((err) => console.warn("PWA Service Worker registration failed:", err));
+        });
+      }
+    </script>
+  </body>
+</html>
