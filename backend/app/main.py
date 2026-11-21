@@ -7,7 +7,7 @@ from fastapi.responses import JSONResponse, FileResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import ValidationError
 from sqlalchemy.exc import IntegrityError
-from . import identity, patients, scheduling, clinical, consultations, eecp, operations, settings_router, templates_router, catalogue_service, rx_service, immunization_service, settings_modules_service, billing_service, waiting_list, flowsheets, tasks_workflow, recalls, patient_alerts, quick_notes, referrals, analytics, ai_router, workflow_router, device_imports_router
+from . import identity, patients, scheduling, clinical, consultations, eecp, operations, settings_router, templates_router, catalogue_service, rx_service, immunization_service, settings_modules_service, billing_service, waiting_list, flowsheets, tasks_workflow, recalls, patient_alerts, quick_notes, referrals, analytics, ai_router, workflow_router, device_imports_router, phr_router, phr_settings_router, phr_service
 
 app=FastAPI(title='Heal Your Heart EHR',version='0.1.0',docs_url='/docs',redoc_url='/redoc',openapi_url='/openapi.json')
 app.include_router(immunization_service.router, prefix="/api/settings/immunization")
@@ -18,6 +18,8 @@ app.include_router(waiting_list.router)
 app.include_router(workflow_router.router)
 app.include_router(ai_router.router)
 app.include_router(device_imports_router.router)
+app.include_router(phr_router.router)
+app.include_router(phr_settings_router.router)
 for router in (identity.router,patients.router,scheduling.router,clinical.router,consultations.router,eecp.router,operations.router,settings_router.router,templates_router.router,catalogue_service.router,rx_service.router,flowsheets.router,tasks_workflow.router,recalls.router,patient_alerts.router,quick_notes.router,referrals.router,analytics.router): app.include_router(router)
 
 @app.get('/api/docs', include_in_schema=False)
@@ -48,6 +50,9 @@ async def headers(request:Request,call_next):
         path.startswith('/documents/') or
         path.startswith('/api/device-imports/') or
         path.startswith('/device-imports/') or
+        path.startswith('/api/phr/') or
+        path.startswith('/phr/') or
+        path == '/phr' or
         'pdf' in path or
         'inline=true' in str(request.url.query).lower()
     )
@@ -120,6 +125,7 @@ def startup_sync():
             flowsheets.ensure_flowsheet_seed_data(db)
             tasks_workflow.ensure_clinical_tasks_seed_data(db)
             recalls.ensure_recalls_seed_data(db)
+            phr_service.ensure_phr_seed_data(db)
             db.commit()
     except Exception as e:
         logging.getLogger('ehr').warning('Startup seed data failed: %s', e)

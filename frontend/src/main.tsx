@@ -123,6 +123,7 @@ import { LandingPage } from "./LandingPage";
 import { LoginPage } from "./LoginPage";
 import { SignUpPage } from "./SignUpPage";
 import { ForgotPasswordPage } from "./ForgotPasswordPage";
+import { PatientPhrApp } from "./phr/PatientPhrApp";
 import "./styles.css";
 
 const launcherModules = [
@@ -504,6 +505,9 @@ function Workspace() {
   }
   if (cleanPath === "/forgot-password") {
     return <ForgotPasswordPage />;
+  }
+  if (cleanPath.startsWith("/phr")) {
+    return <PatientPhrApp path={cleanPath} />;
   }
 
   if (me.isLoading) return <Loading />;

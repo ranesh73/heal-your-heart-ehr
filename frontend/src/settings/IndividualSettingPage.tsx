@@ -21,6 +21,7 @@ import { MessageSettingsPage } from "./message/MessageSettingsPage";
 import { TaskPreferencesPage } from "./task/TaskPreferencesPage";
 import { BillingSettingsPage } from "./billing/BillingSettingsPage";
 import { PatientRecallSettingsPage } from "./subpages/PatientRecallSettingsPage";
+import { PhrSettingsPage } from "./phr/PhrSettingsPage";
 import { SettingContentView } from "./SettingContentView";
 import { SETTINGS_CATEGORIES, ALL_SETTING_OPTIONS } from "./settingsData";
 import { TemplatesModule } from "../templates/TemplatesModule";
@@ -314,6 +315,30 @@ export function IndividualSettingPage({
         tabs={recallTabs}
       >
         <PatientRecallSettingsPage activeOptionId={activeOptionId} />
+      </SettingsLayout>
+    );
+  }
+
+  // Specialized PHR Settings Subpages (Preferences, Share Clinical Data, Embed, Custom App, Useful Info)
+  if (categoryId === "phr-settings") {
+    const phrTabs = category.options.map((opt) => ({
+      id: opt.id,
+      label: opt.name,
+      badge: opt.badge,
+    }));
+
+    return (
+      <SettingsLayout
+        activeTab={activeOptionId}
+        onTabChange={handleTabChange}
+        tabs={phrTabs}
+      >
+        <div style={{ maxWidth: 1180, margin: "0 auto", padding: "20px 24px" }}>
+          <PhrSettingsPage
+            activeOptionId={activeOptionId}
+            onTabChange={handleTabChange}
+          />
+        </div>
       </SettingsLayout>
     );
   }

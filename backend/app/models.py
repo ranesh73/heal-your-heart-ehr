@@ -1253,4 +1253,77 @@ class UnmatchedDeviceImport(Entity, Base):
     created_at = Column(DateTime, nullable=False, default=now)
 
 
+# ============================================================================
+# PHR (PATIENT HEALTH RECORD) & SETTINGS MODELS
+# ============================================================================
+
+class PhrSetting(Base):
+    __tablename__ = 'phr_settings'
+    id = Column(Integer, primary_key=True)
+    modules_json = Column(Text, nullable=False, default='{}')
+    messaging_prefs_json = Column(Text, nullable=False, default='{}')
+    shared_clinical_sections_json = Column(Text, nullable=False, default='{}')
+    refill_prefs_json = Column(Text, nullable=False, default='{}')
+    practice_prefs_json = Column(Text, nullable=False, default='{}')
+    custom_app_menu_json = Column(Text, nullable=False, default='{}')
+    updated_at = Column(DateTime, nullable=False, default=now)
+
+
+class PhrUsefulInfo(Entity, Base):
+    __tablename__ = 'phr_useful_info'
+    title = Column(String(200), nullable=False)
+    category = Column(String(50), nullable=False)  # 'Contact', 'Policy', 'Link'
+    content_or_url = Column(Text, nullable=False)
+    display_order = Column(Integer, nullable=False, default=0)
+    is_active = Column(Boolean, nullable=False, default=True)
+
+
+class PhrAnnouncement(Entity, Base):
+    __tablename__ = 'phr_announcements'
+    title = Column(String(255), nullable=False)
+    body = Column(Text, nullable=False)
+    facility_id = Column(ForeignKey('facilities.id'), nullable=True, index=True)
+    published_at = Column(DateTime, nullable=False, default=now)
+    created_by = Column(ForeignKey('users.id'), nullable=True)
+
+
+class PatientPhrAccount(Entity, Base):
+    __tablename__ = 'patient_phr_accounts'
+    patient_id = Column(ForeignKey('patients.id'), nullable=False, unique=True, index=True)
+    phone_or_email = Column(String(120), nullable=False, unique=True, index=True)
+    password_hash = Column(String(255), nullable=False)
+    pin_hash = Column(String(255), nullable=True)  # 4-digit PIN hash
+    is_active = Column(Boolean, nullable=False, default=True)
+    last_login_at = Column(DateTime, nullable=True)
+
+
+class PatientPhrSession(Base):
+    __tablename__ = 'patient_phr_sessions'
+    token_hash = Column(String(64), primary_key=True)
+    patient_id = Column(ForeignKey('patients.id'), nullable=False, index=True)
+    expires_at = Column(DateTime, nullable=False)
+    created_at = Column(DateTime, nullable=False, default=now)
+
+
+class PhrAppointmentRequest(Entity, Base):
+    __tablename__ = 'phr_appointment_requests'
+    patient_id = Column(ForeignKey('patients.id'), nullable=False, index=True)
+    facility_id = Column(ForeignKey('facilities.id'), nullable=False, index=True)
+    provider_id = Column(ForeignKey('users.id'), nullable=True, index=True)
+    preferred_date = Column(String(30), nullable=False)
+    preferred_time_slot = Column(String(50), nullable=False)
+    reason = Column(Text, nullable=False, default='')
+    status = Column(String(30), nullable=False, default='pending')  # 'pending', 'confirmed', 'rejected'
+
+
+class PhrRefillRequest(Entity, Base):
+    __tablename__ = 'phr_refill_requests'
+    patient_id = Column(ForeignKey('patients.id'), nullable=False, index=True)
+    prescription_id = Column(String(36), nullable=True)
+    medication_name = Column(String(200), nullable=False)
+    refill_type = Column(String(30), nullable=False, default='rx')  # 'rx', 'supplement'
+    notes = Column(Text, nullable=False, default='')
+    status = Column(String(30), nullable=False, default='pending')  # 'pending', 'approved', 'denied'
+
+
 
