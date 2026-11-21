@@ -1226,3 +1226,30 @@ class AIPendingAction(Entity, Base):
     resolved_at = Column(DateTime, nullable=True)
 
 
+class ProcessedDeviceFile(Entity, Base):
+    __tablename__ = 'processed_device_files'
+    google_file_id = Column(String(120), unique=True, nullable=False, index=True)
+    file_name = Column(String(255), nullable=False)
+    modality = Column(String(30), nullable=False)  # 'ECG' or 'ECHO'
+    patient_id = Column(ForeignKey('patients.id'), nullable=True, index=True)
+    patient_mrn = Column(String(50), nullable=True, index=True)
+    order_id = Column(ForeignKey('clinical_orders.id'), nullable=True, index=True)
+    document_id = Column(ForeignKey('documents.id'), nullable=True, index=True)
+    status = Column(String(30), nullable=False, default='completed')  # 'completed', 'unmatched', 'failed'
+    processed_at = Column(DateTime, nullable=False, default=now)
+    details = Column(Text, default='')
+
+
+class UnmatchedDeviceImport(Entity, Base):
+    __tablename__ = 'unmatched_device_imports'
+    google_file_id = Column(String(120), nullable=False, index=True)
+    file_name = Column(String(255), nullable=False)
+    modality = Column(String(30), nullable=False)  # 'ECG' or 'ECHO'
+    extracted_patient_id = Column(String(30), nullable=True)
+    target_mrn = Column(String(50), nullable=True, index=True)
+    patient_id = Column(ForeignKey('patients.id'), nullable=True, index=True)
+    reason = Column(Text, nullable=False)
+    created_at = Column(DateTime, nullable=False, default=now)
+
+
+

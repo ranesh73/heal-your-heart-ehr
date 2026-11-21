@@ -144,6 +144,7 @@ export function CharmImages({ patientId, encounterId, isGlobal }: CharmImagesPro
   const [activeSubTab, setActiveSubTab] = useState<"orders" | "results">(isGlobalMode ? "results" : "orders");
   const [viewMode, setViewMode] = useState<"list" | "add_order" | "edit_order" | "edit_result" | "import_result" | "viewer" | "print_view">("list");
   const [selectedRecord, setSelectedRecord] = useState<Row | null>(null);
+  const [viewerDocTab, setViewerDocTab] = useState<"pdf" | "summary">("pdf");
 
   // Filters & Search for Results
   const [filterReviewer, setFilterReviewer] = useState<string>("all");
@@ -689,56 +690,84 @@ export function CharmImages({ patientId, encounterId, isGlobal }: CharmImagesPro
                 <FileText size={16} color="#0d9488" />
                 <span>{doc ? doc.title : "Diagnostic Imaging Examination Report"}</span>
               </div>
-              {docUrl && (
-                <a href={docUrl} target="_blank" rel="noreferrer" style={{ fontSize: 12, color: "#0284c7", display: "flex", alignItems: "center", gap: 4, textDecoration: "none" }}>
-                  <ExternalLink size={13} /> Open in new tab
-                </a>
-              )}
+              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                {docUrl && (
+                  <div style={{ display: "flex", background: "#e2e8f0", borderRadius: 4, padding: 2 }}>
+                    <button
+                      type="button"
+                      onClick={() => setViewerDocTab("pdf")}
+                      style={{ padding: "3px 9px", fontSize: 11, fontWeight: 600, border: "none", borderRadius: 3, cursor: "pointer", background: viewerDocTab === "pdf" ? "#0284c7" : "transparent", color: viewerDocTab === "pdf" ? "#ffffff" : "#475569" }}
+                    >
+                      PDF Report
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setViewerDocTab("summary")}
+                      style={{ padding: "3px 9px", fontSize: 11, fontWeight: 600, border: "none", borderRadius: 3, cursor: "pointer", background: viewerDocTab === "summary" ? "#0284c7" : "transparent", color: viewerDocTab === "summary" ? "#ffffff" : "#475569" }}
+                    >
+                      Clinical Summary
+                    </button>
+                  </div>
+                )}
+                {docUrl && (
+                  <a href={docUrl} target="_blank" rel="noreferrer" style={{ fontSize: 12, color: "#0284c7", display: "flex", alignItems: "center", gap: 4, textDecoration: "none" }}>
+                    <ExternalLink size={13} /> Open in new tab
+                  </a>
+                )}
+              </div>
             </div>
 
             <div style={{ flex: 1, overflow: "auto", position: "relative", background: "#f8fafc" }}>
-              <div style={{ background: "#ffffff", minHeight: "100%", padding: 32, fontFamily: "system-ui, -apple-system, sans-serif", color: "#1e293b" }}>
-                <div style={{ borderBottom: "2px solid #0f172a", paddingBottom: 16, marginBottom: 20, display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
-                  <div>
-                    <h2 style={{ margin: "0 0 4px 0", color: "#0f172a", fontSize: 18, fontWeight: 700 }}>HEAL YOUR HEART - CARDIOLOGY & EECP CENTER</h2>
-                    <p style={{ margin: 0, fontSize: 12, color: "#64748b" }}>Comprehensive Cardiovascular Diagnostics & Non-Invasive Therapy</p>
-                  </div>
-                  {doc && (
-                    <div style={{ textAlign: "right" }}>
-                      <span style={{ display: "inline-flex", alignItems: "center", gap: 6, background: "#f1f5f9", padding: "4px 10px", borderRadius: 4, border: "1px solid #cbd5e1", fontSize: 11, color: "#334155", fontWeight: 600 }}>
-                        <FileText size={14} color="#0d9488" /> {doc.filename}
-                      </span>
+              {docUrl && viewerDocTab === "pdf" ? (
+                <iframe
+                  src={`${docUrl}?inline=true`}
+                  title={doc ? doc.title : "Scanned Document"}
+                  style={{ width: "100%", height: "100%", minHeight: "550px", border: "none" }}
+                />
+              ) : (
+                <div style={{ background: "#ffffff", minHeight: "100%", padding: 32, fontFamily: "system-ui, -apple-system, sans-serif", color: "#1e293b" }}>
+                  <div style={{ borderBottom: "2px solid #0f172a", paddingBottom: 16, marginBottom: 20, display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+                    <div>
+                      <h2 style={{ margin: "0 0 4px 0", color: "#0f172a", fontSize: 18, fontWeight: 700 }}>HEAL YOUR HEART - CARDIOLOGY & EECP CENTER</h2>
+                      <p style={{ margin: 0, fontSize: 12, color: "#64748b" }}>Comprehensive Cardiovascular Diagnostics & Non-Invasive Therapy</p>
                     </div>
-                  )}
-                </div>
+                    {doc && (
+                      <div style={{ textAlign: "right" }}>
+                        <span style={{ display: "inline-flex", alignItems: "center", gap: 6, background: "#f1f5f9", padding: "4px 10px", borderRadius: 4, border: "1px solid #cbd5e1", fontSize: 11, color: "#334155", fontWeight: 600 }}>
+                          <FileText size={14} color="#0d9488" /> {doc.filename}
+                        </span>
+                      </div>
+                    )}
+                  </div>
 
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 20, fontSize: 13, borderBottom: "1px solid #e2e8f0", paddingBottom: 14 }}>
-                  <div><strong style={{ color: "#475569" }}>Patient:</strong> <span style={{ color: "#0284c7", fontWeight: 600 }}>{selectedRecord.patient_name}</span></div>
-                  <div><strong style={{ color: "#475569" }}>MRN:</strong> <span style={{ fontFamily: "monospace" }}>{selectedRecord.patient_mrn}</span></div>
-                  <div><strong style={{ color: "#475569" }}>Ordered Date:</strong> {selectedRecord.ordered_date}</div>
-                  <div><strong style={{ color: "#475569" }}>Reviewer:</strong> {selectedRecord.ordered_by || "Dr. Prem Sekar"}</div>
-                  <div style={{ gridColumn: "1 / -1" }}><strong style={{ color: "#475569" }}>Examination:</strong> <span style={{ color: "#0f172a", fontWeight: 600 }}>{selectedRecord.name}</span></div>
-                </div>
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 20, fontSize: 13, borderBottom: "1px solid #e2e8f0", paddingBottom: 14 }}>
+                    <div><strong style={{ color: "#475569" }}>Patient:</strong> <span style={{ color: "#0284c7", fontWeight: 600 }}>{selectedRecord.patient_name}</span></div>
+                    <div><strong style={{ color: "#475569" }}>MRN:</strong> <span style={{ fontFamily: "monospace" }}>{selectedRecord.patient_mrn}</span></div>
+                    <div><strong style={{ color: "#475569" }}>Ordered Date:</strong> {selectedRecord.ordered_date}</div>
+                    <div><strong style={{ color: "#475569" }}>Reviewer:</strong> {selectedRecord.ordered_by || "Dr. Prem Sekar"}</div>
+                    <div style={{ gridColumn: "1 / -1" }}><strong style={{ color: "#475569" }}>Examination:</strong> <span style={{ color: "#0f172a", fontWeight: 600 }}>{selectedRecord.name}</span></div>
+                  </div>
 
-                <div style={{ marginBottom: 20 }}>
-                  <h4 style={{ margin: "0 0 8px 0", fontSize: 13, textTransform: "uppercase", letterSpacing: 0.5, color: "#334155" }}>Parameter Findings</h4>
-                  <div style={{ fontSize: 13, lineHeight: 1.6, background: "#f8fafc", padding: 14, borderRadius: 4, border: "1px solid #e2e8f0", color: "#1e293b" }}>
-                    {selectedRecord.notes_intra_office || "Normal Left Ventricular Systolic Function. Left ventricular ejection fraction (LVEF) 60%. Left atrium normal in size. No regional wall motion abnormalities detected at rest. Normal valvular morphology with trivial mitral regurgitation."}
+                  <div style={{ marginBottom: 20 }}>
+                    <h4 style={{ margin: "0 0 8px 0", fontSize: 13, textTransform: "uppercase", letterSpacing: 0.5, color: "#334155" }}>Parameter Findings</h4>
+                    <div style={{ fontSize: 13, lineHeight: 1.6, background: "#f8fafc", padding: 14, borderRadius: 4, border: "1px solid #e2e8f0", color: "#1e293b" }}>
+                      {selectedRecord.notes_intra_office || "Normal Left Ventricular Systolic Function. Left ventricular ejection fraction (LVEF) 60%. Left atrium normal in size. No regional wall motion abnormalities detected at rest. Normal valvular morphology with trivial mitral regurgitation."}
+                    </div>
+                  </div>
+
+                  <div style={{ marginBottom: 30 }}>
+                    <h4 style={{ margin: "0 0 8px 0", fontSize: 13, textTransform: "uppercase", letterSpacing: 0.5, color: "#334155" }}>Impression / Diagnostic Conclusion</h4>
+                    <div style={{ fontSize: 13, lineHeight: 1.6, fontWeight: 500, color: "#0f172a", background: "#f0fdf4", border: "1px solid #bbf7d0", padding: 12, borderRadius: 4 }}>
+                      {selectedRecord.result || "Normal left ventricular systolic function (LVEF 60%). No regional wall motion abnormality. Good cardiac reserve."}
+                    </div>
+                  </div>
+
+                  <div style={{ marginTop: 40, borderTop: "1px dashed #cbd5e1", paddingTop: 16, display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: 12, color: "#64748b" }}>
+                    <div>Status: <span style={{ color: "#16a34a", fontWeight: 600 }}>● Electronically Verified & Signed</span></div>
+                    <div style={{ fontWeight: 600, color: "#1e293b" }}>Dr. Prem Sekar, MD, DM (Cardiology)</div>
                   </div>
                 </div>
-
-                <div style={{ marginBottom: 30 }}>
-                  <h4 style={{ margin: "0 0 8px 0", fontSize: 13, textTransform: "uppercase", letterSpacing: 0.5, color: "#334155" }}>Impression / Diagnostic Conclusion</h4>
-                  <div style={{ fontSize: 13, lineHeight: 1.6, fontWeight: 500, color: "#0f172a", background: "#f0fdf4", border: "1px solid #bbf7d0", padding: 12, borderRadius: 4 }}>
-                    {selectedRecord.result || "Normal left ventricular systolic function (LVEF 60%). No regional wall motion abnormality. Good cardiac reserve."}
-                  </div>
-                </div>
-
-                <div style={{ marginTop: 40, borderTop: "1px dashed #cbd5e1", paddingTop: 16, display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: 12, color: "#64748b" }}>
-                  <div>Status: <span style={{ color: "#16a34a", fontWeight: 600 }}>● Electronically Verified & Signed</span></div>
-                  <div style={{ fontWeight: 600, color: "#1e293b" }}>Dr. Prem Sekar, MD, DM (Cardiology)</div>
-                </div>
-              </div>
+              )}
             </div>
           </div>
 

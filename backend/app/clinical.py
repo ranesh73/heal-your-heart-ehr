@@ -719,12 +719,22 @@ async def upload(patient_id:str=Form(...),title:str=Form(...),order_id:str|None=
 
 
 @router.get('/documents/{identifier}/download')
-def download(identifier:str,c=Depends(context)):
+def download(identifier:str, inline: bool = False, c=Depends(context)):
     c.allow(CLINICAL); row=c.record(m.Document,identifier)
     path=DATA_DIR/'documents'/row.storage_key
     if not path.is_file(): raise HTTPException(404,'Document file is unavailable')
     c.audit('download_document',row)
-    return FileResponse(path,media_type='application/octet-stream',filename=row.filename,headers={'X-Content-Type-Options':'nosniff'})
+    mime = row.mime or ('application/pdf' if (row.filename or '').lower().endswith('.pdf') else 'application/octet-stream')
+    disposition = 'inline' if (inline or mime == 'application/pdf' or mime.startswith('image/')) else 'attachment'
+    return FileResponse(
+        path,
+        media_type=mime,
+        filename=row.filename,
+        headers={
+            'Content-Disposition': f'{disposition}; filename="{row.filename}"',
+            'X-Content-Type-Options': 'nosniff',
+        }
+    )
 
 
 # ============================================================================

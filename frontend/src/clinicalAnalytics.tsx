@@ -2015,6 +2015,7 @@ export type CustomReportSlug =
 interface CustomReportMeta {
   slug: CustomReportSlug;
   title: string;
+  canvasTitle?: string;
   category: "standard" | "eecp";
   buttonText?: string;
 }
@@ -2026,8 +2027,8 @@ const CUSTOM_REPORTS_LIST: CustomReportMeta[] = [
   { slug: "recall-report", title: "Recall Report", category: "standard" },
   { slug: "prescription-report", title: "Prescription Report", category: "standard" },
   { slug: "vaccinations", title: "Vaccinations", category: "standard" },
-  { slug: "lab-orders", title: "Lab Orders", category: "standard", buttonText: "Show Report" },
-  { slug: "lab-results", title: "Lab Results", category: "standard" },
+  { slug: "lab-orders", title: "Lab Orders", canvasTitle: "Lab Order Report", category: "standard", buttonText: "Show Report" },
+  { slug: "lab-results", title: "Lab Results", canvasTitle: "Lab Result Report", category: "standard", buttonText: "Show Report" },
   { slug: "flowsheet-report", title: "Flowsheet Report", category: "standard" },
   { slug: "treatment-plan-report", title: "Treatment Plan Report", category: "standard" },
   { slug: "implanted-devices", title: "Implanted Devices", category: "standard" },
@@ -2039,6 +2040,57 @@ const CUSTOM_REPORTS_LIST: CustomReportMeta[] = [
   { slug: "patient-health-outcomes", title: "Patient Health & Clinical Outcomes Report (Pre vs. Post EECP)", category: "eecp" },
   { slug: "eecp-active-course-dropoff", title: "EECP Active Course & Drop-Off Tracker", category: "eecp" },
 ];
+
+function getDatePresetRange(preset: string): { from: string; to: string } {
+  const now = new Date();
+  const y = now.getFullYear();
+  const m = now.getMonth();
+  const pad = (n: number) => String(n).padStart(2, "0");
+  const fmt = (d: Date) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+
+  if (preset === "Today") {
+    return { from: fmt(now), to: fmt(now) };
+  } else if (preset === "Yesterday") {
+    const d = new Date(now);
+    d.setDate(d.getDate() - 1);
+    return { from: fmt(d), to: fmt(d) };
+  } else if (preset === "This Week") {
+    const d = new Date(now);
+    const day = d.getDay() || 7;
+    d.setDate(d.getDate() - day + 1);
+    const end = new Date(d);
+    end.setDate(d.getDate() + 6);
+    return { from: fmt(d), to: fmt(end) };
+  } else if (preset === "This Month") {
+    const firstDay = new Date(y, m, 1);
+    const lastDay = new Date(y, m + 1, 0);
+    return { from: fmt(firstDay), to: fmt(lastDay) };
+  } else if (preset === "Previous Month") {
+    const firstDay = new Date(y, m - 1, 1);
+    const lastDay = new Date(y, m, 0);
+    return { from: fmt(firstDay), to: fmt(lastDay) };
+  } else if (preset === "This Quarter") {
+    const qStartMonth = Math.floor(m / 3) * 3;
+    const firstDay = new Date(y, qStartMonth, 1);
+    const lastDay = new Date(y, qStartMonth + 3, 0);
+    return { from: fmt(firstDay), to: fmt(lastDay) };
+  } else if (preset === "This Year") {
+    return { from: `${y}-01-01`, to: `${y}-12-31` };
+  } else if (preset === "Last 3 Months") {
+    const d = new Date(now);
+    d.setMonth(d.getMonth() - 3);
+    return { from: fmt(d), to: fmt(now) };
+  } else if (preset === "Last 6 Months") {
+    const d = new Date(now);
+    d.setMonth(d.getMonth() - 6);
+    return { from: fmt(d), to: fmt(now) };
+  } else if (preset === "Last 1 Year") {
+    const d = new Date(now);
+    d.setFullYear(d.getFullYear() - 1);
+    return { from: fmt(d), to: fmt(now) };
+  }
+  return { from: "", to: "" };
+}
 
 function CustomReportsBuilder() {
   const { notify } = useApp();
@@ -2088,6 +2140,78 @@ function CustomReportsBuilder() {
     setTableSearch("");
     setCurrentPage(1);
     setShowAdditionalFilters(false);
+
+    // Initial filter presets tailored to report schema
+    if (slug === "prescription-report") {
+      setFilters({
+        facility: "All",
+        prescriber: "All",
+        date_preset: "Previous Month",
+        from_date: "2026-10-01",
+        to_date: "2026-10-31",
+      });
+    } else if (slug === "lab-orders") {
+      setFilters({
+        lab_filter: "Ordered Date",
+        date_preset: "This Month",
+        from_date: "2026-11-01",
+        to_date: "2026-11-20",
+      });
+    } else if (slug === "lab-results") {
+      setFilters({
+        result_filter: "Result Tests",
+        date_preset: "This Month",
+        from_date: "2026-11-01",
+        to_date: "2026-11-20",
+      });
+    } else if (slug === "flowsheet-report") {
+      setFilters({
+        flowsheet: "-- Select --",
+        period_from: "2026-10-21",
+        period_to: "2026-11-20",
+        entries: "all",
+      });
+    } else if (slug === "treatment-plan-report") {
+      setFilters({
+        plan_name: "-- Select --",
+        plan_status: "All",
+        period_from: "2026-10-20",
+        period_to: "2026-11-20",
+      });
+    } else if (slug === "patient-feedback") {
+      setFilters({
+        feedback_form: "-- Select --",
+        facility: "Heal Your Heart Neelankarai",
+        provider: "All",
+        period_from: "2026-10-21",
+        period_to: "2026-11-20",
+      });
+    } else if (slug === "demo-conversion-report") {
+      setFilters({
+        period_preset: "Last 6 Months",
+        conversion_status: "All Demo Patients",
+        facility: "All",
+        provider: "All",
+      });
+    } else if (slug === "three-month-post-eecp-milestone") {
+      setFilters({
+        milestone_window: "Completed 3 Months This Month",
+        reassessment_status: "All",
+        facility: "All",
+        provider: "All",
+      });
+    } else {
+      setFilters({
+        status: "Active",
+        provider: "All",
+        facility: "All",
+        months: "3",
+        condition: "All",
+        course_type: "All",
+        direction: "All",
+        template_type: "All",
+      });
+    }
   }
 
   const currentReportMeta = useMemo(
@@ -2465,6 +2589,7 @@ function CustomReportsBuilder() {
                       ))}
                     </select>
                   </div>
+                  <div></div>
 
                   <div className="charm-cr-field-row">
                     <label>Appointment</label>
@@ -2485,29 +2610,39 @@ function CustomReportsBuilder() {
                 <div className="charm-cr-section-heading" style={{ marginTop: 18 }}>Card on File & Recurring Profile Information</div>
                 <div className="charm-cr-2col-grid">
                   <div className="charm-cr-field-row">
-                    <label>Has Card on File <Info size={13} style={{ display: "inline", color: "#94A3B8" }} /></label>
-                    <select
-                      className="charm-cr-select"
-                      value={filters.has_card || "--Select--"}
-                      onChange={(e) => updateFilter("has_card", e.target.value)}
-                    >
-                      <option value="--Select--">--Select--</option>
-                      <option value="Yes">Yes</option>
-                      <option value="No">No</option>
-                    </select>
+                    <label>Has Card on File</label>
+                    <div style={{ display: "flex", gap: 6, alignItems: "center", flex: 1 }}>
+                      <select
+                        className="charm-cr-select"
+                        value={filters.has_card || "--Select--"}
+                        onChange={(e) => updateFilter("has_card", e.target.value)}
+                      >
+                        <option value="--Select--">--Select--</option>
+                        <option value="Yes">Yes</option>
+                        <option value="No">No</option>
+                      </select>
+                      <span title="Indicates if patient has credit card on file" style={{ display: "inline-flex", cursor: "help" }}>
+                        <Info size={14} style={{ color: "#888888" }} />
+                      </span>
+                    </div>
                   </div>
 
                   <div className="charm-cr-field-row">
-                    <label>Has Recurring Profile <Info size={13} style={{ display: "inline", color: "#94A3B8" }} /></label>
-                    <select
-                      className="charm-cr-select"
-                      value={filters.has_recurring || "--Select--"}
-                      onChange={(e) => updateFilter("has_recurring", e.target.value)}
-                    >
-                      <option value="--Select--">--Select--</option>
-                      <option value="Yes">Yes</option>
-                      <option value="No">No</option>
-                    </select>
+                    <label>Has Recurring Profile</label>
+                    <div style={{ display: "flex", gap: 6, alignItems: "center", flex: 1 }}>
+                      <select
+                        className="charm-cr-select"
+                        value={filters.has_recurring || "--Select--"}
+                        onChange={(e) => updateFilter("has_recurring", e.target.value)}
+                      >
+                        <option value="--Select--">--Select--</option>
+                        <option value="Yes">Yes</option>
+                        <option value="No">No</option>
+                      </select>
+                      <span title="Indicates recurring billing subscription profile" style={{ display: "inline-flex", cursor: "help" }}>
+                        <Info size={14} style={{ color: "#888888" }} />
+                      </span>
+                    </div>
                   </div>
                 </div>
 
@@ -2571,25 +2706,27 @@ function CustomReportsBuilder() {
             {/* 2. Patient Followup */}
             {selectedSlug === "patient-followup" && (
               <div className="charm-cr-form-wrap">
-                <div className="charm-cr-field-row" style={{ marginBottom: 16 }}>
-                  <label style={{ width: 220 }}>Patients did not come for consultation in last</label>
-                  <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                <div className="charm-cr-field-row" style={{ marginBottom: 14 }}>
+                  <label style={{ width: 260, minWidth: 260, textAlign: "right" }}>
+                    Patients did not come for consultation in last
+                  </label>
+                  <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
                     <input
                       type="number"
                       className="charm-cr-input"
-                      style={{ width: 80 }}
+                      style={{ width: 60, flex: "none" }}
                       value={filters.months || "3"}
                       onChange={(e) => updateFilter("months", e.target.value)}
                     />
-                    <span style={{ fontSize: 13, color: "#475569" }}>months</span>
+                    <span style={{ fontSize: 12, color: "#333333" }}>months</span>
                   </div>
                 </div>
 
-                <div className="charm-cr-field-row" style={{ marginBottom: 16 }}>
-                  <label style={{ width: 220 }}>Provider</label>
+                <div className="charm-cr-field-row" style={{ marginBottom: 14 }}>
+                  <label style={{ width: 260, minWidth: 260, textAlign: "right" }}>Provider</label>
                   <select
                     className="charm-cr-select"
-                    style={{ maxWidth: 240 }}
+                    style={{ maxWidth: 200 }}
                     value={filters.provider || "All"}
                     onChange={(e) => updateFilter("provider", e.target.value)}
                   >
@@ -2599,35 +2736,31 @@ function CustomReportsBuilder() {
                   </select>
                 </div>
 
-                <button
-                  type="button"
-                  className="charm-cr-toggle-link"
-                  onClick={() => setShowAdditionalFilters(!showAdditionalFilters)}
-                >
-                  <ChevronDown
-                    size={14}
-                    style={{
-                      transform: showAdditionalFilters ? "rotate(180deg)" : "none",
-                      transition: "transform 0.15s",
-                    }}
-                  />
-                  <span>Apply Additional Filters</span>
-                </button>
+                <div style={{ marginLeft: 260, paddingLeft: 12, marginBottom: 14 }}>
+                  <button
+                    type="button"
+                    className="charm-cr-link-inline"
+                    onClick={() => setShowAdditionalFilters(!showAdditionalFilters)}
+                    style={{ color: "#0088cc", fontSize: 12 }}
+                  >
+                    Apply Additional Filters
+                  </button>
+                </div>
 
                 {showAdditionalFilters && (
-                  <div className="charm-cr-collapsible-panel">
-                    <div className="charm-cr-field-row">
-                      <label>With active Diagnosis</label>
+                  <div className="charm-cr-collapsible-panel" style={{ marginLeft: 260, maxWidth: 450 }}>
+                    <div className="charm-cr-field-row" style={{ marginBottom: 10 }}>
+                      <label style={{ width: 140, minWidth: 140 }}>With active Diagnosis</label>
                       <input
                         type="text"
-                        placeholder="e.g. I20.9 Angina"
+                        placeholder="Search diagnosis"
                         className="charm-cr-input"
                         value={filters.active_diagnosis || ""}
                         onChange={(e) => updateFilter("active_diagnosis", e.target.value)}
                       />
                     </div>
-                    <div className="charm-cr-field-row" style={{ marginTop: 10 }}>
-                      <label>Exclude Visit Types</label>
+                    <div className="charm-cr-field-row">
+                      <label style={{ width: 140, minWidth: 140 }}>Exclude Visit Types</label>
                       <select
                         className="charm-cr-select"
                         value={filters.exclude_visit_type || ""}
@@ -2648,10 +2781,10 @@ function CustomReportsBuilder() {
             {selectedSlug === "recall-report" && (
               <div className="charm-cr-form-wrap">
                 <div className="charm-cr-field-row" style={{ marginBottom: 14 }}>
-                  <label style={{ width: 140 }}>Recall Type</label>
+                  <label style={{ width: 150, minWidth: 150, textAlign: "right" }}>Recall Type</label>
                   <select
                     className="charm-cr-select"
-                    style={{ maxWidth: 320 }}
+                    style={{ maxWidth: 280 }}
                     value={filters.recall_type || "All"}
                     onChange={(e) => updateFilter("recall_type", e.target.value)}
                   >
@@ -2665,10 +2798,10 @@ function CustomReportsBuilder() {
                 </div>
 
                 <div className="charm-cr-field-row" style={{ marginBottom: 14 }}>
-                  <label style={{ width: 140 }}>Recall Status</label>
+                  <label style={{ width: 150, minWidth: 150, textAlign: "right" }}>Recall Status</label>
                   <select
                     className="charm-cr-select"
-                    style={{ maxWidth: 320 }}
+                    style={{ maxWidth: 280 }}
                     value={filters.recall_status || "All"}
                     onChange={(e) => updateFilter("recall_status", e.target.value)}
                   >
@@ -2682,7 +2815,7 @@ function CustomReportsBuilder() {
                 </div>
 
                 <div className="charm-cr-field-row" style={{ marginBottom: 14 }}>
-                  <label style={{ width: 140 }}>Due Date</label>
+                  <label style={{ width: 150, minWidth: 150, textAlign: "right" }}>Due Date</label>
                   <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
                     <input
                       type="date"
@@ -2690,7 +2823,7 @@ function CustomReportsBuilder() {
                       value={filters.due_from || ""}
                       onChange={(e) => updateFilter("due_from", e.target.value)}
                     />
-                    <span style={{ fontSize: 12, color: "#64748B" }}>To</span>
+                    <span style={{ fontSize: 12, color: "#333333" }}>To</span>
                     <input
                       type="date"
                       className="charm-cr-input"
@@ -2701,7 +2834,7 @@ function CustomReportsBuilder() {
                 </div>
 
                 <div className="charm-cr-field-row" style={{ marginBottom: 14 }}>
-                  <label style={{ width: 140 }}>Created Date</label>
+                  <label style={{ width: 150, minWidth: 150, textAlign: "right" }}>Created Date</label>
                   <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
                     <input
                       type="date"
@@ -2709,7 +2842,7 @@ function CustomReportsBuilder() {
                       value={filters.created_from || ""}
                       onChange={(e) => updateFilter("created_from", e.target.value)}
                     />
-                    <span style={{ fontSize: 12, color: "#64748B" }}>To</span>
+                    <span style={{ fontSize: 12, color: "#333333" }}>To</span>
                     <input
                       type="date"
                       className="charm-cr-input"
@@ -2720,10 +2853,10 @@ function CustomReportsBuilder() {
                 </div>
 
                 <div className="charm-cr-field-row" style={{ marginBottom: 14 }}>
-                  <label style={{ width: 140 }}>Provider</label>
+                  <label style={{ width: 150, minWidth: 150, textAlign: "right" }}>Provider</label>
                   <select
                     className="charm-cr-select"
-                    style={{ maxWidth: 320 }}
+                    style={{ maxWidth: 280 }}
                     value={filters.provider || "All"}
                     onChange={(e) => updateFilter("provider", e.target.value)}
                   >
@@ -2738,11 +2871,12 @@ function CustomReportsBuilder() {
             {/* 4. Prescription Report */}
             {selectedSlug === "prescription-report" && (
               <div className="charm-cr-form-wrap">
-                <div style={{ display: "flex", gap: 16, flexWrap: "wrap", alignItems: "center", marginBottom: 14 }}>
+                <div style={{ display: "flex", gap: 16, flexWrap: "wrap", alignItems: "center", marginBottom: 16 }}>
                   <div className="charm-cr-inline-field">
                     <label>Facility</label>
                     <select
                       className="charm-cr-select"
+                      style={{ width: 140 }}
                       value={filters.facility || "All"}
                       onChange={(e) => updateFilter("facility", e.target.value)}
                     >
@@ -2756,6 +2890,7 @@ function CustomReportsBuilder() {
                     <label>Prescriber</label>
                     <select
                       className="charm-cr-select"
+                      style={{ width: 140 }}
                       value={filters.prescriber || "All"}
                       onChange={(e) => updateFilter("prescriber", e.target.value)}
                     >
@@ -2767,41 +2902,77 @@ function CustomReportsBuilder() {
 
                   <div className="charm-cr-inline-field">
                     <label>Patient</label>
-                    <input
-                      type="text"
-                      placeholder="Search Patient by Name / ID"
-                      className="charm-cr-input"
-                      style={{ width: 200 }}
-                      value={filters.patient || ""}
-                      onChange={(e) => updateFilter("patient", e.target.value)}
-                    />
+                    <div style={{ position: "relative", display: "inline-flex", alignItems: "center" }}>
+                      <Search size={12} style={{ position: "absolute", left: 8, color: "#888" }} />
+                      <input
+                        type="text"
+                        placeholder="Search Patient by Name/ID"
+                        className="charm-cr-input"
+                        style={{ paddingLeft: 26, width: 210 }}
+                        value={filters.patient || ""}
+                        onChange={(e) => updateFilter("patient", e.target.value)}
+                      />
+                    </div>
                   </div>
 
                   <div className="charm-cr-inline-field">
                     <label>Date Range</label>
                     <select
                       className="charm-cr-select"
+                      style={{ width: 130 }}
                       value={filters.date_preset || "Previous Month"}
-                      onChange={(e) => updateFilter("date_preset", e.target.value)}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        const r = getDatePresetRange(val);
+                        setFilters((prev) => ({
+                          ...prev,
+                          date_preset: val,
+                          from_date: r.from,
+                          to_date: r.to,
+                        }));
+                      }}
                     >
                       <option value="This Month">This Month</option>
                       <option value="Previous Month">Previous Month</option>
                       <option value="Last 3 Months">Last 3 Months</option>
                       <option value="Custom">Custom</option>
                     </select>
+                    <input
+                      type="date"
+                      className="charm-cr-input"
+                      value={filters.from_date || "2026-10-01"}
+                      onChange={(e) => updateFilter("from_date", e.target.value)}
+                    />
+                    <span style={{ fontSize: 12, color: "#333333" }}>To</span>
+                    <input
+                      type="date"
+                      className="charm-cr-input"
+                      value={filters.to_date || "2026-10-31"}
+                      onChange={(e) => updateFilter("to_date", e.target.value)}
+                    />
                   </div>
                 </div>
 
-                <div className="charm-cr-field-row">
-                  <label>Drug Name</label>
-                  <input
-                    type="text"
-                    placeholder="Search Drug by Name"
-                    className="charm-cr-input"
-                    style={{ maxWidth: 300 }}
-                    value={filters.drug_name || ""}
-                    onChange={(e) => updateFilter("drug_name", e.target.value)}
-                  />
+                <div style={{ display: "flex", gap: 14, alignItems: "center" }}>
+                  <div className="charm-cr-inline-field">
+                    <label>Drug Name</label>
+                    <input
+                      type="text"
+                      placeholder="Search Drug by Name"
+                      className="charm-cr-input"
+                      style={{ width: 240 }}
+                      value={filters.drug_name || ""}
+                      onChange={(e) => updateFilter("drug_name", e.target.value)}
+                    />
+                  </div>
+                  <button
+                    type="button"
+                    className="charm-btn-primary-orange"
+                    disabled={running}
+                    onClick={handleGenerate}
+                  >
+                    {running ? "Generating..." : "Generate"}
+                  </button>
                 </div>
               </div>
             )}
@@ -2810,25 +2981,25 @@ function CustomReportsBuilder() {
             {selectedSlug === "vaccinations" && (
               <div className="charm-cr-form-wrap">
                 <div className="charm-cr-field-row" style={{ marginBottom: 14 }}>
-                  <label style={{ width: 100 }}>Period</label>
+                  <label style={{ width: 90, minWidth: 90, textAlign: "right" }}>Period</label>
                   <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
                     <input
                       type="date"
                       className="charm-cr-input"
-                      value={filters.period_from || ""}
+                      value={filters.period_from || "2026-10-01"}
                       onChange={(e) => updateFilter("period_from", e.target.value)}
                     />
-                    <span style={{ fontSize: 12, color: "#64748B" }}>To</span>
+                    <span style={{ fontSize: 12, color: "#333333" }}>To</span>
                     <input
                       type="date"
                       className="charm-cr-input"
-                      value={filters.period_to || ""}
+                      value={filters.period_to || "2026-11-20"}
                       onChange={(e) => updateFilter("period_to", e.target.value)}
                     />
                     <button
                       type="button"
                       className="charm-cr-link-inline"
-                      style={{ marginLeft: 16 }}
+                      style={{ marginLeft: 16, color: "#0088cc" }}
                       onClick={() => setShowAdditionalFilters(!showAdditionalFilters)}
                     >
                       Apply Additional Filters
@@ -2837,7 +3008,7 @@ function CustomReportsBuilder() {
                 </div>
 
                 {showAdditionalFilters && (
-                  <div className="charm-cr-collapsible-panel">
+                  <div className="charm-cr-collapsible-panel" style={{ marginLeft: 90, maxWidth: 500 }}>
                     <div className="charm-cr-2col-grid">
                       <div className="charm-cr-field-row">
                         <label>Vaccine</label>
@@ -2870,11 +3041,12 @@ function CustomReportsBuilder() {
             {/* 6. Lab Orders */}
             {selectedSlug === "lab-orders" && (
               <div className="charm-cr-form-wrap">
-                <div style={{ display: "flex", gap: 20, alignItems: "center", flexWrap: "wrap" }}>
+                <div style={{ display: "flex", gap: 16, alignItems: "center", flexWrap: "wrap", marginBottom: 14 }}>
                   <div className="charm-cr-inline-field">
                     <label>Filter</label>
                     <select
                       className="charm-cr-select"
+                      style={{ width: 140 }}
                       value={filters.lab_filter || "Ordered Date"}
                       onChange={(e) => updateFilter("lab_filter", e.target.value)}
                     >
@@ -2888,13 +3060,110 @@ function CustomReportsBuilder() {
                     <label>Date Range</label>
                     <select
                       className="charm-cr-select"
+                      style={{ width: 140 }}
                       value={filters.date_preset || "This Month"}
-                      onChange={(e) => updateFilter("date_preset", e.target.value)}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        const r = getDatePresetRange(val);
+                        setFilters((prev) => ({
+                          ...prev,
+                          date_preset: val,
+                          from_date: r.from,
+                          to_date: r.to,
+                        }));
+                      }}
                     >
                       <option value="This Month">This Month</option>
                       <option value="Previous Month">Previous Month</option>
                       <option value="This Quarter">This Quarter</option>
                       <option value="This Year">This Year</option>
+                      <option value="Custom">Custom</option>
+                    </select>
+                  </div>
+
+                  <div className="charm-cr-inline-field">
+                    <label>From</label>
+                    <input
+                      type="date"
+                      className="charm-cr-input"
+                      value={filters.from_date || "2026-11-01"}
+                      onChange={(e) => updateFilter("from_date", e.target.value)}
+                    />
+                  </div>
+
+                  <div className="charm-cr-inline-field">
+                    <label>To</label>
+                    <input
+                      type="date"
+                      className="charm-cr-input"
+                      value={filters.to_date || "2026-11-20"}
+                      onChange={(e) => updateFilter("to_date", e.target.value)}
+                    />
+                  </div>
+
+                  <button
+                    type="button"
+                    title="Add filter condition"
+                    style={{
+                      width: 22,
+                      height: 22,
+                      borderRadius: "50%",
+                      border: "1.5px solid #00a896",
+                      color: "#00a896",
+                      background: "none",
+                      display: "inline-flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      fontSize: 16,
+                      fontWeight: "bold",
+                      cursor: "pointer",
+                      padding: 0,
+                      lineHeight: 1,
+                    }}
+                  >
+                    +
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* 7. Lab Results */}
+            {selectedSlug === "lab-results" && (
+              <div className="charm-cr-form-wrap">
+                <div style={{ display: "flex", gap: 16, alignItems: "center", flexWrap: "wrap", marginBottom: 14 }}>
+                  <div className="charm-cr-inline-field">
+                    <label>Filter</label>
+                    <select
+                      className="charm-cr-select"
+                      style={{ width: 150 }}
+                      value={filters.result_filter || "Result Tests"}
+                      onChange={(e) => updateFilter("result_filter", e.target.value)}
+                    >
+                      <option value="Result Tests">Result Tests</option>
+                      <option value="Abnormal Results">Abnormal Results</option>
+                    </select>
+                  </div>
+
+                  <div className="charm-cr-inline-field">
+                    <label>Date Range</label>
+                    <select
+                      className="charm-cr-select"
+                      style={{ width: 140 }}
+                      value={filters.date_preset || "This Month"}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        const r = getDatePresetRange(val);
+                        setFilters((prev) => ({
+                          ...prev,
+                          date_preset: val,
+                          from_date: r.from,
+                          to_date: r.to,
+                        }));
+                      }}
+                    >
+                      <option value="This Month">This Month</option>
+                      <option value="Previous Month">Previous Month</option>
+                      <option value="Custom">Custom</option>
                     </select>
                   </div>
 
@@ -2921,47 +3190,15 @@ function CustomReportsBuilder() {
               </div>
             )}
 
-            {/* 7. Lab Results */}
-            {selectedSlug === "lab-results" && (
-              <div className="charm-cr-form-wrap">
-                <div style={{ display: "flex", gap: 20, alignItems: "center", flexWrap: "wrap" }}>
-                  <div className="charm-cr-inline-field">
-                    <label>Filter</label>
-                    <select
-                      className="charm-cr-select"
-                      value={filters.result_filter || "Result Tests"}
-                      onChange={(e) => updateFilter("result_filter", e.target.value)}
-                    >
-                      <option value="Result Tests">Result Tests</option>
-                      <option value="Abnormal Results">Abnormal Results</option>
-                    </select>
-                  </div>
-
-                  <div className="charm-cr-inline-field">
-                    <label>Date Range</label>
-                    <select
-                      className="charm-cr-select"
-                      value={filters.date_preset || "This Month"}
-                      onChange={(e) => updateFilter("date_preset", e.target.value)}
-                    >
-                      <option value="This Month">This Month</option>
-                      <option value="Previous Month">Previous Month</option>
-                      <option value="Custom">Custom</option>
-                    </select>
-                  </div>
-                </div>
-              </div>
-            )}
-
             {/* 8. Flowsheet Report */}
             {selectedSlug === "flowsheet-report" && (
               <div className="charm-cr-form-wrap">
                 <div className="charm-cr-field-row" style={{ marginBottom: 14 }}>
-                  <label style={{ width: 120 }}>Flowsheet</label>
+                  <label style={{ width: 120, minWidth: 120, textAlign: "right" }}>Flowsheet</label>
                   <select
                     className="charm-cr-select"
-                    style={{ maxWidth: 320 }}
-                    value={filters.flowsheet || "Vaso-Meditech EECP Daily Chart"}
+                    style={{ maxWidth: 280 }}
+                    value={filters.flowsheet || "-- Select --"}
                     onChange={(e) => updateFilter("flowsheet", e.target.value)}
                   >
                     <option value="-- Select --">-- Select --</option>
@@ -2973,7 +3210,7 @@ function CustomReportsBuilder() {
                 </div>
 
                 <div className="charm-cr-field-row" style={{ marginBottom: 14 }}>
-                  <label style={{ width: 120 }}>Period</label>
+                  <label style={{ width: 120, minWidth: 120, textAlign: "right" }}>Period</label>
                   <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
                     <input
                       type="date"
@@ -2981,7 +3218,7 @@ function CustomReportsBuilder() {
                       value={filters.period_from || "2026-10-21"}
                       onChange={(e) => updateFilter("period_from", e.target.value)}
                     />
-                    <span style={{ fontSize: 12, color: "#64748B" }}>To</span>
+                    <span style={{ fontSize: 12, color: "#333333" }}>To</span>
                     <input
                       type="date"
                       className="charm-cr-input"
@@ -2992,7 +3229,7 @@ function CustomReportsBuilder() {
                 </div>
 
                 <div className="charm-cr-field-row">
-                  <label style={{ width: 120 }}>Entries</label>
+                  <label style={{ width: 120, minWidth: 120, textAlign: "right" }}>Entries</label>
                   <div style={{ display: "flex", gap: 16 }}>
                     <label className="charm-cr-radio-label">
                       <input
@@ -3021,10 +3258,10 @@ function CustomReportsBuilder() {
             {selectedSlug === "treatment-plan-report" && (
               <div className="charm-cr-form-wrap">
                 <div className="charm-cr-field-row" style={{ marginBottom: 14 }}>
-                  <label style={{ width: 140 }}>Plan Name *</label>
+                  <label style={{ width: 140, minWidth: 140, textAlign: "right" }}>Plan Name *</label>
                   <select
                     className="charm-cr-select"
-                    style={{ maxWidth: 340 }}
+                    style={{ maxWidth: 300 }}
                     value={filters.plan_name || "-- Select --"}
                     onChange={(e) => updateFilter("plan_name", e.target.value)}
                   >
@@ -3038,10 +3275,10 @@ function CustomReportsBuilder() {
                 </div>
 
                 <div className="charm-cr-field-row" style={{ marginBottom: 14 }}>
-                  <label style={{ width: 140 }}>Status</label>
+                  <label style={{ width: 140, minWidth: 140, textAlign: "right" }}>Status</label>
                   <select
                     className="charm-cr-select"
-                    style={{ maxWidth: 220 }}
+                    style={{ maxWidth: 180 }}
                     value={filters.plan_status || "All"}
                     onChange={(e) => updateFilter("plan_status", e.target.value)}
                   >
@@ -3053,7 +3290,7 @@ function CustomReportsBuilder() {
                 </div>
 
                 <div className="charm-cr-field-row">
-                  <label style={{ width: 140 }}>Period *</label>
+                  <label style={{ width: 140, minWidth: 140, textAlign: "right" }}>Period *</label>
                   <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
                     <input
                       type="date"
@@ -3061,7 +3298,7 @@ function CustomReportsBuilder() {
                       value={filters.period_from || "2026-10-20"}
                       onChange={(e) => updateFilter("period_from", e.target.value)}
                     />
-                    <span style={{ fontSize: 12, color: "#64748B" }}>To</span>
+                    <span style={{ fontSize: 12, color: "#333333" }}>To</span>
                     <input
                       type="date"
                       className="charm-cr-input"
@@ -3076,79 +3313,85 @@ function CustomReportsBuilder() {
             {/* 10. Implanted Devices */}
             {selectedSlug === "implanted-devices" && (
               <div className="charm-cr-form-wrap">
-                <div className="charm-cr-2col-grid">
-                  <div className="charm-cr-field-row">
-                    <label>GMDN PT Name</label>
-                    <input
-                      type="text"
-                      placeholder="e.g. Stent or Pacemaker"
-                      className="charm-cr-input"
-                      value={filters.gmdn_pt_name || ""}
-                      onChange={(e) => updateFilter("gmdn_pt_name", e.target.value)}
-                    />
-                  </div>
+                <div className="charm-cr-field-row" style={{ marginBottom: 14 }}>
+                  <label style={{ width: 140, minWidth: 140, textAlign: "right" }}>GMDN PT Name</label>
+                  <input
+                    type="text"
+                    className="charm-cr-input"
+                    style={{ maxWidth: 280 }}
+                    value={filters.gmdn_pt_name || ""}
+                    onChange={(e) => updateFilter("gmdn_pt_name", e.target.value)}
+                  />
+                  <label style={{ width: 130, minWidth: 130, textAlign: "right", marginLeft: 16 }}>Implant Date From</label>
+                  <input
+                    type="date"
+                    className="charm-cr-input"
+                    value={filters.implant_from || ""}
+                    onChange={(e) => updateFilter("implant_from", e.target.value)}
+                  />
+                  <span style={{ fontSize: 12, color: "#333333" }}>To</span>
+                  <input
+                    type="date"
+                    className="charm-cr-input"
+                    value={filters.implant_to || ""}
+                    onChange={(e) => updateFilter("implant_to", e.target.value)}
+                  />
+                </div>
 
-                  <div className="charm-cr-field-row">
-                    <label>Implant Date</label>
-                    <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
-                      <input
-                        type="date"
-                        className="charm-cr-input"
-                        value={filters.implant_from || ""}
-                        onChange={(e) => updateFilter("implant_from", e.target.value)}
-                      />
-                      <span>To</span>
-                      <input
-                        type="date"
-                        className="charm-cr-input"
-                        value={filters.implant_to || ""}
-                        onChange={(e) => updateFilter("implant_to", e.target.value)}
-                      />
-                    </div>
-                  </div>
+                <div className="charm-cr-field-row" style={{ marginBottom: 14 }}>
+                  <label style={{ width: 140, minWidth: 140, textAlign: "right" }}>Batch / Lot Number</label>
+                  <input
+                    type="text"
+                    className="charm-cr-input"
+                    style={{ maxWidth: 280 }}
+                    value={filters.batch_lot || ""}
+                    onChange={(e) => updateFilter("batch_lot", e.target.value)}
+                  />
+                  <label style={{ width: 130, minWidth: 130, textAlign: "right", marginLeft: 16 }}>Expiry Before</label>
+                  <input
+                    type="date"
+                    className="charm-cr-input"
+                    value={filters.expiry_before || ""}
+                    onChange={(e) => updateFilter("expiry_before", e.target.value)}
+                  />
+                  <label style={{ width: 50, minWidth: 50, textAlign: "right", marginLeft: 16 }}>Status</label>
+                  <select
+                    className="charm-cr-select"
+                    style={{ width: 110 }}
+                    value={filters.device_status || "All"}
+                    onChange={(e) => updateFilter("device_status", e.target.value)}
+                  >
+                    <option value="All">All</option>
+                    <option value="Active">Active</option>
+                    <option value="Inactive">Inactive</option>
+                  </select>
+                </div>
 
-                  <div className="charm-cr-field-row">
-                    <label>Batch / Lot Number</label>
-                    <input
-                      type="text"
-                      className="charm-cr-input"
-                      value={filters.batch_lot || ""}
-                      onChange={(e) => updateFilter("batch_lot", e.target.value)}
-                    />
-                  </div>
-
-                  <div className="charm-cr-field-row">
-                    <label>Status</label>
-                    <select
-                      className="charm-cr-select"
-                      value={filters.device_status || "All"}
-                      onChange={(e) => updateFilter("device_status", e.target.value)}
-                    >
-                      <option value="All">All</option>
-                      <option value="Active">Active</option>
-                      <option value="Inactive">Inactive</option>
-                    </select>
-                  </div>
-
-                  <div className="charm-cr-field-row">
-                    <label>Brand Name</label>
-                    <input
-                      type="text"
-                      className="charm-cr-input"
-                      value={filters.brand_name || ""}
-                      onChange={(e) => updateFilter("brand_name", e.target.value)}
-                    />
-                  </div>
-
-                  <div className="charm-cr-field-row">
-                    <label>Company name</label>
-                    <input
-                      type="text"
-                      className="charm-cr-input"
-                      value={filters.company || ""}
-                      onChange={(e) => updateFilter("company", e.target.value)}
-                    />
-                  </div>
+                <div className="charm-cr-field-row">
+                  <label style={{ width: 140, minWidth: 140, textAlign: "right" }}>Brand Name</label>
+                  <input
+                    type="text"
+                    className="charm-cr-input"
+                    style={{ maxWidth: 200 }}
+                    value={filters.brand_name || ""}
+                    onChange={(e) => updateFilter("brand_name", e.target.value)}
+                  />
+                  <label style={{ width: 100, minWidth: 100, textAlign: "right" }}>Version / Model</label>
+                  <input
+                    type="text"
+                    className="charm-cr-input"
+                    style={{ maxWidth: 200 }}
+                    value={filters.model || ""}
+                    onChange={(e) => updateFilter("model", e.target.value)}
+                  />
+                  <label style={{ width: 100, minWidth: 100, textAlign: "right" }}>Company name</label>
+                  <input
+                    type="text"
+                    className="charm-cr-input"
+                    style={{ maxWidth: 200 }}
+                    value={filters.company || ""}
+                    onChange={(e) => updateFilter("company", e.target.value)}
+                  />
                 </div>
               </div>
             )}
@@ -3156,62 +3399,59 @@ function CustomReportsBuilder() {
             {/* 11. Patient Feedback */}
             {selectedSlug === "patient-feedback" && (
               <div className="charm-cr-form-wrap">
-                <div style={{ display: "flex", gap: 16, flexWrap: "wrap", alignItems: "center", marginBottom: 14 }}>
-                  <div className="charm-cr-inline-field">
-                    <label>Feedback Form</label>
-                    <select
-                      className="charm-cr-select"
-                      value={filters.feedback_form || "Vaso-Meditech Feedback Form"}
-                      onChange={(e) => updateFilter("feedback_form", e.target.value)}
-                    >
-                      <option value="-- Select --">-- Select --</option>
-                      <option value="Vaso-Meditech Feedback Form">Vaso-Meditech Feedback Form</option>
-                    </select>
-                  </div>
+                <div className="charm-cr-field-row" style={{ marginBottom: 14 }}>
+                  <label style={{ width: 120, minWidth: 120, textAlign: "right" }}>Feedback Form</label>
+                  <select
+                    className="charm-cr-select"
+                    style={{ maxWidth: 260 }}
+                    value={filters.feedback_form || "-- Select --"}
+                    onChange={(e) => updateFilter("feedback_form", e.target.value)}
+                  >
+                    <option value="-- Select --">-- Select --</option>
+                    <option value="Vaso-Meditech Feedback Form">Vaso-Meditech Feedback Form</option>
+                  </select>
 
-                  <div className="charm-cr-inline-field">
-                    <label>Facility</label>
-                    <select
-                      className="charm-cr-select"
-                      value={filters.facility || "Heal Your Heart Neelankarai"}
-                      onChange={(e) => updateFilter("facility", e.target.value)}
-                    >
-                      {FACILITIES.map((f) => (
-                        <option key={f} value={f}>{f}</option>
-                      ))}
-                    </select>
-                  </div>
+                  <label style={{ width: 100, minWidth: 100, textAlign: "right", marginLeft: 20 }}>Facility</label>
+                  <select
+                    className="charm-cr-select"
+                    style={{ maxWidth: 240 }}
+                    value={filters.facility || "Heal Your Heart Neelankarai"}
+                    onChange={(e) => updateFilter("facility", e.target.value)}
+                  >
+                    {FACILITIES.map((f) => (
+                      <option key={f} value={f}>{f}</option>
+                    ))}
+                  </select>
+                </div>
 
-                  <div className="charm-cr-inline-field">
-                    <label>Provider</label>
-                    <select
-                      className="charm-cr-select"
-                      value={filters.provider || "All"}
-                      onChange={(e) => updateFilter("provider", e.target.value)}
-                    >
-                      {PROVIDERS.map((p) => (
-                        <option key={p} value={p}>{p}</option>
-                      ))}
-                    </select>
-                  </div>
+                <div className="charm-cr-field-row">
+                  <label style={{ width: 120, minWidth: 120, textAlign: "right" }}>Provider</label>
+                  <select
+                    className="charm-cr-select"
+                    style={{ maxWidth: 260 }}
+                    value={filters.provider || "All"}
+                    onChange={(e) => updateFilter("provider", e.target.value)}
+                  >
+                    {PROVIDERS.map((p) => (
+                      <option key={p} value={p}>{p}</option>
+                    ))}
+                  </select>
 
-                  <div className="charm-cr-inline-field">
-                    <label>Period</label>
-                    <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
-                      <input
-                        type="date"
-                        className="charm-cr-input"
-                        value={filters.period_from || "2026-10-21"}
-                        onChange={(e) => updateFilter("period_from", e.target.value)}
-                      />
-                      <span>To</span>
-                      <input
-                        type="date"
-                        className="charm-cr-input"
-                        value={filters.period_to || "2026-11-20"}
-                        onChange={(e) => updateFilter("period_to", e.target.value)}
-                      />
-                    </div>
+                  <label style={{ width: 100, minWidth: 100, textAlign: "right", marginLeft: 20 }}>Period</label>
+                  <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                    <input
+                      type="date"
+                      className="charm-cr-input"
+                      value={filters.period_from || "2026-10-21"}
+                      onChange={(e) => updateFilter("period_from", e.target.value)}
+                    />
+                    <span style={{ fontSize: 12, color: "#333333" }}>To</span>
+                    <input
+                      type="date"
+                      className="charm-cr-input"
+                      value={filters.period_to || "2026-11-20"}
+                      onChange={(e) => updateFilter("period_to", e.target.value)}
+                    />
                   </div>
                 </div>
               </div>
@@ -3528,18 +3768,19 @@ function CustomReportsBuilder() {
               </div>
             )}
 
-            {/* Primary Action Button */}
-            <div style={{ marginTop: 22 }}>
-              <button
-                type="button"
-                className="charm-btn-primary-orange"
-                style={{ padding: "8px 24px", fontSize: 13, fontWeight: 600 }}
-                disabled={running}
-                onClick={handleGenerate}
-              >
-                {running ? "Generating..." : currentReportMeta.buttonText || "Generate"}
-              </button>
-            </div>
+            {/* Primary Action Button (for all reports except prescription-report which has inline button) */}
+            {selectedSlug !== "prescription-report" && (
+              <div style={{ marginTop: 22 }}>
+                <button
+                  type="button"
+                  className="charm-btn-primary-orange"
+                  disabled={running}
+                  onClick={handleGenerate}
+                >
+                  {running ? "Generating..." : currentReportMeta.buttonText || "Generate"}
+                </button>
+              </div>
+            )}
           </div>
         </div>
 
