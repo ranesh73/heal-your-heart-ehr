@@ -730,11 +730,18 @@ def download(identifier:str, inline: bool = False, c=Depends(context)):
         path,
         media_type=mime,
         filename=row.filename,
+        content_disposition_type=disposition,
         headers={
             'Content-Disposition': f'{disposition}; filename="{row.filename}"',
             'X-Content-Type-Options': 'nosniff',
+            'Content-Security-Policy': "frame-ancestors 'self' *",
         }
     )
+
+
+@router.get('/documents/{identifier}/preview')
+def preview_document(identifier: str, c=Depends(context)):
+    return download(identifier=identifier, inline=True, c=c)
 
 
 # ============================================================================

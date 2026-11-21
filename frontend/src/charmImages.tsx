@@ -145,6 +145,7 @@ export function CharmImages({ patientId, encounterId, isGlobal }: CharmImagesPro
   const [viewMode, setViewMode] = useState<"list" | "add_order" | "edit_order" | "edit_result" | "import_result" | "viewer" | "print_view">("list");
   const [selectedRecord, setSelectedRecord] = useState<Row | null>(null);
   const [viewerDocTab, setViewerDocTab] = useState<"pdf" | "summary">("pdf");
+  const [viewerDocIndex, setViewerDocIndex] = useState<number>(0);
 
   // Filters & Search for Results
   const [filterReviewer, setFilterReviewer] = useState<string>("all");
@@ -407,6 +408,7 @@ export function CharmImages({ patientId, encounterId, isGlobal }: CharmImagesPro
   // Open Report Viewer
   function handleOpenViewer(record: Row) {
     setSelectedRecord(record);
+    setViewerDocIndex(0);
     setViewerReviewerId(record.reviewed_by || record.author_id || user?.id || "");
     setViewerNoteToPatient(record.notes_lab_patient || "");
     setViewerInternalComments(record.notes_intra_office || "");
@@ -637,8 +639,48 @@ export function CharmImages({ patientId, encounterId, isGlobal }: CharmImagesPro
   // RENDER: VIEW MODE - REPORT VIEWER (70/30 Split - Frame 0040)
   // =========================================================================
   if (viewMode === "viewer" && selectedRecord) {
-    const doc = selectedRecord.documents && selectedRecord.documents[0];
-    const docUrl = doc ? `/api/documents/${doc.id}/download` : null;
+    const docs = selectedRecord.documents || [];
+    const activeDoc = (docs.length > 0 && docs[viewerDocIndex]) ? docs[viewerDocIndex] : (docs[0] || null);
+
+    // Helper to extract Google Drive file ID if present in a URL or string
+    const extractDriveId = (str?: string): string | null => {
+      if (!str) return null;
+      const match = str.match(/(?:drive\.google\.com\/(?:file\/d\/|open\?id=)|id=)([a-zA-Z0-9_-]{20,})/);
+      return match ? match[1] : null;
+    };
+
+    let docPreviewUrl: string | null = null;
+    let docDownloadUrl: string | null = null;
+    let docTitle = activeDoc?.title || "Diagnostic Imaging Examination Report";
+    let docFilename = activeDoc?.filename || "report.pdf";
+
+    if (activeDoc?.id) {
+      docPreviewUrl = `/api/documents/${activeDoc.id}/download?inline=true`;
+      docDownloadUrl = `/api/documents/${activeDoc.id}/download`;
+    } else if (activeDoc?.url) {
+      const driveId = extractDriveId(activeDoc.url);
+      if (driveId) {
+        docPreviewUrl = `/api/device-imports/drive-stream/${driveId}`;
+        docDownloadUrl = `/api/device-imports/drive-stream/${driveId}`;
+      } else {
+        docPreviewUrl = activeDoc.url.includes("?") ? `${activeDoc.url}&inline=true` : `${activeDoc.url}?inline=true`;
+        docDownloadUrl = activeDoc.url;
+      }
+    } else {
+      // Check if selectedRecord has google_drive_id or drive link in result or notes_intra_office
+      const recAny = selectedRecord as any;
+      const driveId =
+        recAny.google_file_id ||
+        recAny.drive_file_id ||
+        extractDriveId(selectedRecord.result) ||
+        extractDriveId(selectedRecord.notes_intra_office);
+      if (driveId) {
+        docPreviewUrl = `/api/device-imports/drive-stream/${driveId}`;
+        docDownloadUrl = `/api/device-imports/drive-stream/${driveId}`;
+        docTitle = `${selectedRecord.name || "ECG/Echo"} Device Report`;
+        docFilename = `${(selectedRecord.name || "scan").replace(/\s+/g, "_")}_${driveId}.pdf`;
+      }
+    }
 
     return (
       <div className="charm-viewer-wrapper" style={{ background: "#f8fafc", minHeight: "85vh", padding: "12px 16px" }}>
@@ -656,11 +698,35 @@ export function CharmImages({ patientId, encounterId, isGlobal }: CharmImagesPro
               {selectedRecord.patient_name} ({selectedRecord.patient_mrn}) - {selectedRecord.name}
             </span>
           </div>
-          <div style={{ display: "flex", gap: 8 }}>
-            {docUrl && (
+          <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+            {docs.length > 1 && (
+              <div style={{ display: "flex", gap: 4, alignItems: "center", marginRight: 4 }}>
+                <span style={{ fontSize: 11, color: "#64748b", fontWeight: 600 }}>Attachments ({docs.length}):</span>
+                {docs.map((d: any, idx: number) => (
+                  <button
+                    key={d.id || idx}
+                    type="button"
+                    onClick={() => setViewerDocIndex(idx)}
+                    style={{
+                      padding: "3px 8px",
+                      fontSize: 11,
+                      fontWeight: viewerDocIndex === idx ? 700 : 500,
+                      borderRadius: 3,
+                      border: "1px solid #cbd5e1",
+                      background: viewerDocIndex === idx ? "#0284c7" : "#f1f5f9",
+                      color: viewerDocIndex === idx ? "#ffffff" : "#334155",
+                      cursor: "pointer",
+                    }}
+                  >
+                    Doc {idx + 1}
+                  </button>
+                ))}
+              </div>
+            )}
+            {docDownloadUrl && (
               <a
-                href={docUrl}
-                download={doc.filename}
+                href={docDownloadUrl}
+                download={docFilename}
                 style={{ display: "inline-flex", alignItems: "center", gap: 4, padding: "6px 12px", background: "#f1f5f9", borderRadius: 4, border: "1px solid #cbd5e1", color: "#334155", fontSize: 12, textDecoration: "none", fontWeight: 500 }}
               >
                 <Download size={14} /> Download PDF
@@ -688,10 +754,10 @@ export function CharmImages({ patientId, encounterId, isGlobal }: CharmImagesPro
             <div style={{ padding: "10px 16px", background: "#f1f5f9", borderBottom: "1px solid #e2e8f0", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
               <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 13, fontWeight: 600, color: "#1e293b" }}>
                 <FileText size={16} color="#0d9488" />
-                <span>{doc ? doc.title : "Diagnostic Imaging Examination Report"}</span>
+                <span>{docTitle}</span>
               </div>
               <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                {docUrl && (
+                {docPreviewUrl && (
                   <div style={{ display: "flex", background: "#e2e8f0", borderRadius: 4, padding: 2 }}>
                     <button
                       type="button"
@@ -709,8 +775,8 @@ export function CharmImages({ patientId, encounterId, isGlobal }: CharmImagesPro
                     </button>
                   </div>
                 )}
-                {docUrl && (
-                  <a href={docUrl} target="_blank" rel="noreferrer" style={{ fontSize: 12, color: "#0284c7", display: "flex", alignItems: "center", gap: 4, textDecoration: "none" }}>
+                {docPreviewUrl && (
+                  <a href={docPreviewUrl} target="_blank" rel="noreferrer" style={{ fontSize: 12, color: "#0284c7", display: "flex", alignItems: "center", gap: 4, textDecoration: "none" }}>
                     <ExternalLink size={13} /> Open in new tab
                   </a>
                 )}
@@ -718,10 +784,10 @@ export function CharmImages({ patientId, encounterId, isGlobal }: CharmImagesPro
             </div>
 
             <div style={{ flex: 1, overflow: "auto", position: "relative", background: "#f8fafc" }}>
-              {docUrl && viewerDocTab === "pdf" ? (
+              {docPreviewUrl && viewerDocTab === "pdf" ? (
                 <iframe
-                  src={`${docUrl}?inline=true`}
-                  title={doc ? doc.title : "Scanned Document"}
+                  src={docPreviewUrl}
+                  title={docTitle}
                   style={{ width: "100%", height: "100%", minHeight: "550px", border: "none" }}
                 />
               ) : (
@@ -731,10 +797,10 @@ export function CharmImages({ patientId, encounterId, isGlobal }: CharmImagesPro
                       <h2 style={{ margin: "0 0 4px 0", color: "#0f172a", fontSize: 18, fontWeight: 700 }}>HEAL YOUR HEART - CARDIOLOGY & EECP CENTER</h2>
                       <p style={{ margin: 0, fontSize: 12, color: "#64748b" }}>Comprehensive Cardiovascular Diagnostics & Non-Invasive Therapy</p>
                     </div>
-                    {doc && (
+                    {(activeDoc || docFilename) && (
                       <div style={{ textAlign: "right" }}>
                         <span style={{ display: "inline-flex", alignItems: "center", gap: 6, background: "#f1f5f9", padding: "4px 10px", borderRadius: 4, border: "1px solid #cbd5e1", fontSize: 11, color: "#334155", fontWeight: 600 }}>
-                          <FileText size={14} color="#0d9488" /> {doc.filename}
+                          <FileText size={14} color="#0d9488" /> {docFilename}
                         </span>
                       </div>
                     )}

@@ -38,11 +38,26 @@ async def headers(request:Request,call_next):
         if origin not in permitted and origin not in same_origins: return JSONResponse({'detail':'Origin not allowed'},status_code=403)
     response=await call_next(request)
     response.headers['X-Content-Type-Options']='nosniff'
-    response.headers['X-Frame-Options']='DENY'
     response.headers['Referrer-Policy']='no-referrer'
     response.headers['Cache-Control']='no-store'
     response.headers['Permissions-Policy']='camera=(), microphone=(), geolocation=()'
-    response.headers['Content-Security-Policy']="default-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self'; frame-ancestors 'none'; object-src 'none'; base-uri 'self'; form-action 'self'"
+
+    path = request.url.path.lower()
+    is_doc_stream = (
+        path.startswith('/api/documents/') or
+        path.startswith('/documents/') or
+        path.startswith('/api/device-imports/') or
+        path.startswith('/device-imports/') or
+        'pdf' in path or
+        'inline=true' in str(request.url.query).lower()
+    )
+    if is_doc_stream:
+        response.headers['X-Frame-Options'] = 'SAMEORIGIN'
+        response.headers['Content-Security-Policy'] = "default-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: *; connect-src 'self' *; frame-ancestors 'self' *; object-src 'self' data: blob: *; base-uri 'self'; form-action 'self'"
+        response.headers['Cache-Control'] = 'private, max-age=3600'
+    else:
+        response.headers['X-Frame-Options'] = 'SAMEORIGIN'
+        response.headers['Content-Security-Policy'] = "default-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self'; frame-ancestors 'self' *; object-src 'none'; base-uri 'self'; form-action 'self'"
     return response
 
 

@@ -95,3 +95,41 @@ def retry_unmatched_import(identifier: str, c=Depends(context)):
 
     c.audit("retry_unmatched_import", unmatched)
     return res
+
+
+@router.get("/drive-stream/{file_id}")
+@router.get("/drive-preview/{file_id}")
+def stream_drive_file(file_id: str, c=Depends(context)):
+    """
+    Proxy stream a Google Drive file directly through our backend with inline Content-Disposition
+    and permissive frame-ancestors headers so it renders cleanly in EHR iframes.
+    """
+    c.allow(CLINICAL | {"admin"})
+    service = get_google_drive_service()
+    if not service:
+        raise HTTPException(503, "Google Drive service is not configured or authenticated")
+    try:
+        from .device_import_service import download_file_bytes
+        file_bytes = download_file_bytes(service, file_id)
+        filename = f"{file_id}.pdf"
+        mime = "application/pdf"
+        try:
+            meta = service.files().get(fileId=file_id, fields="name,mimeType").execute()
+            filename = meta.get("name", filename)
+            mime = meta.get("mimeType", mime)
+        except Exception:
+            pass
+
+        from fastapi import Response
+        return Response(
+            content=file_bytes,
+            media_type=mime,
+            headers={
+                "Content-Disposition": f'inline; filename="{filename}"',
+                "X-Content-Type-Options": "nosniff",
+                "X-Frame-Options": "SAMEORIGIN",
+                "Content-Security-Policy": "frame-ancestors 'self' *",
+            },
+        )
+    except Exception as e:
+        raise HTTPException(500, f"Error streaming file from Google Drive: {e}")
