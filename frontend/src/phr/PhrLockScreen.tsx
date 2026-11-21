@@ -13,7 +13,7 @@ export function PhrLockScreen({
   onUnlock,
   onSwitchToLogin,
   brandName = "Heal Your Heart PHR",
-  brandLogo = "/images/HYH.png",
+  brandLogo = "/HYH.png",
 }: PhrLockScreenProps) {
   const [showPinPad, setShowPinPad] = useState<boolean>(false);
   const [pin, setPin] = useState<string>("");

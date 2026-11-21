@@ -94,42 +94,53 @@ export function PhrDashboardTab({
       {showFirstLoginBanner && (
         <div
           style={{
-            background: "#EFF6FF",
-            border: "1px solid #BFDBFE",
+            background: "#FEF3C7",
+            border: "1px solid #FDE68A",
             borderRadius: 12,
             padding: "12px 14px",
             display: "flex",
-            alignItems: "flex-start",
+            alignItems: "center",
             justifyContent: "space-between",
             gap: 10,
           }}
         >
-          <div style={{ display: "flex", alignItems: "flex-start", gap: 10 }}>
-            <ShieldCheck size={18} color="#2563EB" style={{ flexShrink: 0, marginTop: 2 }} />
-            <div>
-              <div style={{ fontSize: 13, fontWeight: 600, color: "#1E40AF" }}>
-                Welcome to Heal Your Heart PHR!
-              </div>
-              <div style={{ fontSize: 12, color: "#3B82F6", marginTop: 2 }}>
-                For your account privacy, you can update your initial 6-digit ID password anytime.{" "}
-                {onOpenProfilePassword && (
-                  <button
-                    type="button"
-                    onClick={onOpenProfilePassword}
-                    style={{
-                      background: "none",
-                      border: "none",
-                      color: "#1D4ED8",
-                      fontWeight: 700,
-                      textDecoration: "underline",
-                      cursor: "pointer",
-                      padding: 0,
-                    }}
-                  >
-                    Change Password
-                  </button>
-                )}
-              </div>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, flex: 1 }}>
+            <ShieldCheck size={18} color="#D97706" style={{ flexShrink: 0 }} />
+            <div style={{ fontSize: 12, color: "#92400E", lineHeight: 1.4 }}>
+              <span>You are signed in with your default 6-digit Patient ID. </span>
+              {onOpenProfilePassword && (
+                <button
+                  type="button"
+                  onClick={onOpenProfilePassword}
+                  style={{
+                    background: "none",
+                    border: "none",
+                    color: "#B45309",
+                    fontWeight: 700,
+                    textDecoration: "underline",
+                    cursor: "pointer",
+                    padding: "0 4px",
+                  }}
+                >
+                  [Change Password]
+                </button>
+              )}
+              <span>or </span>
+              <button
+                type="button"
+                onClick={() => setShowFirstLoginBanner(false)}
+                style={{
+                  background: "none",
+                  border: "none",
+                  color: "#B45309",
+                  fontWeight: 600,
+                  textDecoration: "underline",
+                  cursor: "pointer",
+                  padding: "0 4px",
+                }}
+              >
+                [Keep Using ID]
+              </button>
             </div>
           </div>
           <button
@@ -138,12 +149,13 @@ export function PhrDashboardTab({
             style={{
               background: "none",
               border: "none",
-              color: "#94A3B8",
+              color: "#92400E",
               cursor: "pointer",
               padding: 2,
             }}
+            aria-label="Dismiss banner"
           >
-            <X size={16} />
+            <X size={15} />
           </button>
         </div>
       )}

@@ -209,6 +209,7 @@ def test_phr_access_1click_activation_workflow():
     patient_auth = login_resp.json()
     assert "token" in patient_auth
     assert patient_auth["patient"]["first_name"] == "Isaac"
+    assert patient_auth["is_default_password"] is True
     patient_token = patient_auth["token"]
 
     patient_headers = {
@@ -236,6 +237,7 @@ def test_phr_access_1click_activation_workflow():
         "password": "NewSecretPassword2026!",
     })
     assert succ_login.status_code == 200
+    assert succ_login.json()["is_default_password"] is False
 
     # 7. Reset password to 6-digit ID from EHR
     reset_resp = client.post(f"/api/patients/{patient_id}/phr-access/reset-password", headers=staff_headers)

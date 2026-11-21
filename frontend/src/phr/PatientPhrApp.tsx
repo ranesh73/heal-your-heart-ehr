@@ -33,8 +33,17 @@ interface PatientPhrAppProps {
 }
 
 export function PatientPhrApp({ path }: PatientPhrAppProps) {
-  const isLoginUrl = (path === "/phr/login") || (typeof window !== "undefined" && (window.location.hash.includes("/phr/login") || window.location.pathname.includes("/phr/login")));
-  const [viewMode, setViewMode] = useState<"lock" | "login" | "app">(isLoginUrl ? "login" : "lock");
+  const isLoginUrl =
+    path === "/phr/login" ||
+    (typeof window !== "undefined" &&
+      (window.location.hash.includes("/phr/login") ||
+        window.location.pathname.includes("/phr/login")));
+
+  const hasToken = typeof window !== "undefined" && !!getPhrToken();
+  const [viewMode, setViewMode] = useState<"lock" | "login" | "app">(() => {
+    if (isLoginUrl || !hasToken) return "login";
+    return "lock";
+  });
   const [activeTab, setActiveTab] = useState<"dashboard" | "my-health">("dashboard");
 
   // Portal Data State
@@ -57,6 +66,19 @@ export function PatientPhrApp({ path }: PatientPhrAppProps) {
   const [modalUsefulInfo, setModalUsefulInfo] = useState<boolean>(false);
   const [modalImages, setModalImages] = useState<boolean>(false);
   const [quickActionDrawer, setQuickActionDrawer] = useState<boolean>(false);
+
+  // Authentication routing guard
+  useEffect(() => {
+    const token = getPhrToken();
+    if (!token) {
+      if (typeof window !== "undefined" && !window.location.hash.includes("/phr/login")) {
+        window.location.hash = "#/phr/login";
+      }
+      setViewMode("login");
+    } else if (isLoginUrl) {
+      setViewMode("login");
+    }
+  }, [path, isLoginUrl]);
 
   // Load Patient and Dashboard Data
   const refreshData = async () => {
@@ -141,11 +163,20 @@ export function PatientPhrApp({ path }: PatientPhrAppProps) {
         onSuccess={(p) => {
           if (p) setPatient(p);
           setViewMode("app");
+          if (typeof window !== "undefined") {
+            window.location.hash = "#/phr";
+          }
           refreshData();
         }}
-        onBackToLock={() => setViewMode("lock")}
+        onBackToLock={() => {
+          if (getPhrToken()) {
+            setViewMode("lock");
+          } else {
+            setViewMode("login");
+          }
+        }}
         brandName="Heal Your Heart PHR"
-        brandLogo="/images/HYH.png"
+        brandLogo="/HYH.png"
       />
     );
   }
@@ -155,9 +186,14 @@ export function PatientPhrApp({ path }: PatientPhrAppProps) {
     return (
       <PhrLockScreen
         onUnlock={handleUnlock}
-        onSwitchToLogin={() => setViewMode("login")}
+        onSwitchToLogin={() => {
+          if (typeof window !== "undefined") {
+            window.location.hash = "#/phr/login";
+          }
+          setViewMode("login");
+        }}
         brandName="Heal Your Heart PHR"
-        brandLogo="/images/HYH.png"
+        brandLogo="/HYH.png"
       />
     );
   }

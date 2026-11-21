@@ -238,8 +238,12 @@ def phr_login(payload: LoginPayload):
         if patient.dob:
             age = (date.today() - patient.dob).days // 365
 
+        six_digit_id = extract_6digit_patient_id(patient.mrn or patient.id)
+        is_default_pw = bool(payload.password == six_digit_id or (acc.password_hash and verify_password_bcrypt(six_digit_id, acc.password_hash)))
+
         return {
             "token": raw_token,
+            "is_default_password": is_default_pw,
             "patient": {
                 "id": patient.id,
                 "mrn": patient.mrn,
@@ -252,6 +256,7 @@ def phr_login(payload: LoginPayload):
                 "phone": patient.phone or "+91 98407 12345",
                 "email": patient.email or "hariharan.s@example.com",
                 "address": patient.address or "No. 14, East Coast Road, Neelankarai, Chennai 600115",
+                "is_default_password": is_default_pw,
             },
         }
     finally:
@@ -355,6 +360,16 @@ def phr_unlock(payload: PinUnlockPayload):
 
 @router.get("/auth/me")
 def get_current_phr_patient(patient: m.Patient = Depends(get_current_patient)):
+    db: Session = SessionLocal()
+    is_default_pw = False
+    try:
+        acc = db.scalar(select(m.PatientPhrAccount).where(m.PatientPhrAccount.patient_id == patient.id))
+        six_digit_id = extract_6digit_patient_id(patient.mrn or patient.id)
+        if acc and acc.password_hash:
+            is_default_pw = verify_password_bcrypt(six_digit_id, acc.password_hash)
+    finally:
+        db.close()
+
     age = (date.today() - patient.dob).days // 365 if patient.dob else 23
     patient_info = {
         "id": patient.id,
@@ -369,9 +384,11 @@ def get_current_phr_patient(patient: m.Patient = Depends(get_current_patient)):
         "email": patient.email or "hariharan.s@example.com",
         "address": patient.address or "No. 14, East Coast Road, Neelankarai, Chennai 600115",
         "emergency_contact": "S. Sundar (Father) - +91 98401 99999",
+        "is_default_password": is_default_pw,
     }
     return {
         **patient_info,
+        "is_default_password": is_default_pw,
         "patient": patient_info,
     }
 
