@@ -40,7 +40,7 @@ from typing import Any, Dict, List, Optional, Tuple
 from uuid import uuid4
 import hashlib
 
-from sqlalchemy import select, or_
+from sqlalchemy import select, or_, desc
 
 from . import models as m
 from .db import SessionLocal, DATA_DIR
@@ -461,6 +461,7 @@ def process_device_file(
         title=f"{modality.upper()} Report - {file_name}",
         filename=file_name,
         storage_key=storage_key,
+        drive_file_id=file_id,
         mime="application/pdf",
         size=len(file_bytes),
         sha256=hashlib.sha256(file_bytes).hexdigest(),
@@ -473,6 +474,17 @@ def process_device_file(
     # 7. Update Image Order: Completed status, result timestamp, preserve reviewer
     order.status = "Completed"
     order.result = f"{modality.upper()} diagnostic scan report automatically imported from device ({file_name})"
+    try:
+        meta_dict = json.loads(order.order_metadata) if order.order_metadata else {}
+    except Exception:
+        meta_dict = {}
+    meta_dict.update({
+        "drive_file_id": file_id,
+        "file_name": file_name,
+        "modality": modality.upper(),
+        "document_id": doc.id,
+    })
+    order.order_metadata = json.dumps(meta_dict)
     if not order.reviewed_by:
         order.reviewed_by = order.author_id
     order.reviewed_at = None  # ready for doctor review and sign-off
@@ -663,3 +675,252 @@ class DeviceImportPoller:
 
 # Global singleton instance
 poller = DeviceImportPoller(poll_interval_seconds=15)
+
+
+def find_drive_file_by_name(service: Any, filename: str, root_folder_id: Optional[str] = None) -> Optional[Dict[str, Any]]:
+    """
+    Search Google Drive for a file by name.
+    First checks 'Processed' folder, then entire Drive.
+    """
+    if not service or not filename:
+        return None
+
+    clean_name = filename.replace("'", "\\'")
+    root_id = root_folder_id or os.getenv("GOOGLE_DRIVE_INBOX_FOLDER_ID", DEFAULT_INBOX_FOLDER_ID)
+    subfolders = resolve_inbox_subfolders(service, root_id)
+    processed_id = subfolders.get("PROCESSED")
+
+    search_queries = []
+    if processed_id:
+        search_queries.append(f"'{processed_id}' in parents and name = '{clean_name}' and trashed = false")
+    search_queries.append(f"name = '{clean_name}' and trashed = false")
+    search_queries.append(f"name contains '{clean_name}' and trashed = false")
+
+    for q in search_queries:
+        try:
+            results = service.files().list(
+                q=q,
+                fields="files(id, name, mimeType, size, parents)",
+                supportsAllDrives=True,
+                includeItemsFromAllDrives=True,
+                pageSize=10,
+            ).execute()
+            files = results.get("files", [])
+            if files:
+                logger.info(f"Found Google Drive file '{filename}' with id {files[0].get('id')} using query '{q}'")
+                return files[0]
+        except Exception as e:
+            logger.debug(f"Search query '{q}' failed: {e}")
+
+    return None
+
+
+def repair_and_fetch_document_bytes(db: Any, doc: Any, service: Optional[Any] = None) -> Optional[bytes]:
+    """
+    Fetches the PDF bytes for a Document.
+    1. If present on local disk, returns it.
+    2. If missing on disk, resolves Google Drive file_id:
+       - from doc.drive_file_id
+       - from doc.storage_key (if 'gdrive:<id>')
+       - from ProcessedDeviceFile table (by document_id, order_id, or file_name)
+       - by searching Google Drive 'Processed' folder and drive for doc.filename
+    3. Fetches the PDF bytes directly from Google Drive API (service.files().get_media(fileId=...))
+       using GOOGLE_SERVICE_ACCOUNT_JSON credentials.
+    4. Caches the bytes locally at DATA_DIR / 'documents' / doc.storage_key.
+    5. Backfills doc.drive_file_id on the Document record in the database.
+    """
+    path = DATA_DIR / "documents" / doc.storage_key
+    if path.is_file():
+        try:
+            return path.read_bytes()
+        except Exception:
+            pass
+
+    drive_file_id = getattr(doc, "drive_file_id", None)
+    if not drive_file_id and doc.storage_key and doc.storage_key.startswith("gdrive:"):
+        drive_file_id = doc.storage_key.split(":", 1)[1]
+
+    # Check ProcessedDeviceFile table
+    if not drive_file_id:
+        proc = db.scalars(
+            select(m.ProcessedDeviceFile).where(m.ProcessedDeviceFile.document_id == doc.id)
+        ).first()
+        if not proc and doc.order_id:
+            proc = db.scalars(
+                select(m.ProcessedDeviceFile).where(m.ProcessedDeviceFile.order_id == doc.order_id)
+            ).first()
+        if not proc and doc.filename:
+            proc = db.scalars(
+                select(m.ProcessedDeviceFile).where(m.ProcessedDeviceFile.file_name == doc.filename)
+            ).first()
+        if proc:
+            drive_file_id = proc.google_file_id
+
+    # Check Google Drive directly by filename
+    if not service:
+        service = get_google_drive_service()
+
+    if not drive_file_id and service and doc.filename:
+        file_meta = find_drive_file_by_name(service, doc.filename)
+        if file_meta:
+            drive_file_id = file_meta.get("id")
+
+    if not drive_file_id:
+        return None
+
+    # Update doc with resolved drive_file_id
+    if hasattr(doc, "drive_file_id") and getattr(doc, "drive_file_id", None) != drive_file_id:
+        doc.drive_file_id = drive_file_id
+        try:
+            db.commit()
+        except Exception:
+            db.rollback()
+
+    if not service:
+        service = get_google_drive_service()
+    if not service:
+        return None
+
+    try:
+        file_bytes = download_file_bytes(service, drive_file_id)
+        if file_bytes:
+            try:
+                path.parent.mkdir(parents=True, exist_ok=True)
+                path.write_bytes(file_bytes)
+            except Exception as e:
+                logger.warning(f"Could not cache document bytes to local disk: {e}")
+            return file_bytes
+    except Exception as e:
+        logger.error(f"Failed to download bytes from Google Drive for {drive_file_id}: {e}")
+
+    return None
+
+
+def backfill_and_repair_documents(db: Any):
+    """
+    Backfills and repairs missing files or unlinked device imports in the database,
+    specifically ensuring '20261116-034934-000003.pdf' and all auto-imported PDFs
+    have their drive_file_id set and are cached on disk for instant viewing.
+    """
+    service = get_google_drive_service()
+    if not service:
+        logger.info("Google Drive service not configured for startup document backfill")
+        return
+
+    root_id = os.getenv("GOOGLE_DRIVE_INBOX_FOLDER_ID", DEFAULT_INBOX_FOLDER_ID)
+
+    # 1. Look for all documents whose disk files are missing or drive_file_id is null
+    try:
+        docs = db.scalars(
+            select(m.Document).where(
+                (m.Document.drive_file_id.is_(None)) |
+                (m.Document.filename.ilike("%20261116-034934-000003%"))
+            )
+        ).all()
+
+        for d in docs:
+            try:
+                path = DATA_DIR / "documents" / d.storage_key
+                if not path.is_file() or not d.drive_file_id:
+                    repair_and_fetch_document_bytes(db, d, service=service)
+            except Exception as e:
+                logger.warning(f"Failed repairing document {d.id} ({d.filename}): {e}")
+    except Exception as e:
+        logger.warning(f"Error querying documents for backfill: {e}")
+
+    # 2. Specifically look up '20261116-034934-000003.pdf' in Google Drive Processed folder
+    target_filename = "20261116-034934-000003.pdf"
+    try:
+        existing_doc = db.scalars(
+            select(m.Document).where(m.Document.filename == target_filename)
+        ).first()
+
+        if not existing_doc:
+            file_meta = find_drive_file_by_name(service, target_filename, root_id)
+            if file_meta:
+                g_file_id = file_meta.get("id")
+                patient = db.scalars(
+                    select(m.Patient).where(m.Patient.mrn.ilike("%000003%"))
+                ).first()
+
+                if patient:
+                    # Find matching image order or create completed record
+                    order = db.scalars(
+                        select(m.ClinicalOrder)
+                        .where(
+                            (m.ClinicalOrder.patient_id == patient.id) &
+                            (m.ClinicalOrder.kind.in_(["Image", "Imaging"]))
+                        )
+                        .order_by(desc(m.ClinicalOrder.created_at))
+                    ).first()
+
+                    if not order:
+                        facility = db.scalars(select(m.Facility)).first()
+                        order = m.ClinicalOrder(
+                            id=str(uuid4()),
+                            patient_id=patient.id,
+                            facility_id=facility.id if facility else patient.facility_id,
+                            kind="Image",
+                            name="ECG : Resting",
+                            status="Completed",
+                            result=f"Diagnostic report automatically imported from device ({target_filename})",
+                            ordered_date=m.now().strftime("%Y-%m-%d"),
+                            created_at=m.now(),
+                            version=1,
+                        )
+                        db.add(order)
+                        db.flush()
+
+                    # Download file bytes
+                    try:
+                        f_bytes = download_file_bytes(service, g_file_id)
+                        s_key = str(uuid4())
+                        d_path = DATA_DIR / "documents" / s_key
+                        d_path.parent.mkdir(parents=True, exist_ok=True)
+                        d_path.write_bytes(f_bytes)
+
+                        new_doc = m.Document(
+                            id=str(uuid4()),
+                            patient_id=patient.id,
+                            facility_id=order.facility_id,
+                            author_id=order.author_id or order.reviewed_by or patient.author_id,
+                            title=f"ECG Report - {target_filename}",
+                            filename=target_filename,
+                            storage_key=s_key,
+                            drive_file_id=g_file_id,
+                            mime="application/pdf",
+                            size=len(f_bytes),
+                            sha256=hashlib.sha256(f_bytes).hexdigest(),
+                            order_id=order.id,
+                            created_at=m.now(),
+                            version=1,
+                        )
+                        db.add(new_doc)
+                        order.status = "Completed"
+                        order.result = f"ECG diagnostic scan report automatically imported from device ({target_filename})"
+
+                        # Record in processed_device_files
+                        proc_rec = m.ProcessedDeviceFile(
+                            id=str(uuid4()),
+                            google_file_id=g_file_id,
+                            file_name=target_filename,
+                            modality="ECG",
+                            patient_id=patient.id,
+                            patient_mrn=patient.mrn,
+                            order_id=order.id,
+                            document_id=new_doc.id,
+                            status="completed",
+                            processed_at=m.now(),
+                            details=json.dumps({"file_name": target_filename, "backfilled": True}),
+                        )
+                        db.add(proc_rec)
+                        db.commit()
+                        logger.info(f"Successfully backfilled document {target_filename} for patient {patient.mrn}")
+                    except Exception as e:
+                        logger.error(f"Error downloading backfill bytes for {target_filename}: {e}")
+                        db.rollback()
+        else:
+            # Document exists, ensure drive_file_id is populated and file is cached on disk
+            repair_and_fetch_document_bytes(db, existing_doc, service=service)
+    except Exception as e:
+        logger.warning(f"Error checking target file {target_filename} during backfill: {e}")

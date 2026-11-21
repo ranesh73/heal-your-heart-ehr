@@ -4,6 +4,7 @@ Comprehensive tests for Google Drive Background Polling & Auto-Import service.
 import io
 import json
 import os
+import hashlib
 from datetime import date
 from unittest.mock import MagicMock
 from uuid import uuid4
@@ -12,7 +13,7 @@ import pytest
 from sqlalchemy import select, delete
 
 from app import models as m
-from app.db import SessionLocal
+from app.db import SessionLocal, DATA_DIR
 from app.device_import_service import (
     extract_ecg_patient_id,
     extract_echo_patient_id,
@@ -398,3 +399,65 @@ def test_device_imports_rest_endpoints():
     resp_processed = auth_c.get("/api/device-imports/processed")
     assert resp_processed.status_code == 200
     assert isinstance(resp_processed.json(), list)
+
+
+def test_document_drive_fallback_when_local_disk_missing(monkeypatch):
+    """
+    Test that when local disk storage is wiped (e.g. Render redeploy),
+    the document download/preview endpoint fetches the file from Google Drive,
+    returns it with inline Content-Disposition, and caches it back to local disk.
+    """
+    auth_c = client("doctor")
+    mock_pdf = b"%PDF-1.4 Fallback Streamed PDF Content"
+
+    with SessionLocal() as db_session:
+        fac = db_session.scalar(select(m.Facility))
+        doc_user = db_session.scalar(select(m.User).where(m.User.role == "doctor"))
+        patient = db_session.scalar(select(m.Patient))
+
+        storage_key = str(uuid4())
+        doc_id = str(uuid4())
+        doc = m.Document(
+            id=doc_id,
+            patient_id=patient.id,
+            facility_id=fac.id,
+            author_id=doc_user.id,
+            title="Auto-Imported ECG Test Fallback",
+            filename="20261116-034934-000003.pdf",
+            storage_key=storage_key,
+            drive_file_id="mock_gdrive_file_id_0003",
+            mime="application/pdf",
+            size=len(mock_pdf),
+            sha256=hashlib.sha256(mock_pdf).hexdigest(),
+            created_at=m.now(),
+            version=1,
+        )
+        db_session.add(doc)
+        db_session.commit()
+
+    # Ensure local disk file is missing (simulate Render redeploy wipe)
+    disk_file = DATA_DIR / "documents" / storage_key
+    if disk_file.is_file():
+        disk_file.unlink()
+
+    from app import device_import_service
+    monkeypatch.setattr(device_import_service, "get_google_drive_service", lambda: object())
+    monkeypatch.setattr(device_import_service, "download_file_bytes", lambda service, file_id: mock_pdf)
+
+    # 1. Fetch via /download?inline=true
+    resp = auth_c.get(f"/api/documents/{doc_id}/download?inline=true")
+    assert resp.status_code == 200
+    assert resp.content == mock_pdf
+    assert "inline" in resp.headers.get("content-disposition", "")
+    assert resp.headers.get("x-frame-options") == "SAMEORIGIN"
+    assert "frame-ancestors 'self' *" in resp.headers.get("content-security-policy", "")
+
+    # Verify that the file was cached to disk
+    assert disk_file.is_file()
+    assert disk_file.read_bytes() == mock_pdf
+
+    # 2. Fetch via /preview route
+    resp_preview = auth_c.get(f"/api/documents/{doc_id}/preview")
+    assert resp_preview.status_code == 200
+    assert resp_preview.content == mock_pdf
+

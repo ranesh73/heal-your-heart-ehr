@@ -99,6 +99,11 @@ def startup_sync():
                 cols = [r[1] for r in conn.execute(text("PRAGMA table_info(appointments)")).fetchall()]
                 if 'token_number' not in cols:
                     conn.execute(text("ALTER TABLE appointments ADD COLUMN token_number INTEGER"))
+                doc_cols = [r[1] for r in conn.execute(text("PRAGMA table_info(documents)")).fetchall()]
+                if 'drive_file_id' not in doc_cols:
+                    conn.execute(text("ALTER TABLE documents ADD COLUMN drive_file_id VARCHAR(120)"))
+            else:
+                conn.execute(text("ALTER TABLE documents ADD COLUMN IF NOT EXISTS drive_file_id VARCHAR(120)"))
             conn.execute(text("""
                 CREATE TABLE IF NOT EXISTS waiting_list_entries (
                     id TEXT PRIMARY KEY,
@@ -118,6 +123,13 @@ def startup_sync():
             db.commit()
     except Exception as e:
         logging.getLogger('ehr').warning('Startup seed data failed: %s', e)
+    try:
+        from .db import SessionLocal
+        from .device_import_service import backfill_and_repair_documents
+        with SessionLocal() as db:
+            backfill_and_repair_documents(db)
+    except Exception as e:
+        logging.getLogger('ehr').warning('Startup backfill_and_repair_documents failed: %s', e)
     try:
         from .device_import_service import poller
         poller.start()

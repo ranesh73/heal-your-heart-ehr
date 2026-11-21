@@ -471,6 +471,7 @@ class Document(PatientRecord, Base):
     title = Column(String(180), nullable=False)
     filename = Column(String(180), nullable=False)
     storage_key = Column(String(36), unique=True, nullable=False)
+    drive_file_id = Column(String(120), nullable=True, index=True)
     mime = Column(String(80), nullable=False)
     size = Column(Integer, nullable=False)
     sha256 = Column(String(64), nullable=False)

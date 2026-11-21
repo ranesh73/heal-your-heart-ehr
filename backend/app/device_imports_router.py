@@ -109,10 +109,19 @@ def stream_drive_file(file_id: str, c=Depends(context)):
     if not service:
         raise HTTPException(503, "Google Drive service is not configured or authenticated")
     try:
-        from .device_import_service import download_file_bytes
-        file_bytes = download_file_bytes(service, file_id)
+        from .device_import_service import download_file_bytes, find_drive_file_by_name
         filename = f"{file_id}.pdf"
         mime = "application/pdf"
+
+        # If file_id is a filename like 20261116-034934-000003.pdf, resolve its Drive ID
+        if file_id.endswith(".pdf") or "-" in file_id:
+            file_meta = find_drive_file_by_name(service, file_id)
+            if file_meta:
+                file_id = file_meta.get("id", file_id)
+                filename = file_meta.get("name", filename)
+                mime = file_meta.get("mimeType", mime)
+
+        file_bytes = download_file_bytes(service, file_id)
         try:
             meta = service.files().get(fileId=file_id, fields="name,mimeType").execute()
             filename = meta.get("name", filename)

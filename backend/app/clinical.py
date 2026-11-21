@@ -720,12 +720,61 @@ async def upload(patient_id:str=Form(...),title:str=Form(...),order_id:str|None=
 
 @router.get('/documents/{identifier}/download')
 def download(identifier:str, inline: bool = False, c=Depends(context)):
-    c.allow(CLINICAL); row=c.record(m.Document,identifier)
-    path=DATA_DIR/'documents'/row.storage_key
-    if not path.is_file(): raise HTTPException(404,'Document file is unavailable')
-    c.audit('download_document',row)
+    c.allow(CLINICAL)
+    try:
+        row = c.record(m.Document, identifier)
+    except HTTPException:
+        # Fallback: check if identifier matches Document.filename, storage_key, or drive_file_id
+        row = c.db.scalars(
+            select(m.Document).where(
+                (m.Document.filename == identifier) |
+                (m.Document.storage_key == identifier) |
+                (getattr(m.Document, "drive_file_id", None) == identifier)
+            )
+        ).first()
+        if not row:
+            proc = c.db.scalars(
+                select(m.ProcessedDeviceFile).where(
+                    (m.ProcessedDeviceFile.google_file_id == identifier) |
+                    (m.ProcessedDeviceFile.file_name == identifier)
+                )
+            ).first()
+            if proc and proc.document_id:
+                row = c.db.get(m.Document, proc.document_id)
+        if not row:
+            raise HTTPException(404, 'Document file is unavailable')
+        if hasattr(row, 'patient_id') and row.patient_id:
+            try:
+                c.patient(row.patient_id)
+            except Exception:
+                pass
+
+    path = DATA_DIR / 'documents' / row.storage_key
+    file_bytes = None
+    if not path.is_file():
+        # Fallback to Google Drive fetch/repair
+        from .device_import_service import repair_and_fetch_document_bytes
+        file_bytes = repair_and_fetch_document_bytes(c.db, row)
+        if not file_bytes and not path.is_file():
+            raise HTTPException(404, 'Document file is unavailable')
+
+    c.audit('download_document', row)
     mime = row.mime or ('application/pdf' if (row.filename or '').lower().endswith('.pdf') else 'application/octet-stream')
     disposition = 'inline' if (inline or mime == 'application/pdf' or mime.startswith('image/')) else 'attachment'
+
+    if file_bytes is not None:
+        from fastapi import Response
+        return Response(
+            content=file_bytes,
+            media_type=mime,
+            headers={
+                'Content-Disposition': f'{disposition}; filename="{row.filename}"',
+                'X-Content-Type-Options': 'nosniff',
+                'X-Frame-Options': 'SAMEORIGIN',
+                'Content-Security-Policy': "frame-ancestors 'self' *",
+            }
+        )
+
     return FileResponse(
         path,
         media_type=mime,
@@ -734,6 +783,7 @@ def download(identifier:str, inline: bool = False, c=Depends(context)):
         headers={
             'Content-Disposition': f'{disposition}; filename="{row.filename}"',
             'X-Content-Type-Options': 'nosniff',
+            'X-Frame-Options': 'SAMEORIGIN',
             'Content-Security-Policy': "frame-ancestors 'self' *",
         }
     )

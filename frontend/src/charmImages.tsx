@@ -669,11 +669,16 @@ export function CharmImages({ patientId, encounterId, isGlobal }: CharmImagesPro
     } else {
       // Check if selectedRecord has google_drive_id or drive link in result or notes_intra_office
       const recAny = selectedRecord as any;
+      const filenameMatch = (selectedRecord.result || "").match(/([0-9]{8}[-_][0-9]{6}[-_][0-9]{6}\.pdf)/i) ||
+                            (selectedRecord.notes_intra_office || "").match(/([0-9]{8}[-_][0-9]{6}[-_][0-9]{6}\.pdf)/i);
+      const embeddedFilename = filenameMatch ? filenameMatch[1] : null;
+
       const driveId =
         recAny.google_file_id ||
         recAny.drive_file_id ||
         extractDriveId(selectedRecord.result) ||
-        extractDriveId(selectedRecord.notes_intra_office);
+        extractDriveId(selectedRecord.notes_intra_office) ||
+        embeddedFilename;
       if (driveId) {
         docPreviewUrl = `/api/device-imports/drive-stream/${driveId}`;
         docDownloadUrl = `/api/device-imports/drive-stream/${driveId}`;
