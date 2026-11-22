@@ -12,7 +12,7 @@ import { TemplateDetailsPage } from './components/viewer/TemplateDetailsPage';
 import { TemplateBuilder } from './components/builder/TemplateBuilder';
 import { NewTemplateModal } from './components/modals/NewTemplateModal';
 import { ActionOption } from './components/common/ThreeDotMenu';
-import { TEMPLATE_TYPES, MEDICAL_CATEGORIES } from './constants/templateTypes';
+import { TEMPLATE_TYPES, TEMPLATE_TYPE_OPTIONS, MEDICAL_CATEGORIES } from './constants/templateTypes';
 import './styles/charm-theme.css';
 import './styles/my-templates.css';
 import './styles/pathway.css';
@@ -60,9 +60,9 @@ export function TemplatesModule({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Filters
+  // Filters - default to 'SOAP' matching CharmHealth reference layout
   const [search, setSearch] = useState('');
-  const [typeFilter, setTypeFilter] = useState('All');
+  const [typeFilter, setTypeFilter] = useState('SOAP');
   const [categoryFilter, setCategoryFilter] = useState('All');
 
   // Common medication conditions
@@ -78,6 +78,8 @@ export function TemplatesModule({
   useEffect(() => {
     if (initialTab && TAB_SLUG_MAP[initialTab]) {
       setActiveTab(TAB_SLUG_MAP[initialTab]);
+      setViewMode('list');
+      setSelectedTemplate(null);
     }
   }, [initialTab]);
 
@@ -208,59 +210,125 @@ export function TemplatesModule({
         onBack={onBackToDashboard}
       />
 
-      {/* Main Filter & Action Bar */}
+      {/* Main Filter & Action Bar - Matching CharmHealth Screenshot 9 & 10 */}
       {activeTab !== 'common_medication' && (
-        <div className="charm-templates-controls-bar">
-          <div className="template-search-input-wrap" style={{ minWidth: '340px', maxWidth: '480px' }}>
-            <Search size={15} className="template-search-icon" aria-hidden="true" />
-            <input
-              id="template-name-search"
-              type="search"
-              placeholder="Search templates by name, condition, or section..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="charm-templates-search-input"
-              style={{ width: '100%', height: '32px', paddingLeft: '32px' }}
-            />
+        <div className="charm-templates-controls-wrap" style={{ backgroundColor: '#ffffff', borderBottom: '1px solid #e2e8f0' }}>
+          <div
+            className="charm-templates-controls-row"
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              padding: '14px 20px 8px 20px',
+              gap: '16px',
+              flexWrap: 'wrap'
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <label
+                htmlFor="template-type-filter"
+                style={{ fontSize: '13.5px', fontWeight: 600, color: '#334155', whiteSpace: 'nowrap' }}
+              >
+                Template Type
+              </label>
+              <select
+                id="template-type-filter"
+                value={typeFilter}
+                onChange={(e) => setTypeFilter(e.target.value)}
+                className="charm-select-filter"
+                style={{
+                  minWidth: '220px',
+                  height: '34px',
+                  fontSize: '13.5px',
+                  padding: '4px 12px',
+                  border: '1px solid #cbd5e1',
+                  borderRadius: '4px',
+                  backgroundColor: '#ffffff',
+                  color: '#1e293b'
+                }}
+              >
+                {TEMPLATE_TYPE_OPTIONS.map((t) => (
+                  <option key={t} value={t}>
+                    {t}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <div className="template-search-input-wrap" style={{ width: '280px', position: 'relative' }}>
+                <Search
+                  size={14}
+                  className="template-search-icon"
+                  style={{ position: 'absolute', left: '10px', top: '10px', color: '#94a3b8' }}
+                  aria-hidden="true"
+                />
+                <input
+                  id="template-name-search"
+                  type="search"
+                  placeholder="Search by Template Name"
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  className="charm-templates-search-input"
+                  style={{
+                    width: '100%',
+                    height: '34px',
+                    paddingLeft: '32px',
+                    fontSize: '13px',
+                    border: '1px solid #cbd5e1',
+                    borderRadius: '4px',
+                    backgroundColor: '#ffffff'
+                  }}
+                />
+              </div>
+
+              <button
+                type="button"
+                className="charm-btn-refresh-icon"
+                onClick={loadTemplates}
+                title="Refresh list"
+                style={{
+                  height: '34px',
+                  width: '34px',
+                  border: '1px solid #cbd5e1',
+                  borderRadius: '4px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  backgroundColor: '#ffffff',
+                  cursor: 'pointer',
+                  color: '#64748b'
+                }}
+              >
+                <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
+              </button>
+            </div>
           </div>
 
-          <div className="charm-templates-filters-group">
-            <select
-              value={typeFilter}
-              onChange={(e) => setTypeFilter(e.target.value)}
-              className="charm-select-filter"
-            >
-              <option value="All">All Types</option>
-              {TEMPLATE_TYPES.map((t) => (
-                <option key={t} value={t}>{t}</option>
-              ))}
-            </select>
-
-            <select
-              value={categoryFilter}
-              onChange={(e) => setCategoryFilter(e.target.value)}
-              className="charm-select-filter"
-            >
-              <option value="All">All Categories</option>
-              {MEDICAL_CATEGORIES.map((c) => (
-                <option key={c} value={c}>{c}</option>
-              ))}
-            </select>
-
-            <button
-              type="button"
-              className="charm-btn-refresh-icon"
-              onClick={loadTemplates}
-              title="Refresh list"
-            >
-              <RefreshCw size={15} className={loading ? 'animate-spin' : ''} />
-            </button>
-
+          <div
+            className="charm-templates-action-row"
+            style={{
+              display: 'flex',
+              justifyContent: 'flex-end',
+              padding: '0 20px 12px 20px'
+            }}
+          >
             <button
               type="button"
               className="charm-btn-orange-new"
-              onClick={() => {
-                setIsNewModalOpen(true);
+              onClick={() => setIsNewModalOpen(true)}
+              style={{
+                backgroundColor: '#f97316',
+                color: '#ffffff',
+                border: 'none',
+                borderRadius: '4px',
+                padding: '7px 16px',
+                fontSize: '13px',
+                fontWeight: 600,
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '6px',
+                cursor: 'pointer'
               }}
             >
               <Plus size={15} />

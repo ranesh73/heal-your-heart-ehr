@@ -27,7 +27,17 @@ export const PracticeTemplatesTable: React.FC<PracticeTemplatesTableProps> = ({
   if (templates.length === 0) {
     return (
       <div className="charm-table-container">
-        <div className="empty-table-state">No Practice Templates available</div>
+        <div
+          style={{
+            textAlign: 'center',
+            padding: '80px 20px',
+            color: '#475569',
+            fontSize: '15px',
+            fontWeight: 500
+          }}
+        >
+          No Templates available
+        </div>
       </div>
     );
   }

@@ -58,19 +58,17 @@ export const MyTemplatesTable: React.FC<MyTemplatesTableProps> = ({
   if (templates.length === 0) {
     return (
       <div className="charm-table-container">
-        <div className="table-state-panel" role="status">
-          <FileSearch size={28} aria-hidden="true" />
-          <p className="state-title">No templates available</p>
-          <p className="state-hint">
-            {hasActiveFilters
-              ? 'Try changing your search or template type.'
-              : 'Create your first clinical template with the + New Template button.'}
-          </p>
-          {hasActiveFilters && onResetFilters && (
-            <button type="button" className="btn-secondary" onClick={onResetFilters}>
-              Clear all filters
-            </button>
-          )}
+        <div
+          style={{
+            textAlign: 'center',
+            padding: '80px 20px',
+            color: '#475569',
+            fontSize: '15px',
+            fontWeight: 500
+          }}
+          role="status"
+        >
+          No Templates available
         </div>
       </div>
     );

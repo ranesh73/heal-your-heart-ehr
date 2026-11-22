@@ -118,17 +118,22 @@ def get_templates(
     hide_email = requested_type != "Email"
 
     if tab == "my_templates":
-        query += " AND (t.is_practice = 1 OR t.is_library = 1)"
+        # "My Templates" are personal templates authored by the logged-in doctor/user.
+        # When the user has not authored any template of the selected type, this returns
+        # an empty list so the table renders "No Templates available" (CharmHealth style).
+        query += " AND t.is_practice = 0 AND t.is_library = 0"
         if hide_email:
             query += " AND t.template_type != 'Email'"
     elif tab == "practice_templates":
-        query += " AND (t.is_practice = 1 OR t.is_library = 1)"
+        # "Practice Templates" are the clinic's institutional practice templates.
+        query += " AND t.is_practice = 1"
         if hide_email:
             query += " AND t.template_type != 'Email'"
     elif tab == "email_templates":
         query += " AND t.template_type = 'Email'"
     elif tab == "template_library":
-        query += " AND (t.is_library = 1 OR t.is_practice = 1)"
+        # Library templates (Heal Your Heart / CharmHealth library)
+        query += " AND t.is_library = 1"
     elif tab == "common_medication":
         if hide_email:
             query += " AND t.template_type != 'Email'"
