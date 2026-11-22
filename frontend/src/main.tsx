@@ -583,6 +583,17 @@ function Workspace() {
   const isHome = page === "home";
   const currentFacility = me.data.facilities.find((f: Row) => f.id === branch);
 
+  const activePatientId =
+    (page === "patients" && parts[1]) ? parts[1] :
+    (page === "encounter" && parts[2]) ? parts[2] :
+    undefined;
+  const activePatient = activePatientId
+    ? (patients.data?.items || []).find((p: Row) => p.id === activePatientId)
+    : undefined;
+  const activePatientName = activePatient
+    ? `${activePatient.first_name || ""} ${activePatient.last_name || ""}`.trim()
+    : undefined;
+
   return (
     <AppContext.Provider value={context}>
       <div
@@ -1145,6 +1156,9 @@ function Workspace() {
       <AICopilotDrawer
         currentUser={user}
         activeFacilityId={branch}
+        selectedPatientId={activePatientId}
+        selectedPatientName={activePatientName}
+        currentPage={page}
       />
       {toast && (
         <div className="toast" role="status">

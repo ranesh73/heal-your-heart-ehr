@@ -22242,3 +22242,79 @@ textarea.charm-input {
     overflow: visible !important;
   }
 }
+
+/* ==========================================================================
+   HEAL YOUR HEART EHR - AI COPILOT DRAWER & WORKFORCE ASSISTANT
+   ========================================================================== */
+
+.charm-copilot-backdrop {
+  position: fixed;
+  inset: 0;
+  background-color: rgba(15, 23, 42, 0.3);
+  backdrop-filter: blur(2px);
+  z-index: 1999;
+  transition: opacity 0.2s ease-in-out;
+}
+
+.charm-copilot-drawer {
+  position: fixed;
+  top: 0;
+  bottom: 0;
+  right: 0;
+  z-index: 2000;
+  display: flex;
+  flex-direction: column;
+  background: #ffffff;
+  box-shadow: -6px 0 24px rgba(0, 0, 0, 0.16), -1px 0 4px rgba(0, 0, 0, 0.08);
+  border-left: 1px solid #cbd5e1;
+  transition: width 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  max-width: 100vw;
+}
+
+.charm-copilot-messages {
+  flex: 1 1 0%;
+  min-height: 0;
+  overflow-y: auto;
+  scroll-behavior: smooth;
+}
+
+.charm-copilot-messages::-webkit-scrollbar {
+  width: 6px;
+}
+.charm-copilot-messages::-webkit-scrollbar-track {
+  background: transparent;
+}
+.charm-copilot-messages::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 9999px;
+}
+.charm-copilot-messages::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
+
+.charm-copilot-launcher {
+  position: fixed;
+  bottom: 44px;
+  right: 20px;
+  z-index: 1040;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border-radius: 9999px;
+  background: linear-gradient(135deg, #0d9488 0%, #047857 100%);
+  color: #ffffff;
+  padding: 8px 16px;
+  box-shadow: 0 4px 14px rgba(13, 148, 136, 0.35), 0 2px 6px rgba(0, 0, 0, 0.1);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  transition: all 0.2s ease;
+}
+
+.charm-copilot-launcher:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(13, 148, 136, 0.45), 0 3px 8px rgba(0, 0, 0, 0.12);
+  background: linear-gradient(135deg, #0f766e 0%, #065f46 100%);
+}
+
