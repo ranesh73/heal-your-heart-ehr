@@ -9,6 +9,7 @@ import { EmailTemplatesTable } from './components/templates/EmailTemplatesTable'
 import { LibraryTemplatesTable } from './components/templates/LibraryTemplatesTable';
 import { CommonMedicationPanel } from './components/templates/CommonMedicationPanel';
 import { TemplateDetailsPage } from './components/viewer/TemplateDetailsPage';
+import { ViewEmailTemplateView } from './components/viewer/ViewEmailTemplateView';
 import { TemplateBuilder } from './components/builder/TemplateBuilder';
 import { NewTemplateModal } from './components/modals/NewTemplateModal';
 import { ActionOption } from './components/common/ThreeDotMenu';
@@ -95,7 +96,7 @@ export function TemplatesModule({
       const data = await api.getTemplates({
         tab: activeTab,
         search: search.trim() || undefined,
-        template_type: typeFilter !== 'All' ? typeFilter : undefined,
+        template_type: activeTab === 'email_templates' ? undefined : (typeFilter !== 'All' ? typeFilter : undefined),
         category: categoryFilter !== 'All' ? categoryFilter : undefined,
       });
       setTemplates(data || []);
@@ -165,8 +166,21 @@ export function TemplatesModule({
     }
   };
 
-  // If in viewer mode: render TemplateDetailsPage (with horizontal pathway)
+  // If in viewer mode: render ViewEmailTemplateView for Email or TemplateDetailsPage for clinical forms
   if (viewMode === 'viewer' && selectedTemplate) {
+    if (selectedTemplate.template_type === 'Email') {
+      return (
+        <ViewEmailTemplateView
+          template={selectedTemplate}
+          onBack={() => setViewMode('list')}
+          onEdit={(t) => {
+            setSelectedTemplate(t);
+            setViewMode('builder');
+          }}
+        />
+      );
+    }
+
     return (
       <div className="charm-templates-fullscreen-wrap">
         <TemplateDetailsPage
@@ -224,36 +238,42 @@ export function TemplatesModule({
               flexWrap: 'wrap'
             }}
           >
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-              <label
-                htmlFor="template-type-filter"
-                style={{ fontSize: '13.5px', fontWeight: 600, color: '#334155', whiteSpace: 'nowrap' }}
-              >
-                Template Type
-              </label>
-              <select
-                id="template-type-filter"
-                value={typeFilter}
-                onChange={(e) => setTypeFilter(e.target.value)}
-                className="charm-select-filter"
-                style={{
-                  minWidth: '220px',
-                  height: '34px',
-                  fontSize: '13.5px',
-                  padding: '4px 12px',
-                  border: '1px solid #cbd5e1',
-                  borderRadius: '4px',
-                  backgroundColor: '#ffffff',
-                  color: '#1e293b'
-                }}
-              >
-                {TEMPLATE_TYPE_OPTIONS.map((t) => (
-                  <option key={t} value={t}>
-                    {t}
-                  </option>
-                ))}
-              </select>
-            </div>
+            {activeTab !== 'email_templates' ? (
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <label
+                  htmlFor="template-type-filter"
+                  style={{ fontSize: '13.5px', fontWeight: 600, color: '#334155', whiteSpace: 'nowrap' }}
+                >
+                  Template Type
+                </label>
+                <select
+                  id="template-type-filter"
+                  value={typeFilter}
+                  onChange={(e) => setTypeFilter(e.target.value)}
+                  className="charm-select-filter"
+                  style={{
+                    minWidth: '220px',
+                    height: '34px',
+                    fontSize: '13.5px',
+                    padding: '4px 12px',
+                    border: '1px solid #cbd5e1',
+                    borderRadius: '4px',
+                    backgroundColor: '#ffffff',
+                    color: '#1e293b'
+                  }}
+                >
+                  {TEMPLATE_TYPE_OPTIONS.map((t) => (
+                    <option key={t} value={t}>
+                      {t}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            ) : (
+              <div style={{ fontSize: '14px', fontWeight: 600, color: '#334155' }}>
+                Email Templates
+              </div>
+            )}
 
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
               <div className="template-search-input-wrap" style={{ width: '280px', position: 'relative' }}>

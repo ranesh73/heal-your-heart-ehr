@@ -138,7 +138,7 @@ def get_templates(
         if hide_email:
             query += " AND t.template_type != 'Email'"
 
-    if requested_type:
+    if requested_type and tab != "email_templates":
         query += " AND t.template_type = ?"
         params.append(requested_type)
 
