@@ -4,6 +4,8 @@ import { ClinicalTemplate, TemplateComponent } from '../../types';
 import { allComponentsOf, computeVisibility } from './conditionalLogic';
 import { isNestedTree } from '../viewer/optionTree';
 import { NestedOptionField } from '../options/NestedOptionField';
+import '../../styles/charm-theme.css';
+import '../../styles/template-viewer.css';
 
 const PASTEL_BAR_CLASSES = [
   'pastel-bar-lavender',

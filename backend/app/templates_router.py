@@ -118,18 +118,17 @@ def get_templates(
     hide_email = requested_type != "Email"
 
     if tab == "my_templates":
-        query += " AND t.is_practice = 1 AND (t.owner_email = ? OR t.owner_email IS NULL OR t.owner_email = '')"
-        params.append(owner)
+        query += " AND (t.is_practice = 1 OR t.is_library = 1)"
         if hide_email:
             query += " AND t.template_type != 'Email'"
     elif tab == "practice_templates":
-        query += " AND t.is_practice = 1"
+        query += " AND (t.is_practice = 1 OR t.is_library = 1)"
         if hide_email:
             query += " AND t.template_type != 'Email'"
     elif tab == "email_templates":
         query += " AND t.template_type = 'Email'"
     elif tab == "template_library":
-        query += " AND t.is_library = 1"
+        query += " AND (t.is_library = 1 OR t.is_practice = 1)"
     elif tab == "common_medication":
         if hide_email:
             query += " AND t.template_type != 'Email'"

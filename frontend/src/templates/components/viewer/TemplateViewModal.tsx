@@ -2,6 +2,8 @@ import React, { useEffect, useRef } from 'react';
 import { ClinicalTemplate, TemplateSection } from '../../types';
 import { FieldRenderer } from './FieldRenderer';
 import { txt } from './decodeEntities';
+import '../../styles/charm-theme.css';
+import '../../styles/template-viewer.css';
 
 interface TemplateViewModalProps {
   isOpen: boolean;

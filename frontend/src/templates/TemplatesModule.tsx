@@ -17,6 +17,8 @@ import './styles/charm-theme.css';
 import './styles/my-templates.css';
 import './styles/pathway.css';
 import './styles/option-tree.css';
+import './styles/template-viewer.css';
+import './styles/builder.css';
 
 interface TemplatesModuleProps {
   initialTab?: string;

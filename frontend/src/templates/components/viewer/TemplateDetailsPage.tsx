@@ -15,6 +15,8 @@ import { ClinicalTemplate, Patient, UserSession, MedicationReference } from '../
 import { ClinicalFormRenderer } from '../clinical/ClinicalFormRenderer';
 import { allComponentsOf, computeVisibility, pruneHiddenAnswers } from '../clinical/conditionalLogic';
 import { api } from '../../services/api';
+import '../../styles/charm-theme.css';
+import '../../styles/template-viewer.css';
 
 interface TemplateDetailsPageProps {
   template: ClinicalTemplate;
