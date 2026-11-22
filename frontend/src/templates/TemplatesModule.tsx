@@ -10,6 +10,7 @@ import { LibraryTemplatesTable } from './components/templates/LibraryTemplatesTa
 import { CommonMedicationPanel } from './components/templates/CommonMedicationPanel';
 import { TemplateDetailsPage } from './components/viewer/TemplateDetailsPage';
 import { TemplateBuilder } from './components/builder/TemplateBuilder';
+import { NewTemplateModal } from './components/modals/NewTemplateModal';
 import { ActionOption } from './components/common/ThreeDotMenu';
 import { TEMPLATE_TYPES, MEDICAL_CATEGORIES } from './constants/templateTypes';
 import './styles/charm-theme.css';
@@ -29,6 +30,7 @@ const TAB_SLUG_MAP: Record<string, TabType> = {
   'email-templates': 'email_templates',
   'charmhealth-library': 'template_library',
   'common-medication': 'common_medication',
+  'common-medications': 'common_medication',
 };
 
 const TAB_TO_SLUG_MAP: Record<TabType, string> = {
@@ -49,6 +51,7 @@ export function TemplatesModule({
   );
   const [viewMode, setViewMode] = useState<'list' | 'viewer' | 'builder'>('list');
   const [selectedTemplate, setSelectedTemplate] = useState<ClinicalTemplate | null>(null);
+  const [isNewModalOpen, setIsNewModalOpen] = useState(false);
 
   // Template list state
   const [templates, setTemplates] = useState<ClinicalTemplate[]>([]);
@@ -255,8 +258,7 @@ export function TemplatesModule({
               type="button"
               className="charm-btn-orange-new"
               onClick={() => {
-                setSelectedTemplate(null);
-                setViewMode('builder');
+                setIsNewModalOpen(true);
               }}
             >
               <Plus size={15} />
@@ -265,6 +267,28 @@ export function TemplatesModule({
           </div>
         </div>
       )}
+
+      {/* New Template Creation Modal */}
+      <NewTemplateModal
+        isOpen={isNewModalOpen}
+        onClose={() => setIsNewModalOpen(false)}
+        onProceed={(name, type, specialty, tags) => {
+          setIsNewModalOpen(false);
+          setSelectedTemplate({
+            name,
+            template_type: type,
+            specialty,
+            tags,
+            sections: [
+              {
+                title: 'Clinical Assessment & Notes',
+                components: []
+              }
+            ]
+          } as any);
+          setViewMode('builder');
+        }}
+      />
 
       {/* Content Table Body */}
       <div className="charm-templates-body-area">

@@ -183,33 +183,79 @@
   border-radius: 2px;
 }
 
+/* Full-Width Pastel Heading Bars */
 .ctv-section-title {
   margin: 0;
-  padding: 22px 26px 12px;
-  font-size: 25px;
-  font-weight: 400;
-  line-height: 1.25;
-  color: #e8833a;
-  letter-spacing: 0.1px;
+  padding: 12px 20px;
+  font-size: 15px;
+  font-weight: 700;
+  line-height: 1.35;
+  color: #0f172a !important; /* Bold black/dark charcoal - high contrast, never washed out */
+  letter-spacing: 0.3px;
+  text-transform: uppercase;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+  border-radius: 2px 2px 0 0;
+  display: block;
+  width: 100%;
+  box-sizing: border-box;
 }
 
-/* Inset field well the reference draws beneath each orange heading. */
+/* Pastel bar color schemes from user palette swatches */
+.ctv-section-title.pastel-bar-lavender {
+  background-color: #F0E5F8 !important; /* Wisteria / Dusty Lavender */
+  border-left: 4px solid #C6B3CA !important;
+}
+
+.ctv-section-title.pastel-bar-mint {
+  background-color: #E8F5E9 !important; /* Sweet Mint / Sage */
+  border-left: 4px solid #AECBB8 !important;
+}
+
+.ctv-section-title.pastel-bar-dewpoint {
+  background-color: #E1ECFA !important; /* Dewpoint / Soft Horizon Blue */
+  border-left: 4px solid #C1DBDF !important;
+}
+
+.ctv-section-title.pastel-bar-rose {
+  background-color: #F8E1EA !important; /* Fairytale Dream / Peony / Rose */
+  border-left: 4px solid #E79897 !important;
+}
+
+.ctv-section-title.pastel-bar-cream {
+  background-color: #FFF7ED !important; /* Fennel / Honey / Pancake */
+  border-left: 4px solid #EBDEC0 !important;
+}
+
+.ctv-section-title.pastel-bar-pistachio {
+  background-color: #F4F3E6 !important; /* Pistachio / Fern */
+  border-left: 4px solid #C6C09C !important;
+}
+
+.ctv-section-title.pastel-bar-peach {
+  background-color: #FFEFE6 !important; /* Soft Peach / Terracotta */
+  border-left: 4px solid #FCAC83 !important;
+}
+
+/* Inset field well beneath each pastel heading. */
 .ctv-section-body {
-  margin: 0 32px 20px;
+  margin: 0 16px 16px;
   padding: 14px 14px 4px;
   background-color: #fafafa;
   border: 1px solid #f1f1f1;
-  border-radius: 2px;
+  border-top: none;
+  border-radius: 0 0 2px 2px;
 }
 
 /* ----------------------------------------------------------- Headings */
 
 .ctv-subheading {
-  margin: 4px 0 14px;
-  font-size: 15px;
+  margin: 8px 0 14px;
+  font-size: 13.5px;
   font-weight: 700;
-  color: #2b7bb9;
+  color: #1e293b;
   line-height: 1.45;
+  border-left: 3px solid #94a3b8;
+  padding-left: 8px;
 }
 
 .ctv-centered-heading {

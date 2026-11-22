@@ -5,6 +5,16 @@ import { allComponentsOf, computeVisibility } from './conditionalLogic';
 import { isNestedTree } from '../viewer/optionTree';
 import { NestedOptionField } from '../options/NestedOptionField';
 
+const PASTEL_BAR_CLASSES = [
+  'pastel-bar-lavender',
+  'pastel-bar-mint',
+  'pastel-bar-dewpoint',
+  'pastel-bar-rose',
+  'pastel-bar-cream',
+  'pastel-bar-pistachio',
+  'pastel-bar-peach'
+];
+
 interface ClinicalFormRendererProps {
   template: ClinicalTemplate;
   answers: Record<number, string>;
@@ -188,7 +198,7 @@ export const ClinicalFormRenderer: React.FC<ClinicalFormRendererProps> = ({
     if (MULTI_TYPES.has(type) && options.length > 0) {
       const chosen = value ? value.split(',').map((v) => v.trim()) : [];
       return (
-        <div className="cfr-checkbox-group" style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+        <div className="cfr-checkbox-group" style={{ display: 'flex', flexWrap: 'wrap', gap: '8px 14px', alignItems: 'center' }}>
           {options.map((opt, i) => {
             const on = chosen.includes(opt.option_label);
             return (
@@ -197,18 +207,19 @@ export const ClinicalFormRenderer: React.FC<ClinicalFormRendererProps> = ({
                 style={{
                   display: 'inline-flex',
                   alignItems: 'center',
-                  gap: '8px',
+                  gap: '7px',
                   padding: '6px 14px',
-                  borderRadius: '5px',
-                  border: on ? '1.5px solid #ea580c' : '1px solid #cbd5e1',
-                  backgroundColor: on ? '#fff7ed' : '#ffffff',
-                  color: on ? '#c2410c' : '#334155',
+                  borderRadius: '4px',
+                  border: on ? '1.5px solid #0288d1' : '1px solid #cbd5e1',
+                  backgroundColor: on ? '#f0f9ff' : '#ffffff',
+                  color: on ? '#0369a1' : '#1e293b',
                   fontWeight: on ? 600 : 400,
                   fontSize: '13.5px',
                   cursor: disabled ? 'default' : 'pointer',
                   userSelect: 'none',
-                  boxShadow: on ? '0 1px 2px rgba(234, 88, 12, 0.1)' : 'none',
-                  transition: 'all 0.15s ease'
+                  whiteSpace: 'nowrap',
+                  boxShadow: on ? '0 1px 2px rgba(2, 136, 209, 0.1)' : 'none',
+                  transition: 'all 0.12s ease'
                 }}
               >
                 <input
@@ -221,7 +232,7 @@ export const ClinicalFormRenderer: React.FC<ClinicalFormRendererProps> = ({
                       : [...chosen, opt.option_label];
                     onAnswer(id, next.join(', '));
                   }}
-                  style={{ accentColor: '#ea580c', cursor: disabled ? 'default' : 'pointer', width: '15px', height: '15px' }}
+                  style={{ accentColor: '#0288d1', cursor: disabled ? 'default' : 'pointer', width: '15px', height: '15px' }}
                 />
                 <span>{opt.option_label}</span>
               </label>
@@ -264,7 +275,7 @@ export const ClinicalFormRenderer: React.FC<ClinicalFormRendererProps> = ({
       const isYesNo = type === 'Yes/No Question' || (options.length === 2 && options.some(o => o.option_label.toLowerCase() === 'yes'));
       if (isYesNo) {
         return (
-          <div className="cfr-yesno-group" style={{ display: 'inline-flex', gap: '8px' }}>
+          <div className="cfr-yesno-group" style={{ display: 'inline-flex', flexWrap: 'wrap', gap: '8px 14px', alignItems: 'center' }}>
             {options.map((opt, i) => {
               const on = value.toLowerCase() === opt.option_label.toLowerCase();
               return (
@@ -273,18 +284,19 @@ export const ClinicalFormRenderer: React.FC<ClinicalFormRendererProps> = ({
                   style={{
                     display: 'inline-flex',
                     alignItems: 'center',
-                    gap: '8px',
-                    padding: '8px 22px',
-                    borderRadius: '5px',
-                    border: on ? '2px solid #ea580c' : '1px solid #cbd5e1',
-                    backgroundColor: on ? '#fff7ed' : '#ffffff',
-                    color: on ? '#c2410c' : '#334155',
+                    gap: '7px',
+                    padding: '7px 20px',
+                    borderRadius: '4px',
+                    border: on ? '2px solid #0288d1' : '1px solid #cbd5e1',
+                    backgroundColor: on ? '#f0f9ff' : '#ffffff',
+                    color: on ? '#0369a1' : '#1e293b',
                     fontWeight: on ? 700 : 500,
                     fontSize: '14px',
                     cursor: disabled ? 'default' : 'pointer',
                     userSelect: 'none',
-                    boxShadow: on ? '0 1px 3px rgba(234, 88, 12, 0.15)' : 'none',
-                    transition: 'all 0.15s ease'
+                    whiteSpace: 'nowrap',
+                    boxShadow: on ? '0 1px 3px rgba(2, 136, 209, 0.15)' : 'none',
+                    transition: 'all 0.12s ease'
                   }}
                 >
                   <input
@@ -293,7 +305,7 @@ export const ClinicalFormRenderer: React.FC<ClinicalFormRendererProps> = ({
                     checked={on}
                     disabled={disabled}
                     onChange={() => onAnswer(id, opt.option_label)}
-                    style={{ accentColor: '#ea580c', cursor: disabled ? 'default' : 'pointer', width: '15px', height: '15px' }}
+                    style={{ accentColor: '#0288d1', cursor: disabled ? 'default' : 'pointer', width: '15px', height: '15px' }}
                   />
                   <span>{opt.option_label}</span>
                 </label>
@@ -304,7 +316,7 @@ export const ClinicalFormRenderer: React.FC<ClinicalFormRendererProps> = ({
       }
 
       return (
-        <div className="cfr-radio-group" style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+        <div className="cfr-radio-group" style={{ display: 'flex', flexWrap: 'wrap', gap: '8px 14px', alignItems: 'center' }}>
           {options.map((opt, i) => {
             const on = value === opt.option_label;
             return (
@@ -313,18 +325,19 @@ export const ClinicalFormRenderer: React.FC<ClinicalFormRendererProps> = ({
                 style={{
                   display: 'inline-flex',
                   alignItems: 'center',
-                  gap: '8px',
+                  gap: '7px',
                   padding: '6px 14px',
-                  borderRadius: '5px',
-                  border: on ? '1.5px solid #ea580c' : '1px solid #cbd5e1',
-                  backgroundColor: on ? '#fff7ed' : '#ffffff',
-                  color: on ? '#c2410c' : '#334155',
+                  borderRadius: '4px',
+                  border: on ? '1.5px solid #0288d1' : '1px solid #cbd5e1',
+                  backgroundColor: on ? '#f0f9ff' : '#ffffff',
+                  color: on ? '#0369a1' : '#1e293b',
                   fontWeight: on ? 600 : 400,
                   fontSize: '13.5px',
                   cursor: disabled ? 'default' : 'pointer',
                   userSelect: 'none',
-                  boxShadow: on ? '0 1px 2px rgba(234, 88, 12, 0.1)' : 'none',
-                  transition: 'all 0.15s ease'
+                  whiteSpace: 'nowrap',
+                  boxShadow: on ? '0 1px 2px rgba(2, 136, 209, 0.1)' : 'none',
+                  transition: 'all 0.12s ease'
                 }}
               >
                 <input
@@ -333,7 +346,7 @@ export const ClinicalFormRenderer: React.FC<ClinicalFormRendererProps> = ({
                   checked={on}
                   disabled={disabled}
                   onChange={() => onAnswer(id, opt.option_label)}
-                  style={{ accentColor: '#ea580c', cursor: disabled ? 'default' : 'pointer', width: '15px', height: '15px' }}
+                  style={{ accentColor: '#0288d1', cursor: disabled ? 'default' : 'pointer', width: '15px', height: '15px' }}
                 />
                 <span>{opt.option_label}</span>
               </label>
@@ -665,9 +678,11 @@ export const ClinicalFormRenderer: React.FC<ClinicalFormRendererProps> = ({
         );
         if (shown.length === 0) return null;
 
+        const pastelClass = PASTEL_BAR_CLASSES[sIdx % PASTEL_BAR_CLASSES.length];
+
         return (
           <section className="cfr-section" key={section.id ?? sIdx}>
-            <h3 className="cfr-section-title">{section.title}</h3>
+            <h3 className={`cfr-section-title pastel-heading-bar ${pastelClass}`}>{section.title}</h3>
 
             <div className="cfr-rows">
               {shown.map((comp) => {
@@ -677,9 +692,9 @@ export const ClinicalFormRenderer: React.FC<ClinicalFormRendererProps> = ({
                   const isCentered = comp.component_type === 'Centered Heading';
                   return (
                     <h4
-                      className={`cfr-heading ${isCentered ? 'ctv-centered-heading' : ''}`}
+                      className={`cfr-subheading ${isCentered ? 'ctv-centered-heading' : ''}`}
                       key={id}
-                      style={isCentered ? { textAlign: 'center', margin: '14px 0 10px 0', fontSize: '15.5px', fontWeight: 700 } : undefined}
+                      style={isCentered ? { textAlign: 'center', margin: '14px 0 10px 0', fontSize: '15px', fontWeight: 700 } : undefined}
                     >
                       {comp.label}
                     </h4>

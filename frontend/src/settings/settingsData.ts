@@ -418,6 +418,18 @@ export const SETTINGS_CATEGORIES: SettingCategory[] = [
           { key: "autoSyncUpdates", label: "Notify When Specialty Cardiology Templates are Updated", type: "toggle", defaultValue: true },
         ],
       },
+      {
+        id: "common-medication",
+        name: "Common Medications",
+        categoryId: "templates",
+        categoryName: "Templates",
+        description: "Pre-configured medication protocols, drug regimens and treatment bundles for clinical conditions.",
+        keywords: ["common medications", "drugs", "protocols", "treatment bundles", "prescriptions"],
+        fields: [
+          { key: "defaultDosageUnit", label: "Default Medication Unit", type: "text", defaultValue: "mg" },
+          { key: "enableAutoContraindications", label: "Auto-check Cardiovascular Contraindications", type: "toggle", defaultValue: true },
+        ],
+      },
     ],
   },
   {
