@@ -1,8 +1,9 @@
 """
-AI Service and Ollama Orchestration Client for Heal Your Heart EHR.
+AI Service, Groq Cloud, and Ollama Orchestration Client for Heal Your Heart EHR.
 
-Manages LLM communication with a locally hosted Ollama instance, enforces clinical safety
-guardrails, multi-turn agent loop with tool-calling, confirm-before-write governance,
+Manages LLM communication with Groq Cloud (ultra-fast, 24/7 cloud inference)
+and locally hosted Ollama instances, enforces clinical safety guardrails,
+multi-turn agent loop with tool-calling, confirm-before-write governance,
 context retrieval, prompt injection defense, token defense, and deterministic fallback.
 """
 import os
@@ -30,7 +31,7 @@ from .ai_tools import (
 
 logger = logging.getLogger("ehr.ai")
 
-# Fallback .env loader for local and remote Colab development
+# Fallback .env loader for local, Render, and remote development
 def _load_env_fallback():
     for base_dir in [Path("."), Path(__file__).resolve().parents[1], Path(__file__).resolve().parents[2]]:
         env_path = base_dir / ".env"
@@ -48,10 +49,19 @@ def _load_env_fallback():
 
 _load_env_fallback()
 
-# Configuration from environment variables
+# Ollama Local Configuration
 OLLAMA_BASE_URL = os.getenv("OLLAMA_BASE_URL", "http://127.0.0.1:11434").rstrip("/")
 OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "qwen2.5:7b")
 OLLAMA_TIMEOUT = float(os.getenv("OLLAMA_TIMEOUT", "30.0"))
+
+# Groq Cloud Configuration (24/7 High-Speed Inference)
+GROQ_API_KEY = os.getenv("GROQ_API_KEY", "").strip()
+GROQ_BASE_URL = os.getenv("GROQ_BASE_URL", "https://api.groq.com/openai/v1").rstrip("/")
+GROQ_MODEL = os.getenv("GROQ_MODEL", "llama-3.3-70b-versatile").strip()
+GROQ_TIMEOUT = float(os.getenv("GROQ_TIMEOUT", "30.0"))
+
+# Provider selection: "auto" (default: Groq if key configured, else Ollama), "groq", or "ollama"
+AI_PROVIDER = os.getenv("AI_PROVIDER", "auto").strip().lower()
 
 SYSTEM_PROMPT = """You are the Heal Your Heart EHR AI Assistant.
 You assist licensed physicians, clinical assistants, receptionists, and administrative staff.
@@ -70,7 +80,9 @@ def check_ollama_status() -> Dict[str, Any]:
     Checks whether the local Ollama instance is accessible.
     Never throws unhandled exceptions.
     """
-    url = f"{OLLAMA_BASE_URL}/api/version"
+    base_url = os.getenv("OLLAMA_BASE_URL", OLLAMA_BASE_URL).rstrip("/")
+    model = os.getenv("OLLAMA_MODEL", OLLAMA_MODEL)
+    url = f"{base_url}/api/version"
     req = urllib.request.Request(url, headers={"User-Agent": "HealYourHeart-EHR/0.1.0"})
     try:
         with urllib.request.urlopen(req, timeout=3.0) as resp:
@@ -79,29 +91,201 @@ def check_ollama_status() -> Dict[str, Any]:
                 return {
                     "available": True,
                     "provider": "ollama",
-                    "model": OLLAMA_MODEL,
+                    "model": model,
                     "version": data.get("version", "unknown"),
-                    "base_url": OLLAMA_BASE_URL,
+                    "base_url": base_url,
                     "error": None
                 }
     except Exception as e:
-        logger.info(f"Ollama health check: service unreachable at {OLLAMA_BASE_URL}: {e}")
+        logger.info(f"Ollama health check: service unreachable at {base_url}: {e}")
         return {
             "available": False,
             "provider": "ollama",
-            "model": OLLAMA_MODEL,
+            "model": model,
             "version": None,
-            "base_url": OLLAMA_BASE_URL,
+            "base_url": base_url,
             "error": "Ollama service unavailable or offline"
         }
     return {
         "available": False,
         "provider": "ollama",
-        "model": OLLAMA_MODEL,
+        "model": model,
         "version": None,
-        "base_url": OLLAMA_BASE_URL,
+        "base_url": base_url,
         "error": "Non-200 status from Ollama"
     }
+
+
+def check_groq_status() -> Dict[str, Any]:
+    """
+    Checks whether the Groq Cloud API is accessible and authenticated.
+    Never throws unhandled exceptions.
+    """
+    api_key = os.getenv("GROQ_API_KEY", GROQ_API_KEY).strip()
+    model = os.getenv("GROQ_MODEL", GROQ_MODEL).strip()
+    base_url = os.getenv("GROQ_BASE_URL", GROQ_BASE_URL).rstrip("/")
+    if not api_key:
+        return {
+            "available": False,
+            "provider": "groq",
+            "model": model,
+            "version": None,
+            "base_url": base_url,
+            "error": "GROQ_API_KEY is not configured"
+        }
+
+    url = f"{base_url}/models"
+    req = urllib.request.Request(
+        url,
+        headers={
+            "Authorization": f"Bearer {api_key}",
+            "User-Agent": "HealYourHeart-EHR/0.1.0"
+        }
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=5.0) as resp:
+            if resp.status == 200:
+                return {
+                    "available": True,
+                    "provider": "groq",
+                    "model": model,
+                    "version": "cloud-v1",
+                    "base_url": base_url,
+                    "error": None
+                }
+    except urllib.error.HTTPError as he:
+        err_msg = f"Groq API HTTP {he.code}: {he.reason}"
+        logger.info(f"Groq health check: {err_msg}")
+        return {
+            "available": False,
+            "provider": "groq",
+            "model": model,
+            "version": None,
+            "base_url": base_url,
+            "error": err_msg
+        }
+    except Exception as e:
+        logger.info(f"Groq health check unreachable: {e}")
+        return {
+            "available": False,
+            "provider": "groq",
+            "model": model,
+            "version": None,
+            "base_url": base_url,
+            "error": f"Groq service unreachable: {str(e)}"
+        }
+    return {
+        "available": False,
+        "provider": "groq",
+        "model": model,
+        "version": None,
+        "base_url": base_url,
+        "error": "Non-200 status from Groq"
+    }
+
+
+def check_ai_status() -> Dict[str, Any]:
+    """
+    Returns health status of the active AI inference provider (Groq or Ollama).
+    Automatically routes based on AI_PROVIDER and GROQ_API_KEY availability.
+    """
+    prov = os.getenv("AI_PROVIDER", AI_PROVIDER).strip().lower()
+    api_key = os.getenv("GROQ_API_KEY", GROQ_API_KEY).strip()
+
+    if prov == "groq" or (prov == "auto" and api_key):
+        groq_info = check_groq_status()
+        if groq_info["available"]:
+            return groq_info
+        # If Groq is configured but offline, check Ollama as fallback
+        ollama_info = check_ollama_status()
+        if ollama_info["available"]:
+            ollama_info["error"] = f"Groq offline ({groq_info['error']}); fell back to Ollama"
+            return ollama_info
+        return groq_info
+
+    # Default to Ollama check
+    ollama_info = check_ollama_status()
+    if ollama_info["available"]:
+        return ollama_info
+
+    # If Ollama offline, check if Groq has key
+    if api_key:
+        groq_info = check_groq_status()
+        if groq_info["available"]:
+            return groq_info
+
+    return ollama_info
+
+
+def call_groq_chat(
+    messages: List[Dict[str, Any]],
+    tools: Optional[List[Dict[str, Any]]] = None,
+    options: Optional[Dict[str, Any]] = None
+) -> Optional[Dict[str, Any]]:
+    """
+    Sends a chat completion request to the Groq Cloud API (OpenAI-compatible).
+    Handles function tools, temperature, max_tokens, and returns standardized response dict.
+    """
+    api_key = os.getenv("GROQ_API_KEY", GROQ_API_KEY).strip()
+    if not api_key:
+        return None
+
+    model = os.getenv("GROQ_MODEL", GROQ_MODEL).strip()
+    base_url = os.getenv("GROQ_BASE_URL", GROQ_BASE_URL).rstrip("/")
+    timeout = float(os.getenv("GROQ_TIMEOUT", str(GROQ_TIMEOUT)))
+    url = f"{base_url}/chat/completions"
+
+    # Sanitize messages for OpenAI / Groq standard:
+    # Ensure every tool message has a valid tool_call_id
+    sanitized_messages = []
+    for m_item in messages:
+        msg_copy = dict(m_item)
+        if msg_copy.get("role") == "tool":
+            if "tool_call_id" not in msg_copy:
+                msg_copy["tool_call_id"] = "call_default"
+        sanitized_messages.append(msg_copy)
+
+    payload: Dict[str, Any] = {
+        "model": model,
+        "messages": sanitized_messages,
+        "temperature": 0.0,
+        "max_tokens": 2048,
+    }
+    if tools:
+        payload["tools"] = tools
+        payload["tool_choice"] = "auto"
+
+    data_bytes = json.dumps(payload).encode("utf-8")
+    req = urllib.request.Request(
+        url,
+        data=data_bytes,
+        headers={
+            "Authorization": f"Bearer {api_key}",
+            "Content-Type": "application/json",
+            "User-Agent": "HealYourHeart-EHR/0.1.0"
+        },
+        method="POST"
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=timeout) as resp:
+            if resp.status == 200:
+                raw_data = json.loads(resp.read().decode("utf-8"))
+                choices = raw_data.get("choices", [])
+                if not choices:
+                    return None
+                choice_msg = choices[0].get("message", {})
+                usage = raw_data.get("usage", {})
+                return {
+                    "message": choice_msg,
+                    "prompt_eval_count": usage.get("prompt_tokens", 0),
+                    "eval_count": usage.get("completion_tokens", 0),
+                    "model": raw_data.get("model", model),
+                    "provider": "groq",
+                }
+    except Exception as e:
+        logger.warning(f"Groq chat API call failed ({url}): {e}")
+        return None
+    return None
 
 
 def call_ollama_generate(prompt: str, system: str = SYSTEM_PROMPT) -> Optional[str]:
@@ -109,9 +293,12 @@ def call_ollama_generate(prompt: str, system: str = SYSTEM_PROMPT) -> Optional[s
     Sends a legacy single-prompt generation request to the local Ollama instance.
     Returns generated text or None if Ollama is unreachable.
     """
-    url = f"{OLLAMA_BASE_URL}/api/generate"
+    base_url = os.getenv("OLLAMA_BASE_URL", OLLAMA_BASE_URL).rstrip("/")
+    model = os.getenv("OLLAMA_MODEL", OLLAMA_MODEL)
+    timeout = float(os.getenv("OLLAMA_TIMEOUT", str(OLLAMA_TIMEOUT)))
+    url = f"{base_url}/api/generate"
     payload = {
-        "model": OLLAMA_MODEL,
+        "model": model,
         "prompt": prompt,
         "system": system,
         "stream": False,
@@ -129,7 +316,7 @@ def call_ollama_generate(prompt: str, system: str = SYSTEM_PROMPT) -> Optional[s
         method="POST"
     )
     try:
-        with urllib.request.urlopen(req, timeout=OLLAMA_TIMEOUT) as resp:
+        with urllib.request.urlopen(req, timeout=timeout) as resp:
             if resp.status == 200:
                 result = json.loads(resp.read().decode("utf-8"))
                 return result.get("response", "").strip()
@@ -147,9 +334,12 @@ def call_ollama_chat(
     Sends a multi-turn chat request with function tools to Ollama /api/chat.
     Returns full response JSON (containing message, prompt_eval_count, eval_count) or None.
     """
-    url = f"{OLLAMA_BASE_URL}/api/chat"
+    base_url = os.getenv("OLLAMA_BASE_URL", OLLAMA_BASE_URL).rstrip("/")
+    model = os.getenv("OLLAMA_MODEL", OLLAMA_MODEL)
+    timeout = float(os.getenv("OLLAMA_TIMEOUT", str(OLLAMA_TIMEOUT)))
+    url = f"{base_url}/api/chat"
     payload: Dict[str, Any] = {
-        "model": OLLAMA_MODEL,
+        "model": model,
         "messages": messages,
         "stream": False,
         "keep_alive": "30m",
@@ -169,7 +359,7 @@ def call_ollama_chat(
         method="POST"
     )
     try:
-        with urllib.request.urlopen(req, timeout=OLLAMA_TIMEOUT) as resp:
+        with urllib.request.urlopen(req, timeout=timeout) as resp:
             if resp.status == 200:
                 return json.loads(resp.read().decode("utf-8"))
     except Exception as e:
@@ -182,9 +372,12 @@ def _format_deterministic_fallback(
     ctx: ToolContext,
     message: str,
     patient_id: Optional[str] = None,
-    appointment_id: Optional[str] = None
+    appointment_id: Optional[str] = None,
+    provider: str = "ollama"
 ) -> str:
-    """Formats structured deterministic response when Ollama is unreachable."""
+    """Formats structured deterministic response when inference provider is unreachable."""
+    endpoint_label = GROQ_BASE_URL if provider == "groq" else OLLAMA_BASE_URL
+    provider_name = "Groq Cloud" if provider == "groq" else "Ollama"
     if patient_id:
         try:
             summary = execute_tool(ctx, "read_patient_summary", {"patient_id": patient_id})
@@ -196,7 +389,7 @@ def _format_deterministic_fallback(
                 else "No recent vitals documented"
             )
             return (
-                f"[Offline Assistant Mode] Ollama LLM is currently offline at {OLLAMA_BASE_URL}.\n\n"
+                f"[Offline Assistant Mode] {provider_name} LLM is currently offline at {endpoint_label}.\n\n"
                 f"Patient Overview for {p['name']} ({p['mrn']}):\n"
                 f"• Age/Gender: {p['age']} yrs / {p['sex']}\n"
                 f"• Active Conditions: {diagnoses_str}\n"
@@ -208,7 +401,7 @@ def _format_deterministic_fallback(
             pass
 
     return (
-        f"[Offline Assistant Mode] Ollama LLM is currently offline at {OLLAMA_BASE_URL}.\n"
+        f"[Offline Assistant Mode] {provider_name} LLM is currently offline at {endpoint_label}.\n"
         f"Your query was received: '{message}'.\n"
         f"The EHR backend and workflow engine remain fully functional."
     )
@@ -224,14 +417,14 @@ def execute_agent_query(
     appointment_id: Optional[str] = None
 ) -> Dict[str, Any]:
     """
-    Phase 4 Multi-Turn Agent Loop with Confirm-Before-Write:
-    1. Guardrail checks (refuses restricted clinical actions).
+    Multi-Turn Agent Loop with Confirm-Before-Write and Multi-Provider Support (Groq + Ollama):
+    1. Guardrail checks (refuses restricted clinical actions before any LLM invocation).
     2. Deterministic slash-command shortcuts (/summary, /tasks, /journey).
-    3. If Ollama unreachable: deterministic fallback.
-    4. If Ollama reachable: multi-turn loop (max 4 turns) with tool execution.
+    3. Active Provider Resolution: Groq Cloud (if GROQ_API_KEY present) or local Ollama.
+    4. Multi-turn loop (max 4 turns) with tool execution:
        - Read tools execute immediately.
        - Safe_write tools HALT the loop, write to ai_pending_actions, and return confirmation payload.
-       - Model cannot confirm or write without human approval.
+       - Prompt injection defense wraps all database tool outputs in untrusted boundaries.
     """
     # 1. Guardrail Check: Restricted clinical action refusal
     matched_intent = get_restricted_clinical_intent(message)
@@ -252,7 +445,7 @@ def execute_agent_query(
         db.flush()
         return {
             "response": refusal_text,
-            "model": OLLAMA_MODEL,
+            "model": os.getenv("GROQ_MODEL", GROQ_MODEL) if os.getenv("GROQ_API_KEY") else os.getenv("OLLAMA_MODEL", OLLAMA_MODEL),
             "service_available": False,
             "mode": "guardrail_rejected",
             "context_loaded": False
@@ -301,7 +494,7 @@ def execute_agent_query(
             )
             return {
                 "response": resp_text,
-                "model": OLLAMA_MODEL,
+                "model": os.getenv("OLLAMA_MODEL", OLLAMA_MODEL),
                 "service_available": True,
                 "mode": "deterministic_shortcut",
                 "context_loaded": True
@@ -318,7 +511,7 @@ def execute_agent_query(
             )
             return {
                 "response": resp_text or "No open tasks for this facility.",
-                "model": OLLAMA_MODEL,
+                "model": os.getenv("OLLAMA_MODEL", OLLAMA_MODEL),
                 "service_available": True,
                 "mode": "deterministic_shortcut",
                 "context_loaded": True
@@ -338,7 +531,7 @@ def execute_agent_query(
             )
             return {
                 "response": resp_text,
-                "model": OLLAMA_MODEL,
+                "model": os.getenv("OLLAMA_MODEL", OLLAMA_MODEL),
                 "service_available": True,
                 "mode": "deterministic_shortcut",
                 "context_loaded": True
@@ -346,8 +539,36 @@ def execute_agent_query(
         except Exception as e:
             logger.info(f"Slash journey failed: {e}")
 
-    # 3. Check Ollama Status & Mocked Offline Checks
-    ollama_status = check_ollama_status()
+    # 3. Provider Resolution: Groq Cloud vs Local Ollama
+    prov_setting = os.getenv("AI_PROVIDER", AI_PROVIDER).strip().lower()
+    api_key = os.getenv("GROQ_API_KEY", GROQ_API_KEY).strip()
+
+    active_provider = "ollama"
+    active_model = os.getenv("OLLAMA_MODEL", OLLAMA_MODEL)
+
+    if prov_setting == "groq" or (prov_setting == "auto" and api_key):
+        groq_status = check_groq_status()
+        if groq_status["available"]:
+            active_provider = "groq"
+            active_model = os.getenv("GROQ_MODEL", GROQ_MODEL)
+        else:
+            # Groq unavailable; check if Ollama is online
+            ollama_status = check_ollama_status()
+            if ollama_status["available"]:
+                active_provider = "ollama"
+                active_model = os.getenv("OLLAMA_MODEL", OLLAMA_MODEL)
+            else:
+                active_provider = "groq" if api_key else "ollama"
+    else:
+        ollama_status = check_ollama_status()
+        if ollama_status["available"]:
+            active_provider = "ollama"
+            active_model = os.getenv("OLLAMA_MODEL", OLLAMA_MODEL)
+        elif api_key and check_groq_status()["available"]:
+            active_provider = "groq"
+            active_model = os.getenv("GROQ_MODEL", GROQ_MODEL)
+
+    # Check for test mocks of call_ollama_generate
     is_mocked_offline = False
     if getattr(call_ollama_generate, "__name__", "") == "<lambda>":
         try:
@@ -356,26 +577,36 @@ def execute_agent_query(
         except Exception:
             is_mocked_offline = True
 
-    if not ollama_status["available"] or is_mocked_offline:
-        fallback_text = _format_deterministic_fallback(ctx, message, active_patient_id, active_appointment_id)
+    # Check provider availability
+    is_available = False
+    if not is_mocked_offline:
+        if active_provider == "groq":
+            is_available = check_groq_status()["available"]
+        else:
+            is_available = check_ollama_status()["available"]
+
+    if not is_available or is_mocked_offline:
+        fallback_text = _format_deterministic_fallback(
+            ctx, message, active_patient_id, active_appointment_id, provider=active_provider
+        )
         db.add(m.AuditEvent(
             facility_id=facility_id,
             actor_id=actor_id,
             action="ai_agent_query",
             entity_type="ai_assistant",
             entity_id=active_patient_id or active_appointment_id or "general",
-            detail=f"Role: {actor_role}; Mode: deterministic_fallback; Query: {message[:100]}"
+            detail=f"Role: {actor_role}; Provider: {active_provider}; Mode: deterministic_fallback; Query: {message[:100]}"
         ))
         db.flush()
         return {
             "response": fallback_text,
-            "model": OLLAMA_MODEL,
+            "model": active_model,
             "service_available": False,
             "mode": "deterministic_fallback",
             "context_loaded": context_loaded
         }
 
-    # 4. Multi-Turn Agent Loop with Ollama Tools
+    # 4. Multi-Turn Agent Loop with Role-Authorized Tools
     available_tools = get_ollama_tools_for_role(actor_role)
 
     messages: List[Dict[str, Any]] = [
@@ -393,19 +624,39 @@ def execute_agent_query(
     max_iterations = 4
     for iteration in range(1, max_iterations + 1):
         t0 = time.time()
-        chat_resp = call_ollama_chat(
-            messages=messages,
-            tools=available_tools,
-            options={"num_ctx": 4096, "temperature": 0}
-        )
+
+        if active_provider == "groq":
+            chat_resp = call_groq_chat(
+                messages=messages,
+                tools=available_tools,
+                options={"temperature": 0}
+            )
+            # If Groq fails mid-conversation, attempt Ollama fallback if reachable
+            if not chat_resp and check_ollama_status()["available"]:
+                chat_resp = call_ollama_chat(
+                    messages=messages,
+                    tools=available_tools,
+                    options={"num_ctx": 4096, "temperature": 0}
+                )
+                if chat_resp:
+                    active_provider = "ollama"
+                    active_model = os.getenv("OLLAMA_MODEL", OLLAMA_MODEL)
+        else:
+            chat_resp = call_ollama_chat(
+                messages=messages,
+                tools=available_tools,
+                options={"num_ctx": 4096, "temperature": 0}
+            )
+
         latency_ms = (time.time() - t0) * 1000
 
         if not chat_resp:
-            # Service failed mid-conversation; fall back cleanly
-            fallback_text = _format_deterministic_fallback(ctx, message, active_patient_id, active_appointment_id)
+            fallback_text = _format_deterministic_fallback(
+                ctx, message, active_patient_id, active_appointment_id, provider=active_provider
+            )
             return {
                 "response": fallback_text,
-                "model": OLLAMA_MODEL,
+                "model": active_model,
                 "service_available": False,
                 "mode": "deterministic_fallback",
                 "context_loaded": context_loaded
@@ -414,12 +665,12 @@ def execute_agent_query(
         p_eval = chat_resp.get("prompt_eval_count", 0)
         eval_c = chat_resp.get("eval_count", 0)
         logger.info(
-            f"Ollama turn {iteration}: prompt_eval_count={p_eval}, eval_count={eval_c}, latency_ms={latency_ms:.1f}"
+            f"AI turn {iteration} ({active_provider}): prompt_tokens={p_eval}, completion_tokens={eval_c}, latency_ms={latency_ms:.1f}"
         )
 
-        # Context window defense: if prompt tokens > 3200, trim older intermediate history
+        # Context window defense: trim older intermediate turns if prompt tokens > 3200
         if p_eval > 3200 and len(messages) > 3:
-            logger.info("Context threshold (>3200 tokens) exceeded. Trimming older conversation turns.")
+            logger.info("Context threshold (>3200 tokens) exceeded. Trimming intermediate history.")
             messages = [messages[0]] + messages[-2:]
 
         assistant_msg = chat_resp.get("message", {})
@@ -434,14 +685,14 @@ def execute_agent_query(
                 action="ai_agent_query",
                 entity_type="ai_assistant",
                 entity_id=active_patient_id or active_appointment_id or "general",
-                detail=f"Role: {actor_role}; Mode: ollama_live; Query: {message[:100]}"
+                detail=f"Role: {actor_role}; Provider: {active_provider}; Mode: {active_provider}_live; Query: {message[:100]}"
             ))
             db.flush()
             return {
                 "response": final_text,
-                "model": OLLAMA_MODEL,
+                "model": active_model,
                 "service_available": True,
-                "mode": "ollama_live",
+                "mode": f"{active_provider}_live",
                 "context_loaded": context_loaded
             }
 
@@ -457,14 +708,14 @@ def execute_agent_query(
                 action="ai_agent_query",
                 entity_type="ai_assistant",
                 entity_id=active_patient_id or active_appointment_id or "general",
-                detail=f"Role: {actor_role}; Mode: max_iterations_reached; Query: {message[:100]}"
+                detail=f"Role: {actor_role}; Provider: {active_provider}; Mode: max_iterations_reached; Query: {message[:100]}"
             ))
             db.flush()
             return {
                 "response": graceful_summary,
-                "model": OLLAMA_MODEL,
+                "model": active_model,
                 "service_available": True,
-                "mode": "ollama_live",
+                "mode": f"{active_provider}_live",
                 "context_loaded": context_loaded
             }
 
@@ -473,6 +724,7 @@ def execute_agent_query(
 
         # Process tool calls
         for tc in tool_calls:
+            tc_id = tc.get("id", f"call_{iteration}")
             fn = tc.get("function", {})
             t_name = fn.get("name")
             t_args = fn.get("arguments", {})
@@ -495,6 +747,8 @@ def execute_agent_query(
                 db.flush()
                 messages.append({
                     "role": "tool",
+                    "tool_call_id": tc_id,
+                    "name": str(t_name),
                     "content": f"Error: Tool '{t_name}' is not registered or available in Heal Your Heart EHR."
                 })
                 continue
@@ -514,6 +768,8 @@ def execute_agent_query(
                 db.flush()
                 messages.append({
                     "role": "tool",
+                    "tool_call_id": tc_id,
+                    "name": t_name,
                     "content": f"Error: Role '{actor_role}' is not authorized to execute tool '{t_name}'."
                 })
                 continue
@@ -549,7 +805,7 @@ def execute_agent_query(
 
                 return {
                     "response": explanation,
-                    "model": OLLAMA_MODEL,
+                    "model": active_model,
                     "service_available": True,
                     "mode": "action_confirmation_required",
                     "context_loaded": context_loaded,
@@ -575,18 +831,22 @@ def execute_agent_query(
                 )
                 messages.append({
                     "role": "tool",
+                    "tool_call_id": tc_id,
+                    "name": t_name,
                     "content": wrapped_output
                 })
             except Exception as ex:
                 messages.append({
                     "role": "tool",
+                    "tool_call_id": tc_id,
+                    "name": t_name,
                     "content": f"Tool execution failed: {type(ex).__name__}"
                 })
 
     return {
         "response": "Agent loop completed all turns.",
-        "model": OLLAMA_MODEL,
+        "model": active_model,
         "service_available": True,
-        "mode": "ollama_live",
+        "mode": f"{active_provider}_live",
         "context_loaded": context_loaded
     }

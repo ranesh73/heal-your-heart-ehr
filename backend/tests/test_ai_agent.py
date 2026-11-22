@@ -1013,4 +1013,115 @@ def test_phase4_agent_loop_safe_write_interception_and_injection_defense():
             assert "BP Recheck" in act.args_json
 
 
+# 26. Groq Cloud API Integration Tests
+def test_groq_status_missing_key(monkeypatch):
+    from app.ai_service import check_groq_status, check_ai_status
+    monkeypatch.setenv("GROQ_API_KEY", "")
+    res = check_groq_status()
+    assert res["available"] is False
+    assert res["provider"] == "groq"
+    assert "GROQ_API_KEY is not configured" in res["error"]
+
+
+def test_groq_status_mock_active(monkeypatch):
+    import io
+    import urllib.request
+    from app.ai_service import check_groq_status, check_ai_status
+
+    monkeypatch.setenv("GROQ_API_KEY", "gsk_test_mock_key_12345")
+
+    class MockResp:
+        status = 200
+        def read(self):
+            return json.dumps({"data": [{"id": "llama-3.3-70b-versatile"}]}).encode("utf-8")
+        def __enter__(self):
+            return self
+        def __exit__(self, exc_type, exc_val, exc_tb):
+            pass
+
+    monkeypatch.setattr(urllib.request, "urlopen", lambda req, timeout=None: MockResp())
+
+    groq_res = check_groq_status()
+    assert groq_res["available"] is True
+    assert groq_res["provider"] == "groq"
+    assert groq_res["error"] is None
+
+    # check_ai_status should automatically report Groq as primary
+    ai_res = check_ai_status()
+    assert ai_res["available"] is True
+    assert ai_res["provider"] == "groq"
+
+
+def test_groq_agent_loop_with_tool_execution(monkeypatch):
+    import io
+    import unittest.mock
+    from app.ai_service import execute_agent_query
+
+    c_doc = client("doctor")
+    p = patient(c_doc)
+    fac_id = c_doc.headers["X-Facility-ID"]
+    doc_id = c_doc.get("/api/auth/me").json()["user"]["id"]
+
+    monkeypatch.setenv("GROQ_API_KEY", "gsk_test_mock_key_12345")
+    monkeypatch.setenv("AI_PROVIDER", "groq")
+
+    # Step 1: Model calls read_patient_summary tool
+    mock_turn1 = {
+        "message": {
+            "role": "assistant",
+            "content": "",
+            "tool_calls": [
+                {
+                    "id": "call_turn1_read",
+                    "type": "function",
+                    "function": {
+                        "name": "read_patient_summary",
+                        "arguments": json.dumps({"patient_id": p["id"]})
+                    }
+                }
+            ]
+        },
+        "prompt_eval_count": 200,
+        "eval_count": 35
+    }
+
+    # Step 2: Model receives tool output and returns final synthesis
+    mock_turn2 = {
+        "message": {
+            "role": "assistant",
+            "content": f"Patient {p['first_name']} has been retrieved successfully via Groq.",
+            "tool_calls": None
+        },
+        "prompt_eval_count": 550,
+        "eval_count": 40
+    }
+
+    call_seq = [mock_turn1, mock_turn2]
+    call_idx = 0
+
+    def mock_call_groq_chat(messages, tools=None, options=None):
+        nonlocal call_idx
+        res = call_seq[call_idx] if call_idx < len(call_seq) else mock_turn2
+        call_idx += 1
+        return res
+
+    with unittest.mock.patch("app.ai_service.check_groq_status", return_value={"available": True, "provider": "groq", "model": "llama-3.3-70b-versatile"}), \
+         unittest.mock.patch("app.ai_service.call_groq_chat", side_effect=mock_call_groq_chat):
+
+        with SessionLocal() as db:
+            result = execute_agent_query(
+                db=db,
+                facility_id=fac_id,
+                actor_id=doc_id,
+                actor_role="doctor",
+                message=f"Summarize chart for patient {p['id']}",
+                patient_id=p["id"]
+            )
+            assert result["service_available"] is True
+            assert result["mode"] == "groq_live"
+            assert "Patient" in result["response"]
+            assert result["context_loaded"] is True
+
+
+
 

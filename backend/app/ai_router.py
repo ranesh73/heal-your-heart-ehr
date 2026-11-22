@@ -12,7 +12,7 @@ from sqlalchemy import select
 from . import models as m
 from .security import context, Context
 from .ai_permissions import check_ai_access, check_tool_permission
-from .ai_service import check_ollama_status, execute_agent_query
+from .ai_service import check_ollama_status, check_ai_status, check_groq_status, execute_agent_query
 from .ai_tools import get_available_tools_for_role, ToolContext, execute_tool
 from .workflow_engine import WorkflowEngine
 
@@ -48,14 +48,14 @@ def ai_status(c: Context = Depends(context)) -> Dict[str, Any]:
     Requires authenticated staff session.
     """
     check_ai_access(c.user.role, c.user.active)
-    ollama_info = check_ollama_status()
+    status_info = check_ai_status()
     return {
         "status": "ok",
-        "service_available": ollama_info["available"],
-        "provider": ollama_info["provider"],
-        "model": ollama_info["model"],
-        "version": ollama_info["version"],
-        "error": ollama_info["error"],
+        "service_available": status_info["available"],
+        "provider": status_info["provider"],
+        "model": status_info["model"],
+        "version": status_info["version"],
+        "error": status_info["error"],
         "user": {
             "id": c.user.id,
             "name": c.user.name,

@@ -67,6 +67,7 @@ export function AICopilotDrawer({
   const [loading, setLoading] = useState(false);
   const [aiStatus, setAiStatus] = useState<{
     available: boolean;
+    provider?: string;
     model: string;
     error?: string | null;
   } | null>(null);
@@ -121,13 +122,15 @@ export function AICopilotDrawer({
       const res = await api("/ai/status");
       setAiStatus({
         available: res.service_available,
-        model: res.model || "llama3.1:8b",
+        provider: res.provider || "ollama",
+        model: res.model || "llama-3.3-70b-versatile",
         error: res.error,
       });
     } catch (err: any) {
       setAiStatus({
         available: false,
-        model: "llama3.1:8b",
+        provider: "ollama",
+        model: "llama-3.3-70b-versatile",
         error: err.message || "Failed to query AI service status",
       });
     } finally {
@@ -418,7 +421,7 @@ export function AICopilotDrawer({
                   ) : aiStatus?.available ? (
                     <span className="flex items-center gap-1.5 text-emerald-300 font-medium">
                       <span className="h-2 w-2 rounded-full bg-emerald-400 inline-block shadow-sm" />
-                      Ollama Live ({aiStatus.model})
+                      {aiStatus.provider === "groq" ? "Groq Cloud" : "Ollama Live"} ({aiStatus.model})
                     </span>
                   ) : (
                     <span
@@ -426,7 +429,7 @@ export function AICopilotDrawer({
                       title={aiStatus?.error || "Offline: Rule-based fallback active"}
                     >
                       <span className="h-2 w-2 rounded-full bg-amber-400 inline-block" />
-                      Deterministic Mode (Ollama Offline)
+                      Deterministic Mode ({aiStatus?.provider === "groq" ? "Groq Offline" : "Ollama Offline"})
                     </span>
                   )}
                   {activeFacilityId && (
@@ -597,6 +600,8 @@ export function AICopilotDrawer({
                       <span className="italic opacity-80">
                         {m.mode === "guardrail_rejected"
                           ? "🛡️ Clinical Guardrail"
+                          : m.mode === "groq_live"
+                          ? "⚡ Groq AI"
                           : m.mode === "ollama_live"
                           ? "🤖 Ollama AI"
                           : "⚙️ Deterministic"}
