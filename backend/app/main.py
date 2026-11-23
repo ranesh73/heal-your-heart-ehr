@@ -107,8 +107,12 @@ def startup_sync():
                 doc_cols = [r[1] for r in conn.execute(text("PRAGMA table_info(documents)")).fetchall()]
                 if 'drive_file_id' not in doc_cols:
                     conn.execute(text("ALTER TABLE documents ADD COLUMN drive_file_id VARCHAR(120)"))
+                pat_cols = [r[1] for r in conn.execute(text("PRAGMA table_info(patients)")).fetchall()]
+                if 'photo_url' not in pat_cols:
+                    conn.execute(text("ALTER TABLE patients ADD COLUMN photo_url TEXT"))
             else:
                 conn.execute(text("ALTER TABLE documents ADD COLUMN IF NOT EXISTS drive_file_id VARCHAR(120)"))
+                conn.execute(text("ALTER TABLE patients ADD COLUMN IF NOT EXISTS photo_url TEXT"))
             conn.execute(text("""
                 CREATE TABLE IF NOT EXISTS waiting_list_entries (
                     id TEXT PRIMARY KEY,

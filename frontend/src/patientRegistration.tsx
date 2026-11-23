@@ -1,26 +1,93 @@
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import { Camera, Calendar, Check, Upload as UploadIcon, X, Plus } from "lucide-react";
 import { api, branch, Row } from "./api";
 import { useApp } from "./context";
+import { PatientPhotoChooserModal, CameraCaptureModal } from "./PatientPhotoCapture";
+
+export const COUNTRY_DIAL_CODES: Record<string, string> = {
+  "India": "+91",
+  "United States": "+1",
+  "Canada": "+1",
+  "United Kingdom": "+44",
+  "United Arab Emirates": "+971",
+  "Singapore": "+65",
+  "Malaysia": "+60",
+  "Sri Lanka": "+94",
+  "Saudi Arabia": "+966",
+  "Qatar": "+974",
+  "Kuwait": "+965",
+  "Oman": "+968",
+  "Bahrain": "+973",
+  "Australia": "+61",
+  "Germany": "+49",
+  "France": "+33",
+  "New Zealand": "+64",
+  "Bangladesh": "+880",
+  "Nepal": "+977",
+  "Maldives": "+960",
+  "Other": "+91",
+};
+
+export const COUNTRIES_LIST = [
+  "India",
+  "United States",
+  "Canada",
+  "United Kingdom",
+  "United Arab Emirates",
+  "Singapore",
+  "Malaysia",
+  "Sri Lanka",
+  "Saudi Arabia",
+  "Qatar",
+  "Kuwait",
+  "Oman",
+  "Bahrain",
+  "Australia",
+  "Germany",
+  "France",
+  "New Zealand",
+  "Bangladesh",
+  "Nepal",
+  "Maldives",
+  "Other",
+];
 
 interface AddPatientViewProps {
   onCancel: () => void;
   onSaved: (p: Row, openChart?: boolean) => void;
+  initialPatient?: Row;
 }
 
-export function AddPatientView({ onCancel, onSaved }: AddPatientViewProps) {
+export function AddPatientView({ onCancel, onSaved, initialPatient }: AddPatientViewProps) {
   const { facilities, refresh, notify } = useApp();
+  const isEditMode = !!initialPatient;
 
   // Basic Information
-  const [firstName, setFirstName] = useState("");
-  const [lastName, setLastName] = useState("");
+  const [firstName, setFirstName] = useState(initialPatient?.first_name || "");
+  const [lastName, setLastName] = useState(initialPatient?.last_name || "");
   const [dobMode, setDobMode] = useState<"dob" | "age">("dob");
-  const [dob, setDob] = useState("");
-  const [age, setAge] = useState("");
-  const [sex, setSex] = useState("Male");
-  const [pronouns, setPronouns] = useState("");
-  const [facilityIds, setFacilityIds] = useState<string[]>(() => [branch || facilities[0]?.id || ""]);
-  
+  const [dob, setDob] = useState(initialPatient?.dob || "");
+  const [age, setAge] = useState(() => {
+    if (initialPatient?.dob) {
+      try {
+        const birthYear = new Date(initialPatient.dob).getFullYear();
+        const currentYear = new Date().getFullYear();
+        return String(currentYear - birthYear);
+      } catch {
+        return "";
+      }
+    }
+    return "";
+  });
+  const [sex, setSex] = useState(initialPatient?.sex || initialPatient?.gender || "Male");
+  const [pronouns, setPronouns] = useState(initialPatient?.pronouns || "");
+  const [facilityIds, setFacilityIds] = useState<string[]>(() => {
+    if (initialPatient?.facility_ids && initialPatient.facility_ids.length > 0) {
+      return initialPatient.facility_ids;
+    }
+    return [branch || facilities[0]?.id || ""];
+  });
+
   // Patient IDs (3 rows by default)
   const [patientIds, setPatientIds] = useState([
     { type: "", number: "", fileName: "" },
@@ -28,22 +95,39 @@ export function AddPatientView({ onCancel, onSaved }: AddPatientViewProps) {
     { type: "", number: "", fileName: "" },
   ]);
 
-  // Contact Details
-  const [addressLine1, setAddressLine1] = useState("");
+  // Contact Details & Country Dial Codes
+  const [addressLine1, setAddressLine1] = useState(initialPatient?.address || "");
   const [addressLine2, setAddressLine2] = useState("");
-  const [area, setArea] = useState("");
-  const [city, setCity] = useState("");
-  const [district, setDistrict] = useState("");
-  const [state, setState] = useState("Tamil Nadu");
-  const [country, setCountry] = useState("India");
-  const [postalCode, setPostalCode] = useState("");
-  const [mobilePhone, setMobilePhone] = useState("");
+  const [area, setArea] = useState(initialPatient?.area || "");
+  const [city, setCity] = useState(initialPatient?.city || "");
+  const [district, setDistrict] = useState(initialPatient?.district || "");
+  const [state, setState] = useState(initialPatient?.state || "Tamil Nadu");
+  const [country, setCountry] = useState(initialPatient?.country || "India");
+  const [postalCode, setPostalCode] = useState(initialPatient?.postal_code || "");
+
+  // Phone numbers with extracted or default dial code
+  const initialDialCode = COUNTRY_DIAL_CODES[initialPatient?.country || "India"] || "+91";
+  const [mobileDialCode, setMobileDialCode] = useState(() => {
+    if (initialPatient?.phone && initialPatient.phone.startsWith("+")) {
+      const match = initialPatient.phone.match(/^(\+\d{1,4})/);
+      return match ? match[1] : initialDialCode;
+    }
+    return initialDialCode;
+  });
+  const [homeDialCode, setHomeDialCode] = useState(initialDialCode);
+
+  const [mobilePhone, setMobilePhone] = useState(() => {
+    if (initialPatient?.phone) {
+      return initialPatient.phone.replace(/^\+\d{1,4}\s*/, "").trim();
+    }
+    return "";
+  });
   const [homePhone, setHomePhone] = useState("");
-  const [email, setEmail] = useState("");
+  const [email, setEmail] = useState(initialPatient?.email || "");
 
   // Emergency Contact
-  const [emergencyName, setEmergencyName] = useState("");
-  const [emergencyPhone, setEmergencyPhone] = useState("");
+  const [emergencyName, setEmergencyName] = useState(initialPatient?.emergency_name || "");
+  const [emergencyPhone, setEmergencyPhone] = useState(initialPatient?.emergency_phone || "");
 
   // Patient Preferences
   const [preferredComm, setPreferredComm] = useState("");
@@ -52,22 +136,26 @@ export function AddPatientView({ onCancel, onSaved }: AddPatientViewProps) {
 
   // PHR Registration
   const [phrInvitation, setPhrInvitation] = useState<"patient" | "representative" | "not_required">("patient");
+  const isEmailRequired = phrInvitation === "patient" || phrInvitation === "representative";
 
   // Additional Information
-  const [category, setCategory] = useState("");
-  const [outstation, setOutstation] = useState("");
-  const [nri, setNri] = useState("");
-  const [foreignCitizen, setForeignCitizen] = useState("");
-  const [insurance, setInsurance] = useState("");
-  const [insuranceStatus, setInsuranceStatus] = useState("");
-  const [bloodGroup, setBloodGroup] = useState("");
+  const [category, setCategory] = useState(initialPatient?.category || "");
+  const [outstation, setOutstation] = useState(initialPatient?.residency === "Outstation" ? "Yes" : "");
+  const [nri, setNri] = useState(initialPatient?.residency === "NRI" ? "Yes" : "");
+  const [foreignCitizen, setForeignCitizen] = useState(initialPatient?.residency === "Foreign" ? "Yes" : "");
+  const [insurance, setInsurance] = useState(initialPatient?.insurance || "");
+  const [insuranceStatus, setInsuranceStatus] = useState(initialPatient?.insurance_status || "");
+  const [bloodGroup, setBloodGroup] = useState(initialPatient?.blood_group || "");
 
   // How did you hear about us
-  const [referralSource, setReferralSource] = useState("");
+  const [referralSource, setReferralSource] = useState(initialPatient?.referral_source || "");
   const [specificSource, setSpecificSource] = useState("");
 
-  // Avatar
-  const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
+  // Avatar & Camera
+  const [avatarPreview, setAvatarPreview] = useState<string | null>(initialPatient?.photo_url || null);
+  const [showPhotoChooser, setShowPhotoChooser] = useState(false);
+  const [showCameraModal, setShowCameraModal] = useState(false);
+
   const avatarInputRef = useRef<HTMLInputElement>(null);
   const fileInputRefs = useRef<(HTMLInputElement | null)[]>([]);
 
@@ -76,7 +164,15 @@ export function AddPatientView({ onCancel, onSaved }: AddPatientViewProps) {
   const [error, setError] = useState("");
   const [duplicateReason, setDuplicateReason] = useState("");
 
-  const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  // Update country and automatically sync phone dial code prefix box
+  const handleCountryChange = (newCountry: string) => {
+    setCountry(newCountry);
+    const code = COUNTRY_DIAL_CODES[newCountry] || "+91";
+    setMobileDialCode(code);
+    setHomeDialCode(code);
+  };
+
+  const handleAvatarFileSelected = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
       const reader = new FileReader();
@@ -123,19 +219,31 @@ export function AddPatientView({ onCancel, onSaved }: AddPatientViewProps) {
       }
       return `${new Date().getFullYear() - 30}-01-01`;
     }
-    // dob is entered as dd/mm/yyyy or yyyy-mm-dd
     if (!dob.trim()) {
       return `${new Date().getFullYear() - 30}-01-01`;
     }
     if (dob.includes("/")) {
       const parts = dob.split("/");
       if (parts.length === 3) {
-        // dd/mm/yyyy -> yyyy-mm-dd
         const [d, m, y] = parts;
         return `${y.padStart(4, "2000")}-${m.padStart(2, "0")}-${d.padStart(2, "0")}`;
       }
     }
     return dob;
+  };
+
+  // Combine dial code with raw phone number cleanly without duplicates
+  const combinePhoneWithCode = (code: string, number: string): string => {
+    const cleanNum = number.trim();
+    if (!cleanNum) return "";
+    if (cleanNum.startsWith("+")) return cleanNum;
+    const cleanCode = code.trim();
+    if (!cleanCode) return cleanNum;
+    const rawDigits = cleanCode.replace("+", "").trim();
+    if (cleanNum.startsWith(rawDigits) && cleanNum.length > rawDigits.length + 5) {
+      return `+${cleanNum}`;
+    }
+    return `${cleanCode} ${cleanNum}`;
   };
 
   const handleSubmit = async (openChartAfterSave: boolean) => {
@@ -152,6 +260,21 @@ export function AddPatientView({ onCancel, onSaved }: AddPatientViewProps) {
       return;
     }
 
+    // Conditional Email Validation based on PHR Registration selection
+    if (isEmailRequired) {
+      if (!email.trim()) {
+        setError(
+          "Email Address is required when PHR invitation is enabled ('To Patient' or 'To Patient Representative'). Select 'Not Required' if the patient has no email."
+        );
+        return;
+      }
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(email.trim())) {
+        setError("Please enter a valid email address for PHR invitation.");
+        return;
+      }
+    }
+
     setError("");
     setSubmitting(true);
 
@@ -159,7 +282,10 @@ export function AddPatientView({ onCancel, onSaved }: AddPatientViewProps) {
       const finalDob = computeDob();
       const fullAddress = [addressLine1.trim(), addressLine2.trim()].filter(Boolean).join(", ");
       const fullReferral = [referralSource, specificSource].filter(Boolean).join(" - ");
-      const effectivePhone = mobilePhone.trim() || homePhone.trim() || undefined;
+
+      const finalMobile = combinePhoneWithCode(mobileDialCode, mobilePhone);
+      const finalHome = combinePhoneWithCode(homeDialCode, homePhone);
+      const effectivePhone = finalMobile || finalHome || undefined;
 
       // Determine residency
       let residency: "Local" | "Outstation" | "NRI" | "Foreign" = "Local";
@@ -175,6 +301,8 @@ export function AddPatientView({ onCancel, onSaved }: AddPatientViewProps) {
         facility_ids: facilityIds.length ? facilityIds : [branch],
         phone: effectivePhone,
         email: email.trim() || undefined,
+        photo_data: avatarPreview || undefined,
+        send_phr_invitation: phrInvitation,
         address: fullAddress || undefined,
         area: area.trim() || undefined,
         city: city.trim() || undefined,
@@ -190,12 +318,39 @@ export function AddPatientView({ onCancel, onSaved }: AddPatientViewProps) {
         duplicate_reason: duplicateReason.trim() || undefined,
       };
 
-      const created = await api<Row>("/patients", "POST", payload);
-      await refresh();
-      notify(`Patient created: ${created.name}`);
-      onSaved(created, openChartAfterSave);
+      if (isEditMode && initialPatient) {
+        const updated = await api<Row>(
+          `/patients/${initialPatient.id}?version=${initialPatient.version}`,
+          "PUT",
+          payload
+        );
+        // Upload photo if new data URL
+        if (avatarPreview && avatarPreview.startsWith("data:") && avatarPreview !== initialPatient.photo_url) {
+          try {
+            await api(`/patients/${initialPatient.id}/photo`, "POST", { photo_data: avatarPreview });
+          } catch (pErr) {
+            console.warn("Photo upload warning:", pErr);
+          }
+        }
+        await refresh();
+        notify(`Patient demographics updated: ${updated.name}`);
+        onSaved(updated, false);
+      } else {
+        const created = await api<Row>("/patients", "POST", payload);
+        // If PHR invitation is enabled, ensure PHR account is active
+        if (isEmailRequired && created.email) {
+          try {
+            await api(`/patients/${created.id}/phr-access/enable`, "POST");
+          } catch (phrErr) {
+            console.warn("Auto-enabling PHR access note:", phrErr);
+          }
+        }
+        await refresh();
+        notify(`Patient created: ${created.name}`);
+        onSaved(created, openChartAfterSave);
+      }
     } catch (err: any) {
-      setError(err?.detail || err?.message || "Failed to register patient");
+      setError(err?.detail || err?.message || "Failed to save patient information");
     } finally {
       setSubmitting(false);
     }
@@ -205,7 +360,9 @@ export function AddPatientView({ onCancel, onSaved }: AddPatientViewProps) {
     <div className="charm-add-patient-page">
       {/* Top Action Header Bar */}
       <div className="charm-add-patient-header-bar">
-        <h2 className="charm-add-patient-title">Add Patient</h2>
+        <h2 className="charm-add-patient-title">
+          {isEditMode ? "Edit Patient Demographics" : "Add Patient"}
+        </h2>
         <div className="charm-add-patient-actions">
           <button
             type="button"
@@ -213,16 +370,18 @@ export function AddPatientView({ onCancel, onSaved }: AddPatientViewProps) {
             disabled={submitting}
             onClick={() => handleSubmit(false)}
           >
-            {submitting ? "Adding..." : "Add"}
+            {submitting ? "Saving..." : isEditMode ? "Save Demographics" : "Add"}
           </button>
-          <button
-            type="button"
-            className="charm-btn-secondary"
-            disabled={submitting}
-            onClick={() => handleSubmit(true)}
-          >
-            Add and Open
-          </button>
+          {!isEditMode && (
+            <button
+              type="button"
+              className="charm-btn-secondary"
+              disabled={submitting}
+              onClick={() => handleSubmit(true)}
+            >
+              Add and Open
+            </button>
+          )}
           <button
             type="button"
             className="charm-btn-secondary"
@@ -242,8 +401,24 @@ export function AddPatientView({ onCancel, onSaved }: AddPatientViewProps) {
       )}
 
       {error.toLowerCase().includes("duplicate") && (
-        <div style={{ margin: "10px 24px 0 24px", padding: 12, background: "#fffbeb", border: "1px solid #fef3c7", borderRadius: 4 }}>
-          <label style={{ fontSize: 12.5, fontWeight: 600, color: "#92400e", display: "block", marginBottom: 4 }}>
+        <div
+          style={{
+            margin: "10px 24px 0 24px",
+            padding: 12,
+            background: "#fffbeb",
+            border: "1px solid #fef3c7",
+            borderRadius: 4,
+          }}
+        >
+          <label
+            style={{
+              fontSize: 12.5,
+              fontWeight: 600,
+              color: "#92400e",
+              display: "block",
+              marginBottom: 4,
+            }}
+          >
             Duplicate Review Override Reason (required if proceeding):
           </label>
           <input
@@ -262,12 +437,12 @@ export function AddPatientView({ onCancel, onSaved }: AddPatientViewProps) {
         <div className="charm-patient-column">
           <div className="charm-section-header">Basic Information</div>
 
-          {/* Avatar Upload */}
+          {/* Avatar Upload & Live Camera Trigger */}
           <div className="charm-avatar-container">
             <div
               className="charm-avatar-circle"
-              onClick={() => avatarInputRef.current?.click()}
-              title="Upload Patient Photo"
+              onClick={() => setShowPhotoChooser(true)}
+              title="Click to Capture Photo with Live Camera or Upload from Device"
             >
               {avatarPreview ? (
                 <img src={avatarPreview} alt="Patient Avatar" className="charm-avatar-img" />
@@ -283,7 +458,7 @@ export function AddPatientView({ onCancel, onSaved }: AddPatientViewProps) {
                   <circle cx="12" cy="7" r="4" />
                 </svg>
               )}
-              <div className="charm-camera-badge">
+              <div className="charm-camera-badge" title="Live Camera / Upload Photo">
                 <Camera size={14} color="#ffffff" />
               </div>
             </div>
@@ -292,27 +467,38 @@ export function AddPatientView({ onCancel, onSaved }: AddPatientViewProps) {
               ref={avatarInputRef}
               accept="image/*"
               style={{ display: "none" }}
-              onChange={handleAvatarChange}
+              onChange={handleAvatarFileSelected}
             />
           </div>
+
+          {/* Photo Chooser Modal */}
+          <PatientPhotoChooserModal
+            isOpen={showPhotoChooser}
+            onClose={() => setShowPhotoChooser(false)}
+            onOpenLiveCamera={() => setShowCameraModal(true)}
+            onOpenDeviceUpload={() => avatarInputRef.current?.click()}
+            onRemovePhoto={() => setAvatarPreview(null)}
+            hasPhoto={!!avatarPreview}
+          />
+
+          {/* Live Camera Modal */}
+          <CameraCaptureModal
+            isOpen={showCameraModal}
+            onClose={() => setShowCameraModal(false)}
+            onPhotoAccepted={(dataUrl) => setAvatarPreview(dataUrl)}
+            onFallbackToUpload={() => avatarInputRef.current?.click()}
+          />
 
           {/* First Name */}
           <div className="charm-field-group">
             <label className="charm-label">
               First Name <span className="charm-required">*</span>
-              <span className="charm-purple-tag" title="Charm EHR Identifier">
-                <svg width="10" height="10" viewBox="0 0 24 24" fill="#8b5cf6">
-                  <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" />
-                </svg>
-              </span>
             </label>
             <input
               type="text"
               className="charm-input"
               value={firstName}
               onChange={(e) => setFirstName(e.target.value)}
-              placeholder=""
-              required
             />
           </div>
 
@@ -320,23 +506,16 @@ export function AddPatientView({ onCancel, onSaved }: AddPatientViewProps) {
           <div className="charm-field-group">
             <label className="charm-label">
               Last Name <span className="charm-required">*</span>
-              <span className="charm-purple-tag" title="Charm EHR Identifier">
-                <svg width="10" height="10" viewBox="0 0 24 24" fill="#8b5cf6">
-                  <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" />
-                </svg>
-              </span>
             </label>
             <input
               type="text"
               className="charm-input"
               value={lastName}
               onChange={(e) => setLastName(e.target.value)}
-              placeholder=""
-              required
             />
           </div>
 
-          {/* DOB / Age Toggle */}
+          {/* DOB / Age Toggle Row */}
           <div className="charm-field-group">
             <div className="charm-dob-toggle-row">
               <div className="charm-pill-toggle">
@@ -355,10 +534,9 @@ export function AddPatientView({ onCancel, onSaved }: AddPatientViewProps) {
                   Age
                 </button>
               </div>
-              <span className="charm-required">*</span>
 
               {dobMode === "dob" ? (
-                <div className="charm-dob-input-wrap">
+                <div className="charm-date-input-wrap">
                   <input
                     type="text"
                     className="charm-input"
@@ -366,31 +544,20 @@ export function AddPatientView({ onCancel, onSaved }: AddPatientViewProps) {
                     value={dob}
                     onChange={(e) => setDob(e.target.value)}
                   />
-                  <label className="charm-cal-icon-btn">
-                    <Calendar size={15} color="#64748b" />
-                    <input
-                      type="date"
-                      style={{ opacity: 0, position: "absolute", width: 0, height: 0 }}
-                      onChange={(e) => {
-                        if (e.target.value) {
-                          const [y, m, d] = e.target.value.split("-");
-                          setDob(`${d}/${m}/${y}`);
-                        }
-                      }}
-                    />
-                  </label>
+                  <Calendar size={15} className="charm-cal-icon" />
                 </div>
               ) : (
-                <input
-                  type="number"
-                  min="0"
-                  max="125"
-                  className="charm-input"
-                  placeholder="Years"
-                  value={age}
-                  onChange={(e) => setAge(e.target.value)}
-                  style={{ width: "120px" }}
-                />
+                <div style={{ flex: 1 }}>
+                  <input
+                    type="number"
+                    className="charm-input"
+                    placeholder="Age in years"
+                    value={age}
+                    onChange={(e) => setAge(e.target.value)}
+                    min={0}
+                    max={130}
+                  />
+                </div>
               )}
             </div>
           </div>
@@ -607,23 +774,19 @@ export function AddPatientView({ onCancel, onSaved }: AddPatientViewProps) {
             </select>
           </div>
 
-          {/* Country */}
+          {/* Country - Connected dynamically to Dialing Code Box */}
           <div className="charm-field-group">
             <label className="charm-label">Country</label>
             <select
               className="charm-select"
               value={country}
-              onChange={(e) => setCountry(e.target.value)}
+              onChange={(e) => handleCountryChange(e.target.value)}
             >
-              <option value="India">India</option>
-              <option value="United States">United States</option>
-              <option value="United Kingdom">United Kingdom</option>
-              <option value="United Arab Emirates">United Arab Emirates</option>
-              <option value="Singapore">Singapore</option>
-              <option value="Malaysia">Malaysia</option>
-              <option value="Canada">Canada</option>
-              <option value="Australia">Australia</option>
-              <option value="Other">Other</option>
+              {COUNTRIES_LIST.map((cName) => (
+                <option key={cName} value={cName}>
+                  {cName}
+                </option>
+              ))}
             </select>
           </div>
 
@@ -638,46 +801,69 @@ export function AddPatientView({ onCancel, onSaved }: AddPatientViewProps) {
             />
           </div>
 
-          {/* Mobile Phone with P badge */}
+          {/* Mobile Phone with Unified Country Dial Code Box & P badge */}
           <div className="charm-field-group">
             <label className="charm-label">Mobile Phone</label>
             <div className="charm-phone-input-wrap">
-              <input
-                type="tel"
-                className="charm-input"
-                value={mobilePhone}
-                onChange={(e) => setMobilePhone(e.target.value)}
-              />
+              <div className="charm-phone-unified-group">
+                <input
+                  type="text"
+                  className="charm-dial-code-box"
+                  value={mobileDialCode}
+                  onChange={(e) => setMobileDialCode(e.target.value)}
+                  placeholder="+91"
+                  title="Country Dialing Code (auto-updates with Country)"
+                />
+                <input
+                  type="tel"
+                  className="charm-phone-number-box"
+                  placeholder="Mobile number"
+                  value={mobilePhone}
+                  onChange={(e) => setMobilePhone(e.target.value)}
+                />
+              </div>
               <span className="charm-badge-p" title="Primary Mobile">
                 P
               </span>
             </div>
           </div>
 
-          {/* Home Phone with P badge */}
+          {/* Home Phone with Unified Country Dial Code Box & P badge */}
           <div className="charm-field-group">
             <label className="charm-label">Home Phone</label>
             <div className="charm-phone-input-wrap">
-              <input
-                type="tel"
-                className="charm-input"
-                value={homePhone}
-                onChange={(e) => setHomePhone(e.target.value)}
-              />
+              <div className="charm-phone-unified-group">
+                <input
+                  type="text"
+                  className="charm-dial-code-box"
+                  value={homeDialCode}
+                  onChange={(e) => setHomeDialCode(e.target.value)}
+                  placeholder="+91"
+                  title="Country Dialing Code (auto-updates with Country)"
+                />
+                <input
+                  type="tel"
+                  className="charm-phone-number-box"
+                  placeholder="Home phone number"
+                  value={homePhone}
+                  onChange={(e) => setHomePhone(e.target.value)}
+                />
+              </div>
               <span className="charm-badge-p" title="Primary Home Phone">
                 P
               </span>
             </div>
           </div>
 
-          {/* Email */}
+          {/* Email - Conditional Asterisk & Validation based on PHR Registration */}
           <div className="charm-field-group">
             <label className="charm-label">
-              Email <span className="charm-required">*</span>
+              Email {isEmailRequired && <span className="charm-required">*</span>}
             </label>
             <input
               type="email"
               className="charm-input"
+              placeholder={isEmailRequired ? "Required for PHR invitation" : "Optional"}
               value={email}
               onChange={(e) => setEmail(e.target.value)}
             />

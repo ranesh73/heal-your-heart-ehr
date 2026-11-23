@@ -22,8 +22,11 @@ class PatientInput(Input):
     facility_ids: list[str] = Field(min_length=1, max_length=20)
     provider_id: str | None = None
     blood_group: str = Field(default='', max_length=10)
-    phone: str = Field(default='', max_length=30)
-    email: str = Field(default='', max_length=160)
+    phone: str | None = Field(default='', max_length=50)
+    email: str | None = Field(default='', max_length=160)
+    photo_url: str | None = None
+    photo_data: str | None = None
+    send_phr_invitation: str | None = None
     address: str = Field(default='', max_length=1000)
     area: str = Field(default='', max_length=100)
     city: str = Field(default='', max_length=100)

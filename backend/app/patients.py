@@ -1,15 +1,40 @@
 import io
 import csv
+import base64
 from datetime import datetime
+from pathlib import Path
 from uuid import uuid4
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Response
+from fastapi.responses import FileResponse
+from pydantic import BaseModel
 from sqlalchemy import select, or_, func, delete
 from . import models as m, schemas as s
+from .db import DATA_DIR
 from .patient_alerts import active_alerts_for_patients
 from .quick_notes import quick_notes_for_patients
 from .security import context, CLINICAL, BILLING, check_version, next_number
 from .serialization import serialize, patient_out, encounter_out, invoice_out, plan_out
 from .phr_service import extract_6digit_patient_id, hash_password_bcrypt
+
+PHOTO_DIR = DATA_DIR / 'patient_photos'
+PHOTO_DIR.mkdir(parents=True, exist_ok=True)
+
+
+def save_patient_photo(patient_id: str, photo_data: str) -> str:
+    if not photo_data:
+        return ""
+    try:
+        if ',' in photo_data:
+            header, b64str = photo_data.split(',', 1)
+        else:
+            b64str = photo_data
+        raw = base64.b64decode(b64str)
+        out_file = PHOTO_DIR / f"{patient_id}.jpg"
+        with open(out_file, "wb") as f:
+            f.write(raw)
+        return f"/api/patients/{patient_id}/photo"
+    except Exception:
+        return ""
 
 router=APIRouter(prefix='/api/patients')
 
@@ -244,10 +269,37 @@ def validate_patient(data,c,existing=None):
 def register(data:s.PatientInput,c=Depends(context)):
     c.allow({'reception','admin','doctor'}); validate_patient(data,c)
     branch=c.db.get(m.Facility,c.facility_id)
-    values=data.model_dump(exclude={'facility_ids','duplicate_reason'})
-    row=m.Patient(**values,primary_facility_id=c.facility_id,mrn=next_number(c.db,branch.code+'-MR'))
+    values=data.model_dump(exclude={'facility_ids','duplicate_reason','photo_data','send_phr_invitation'})
+    if not values.get('email'):
+        values['email'] = ''
+    if not values.get('phone'):
+        values['phone'] = ''
+    pat_id = str(uuid4())
+    row=m.Patient(id=pat_id,**values,primary_facility_id=c.facility_id,mrn=next_number(c.db,branch.code+'-MR'))
+    if data.photo_data:
+        saved_url = save_patient_photo(row.id, data.photo_data)
+        if saved_url:
+            row.photo_url = saved_url
     c.db.add(row); c.db.flush()
     for fid in set(data.facility_ids): c.db.add(m.PatientFacility(patient_id=row.id,facility_id=fid))
+    
+    # Auto-enable PHR invitation if selected and email provided
+    invitation = (data.send_phr_invitation or '').strip().lower()
+    if invitation in ('patient', 'representative') and row.email and row.email.strip():
+        six_digit_id = extract_6digit_patient_id(row.mrn or row.id)
+        hashed_pw = hash_password_bcrypt(six_digit_id)
+        existing_acc = c.db.scalar(select(m.PatientPhrAccount).where(m.PatientPhrAccount.patient_id == row.id))
+        if not existing_acc:
+            phr_acc = m.PatientPhrAccount(
+                id=str(uuid4()),
+                patient_id=row.id,
+                phone_or_email=row.email.strip().lower(),
+                password_hash=hashed_pw,
+                is_active=True,
+                created_at=m.now(),
+            )
+            c.db.add(phr_acc)
+
     c.audit('register_patient',row,'Duplicate override recorded' if data.duplicate_reason else '')
     if data.duplicate_reason:
         c.db.add(m.PatientEntry(patient_id=row.id,facility_id=c.facility_id,author_id=c.user.id,kind='quick note',title='Duplicate review',content=data.duplicate_reason))
@@ -260,10 +312,45 @@ def edit(identifier:str,data:s.PatientInput,version:int,c=Depends(context)):
     previous=set(c.db.scalars(select(m.PatientFacility.facility_id).where(m.PatientFacility.patient_id==row.id)))
     if not previous.issubset(c.facility_ids): raise HTTPException(403,'Patient has branch associations outside your scope')
     if not previous.issubset(data.facility_ids): raise HTTPException(409,'Existing branch associations are retained to preserve chart access')
-    for k,v in data.model_dump(exclude={'facility_ids','duplicate_reason'}).items(): setattr(row,k,v)
+    values=data.model_dump(exclude={'facility_ids','duplicate_reason','photo_data','send_phr_invitation'})
+    if not values.get('email'):
+        values['email'] = ''
+    if not values.get('phone'):
+        values['phone'] = ''
+    if data.photo_data:
+        saved_url = save_patient_photo(row.id, data.photo_data)
+        if saved_url:
+            values['photo_url'] = saved_url
+    for k,v in values.items(): setattr(row,k,v)
     for fid in set(data.facility_ids)-previous: c.db.add(m.PatientFacility(patient_id=row.id,facility_id=fid))
     row.version+=1; c.audit('edit_demographics',row)
     return patient_out(c.db,row)
+
+
+@router.get('/{identifier}/photo')
+def get_patient_photo(identifier: str, c=Depends(context)):
+    row = c.patient(identifier)
+    for ext, mtype in (('.jpg', 'image/jpeg'), ('.png', 'image/png')):
+        file_path = PHOTO_DIR / f"{row.id}{ext}"
+        if file_path.is_file():
+            return FileResponse(file_path, media_type=mtype)
+    raise HTTPException(404, "No profile photo uploaded for this patient")
+
+
+class PatientPhotoPayload(BaseModel):
+    photo_data: str
+
+
+@router.post('/{identifier}/photo')
+def upload_patient_photo(identifier: str, payload: PatientPhotoPayload, c=Depends(context)):
+    c.allow({'reception', 'admin', 'doctor'})
+    row = c.patient(identifier)
+    saved_url = save_patient_photo(row.id, payload.photo_data)
+    if not saved_url:
+        raise HTTPException(400, "Invalid image data provided")
+    row.photo_url = saved_url
+    c.db.commit()
+    return {"status": "ok", "photo_url": row.photo_url}
 
 
 @router.get('/{identifier}')

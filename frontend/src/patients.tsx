@@ -291,8 +291,15 @@ export function PatientsPage() {
                 render: (p) => (
                   <div className="patient-cell">
                     <span className="avatar">
-                      {p.first_name[0]}
-                      {p.last_name[0]}
+                      {p.photo_url ? (
+                        <img
+                          src={p.photo_url}
+                          alt=""
+                          style={{ width: "100%", height: "100%", borderRadius: "50%", objectFit: "cover" }}
+                        />
+                      ) : (
+                        <>{p.first_name[0]}{p.last_name[0]}</>
+                      )}
                     </span>
                     <span>
                       <button
@@ -419,7 +426,15 @@ export function PatientHeader({
         </button>
 
         <div className="charm-banner-avatar">
-          {p.first_name?.[0]}{p.last_name?.[0]}
+          {p.photo_url ? (
+            <img
+              src={p.photo_url}
+              alt={p.name}
+              style={{ width: "100%", height: "100%", borderRadius: "50%", objectFit: "cover" }}
+            />
+          ) : (
+            <>{p.first_name?.[0]}{p.last_name?.[0]}</>
+          )}
         </div>
 
         <div className="charm-patient-identity-lines">
@@ -2684,11 +2699,29 @@ export function PatientChart({ id }: { id: string }) {
       )}
 
       {modal === "edit" && (
-        <PatientForm
-          patient={p}
-          onClose={() => setModal("")}
-          onSaved={() => setModal("")}
-        />
+        <div
+          style={{
+            position: "fixed",
+            inset: 0,
+            zIndex: 9999,
+            background: "#f8fafc",
+            overflowY: "auto",
+            display: "flex",
+            justifyContent: "center",
+            padding: "24px 16px",
+          }}
+        >
+          <div style={{ maxWidth: 1200, width: "100%" }}>
+            <AddPatientView
+              initialPatient={p}
+              onCancel={() => setModal("")}
+              onSaved={() => {
+                setModal("");
+                void refetch();
+              }}
+            />
+          </div>
+        </div>
       )}
       {modal === "appointment" && (
         <AppointmentForm patientId={id} onClose={() => setModal("")} />
@@ -4246,10 +4279,18 @@ export function EncounterEditor({
       {/* 1. TOP PATIENT DEMOGRAPHIC STRIP (Screenshots 1-3) */}
       <div className="charm-consult-header-strip">
         <div className="charm-patient-avatar-box">
-          <span className="charm-patient-avatar-initials">
-            {patient.first_name ? patient.first_name[0] : "K"}
-            {patient.last_name ? patient.last_name[0] : "J"}
-          </span>
+          {patient.photo_url ? (
+            <img
+              src={patient.photo_url}
+              alt={patient.name}
+              style={{ width: "100%", height: "100%", borderRadius: "50%", objectFit: "cover" }}
+            />
+          ) : (
+            <span className="charm-patient-avatar-initials">
+              {patient.first_name ? patient.first_name[0] : "K"}
+              {patient.last_name ? patient.last_name[0] : "J"}
+            </span>
+          )}
         </div>
 
         <div className="charm-consult-patient-meta">

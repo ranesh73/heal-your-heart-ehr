@@ -17317,6 +17317,52 @@ textarea.charm-input {
 .charm-phone-input-wrap {
   display: flex;
   align-items: center;
+  width: 100%;
+}
+
+.charm-phone-unified-group {
+  display: flex;
+  align-items: center;
+  border: 1px solid #cbd5e1;
+  border-radius: 4px;
+  background: #ffffff;
+  height: 32px;
+  flex: 1;
+  overflow: hidden;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.charm-phone-unified-group:focus-within {
+  border-color: #0d9488;
+  box-shadow: 0 0 0 1px #0d9488;
+}
+
+.charm-dial-code-box {
+  width: 58px;
+  min-width: 58px;
+  height: 100%;
+  border: none;
+  border-right: 1px solid #cbd5e1;
+  background: #f8fafc;
+  color: #1e293b;
+  font-size: 13px;
+  font-weight: 600;
+  text-align: center;
+  outline: none;
+  padding: 0 4px;
+  box-sizing: border-box;
+}
+
+.charm-phone-number-box {
+  flex: 1;
+  height: 100%;
+  border: none;
+  outline: none;
+  padding: 0 8px;
+  font-size: 13px;
+  color: #1e293b;
+  background: transparent;
+  box-sizing: border-box;
 }
 
 .charm-badge-p {

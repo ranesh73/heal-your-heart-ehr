@@ -408,7 +408,7 @@ export function QuickNewPatientView({
         </div>
 
         <div className="charm-form-row">
-          <label className="charm-field-label">Email *</label>
+          <label className="charm-field-label">Email</label>
           <input
             type="email"
             className="charm-field-input"
