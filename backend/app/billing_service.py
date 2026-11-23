@@ -399,6 +399,20 @@ def ensure_billing_defaults(c):
     c.db.commit()
 
 
+def ensure_all_facilities_billing_defaults(db):
+    """Ensure billing defaults (194 procedure codes from CPT_Codes.csv, fee schedules,
+    billing packages, payment methods, tax rates, etc.) are seeded across all facilities.
+    """
+    class FacContext:
+        def __init__(self, dbs, fid):
+            self.db = dbs
+            self.facility_id = fid
+
+    fac_ids = db.scalars(select(m.Facility.id)).all()
+    for fac_id in fac_ids:
+        ensure_billing_defaults(FacContext(db, fac_id))
+
+
 # ============================================================================
 # 1. PROCEDURE CODES ENDPOINTS
 # ============================================================================

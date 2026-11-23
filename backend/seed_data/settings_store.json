@@ -79,8 +79,8 @@
     },
     {
       "id": "r-2",
-      "name": "Charm Assistant",
-      "description": "Assist the organisation with maintaining CharmEHR",
+      "name": "Clinical Assistant",
+      "description": "Assist the organisation with maintaining Heal Your Heart EHR",
       "encounters": [],
       "labs": [
         "Add",

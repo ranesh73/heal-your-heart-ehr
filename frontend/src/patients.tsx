@@ -769,6 +769,41 @@ function VitalsSummary({ rows }: { rows: Row[] }) {
   );
 }
 
+export function formatCleanDiagnosis(d: Row): string {
+  const desc = (d.description || "").trim();
+  const code = (d.code || "").trim();
+  if (!code) return desc;
+  // If description already has [code] or code at the end, don't duplicate
+  if (
+    desc.toLowerCase().includes(`[${code.toLowerCase()}]`) ||
+    desc.toLowerCase().includes(`[${code.toLowerCase()}`) ||
+    desc.toLowerCase().endsWith(code.toLowerCase())
+  ) {
+    return desc;
+  }
+  return `${desc} [${code}]`;
+}
+
+export function formatCleanMedication(m: Row): string {
+  const baseName = (m.trade_name || m.name || m.generic_name || "").trim();
+  const dose = (m.dose || "").trim();
+  const generic = (m.generic_name || "").trim();
+
+  let title = baseName;
+  if (dose) {
+    // Check if baseName already contains the dose (e.g. "Atorvastatin 20mg" or "20 mg")
+    const cleanedDose = dose.replace(/\s+/g, "");
+    const cleanedBase = baseName.replace(/\s+/g, "");
+    if (!cleanedBase.toLowerCase().includes(cleanedDose.toLowerCase())) {
+      title = `${title} ${dose}`;
+    }
+  }
+  if (generic && !title.toLowerCase().includes(generic.toLowerCase()) && generic !== baseName) {
+    title = `${title} [${generic}]`;
+  }
+  return title;
+}
+
 export function PatientChart({ id }: { id: string }) {
   const { user, staff, facilities, refresh, notify } = useApp();
   const queryClient = useQueryClient();
@@ -1317,7 +1352,7 @@ export function PatientChart({ id }: { id: string }) {
                       <button
                         className="charm-subtab-link"
                         onClick={() => {
-                          const summaryText = `PATIENT SUMMARY - HEAL YOUR HEART EHR\nName: ${p.name}\nMRN: ${p.record_number}\nDOB: ${p.dob} (${p.age} yrs / ${p.gender})\nPhone: ${p.phone || "N/A"}\nEmail: ${p.email || "N/A"}\n\nACTIVE DIAGNOSES:\n${(chart.diagnoses || []).map((d: Row) => `- ${d.description} [${d.code || ""}]`).join("\n") || "None"}\n\nCURRENT MEDICATIONS:\n${(chart.medications || []).map((m: Row) => `- ${m.trade_name || m.name} (${m.dose || ""}) : ${m.maen || ""}`).join("\n") || "None"}\n\nALLERGIES:\n${(chart.allergies || []).map((a: Row) => `- ${a.substance || a.allergen} (${a.severity || ""})`).join("\n") || "None"}\n\nRECENT VITALS:\n${(chart.vitals || []).slice(0, 3).map((v: Row) => `- ${v.created_at ? dateTime(v.created_at) : ""}: BP ${v.bp_sys}/${v.bp_dia} mmHg, HR ${v.pulse_bpm} bpm, SpO2 ${v.spo2_pct}%`).join("\n") || "None"}`;
+                          const summaryText = `PATIENT SUMMARY - HEAL YOUR HEART EHR\nName: ${p.name}\nMRN: ${p.record_number}\nDOB: ${p.dob} (${p.age} yrs / ${p.gender})\nPhone: ${p.phone || "N/A"}\nEmail: ${p.email || "N/A"}\n\nACTIVE DIAGNOSES:\n${(chart.diagnoses || []).map((d: Row) => `- ${formatCleanDiagnosis(d)}`).join("\n") || "None"}\n\nCURRENT MEDICATIONS:\n${(chart.medications || []).map((m: Row) => `- ${formatCleanMedication(m)} : ${m.maen || ""}`).join("\n") || "None"}\n\nALLERGIES:\n${(chart.allergies || []).map((a: Row) => `- ${a.substance || a.allergen} (${a.severity || ""})`).join("\n") || "None"}\n\nRECENT VITALS:\n${(chart.vitals || []).slice(0, 3).map((v: Row) => `- ${v.created_at ? dateTime(v.created_at) : ""}: BP ${v.bp_sys}/${v.bp_dia} mmHg, HR ${v.pulse_bpm} bpm, SpO2 ${v.spo2_pct}%`).join("\n") || "None"}`;
                           const blob = new Blob([summaryText], { type: "text/plain;charset=utf-8" });
                           const url = URL.createObjectURL(blob);
                           const link = document.createElement("a");
@@ -1397,7 +1432,7 @@ export function PatientChart({ id }: { id: string }) {
                                   .map((m: Row) => (
                                     <div key={m.id} className="charm-med-row">
                                       <div className="charm-med-title">
-                                        {m.trade_name || m.name}{m.dose ? ` ${m.dose}` : ""} {m.generic_name ? `[${m.generic_name}]` : ""}
+                                        {formatCleanMedication(m)}
                                       </div>
                                       <div className="charm-med-desc">
                                         {m.maen || m.frequency || "1 - 0 - 0"} for {m.duration || "Day(s)"}
@@ -1442,7 +1477,7 @@ export function PatientChart({ id }: { id: string }) {
                                 chart.diagnoses.map((d: Row) => (
                                   <div key={d.id} className="charm-diag-row">
                                     <div className="charm-diag-title">
-                                      {d.description} {d.code ? `[${d.code}]` : ""}
+                                      {formatCleanDiagnosis(d)}
                                     </div>
                                     <div className="charm-diag-date">
                                       {d.created_at ? day(d.created_at) : (d.onset_date ? day(d.onset_date) : "07 Nov 2026")}
@@ -2265,7 +2300,7 @@ export function PatientChart({ id }: { id: string }) {
                             <div style={{ fontSize: 13, color: "#000", marginBottom: 14 }}>
                               {selectedDiagnoses.length > 0 ? (
                                 selectedDiagnoses.map((d: Row) => (
-                                  <div key={d.id}>• {d.description}{d.code ? ` [${d.code}]` : ""}</div>
+                                  <div key={d.id}>• {formatCleanDiagnosis(d)}</div>
                                 ))
                               ) : (
                                 <div>• Hyperlipoproteinaemia [E78.1]</div>
@@ -2281,7 +2316,7 @@ export function PatientChart({ id }: { id: string }) {
                                 selectedMeds.map((med: Row) => (
                                   <div key={med.id} className="charm-rx-card">
                                     <div>
-                                      <div style={{ fontWeight: 600, color: "#0f172a" }}>{med.trade_name || med.generic_name} ({med.dose})</div>
+                                      <div style={{ fontWeight: 600, color: "#0f172a" }}>{formatCleanMedication(med)}</div>
                                       <div style={{ color: "#475569", fontSize: 12 }}>{med.timing || med.maen || "0 - 0 - 0 - 1"}</div>
                                       <div style={{ color: "#64748b", fontSize: 12 }}>Dispense : {med.quantity || 1}, {med.instructions || "Dispense As Written"}</div>
                                     </div>
@@ -3440,7 +3475,7 @@ export function PrintPreview({
             <div style={{ fontSize: 11, color: "#64748b", fontWeight: 600, textTransform: "uppercase" }}>Speciality Clinic for EECP & Preventive Cardiology</div>
           </div>
           <div style={{ fontSize: 11, color: "#64748b", textAlign: "right" }}>
-            CharmHealth Practice Portal<br />Official Clinical Document
+            Heal Your Heart EHR Portal<br />Official Clinical Document
           </div>
         </div>
         <h1 style={{ fontSize: 20, color: "#0f172a", margin: "10px 0 16px" }}>{title}</h1>
@@ -6802,25 +6837,6 @@ export function EncounterEditor({
             </div>
           ))}
         </main>
-
-        {/* FAR RIGHT FLOATING RAIL */}
-        <aside className="charm-floating-right-rail">
-          <div className="charm-floating-icon" title="Patient Quick Summary">
-            <User size={16} />
-          </div>
-          <div className="charm-floating-icon" title="Clinical Notes History">
-            <FileText size={16} />
-          </div>
-          <div className="charm-floating-icon" title="Prescriptions">
-            <Pill size={16} />
-          </div>
-          <div className="charm-floating-icon" title="Vital Signs Trends">
-            <Activity size={16} />
-          </div>
-          <div className="charm-floating-icon" title="Messages & Chat">
-            <MessageSquare size={16} />
-          </div>
-        </aside>
       </div>
 
 
@@ -6860,7 +6876,7 @@ export function EncounterEditor({
                   patient_id: patientId,
                   code: d.code,
                   diagnosis: d.diagnosis,
-                  comments: comment || "Selected from CharmHealth Practice Template",
+                  comments: comment || "Selected from Practice Template",
                 });
               }
               await refresh();

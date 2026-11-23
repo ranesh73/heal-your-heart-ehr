@@ -126,6 +126,8 @@ def startup_sync():
             tasks_workflow.ensure_clinical_tasks_seed_data(db)
             recalls.ensure_recalls_seed_data(db)
             phr_service.ensure_phr_seed_data(db)
+            from .billing_service import ensure_all_facilities_billing_defaults
+            ensure_all_facilities_billing_defaults(db)
             db.commit()
     except Exception as e:
         logging.getLogger('ehr').warning('Startup seed data failed: %s', e)

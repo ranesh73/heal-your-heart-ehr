@@ -28,35 +28,22 @@ export function SettingsLayout({
   return (
     <div className="charm-settings-container">
       {/* Centered Top Search Bar */}
-      <div className="charm-settings-search-wrapper">
-        <div
-          className="charm-settings-search-pill"
-          style={{ position: "relative", display: "flex", alignItems: "center" }}
-        >
+      <div className="charm-settings-search-wrapper flex justify-center mb-5">
+        <div className="flex items-center gap-2.5 bg-white border border-slate-300 rounded-full px-4 py-2 w-full max-w-[580px] shadow-xs focus-within:ring-2 focus-within:ring-[#0B6E75] focus-within:border-transparent transition">
           <Search
-            size={18}
-            className="charm-search-icon"
-            style={{ position: "static", color: "#64748b", marginRight: "8px", flexShrink: 0 }}
+            size={16}
+            className="text-slate-400 shrink-0"
           />
           <input
             type="text"
-            className="charm-settings-search-input"
-            placeholder="Search in Settings and perform actions"
+            className="flex-1 bg-transparent text-xs text-slate-800 placeholder-slate-400 outline-none"
+            placeholder="Search in Settings and perform actions (press Enter)"
             onKeyDown={(e) => {
               if (e.key === "Enter") {
                 navigate("/settings");
               }
             }}
           />
-          <button
-            type="button"
-            className="charm-search-arrow-btn"
-            title="Search Settings"
-            onClick={() => navigate("/settings")}
-            style={{ display: "flex", alignItems: "center", justifyContent: "center" }}
-          >
-            <ArrowRight size={16} />
-          </button>
         </div>
       </div>
 

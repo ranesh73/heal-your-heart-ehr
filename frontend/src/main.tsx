@@ -644,7 +644,7 @@ function Workspace() {
           }
         }}
       >
-        <main className={page === "encounter" ? "main-encounter" : (page === "patients" && parts[1] ? "main-patient-chart" : undefined)}>
+        <div className={`w-full min-w-0 ${page === "encounter" ? "main-encounter" : (page === "patients" && parts[1] ? "main-patient-chart" : "")}`}>
           {page === "home" && (
             <CardiologyDashboard
               onRegister={() => setModal("patient")}
@@ -710,7 +710,7 @@ function Workspace() {
               }
             />
           )}
-        </main>
+        </div>
       </AppShell>
 
       {modal === "patient" && (

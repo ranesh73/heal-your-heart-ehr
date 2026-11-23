@@ -156,6 +156,7 @@ export function AppShell({
   });
 
   const [userMenuOpen, setUserMenuOpen] = useState(false);
+  const [branchMenuOpen, setBranchMenuOpen] = useState(false);
   const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
   const [shortcutsModalOpen, setShortcutsModalOpen] = useState(false);
   const [helpModalOpen, setHelpModalOpen] = useState(false);
@@ -164,6 +165,7 @@ export function AppShell({
   const [paletteQuery, setPaletteQuery] = useState("");
 
   const userMenuRef = useRef<HTMLDivElement>(null);
+  const branchMenuRef = useRef<HTMLDivElement>(null);
   const paletteInputRef = useRef<HTMLInputElement>(null);
 
   const toggleCollapsed = () => {
@@ -200,18 +202,21 @@ export function AppShell({
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, []);
 
-  // Close user menu when clicking outside
+  // Close menus when clicking outside
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
       if (userMenuRef.current && !userMenuRef.current.contains(e.target as Node)) {
         setUserMenuOpen(false);
       }
+      if (branchMenuRef.current && !branchMenuRef.current.contains(e.target as Node)) {
+        setBranchMenuOpen(false);
+      }
     };
-    if (userMenuOpen) {
+    if (userMenuOpen || branchMenuOpen) {
       document.addEventListener("mousedown", handleClickOutside);
       return () => document.removeEventListener("mousedown", handleClickOutside);
     }
-  }, [userMenuOpen]);
+  }, [userMenuOpen, branchMenuOpen]);
 
   // Focus input when command palette opens
   useEffect(() => {
@@ -265,12 +270,12 @@ export function AppShell({
   return (
     <div className="flex h-screen w-screen overflow-hidden bg-[var(--color-bg-canvas,#F7F9FA)] text-[var(--color-text-primary,#0F172A)] font-sans">
       {/* =========================================================================
-          1. CLEAN LIGHT CLINICAL SIDEBAR (232px expanded, 64px collapsed)
+          1. CLEAN WHITE CLINICAL SIDEBAR (232px expanded, 64px collapsed, never fixed)
           Retains class charm-global-sidebar for automated test compatibility
          ========================================================================= */}
-      <nav
+      <aside
         aria-label="Global Navigation"
-        className={`charm-global-sidebar flex flex-col flex-shrink-0 transition-all duration-200 border-r border-[var(--color-border-subtle,#E1E8E8)] bg-[#F7F9FA] select-none ${
+        className={`charm-global-sidebar flex flex-col shrink-0 transition-all duration-200 border-r border-slate-200 bg-white select-none ${
           collapsed ? "w-16" : "w-[232px]"
         }`}
         style={{
@@ -281,13 +286,13 @@ export function AppShell({
       >
         {/* Brand Header */}
         <div
-          className={`h-14 flex items-center border-b border-[var(--color-border-subtle,#E1E8E8)] px-3 cursor-pointer ${
+          className={`h-14 flex items-center border-b border-slate-200 px-3 cursor-pointer ${
             collapsed ? "justify-center" : "gap-2.5"
           }`}
           onClick={() => navigate("/home")}
           title="Heal Your Heart EHR · Home"
         >
-          <div className="w-8 h-8 rounded-lg bg-[var(--color-primary-clinical,#0B6E75)] flex items-center justify-center text-white flex-shrink-0 shadow-sm">
+          <div className="w-8 h-8 rounded-lg bg-[var(--color-primary-clinical,#0B6E75)] flex items-center justify-center text-white shrink-0 shadow-xs">
             <HeartPulse size={20} className="text-white" />
           </div>
           {!collapsed && (
@@ -307,12 +312,12 @@ export function AppShell({
           {DEFAULT_NAV_SECTIONS.map((section) => (
             <div key={section.title} className="space-y-1">
               {!collapsed && (
-                <div className="px-2.5 py-1 text-[11px] font-semibold text-[#64748B] uppercase tracking-wider">
+                <div className="px-2.5 py-1 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">
                   {section.title}
                 </div>
               )}
               {collapsed && (
-                <div className="my-1.5 mx-auto w-6 border-t border-[var(--color-border-subtle,#E1E8E8)]" />
+                <div className="my-1.5 mx-auto w-6 border-t border-slate-200" />
               )}
               {section.items.map((item) => {
                 const Icon = item.icon;
@@ -330,33 +335,33 @@ export function AppShell({
                     className={`charm-sidebar-btn w-full flex items-center rounded-md text-sm font-medium transition-colors text-left relative ${
                       collapsed
                         ? "justify-center h-10 px-0"
-                        : "gap-2.5 px-2.5 py-2"
+                        : "gap-3 px-3 py-2"
                     } ${
                       isActive
-                        ? "bg-[#E8F4F3] text-[var(--color-primary-clinical,#0B6E75)] font-semibold shadow-xs"
-                        : "text-[#334155] hover:bg-[#EEF2F4] hover:text-[#0F172A]"
+                        ? "bg-[#EFF8F7] text-[#0B6E75] font-semibold shadow-xs"
+                        : "text-slate-700 hover:bg-slate-100 hover:text-slate-900"
                     }`}
                   >
                     {/* Active indicator bar */}
                     {isActive && (
                       <span
-                        className="absolute left-0 top-1.5 bottom-1.5 w-[3px] rounded-r bg-[var(--color-primary-clinical,#0B6E75)]"
+                        className="absolute left-0 top-1.5 bottom-1.5 w-[3px] rounded-r bg-[#0B6E75]"
                         aria-hidden="true"
                       />
                     )}
                     <Icon
                       size={18}
-                      className={`flex-shrink-0 ${
+                      className={`shrink-0 ${
                         isActive
-                          ? "text-[var(--color-primary-clinical,#0B6E75)]"
-                          : "text-[#64748B]"
+                          ? "text-[#0B6E75]"
+                          : "text-slate-500"
                       }`}
                     />
                     {!collapsed && (
                       <span className="truncate flex-1">{item.label}</span>
                     )}
                     {!collapsed && item.badgeCount !== undefined && item.badgeCount > 0 && (
-                      <span className="ml-auto px-1.5 py-0.5 text-[11px] font-semibold rounded-full bg-[var(--color-primary-clinical,#0B6E75)] text-white">
+                      <span className="ml-auto px-1.5 py-0.5 text-[11px] font-semibold rounded-full bg-[#0B6E75] text-white">
                         {item.badgeCount}
                       </span>
                     )}
@@ -367,14 +372,14 @@ export function AppShell({
           ))}
         </div>
 
-        {/* Sidebar Footer with Collapse Toggle & Shortcuts Info */}
-        <div className="p-2 border-t border-[var(--color-border-subtle,#E1E8E8)] bg-[#F7F9FA] flex flex-col gap-1">
+        {/* Sidebar Footer with Collapse Toggle */}
+        <div className="p-2 border-t border-slate-200 bg-white flex flex-col gap-1">
           <button
             type="button"
             aria-label={collapsed ? "Expand sidebar (Alt+[)" : "Collapse sidebar (Alt+[)"}
             title={collapsed ? "Expand sidebar (Alt+[)" : "Collapse sidebar (Alt+[)"}
             onClick={toggleCollapsed}
-            className={`w-full flex items-center rounded-md text-xs font-medium text-[#64748B] hover:text-[#0F172A] hover:bg-[#EEF2F4] transition-colors ${
+            className={`w-full flex items-center rounded-md text-xs font-medium text-slate-500 hover:text-slate-900 hover:bg-slate-100 transition-colors ${
               collapsed ? "justify-center h-9 px-0" : "justify-between px-2.5 py-1.5"
             }`}
           >
@@ -389,13 +394,13 @@ export function AppShell({
               )}
             </div>
             {!collapsed && (
-              <kbd className="px-1.5 py-0.5 text-[10px] bg-white border border-[#CBD5E1] rounded text-[#64748B] font-mono shadow-2xs">
+              <kbd className="px-1.5 py-0.5 text-[10px] bg-slate-100 border border-slate-300 rounded text-slate-600 font-mono shadow-2xs">
                 Alt+[
               </kbd>
             )}
           </button>
         </div>
-      </nav>
+      </aside>
 
       {/* =========================================================================
           2. MAIN WORKSPACE CONTAINER (56px Topbar + Content Area)
@@ -403,32 +408,72 @@ export function AppShell({
       <div className="flex flex-col flex-1 min-w-0 h-full overflow-hidden">
         {/* Crisp 56px Topbar */}
         <header
-          className="charm-global-topbar h-14 bg-white border-b border-[var(--color-border-subtle,#E1E8E8)] px-4 flex items-center justify-between gap-4 flex-shrink-0 z-20"
+          className="charm-global-topbar h-14 bg-white border-b border-slate-200 px-4 flex items-center justify-between gap-4 shrink-0 z-20"
           style={{ height: 56 }}
         >
-          {/* Left Area: Branch Selector */}
+          {/* Left Area: Custom Styled Branch Selector Dropdown */}
           <div className="flex items-center gap-3 min-w-0">
-            <div className="relative flex items-center bg-[#F8FAFC] hover:bg-[#F1F5F9] transition-colors border border-[var(--color-border-subtle,#E1E8E8)] rounded-lg px-2.5 py-1.5 text-xs text-[#0F172A]">
-              <Building2
-                size={15}
-                className="text-[var(--color-primary-clinical,#0B6E75)] mr-2 flex-shrink-0"
-              />
-              <select
+            <div className="relative" ref={branchMenuRef}>
+              <button
+                type="button"
                 aria-label="Active branch"
-                value={currentBranch}
-                onChange={(e) => onBranchChange(e.target.value)}
-                className="bg-transparent text-xs font-semibold text-[#0F172A] cursor-pointer outline-none pr-5 appearance-none"
+                onClick={() => setBranchMenuOpen((prev) => !prev)}
+                className="flex items-center gap-2 bg-slate-50 hover:bg-slate-100 transition-colors border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs text-slate-900 font-semibold cursor-pointer shadow-2xs"
               >
-                {facilities.map((f: Row) => (
-                  <option key={f.id} value={f.id}>
-                    {f.name.replace("Heal Your Heart · ", "")}
-                  </option>
-                ))}
-              </select>
-              <ChevronDown
-                size={13}
-                className="absolute right-2 text-[#64748B] pointer-events-none"
-              />
+                <Building2
+                  size={15}
+                  className="text-[#0B6E75] shrink-0"
+                />
+                <span className="truncate max-w-[140px] text-left">
+                  {currentFacility?.name.replace("Heal Your Heart · ", "") || "Select Branch"}
+                </span>
+                <ChevronDown size={13} className="text-slate-500 shrink-0" />
+              </button>
+
+              {branchMenuOpen && (
+                <div className="absolute left-0 top-full mt-1.5 w-60 bg-white border border-slate-200 rounded-xl shadow-xl z-50 py-1.5 divide-y divide-slate-100 text-xs">
+                  <div className="px-3 py-1.5 text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                    Select Practice Branch
+                  </div>
+                  <div className="py-1 max-h-56 overflow-y-auto">
+                    {facilities.map((f: Row) => {
+                      const isCurrent = f.id === currentBranch;
+                      return (
+                        <button
+                          key={f.id}
+                          type="button"
+                          onClick={() => {
+                            setBranchMenuOpen(false);
+                            onBranchChange(f.id);
+                          }}
+                          className={`w-full px-3 py-2 text-left flex items-center justify-between transition-colors ${
+                            isCurrent
+                              ? "bg-[#EFF8F7] text-[#0B6E75] font-semibold"
+                              : "text-slate-700 hover:bg-slate-50 hover:text-slate-900"
+                          }`}
+                        >
+                          <div className="flex flex-col min-w-0 pr-2">
+                            <span className="truncate text-xs">
+                              {f.name.replace("Heal Your Heart · ", "")}
+                            </span>
+                            {f.city && (
+                              <span className="text-[10px] text-slate-400 truncate">
+                                {f.city}
+                              </span>
+                            )}
+                          </div>
+                          {isCurrent && (
+                            <CheckCircle2
+                              size={14}
+                              className="text-[#0B6E75] shrink-0"
+                            />
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
             </div>
           </div>
 
@@ -676,9 +721,9 @@ export function AppShell({
         </header>
 
         {/* Content Viewport */}
-        <div className="flex-1 overflow-y-auto bg-[var(--color-bg-canvas,#F7F9FA)]">
+        <main className="flex-1 min-w-0 overflow-y-auto bg-[var(--color-bg-canvas,#F7F9FA)]">
           {children}
-        </div>
+        </main>
       </div>
 
       {/* =========================================================================

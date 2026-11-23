@@ -720,9 +720,9 @@ export function CharmLabOrders({ patientId, encounterId, isGlobal }: CharmLabOrd
         {viewMode === "list" && activeSubTab === "results" && (
           <button
             type="button"
-            className="charm-btn-orange"
+            className="charm-btn-orange bg-[#0B6E75] hover:bg-[#09595F] text-white"
             style={{
-              backgroundColor: "#ea580c",
+              backgroundColor: "#0B6E75",
               color: "#ffffff",
               border: "none",
               borderRadius: "4px",

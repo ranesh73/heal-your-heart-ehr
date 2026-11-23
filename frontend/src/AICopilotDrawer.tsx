@@ -371,28 +371,6 @@ export function AICopilotDrawer({
 
   return (
     <>
-      {/* Floating Launcher Button (positioned above collab dock, below toolbar) */}
-      {!isOpen && (
-        <button
-          onClick={() => setIsOpen(true)}
-          className="charm-copilot-launcher group"
-          aria-label="Open AI Copilot"
-          title="Open AI Copilot (Ctrl + /)"
-        >
-          <div className="relative flex items-center justify-center">
-            <Sparkles className="h-4 w-4 text-amber-300 animate-pulse" />
-            <span className="absolute -top-1 -right-1 flex h-2 w-2">
-              <span className={`animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 ${aiStatus?.available ? "bg-emerald-400" : "bg-amber-400"}`}></span>
-              <span className={`relative inline-flex rounded-full h-2 w-2 ${aiStatus?.available ? "bg-emerald-500" : "bg-amber-500"}`}></span>
-            </span>
-          </div>
-          <span className="font-semibold text-xs tracking-wide">AI Copilot</span>
-          <span className="rounded-full bg-teal-900/60 border border-teal-600/50 px-2 py-0.5 text-[10px] font-medium text-teal-200 uppercase">
-            {roleName}
-          </span>
-        </button>
-      )}
-
       {/* Backdrop for easy dismiss */}
       {isOpen && (
         <div
@@ -444,11 +422,6 @@ export function AICopilotDrawer({
                     >
                       <span className="h-2 w-2 rounded-full bg-amber-400 inline-block" />
                       Deterministic Mode ({aiStatus?.provider === "groq" ? "Groq Offline" : "Ollama Offline"})
-                    </span>
-                  )}
-                  {activeFacilityId && (
-                    <span className="text-teal-400/70 font-mono text-[10px]">
-                      · {activeFacilityId}
                     </span>
                   )}
                 </div>

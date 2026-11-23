@@ -4599,128 +4599,93 @@ main.main-patient-chart {
   background: #ffffff;
 }
 
-/* 0. Authentic CharmHealth Left Persistent Vertical Sidebar (matching reference image) */
+/* 0. Clean Light Clinical Left Persistent Sidebar (Never Fixed, Zero Clipping) */
 .charm-global-sidebar {
-  width: 72px;
-  min-width: 72px;
-  background: #182230;
-  color: #ffffff;
-  display: flex;
-  flex-direction: column;
-  position: fixed;
-  left: 0;
-  top: 0;
-  bottom: 0;
-  z-index: 105;
-  box-shadow: 2px 0 8px rgba(0, 0, 0, 0.15);
-  overflow-y: auto;
-  overflow-x: hidden;
-  scrollbar-width: none;
-}
-
-.charm-global-sidebar::-webkit-scrollbar {
-  display: none;
-}
-
-.charm-sidebar-top-brand {
-  width: 72px;
-  height: 52px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: #003330;
-  cursor: pointer;
-  border: 0;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-  flex-shrink: 0;
-  transition: background 0.15s ease;
-  padding: 0;
-}
-
-.charm-sidebar-top-brand:hover {
-  background: #004743;
-}
-
-.charm-sidebar-brand-svg {
-  transition: transform 0.15s ease;
-}
-
-.charm-sidebar-top-brand:hover .charm-sidebar-brand-svg {
-  transform: scale(1.08);
-}
-
-.charm-sidebar-nav-list {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  width: 100%;
-  padding: 4px 0 36px 0;
-  flex: 1;
+  background: #ffffff !important;
+  color: #0f172a !important;
+  border-right: 1px solid #e2e8f0 !important;
+  display: flex !important;
+  flex-direction: column !important;
+  position: relative !important;
+  left: auto !important;
+  top: auto !important;
+  bottom: auto !important;
+  z-index: 10 !important;
+  box-shadow: none !important;
+  overflow-y: auto !important;
+  overflow-x: hidden !important;
 }
 
 .charm-sidebar-btn {
-  width: 100%;
-  height: 60px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 3px;
-  background: transparent;
-  border: 0;
-  cursor: pointer;
-  color: #94a3b8;
-  padding: 6px 2px;
-  position: relative;
-  transition: all 0.15s ease;
-  user-select: none;
-  font-family: inherit;
+  width: 100% !important;
+  height: auto !important;
+  min-height: 38px !important;
+  display: flex !important;
+  flex-direction: row !important;
+  align-items: center !important;
+  justify-content: flex-start !important;
+  gap: 12px !important;
+  background: transparent !important;
+  border: 0 !important;
+  cursor: pointer !important;
+  color: #334155 !important;
+  padding: 8px 12px !important;
+  position: relative !important;
+  transition: all 0.15s ease !important;
+  user-select: none !important;
+  font-family: inherit !important;
+  font-size: 14px !important;
+  text-align: left !important;
+  border-radius: 6px !important;
 }
 
 .charm-sidebar-btn:hover {
-  background: rgba(255, 255, 255, 0.08);
-  color: #ffffff;
+  background: #f1f5f9 !important;
+  color: #0f172a !important;
 }
 
 .charm-sidebar-btn.active {
-  background: #00a896;
-  color: #ffffff;
+  background: #EFF8F7 !important;
+  color: #0B6E75 !important;
+  font-weight: 600 !important;
 }
 
-.charm-sidebar-btn.active .charm-sidebar-icon-wrap svg {
-  color: #ffffff;
-}
-
-.charm-sidebar-btn.active .charm-sidebar-btn-label {
-  color: #ffffff;
-  font-weight: 600;
-}
-
-.charm-sidebar-icon-wrap {
-  position: relative;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.charm-sidebar-icon-wrap svg {
-  color: inherit;
-  transition: transform 0.12s ease;
-}
-
-.charm-sidebar-btn:hover .charm-sidebar-icon-wrap svg {
-  transform: scale(1.08);
+.charm-sidebar-btn.active svg {
+  color: #0B6E75 !important;
 }
 
 .charm-sidebar-btn-label {
-  font-size: 10.5px;
-  line-height: 1.1;
-  text-align: center;
-  letter-spacing: -0.1px;
-  max-width: 68px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  font-size: 13.5px !important;
+  line-height: 1.2 !important;
+  text-align: left !important;
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+}
+
+/* Hide legacy floating chrome completely */
+.charm-copilot-launcher {
+  display: none !important;
+}
+
+.charm-collab-dock {
+  display: none !important;
+}
+
+.charm-floating-right-rail {
+  display: none !important;
+}
+
+/* Unify orange buttons to solid clinical teal */
+.charm-btn-primary-orange {
+  background: #0B6E75 !important;
+  border-color: #0B6E75 !important;
+  color: #ffffff !important;
+}
+
+.charm-btn-primary-orange:hover {
+  background: #09595F !important;
+  border-color: #09595F !important;
 }
 
 .charm-sidebar-badge-count {
@@ -4826,8 +4791,8 @@ main.main-patient-chart {
 
 .workspace.workspace-with-sidebar,
 .app-shell.has-sidebar .workspace {
-  margin-left: 72px !important;
-  width: calc(100% - 72px) !important;
+  margin-left: 0 !important;
+  width: 100% !important;
 }
 
 .workspace.workspace-full,

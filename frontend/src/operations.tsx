@@ -5832,7 +5832,7 @@ export function AdministrationPage() {
     {
       id: "templates",
       title: "Templates",
-      items: ["My Templates", "Practice Templates", "Email Templates", "CharmHealth Library"],
+      items: ["My Templates", "Practice Templates", "Email Templates", "Clinical Template Library"],
     },
     {
       id: "questionnaires",
@@ -5946,7 +5946,7 @@ export function AdministrationPage() {
       <PageHeading
         eyebrow="Practice configuration"
         title="Settings & Administration"
-        description="Comprehensive 25-category CharmHealth configuration directory, team permissions, catalogs, and audit history."
+        description="Comprehensive 25-category configuration directory, team permissions, catalogs, and audit history for Heal Your Heart EHR."
       />
       <Tabs
         items={[

@@ -2186,7 +2186,8 @@ export function PatientReferralsTab({
 
         <button
           type="button"
-          className="charm-btn-primary-orange charm-referral-tab-action-btn"
+          className="charm-btn-primary-orange charm-referral-tab-action-btn bg-[#0B6E75] hover:bg-[#09595F] text-white"
+          style={{ backgroundColor: "#0B6E75", color: "#ffffff" }}
           onClick={() => {
             setEditingReferral(null);
             setFormOpen(true);
@@ -2374,7 +2375,8 @@ export function GlobalReferralsPage() {
 
         <button
           type="button"
-          className="charm-btn-primary-orange charm-referral-tab-action-btn"
+          className="charm-btn-primary-orange charm-referral-tab-action-btn bg-[#0B6E75] hover:bg-[#09595F] text-white"
+          style={{ backgroundColor: "#0B6E75", color: "#ffffff" }}
           onClick={() => setFormOpen(true)}
         >
           {buttonLabel}

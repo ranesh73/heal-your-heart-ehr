@@ -363,7 +363,7 @@ export function PhrSettingsPage({ activeOptionId, onTabChange }: PhrSettingsPage
                 marginBottom: 16,
               }}
             >
-              Choose the modules to be shown to your patients in CharmHealth Patient Portal
+              Choose the modules to be shown to your patients in Heal Your Heart Patient Portal
             </div>
 
             {/* 2-Column Checkboxes */}
@@ -460,7 +460,7 @@ export function PhrSettingsPage({ activeOptionId, onTabChange }: PhrSettingsPage
                 lineHeight: 1.45,
               }}
             >
-              Patients can communicate with your practice members and share documents from CharmHealth Patient Portal. You can turn-off this feature or restrict the number of messages sent by patients. By default, this configuration applies to all patients. If required, you can create patient groups using Patient Category field (under Settings &gt; Patient &gt; Categories) and configure different values for each group.
+              Patients can communicate with your practice members and share documents from Heal Your Heart Patient Portal. You can turn-off this feature or restrict the number of messages sent by patients. By default, this configuration applies to all patients. If required, you can create patient groups using Patient Category field (under Settings &gt; Patient &gt; Categories) and configure different values for each group.
             </div>
 
             <div style={{ display: "flex", flexDirection: "column", gap: 12, maxWidth: 650 }}>
@@ -1037,7 +1037,7 @@ export function PhrSettingsPage({ activeOptionId, onTabChange }: PhrSettingsPage
               Patient Portal Embed
             </h3>
             <p style={{ fontSize: 13, color: "#555555", margin: "0 0 14px 0", lineHeight: 1.45 }}>
-              Patient Portal Embed feature enables you to embed CharmHealth Patient Portal login URL in your practice website and allows patients to access your practice specific login page.
+              Patient Portal Embed feature enables you to embed Heal Your Heart Patient Portal login URL in your practice website and allows patients to access your practice specific login page.
             </p>
             <div style={{ fontSize: 13, color: "#333333", lineHeight: 1.5, marginBottom: 16 }}>
               <div style={{ fontWeight: 600, marginBottom: 4 }}>Options</div>
