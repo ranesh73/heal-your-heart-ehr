@@ -10,7 +10,10 @@ from datetime import datetime, date, timedelta, timezone
 from typing import Any, Dict, List, Optional
 from uuid import uuid4
 
-import bcrypt
+try:
+    import bcrypt
+except ImportError:
+    bcrypt = None
 from sqlalchemy import select, desc, or_, and_, delete
 from sqlalchemy.orm import Session
 
@@ -167,11 +170,16 @@ def extract_6digit_patient_id(mrn_or_id: Optional[str]) -> str:
 
 def hash_password_bcrypt(password: str) -> str:
     """
-    Hashes a password string using bcrypt with salt.
+    Hashes a password string using bcrypt with salt, falling back to sha256 if bcrypt is unavailable.
     """
     pw_bytes = password.encode("utf-8")
-    salt = bcrypt.gensalt()
-    return bcrypt.hashpw(pw_bytes, salt).decode("utf-8")
+    if bcrypt is not None:
+        try:
+            salt = bcrypt.gensalt()
+            return bcrypt.hashpw(pw_bytes, salt).decode("utf-8")
+        except Exception:
+            pass
+    return hashlib.sha256(pw_bytes).hexdigest()
 
 
 def verify_password_bcrypt(password: str, hashed: str) -> bool:

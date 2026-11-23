@@ -2,6 +2,8 @@ import React, { useEffect, useRef } from 'react';
 import { ClinicalTemplate, TemplateSection } from '../../types';
 import { FieldRenderer } from './FieldRenderer';
 import { txt } from './decodeEntities';
+import '../../styles/charm-theme.css';
+import '../../styles/template-viewer.css';
 
 interface TemplateViewModalProps {
   isOpen: boolean;
@@ -9,32 +11,45 @@ interface TemplateViewModalProps {
   onClose: () => void;
 }
 
+const PASTEL_BAR_CLASSES = [
+  'pastel-bar-lavender',
+  'pastel-bar-mint',
+  'pastel-bar-dewpoint',
+  'pastel-bar-rose',
+  'pastel-bar-cream',
+  'pastel-bar-pistachio',
+  'pastel-bar-peach'
+];
+
 /**
- * One clinical section: an orange heading followed by its fields.
+ * One clinical section: a pastel full-width heading bar followed by its fields.
  * The section title comes straight from the stored template, so different
  * templates produce different sections — nothing here is hard-coded.
  */
 const SectionRenderer: React.FC<{ section: TemplateSection; index: number }> = ({
   section,
   index
-}) => (
-  <section className="ctv-section">
-    <h4 className="ctv-section-title">{txt(section.title)}</h4>
-    <div className="ctv-section-body">
-      {section.components.length === 0 ? (
-        <p className="ctv-empty">No fields configured in this section.</p>
-      ) : (
-        section.components.map((component, cIdx) => (
-          <FieldRenderer
-            key={component.id ?? `${index}-${cIdx}`}
-            component={component}
-            groupKey={`s${section.id ?? index}`}
-          />
-        ))
-      )}
-    </div>
-  </section>
-);
+}) => {
+  const pastelClass = PASTEL_BAR_CLASSES[index % PASTEL_BAR_CLASSES.length];
+  return (
+    <section className="ctv-section">
+      <h4 className={`ctv-section-title pastel-heading-bar ${pastelClass}`}>{txt(section.title)}</h4>
+      <div className="ctv-section-body">
+        {section.components.length === 0 ? (
+          <p className="ctv-empty">No fields configured in this section.</p>
+        ) : (
+          section.components.map((component, cIdx) => (
+            <FieldRenderer
+              key={component.id ?? `${index}-${cIdx}`}
+              component={component}
+              groupKey={`s${section.id ?? index}`}
+            />
+          ))
+        )}
+      </div>
+    </section>
+  );
+};
 
 /**
  * CharmHealth-style read-only clinical template viewer.

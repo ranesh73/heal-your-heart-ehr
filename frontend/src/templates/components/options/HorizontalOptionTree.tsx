@@ -111,10 +111,27 @@ const OptionLevel: React.FC<{
 }) => {
   if (!nodes || nodes.length === 0) return null;
 
+  // Identify all nodes at this level that are expanded and have children to show
+  const expandedChildren = nodes
+    .map((node) => {
+      const id = node.option.id;
+      const isSelected = typeof id === 'number' && selected.has(id);
+      const hasChildren = Boolean(
+        (node.children && node.children.length > 0) || node.option.is_expandable
+      );
+      const isExpanded =
+        isSelected &&
+        hasChildren &&
+        (typeof id !== 'number' || !collapsedIds.has(id));
+      const showChildren = isExpanded && node.children && node.children.length > 0;
+      return showChildren ? node : null;
+    })
+    .filter((n): n is OptionNode => n !== null);
+
   return (
     <div className={`hopt-level hopt-depth-${depth}`}>
-      {/* Sibling options row: horizontally aligned */}
-      <div className="hopt-options-wrap hopt-scroll hopt-row-scroll" role="group">
+      {/* Sibling options row: horizontally aligned, wrapping naturally inside frame */}
+      <div className="hopt-options-wrap" role="group">
         {nodes.map((node, i) => {
           const id = node.option.id;
           const isSelected = typeof id === 'number' && selected.has(id);
@@ -125,58 +142,47 @@ const OptionLevel: React.FC<{
             isSelected &&
             hasChildren &&
             (typeof id !== 'number' || !collapsedIds.has(id));
-          const showChildren = isExpanded && node.children && node.children.length > 0;
-          const hasExpandedChild = Boolean(
-            showChildren &&
-              node.children.some(
-                (c) =>
-                  typeof c.option.id === 'number' &&
-                  selected.has(c.option.id) &&
-                  !collapsedIds.has(c.option.id) &&
-                  c.children &&
-                  c.children.length > 0
-              )
-          );
 
           return (
-            <div
+            <OptionChip
               key={id ?? i}
-              className={`hopt-node ${isSelected ? 'is-selected' : ''} ${hasChildren ? 'has-children' : ''} ${showChildren ? 'is-expanded' : ''} ${hasExpandedChild ? 'has-expanded-child' : ''}`}
-              data-option={node.option.option_label}
-            >
-              <OptionChip
-                node={node}
-                selected={selected}
-                onToggle={onToggle}
-                hasChildren={hasChildren}
-                isExpanded={isExpanded}
-                onToggleCollapse={onToggleCollapse}
-                disabled={disabled}
-                inputId={`${prefix}-${id ?? `d${depth}-${i}`}`}
-              />
-
-              {/* Progressive disclosure: child container belongs to and sits directly under its own parent */}
-              {showChildren && (
-                <div
-                  className="hopt-child-branch hopt-child-container"
-                  data-parent={node.option.option_label}
-                >
-                  <OptionLevel
-                    nodes={node.children}
-                    selected={selected}
-                    onToggle={onToggle}
-                    collapsedIds={collapsedIds}
-                    onToggleCollapse={onToggleCollapse}
-                    disabled={disabled}
-                    prefix={prefix}
-                    depth={depth + 1}
-                  />
-                </div>
-              )}
-            </div>
+              node={node}
+              selected={selected}
+              onToggle={onToggle}
+              hasChildren={hasChildren}
+              isExpanded={isExpanded}
+              onToggleCollapse={onToggleCollapse}
+              disabled={disabled}
+              inputId={`${prefix}-${id ?? `d${depth}-${i}`}`}
+            />
           );
         })}
       </div>
+
+      {/* Expanded child branches: rendered cleanly BELOW the sibling row, indented! */}
+      {expandedChildren.map((node) => (
+        <div
+          key={`branch-${node.option.id}`}
+          className="hopt-child-branch"
+          data-parent={node.option.option_label}
+        >
+          {expandedChildren.length > 1 && (
+            <div className="hopt-branch-parent-header">
+              ↳ {txt(node.option.option_label)}:
+            </div>
+          )}
+          <OptionLevel
+            nodes={node.children}
+            selected={selected}
+            onToggle={onToggle}
+            collapsedIds={collapsedIds}
+            onToggleCollapse={onToggleCollapse}
+            disabled={disabled}
+            prefix={prefix}
+            depth={depth + 1}
+          />
+        </div>
+      ))}
     </div>
   );
 };

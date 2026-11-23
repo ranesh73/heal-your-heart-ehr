@@ -14,7 +14,7 @@ const TABS: Array<{ id: TabType; label: string }> = [
   { id: 'practice_templates', label: 'Practice Templates' },
   { id: 'email_templates', label: 'Email Templates' },
   { id: 'template_library', label: 'Heal Your Heart Library' },
-  { id: 'common_medication', label: 'Common Medication' }
+  { id: 'common_medication', label: 'Common Medications' }
 ];
 
 export const TemplateTabs: React.FC<TemplateTabsProps> = ({

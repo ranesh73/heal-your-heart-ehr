@@ -944,3 +944,109 @@
 .app-toast.error {
   background-color: #7f1d1d;
 }
+
+/* ==========================================================================
+   PASTEL HEADING BARS & CLINICAL HEADINGS (CharmHealth & Heal Your Heart EHR)
+   ========================================================================== */
+
+/* Full-width rectangular pastel heading bar */
+.pastel-heading-bar,
+.cfr-section-title,
+.ctv-section-title {
+  display: block !important;
+  width: 100% !important;
+  box-sizing: border-box !important;
+  margin: 18px 0 12px 0 !important;
+  padding: 11px 18px !important;
+  font-size: 14px !important;
+  font-weight: 700 !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.5px !important;
+  color: #0f172a !important; /* Bold black/dark charcoal - high contrast, never washed out */
+  border-bottom: 1px solid rgba(0, 0, 0, 0.08) !important;
+  border-radius: 4px !important;
+  line-height: 1.35 !important;
+  box-shadow: none !important;
+  text-shadow: none !important;
+}
+
+/* Palette Swatches matching user palette specifications */
+.pastel-bar-lavender,
+.cfr-section-title.pastel-bar-lavender,
+.ctv-section-title.pastel-bar-lavender {
+  background-color: #F0E5F8 !important; /* Wisteria / Dusty Lavender */
+  border-left: 5px solid #C6B3CA !important;
+  color: #0F172A !important;
+}
+
+.pastel-bar-mint,
+.cfr-section-title.pastel-bar-mint,
+.ctv-section-title.pastel-bar-mint {
+  background-color: #E8F5E9 !important; /* Sweet Mint / Sage */
+  border-left: 5px solid #AECBB8 !important;
+  color: #0F172A !important;
+}
+
+.pastel-bar-dewpoint,
+.cfr-section-title.pastel-bar-dewpoint,
+.ctv-section-title.pastel-bar-dewpoint {
+  background-color: #E1ECFA !important; /* Dewpoint / Soft Blue */
+  border-left: 5px solid #C1DBDF !important;
+  color: #0F172A !important;
+}
+
+.pastel-bar-rose,
+.cfr-section-title.pastel-bar-rose,
+.ctv-section-title.pastel-bar-rose {
+  background-color: #F8E1EA !important; /* Rose / Peony */
+  border-left: 5px solid #E79897 !important;
+  color: #0F172A !important;
+}
+
+.pastel-bar-cream,
+.cfr-section-title.pastel-bar-cream,
+.ctv-section-title.pastel-bar-cream {
+  background-color: #FFF7ED !important; /* Fennel / Cream */
+  border-left: 5px solid #EBDEC0 !important;
+  color: #0F172A !important;
+}
+
+.pastel-bar-pistachio,
+.cfr-section-title.pastel-bar-pistachio,
+.ctv-section-title.pastel-bar-pistachio {
+  background-color: #F4F3E6 !important; /* Pistachio */
+  border-left: 5px solid #C6C09C !important;
+  color: #0F172A !important;
+}
+
+.pastel-bar-peach,
+.cfr-section-title.pastel-bar-peach,
+.ctv-section-title.pastel-bar-peach {
+  background-color: #FFEFE6 !important; /* Soft Peach / Honey */
+  border-left: 5px solid #FCAC83 !important;
+  color: #0F172A !important;
+}
+
+/* Subheadings - visually distinct without competing with the main section heading */
+.cfr-subheading,
+.ctv-subheading {
+  display: block !important;
+  font-size: 13.5px !important;
+  font-weight: 700 !important;
+  color: #1e293b !important;
+  margin: 14px 0 8px 0 !important;
+  padding-left: 8px !important;
+  border-left: 3px solid #94a3b8 !important;
+  background: none !important;
+  letter-spacing: 0.2px !important;
+}
+
+.ctv-centered-heading {
+  text-align: center !important;
+  border-left: none !important;
+  padding-left: 0 !important;
+  font-size: 14px !important;
+  font-weight: 700 !important;
+  color: #0f172a !important;
+}
+

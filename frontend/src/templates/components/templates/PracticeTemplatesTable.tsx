@@ -24,10 +24,24 @@ export const PracticeTemplatesTable: React.FC<PracticeTemplatesTableProps> = ({
     );
   }
 
-  if (templates.length === 0) {
+  const visibleTemplates = templates.filter(
+    (t) => t.name !== 'D_copy' && !t.name.toLowerCase().startsWith('d_copy')
+  );
+
+  if (visibleTemplates.length === 0) {
     return (
       <div className="charm-table-container">
-        <div className="empty-table-state">No Practice Templates available</div>
+        <div
+          style={{
+            textAlign: 'center',
+            padding: '80px 20px',
+            color: '#475569',
+            fontSize: '15px',
+            fontWeight: 500
+          }}
+        >
+          No Templates available
+        </div>
       </div>
     );
   }
@@ -44,7 +58,7 @@ export const PracticeTemplatesTable: React.FC<PracticeTemplatesTableProps> = ({
           </tr>
         </thead>
         <tbody>
-          {templates.map((tpl) => {
+          {visibleTemplates.map((tpl) => {
             const hasDefaults = Boolean(
               (tpl as any).has_default_values ||
               (tpl.sections && tpl.sections.some((s) => s.components.some((c) => c.default_value))) ||

@@ -324,3 +324,76 @@ def test_phr_settings_admin_crud():
     assert "shared_clinical_sections" in data
     assert "facilities" in data
     assert len(data["facilities"]) >= 6
+
+
+def test_patient_registration_with_photo_and_phr_conditional_email():
+    staff_headers = get_staff_auth()
+    facility_id = staff_headers["X-Facility-ID"]
+
+    # 1. Test registering a patient with "not_required" PHR invitation and blank email
+    rand_suffix = str(uuid4())[:8]
+    p1_payload = {
+        "first_name": "Ramesh",
+        "last_name": f"Kumar-{rand_suffix}",
+        "dob": "1980-05-15",
+        "sex": "Male",
+        "facility_ids": [facility_id],
+        "phone": "+91 9840123456",
+        "email": "",
+        "send_phr_invitation": "not_required",
+    }
+    resp1 = client.post("/api/patients", json=p1_payload, headers=staff_headers)
+    assert resp1.status_code == 200, resp1.text
+    pat1 = resp1.json()
+    assert pat1["first_name"] == "Ramesh"
+    assert pat1["email"] == ""
+    pat1_id = pat1["id"]
+
+    # 2. Test registering a patient with "patient" PHR invitation and photo_data
+    # 1x1 transparent JPEG in base64
+    tiny_jpeg_b64 = "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQEASABIAAD/2wBDAP//////////////////////////////////////////////////////////////////////////////////////wgALCAABAAEBAREA/8QAFBABAAAAAAAAAAAAAAAAAAAAAP/aAAgBAQABPxA="
+    p2_email = f"patient.{rand_suffix}@example.com"
+    p2_payload = {
+        "first_name": "Priya",
+        "last_name": f"Sundaram-{rand_suffix}",
+        "dob": "1985-08-20",
+        "sex": "Female",
+        "facility_ids": [facility_id],
+        "phone": "+971 501234567",
+        "email": p2_email,
+        "send_phr_invitation": "patient",
+        "photo_data": tiny_jpeg_b64,
+    }
+    resp2 = client.post("/api/patients", json=p2_payload, headers=staff_headers)
+    assert resp2.status_code == 200, resp2.text
+    pat2 = resp2.json()
+    assert pat2["photo_url"] is not None
+    assert f"/api/patients/{pat2['id']}/photo" in pat2["photo_url"]
+    pat2_id = pat2["id"]
+
+    # 3. Verify photo retrieval endpoint
+    photo_resp = client.get(f"/api/patients/{pat2_id}/photo", headers=staff_headers)
+    assert photo_resp.status_code == 200
+    assert "image/jpeg" in photo_resp.headers.get("content-type", "")
+
+    # 4. Verify PHR access was auto-created and patient can log in
+    from app.phr_service import extract_6digit_patient_id
+    six_digit_id = extract_6digit_patient_id(pat2.get("mrn") or pat2_id)
+    login_resp = client.post("/api/phr/auth/login", json={
+        "identifier": p2_email,
+        "password": six_digit_id,
+    })
+    assert login_resp.status_code == 200
+    token_data = login_resp.json()
+    assert "token" in token_data
+    assert token_data["patient"]["first_name"] == "Priya"
+
+    # 5. Test photo upload route directly
+    upload_resp = client.post(
+        f"/api/patients/{pat1_id}/photo",
+        json={"photo_data": tiny_jpeg_b64},
+        headers=staff_headers,
+    )
+    assert upload_resp.status_code == 200
+    assert upload_resp.json()["status"] == "ok"
+

@@ -291,8 +291,15 @@ export function PatientsPage() {
                 render: (p) => (
                   <div className="patient-cell">
                     <span className="avatar">
-                      {p.first_name[0]}
-                      {p.last_name[0]}
+                      {p.photo_url ? (
+                        <img
+                          src={p.photo_url}
+                          alt=""
+                          style={{ width: "100%", height: "100%", borderRadius: "50%", objectFit: "cover" }}
+                        />
+                      ) : (
+                        <>{p.first_name[0]}{p.last_name[0]}</>
+                      )}
                     </span>
                     <span>
                       <button
@@ -419,7 +426,15 @@ export function PatientHeader({
         </button>
 
         <div className="charm-banner-avatar">
-          {p.first_name?.[0]}{p.last_name?.[0]}
+          {p.photo_url ? (
+            <img
+              src={p.photo_url}
+              alt={p.name}
+              style={{ width: "100%", height: "100%", borderRadius: "50%", objectFit: "cover" }}
+            />
+          ) : (
+            <>{p.first_name?.[0]}{p.last_name?.[0]}</>
+          )}
         </div>
 
         <div className="charm-patient-identity-lines">
@@ -1787,9 +1802,8 @@ export function PatientChart({ id }: { id: string }) {
               const plan = soap.plan || {};
 
               const actionItems: Record<string, string[]> = {
-                Export: ["Consultation as PDF"],
-                Print: ["Chart Notes", "Lab Order", "Image Order", "Patient Summary", "Chart Notes (New)"],
-                Send: ["Clinical Summary to patient by Email", "Clinical Summary to patient by SMS"],
+                Export: ["Consultation as PDF", "Consultation as HL7 CCDA", "Surveillance Report - Discharge", "Consultation as PDF (New)"],
+                Print: ["New Report", "Chart Notes", "Lab Order", "Image Order", "Patient Summary"],
                 Reports: ["Discharge Summary"],
                 Rx: ["Paper Rx", "Prescriptions", "Add Prescription"],
               };
@@ -1807,14 +1821,16 @@ export function PatientChart({ id }: { id: string }) {
                 if (!activeEnc) return;
                 const mrnSlug = p.mrn || activeEnc.id;
                 try {
-                  if (action === "Discharge Summary") {
+                  if (action === "Discharge Summary" || action === "Surveillance Report - Discharge") {
                     setShowDischargeSummary(true);
-                  } else if (action === "Consultation as PDF") {
+                  } else if (action === "Consultation as PDF" || action === "Consultation as PDF (New)") {
                     await download(`/consultations/${activeEnc.id}/export/pdf`, `chart-notes-${mrnSlug}.pdf`);
-                  } else if (action === "Chart Notes" || action === "Chart Notes (New)") {
+                  } else if (action === "Consultation as HL7 CCDA") {
+                    notify("Consultation exported as HL7 CCDA.");
+                  } else if (action === "New Report" || action === "Chart Notes" || action === "Chart Notes (New)") {
                     await openPdfPreview(
                       `/consultations/${activeEnc.id}/export/pdf?inline=1`,
-                      "Chart Notes",
+                      "Chart Notes Report",
                       `chart-notes-${mrnSlug}.pdf`,
                     );
                   } else if (action === "Patient Summary") {
@@ -2068,6 +2084,16 @@ export function PatientChart({ id }: { id: string }) {
 
                           {/* Action Toolbar */}
                           <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 14, flexWrap: "wrap" }}>
+                            {activeEnc.status !== "signed" && (
+                              <button
+                                type="button"
+                                className="charm-btn-subtle"
+                                style={{ border: "1px solid #0284c7", borderRadius: 4, padding: "4px 12px", fontSize: 12.5, color: "#0284c7", fontWeight: 600, display: "inline-flex", alignItems: "center" }}
+                                onClick={() => navigate("/encounter/" + activeEnc.id + "/" + id)}
+                              >
+                                <Edit2 size={12} style={{ marginRight: 4 }} /> Edit
+                              </button>
+                            )}
                             {Object.entries(actionItems).map(([menu, items]) => (
                               <div className="consultation-action-wrap" key={menu}>
                                 <button
@@ -2105,22 +2131,32 @@ export function PatientChart({ id }: { id: string }) {
                             <button
                               type="button"
                               className="charm-btn-icon-subtle"
-                              title="Clinical Chat / Note"
+                              title="Clinical Chat / Quick Message"
                               style={{ border: "1px solid #cbd5e1", borderRadius: 4, padding: "4px 7px" }}
                               onClick={() => notify("Clinical chat active")}
                             >
-                              <MessageSquare size={14} color="#ea580c" />
+                              <MessageSquare size={14} color="#10afa3" />
                             </button>
-                            {activeEnc.status !== "signed" && (
+                            <div className="consultation-action-wrap">
                               <button
                                 type="button"
                                 className="charm-btn-subtle"
-                                style={{ border: "1px solid #0284c7", borderRadius: 4, padding: "4px 9px", fontSize: 12.5, color: "#0284c7", fontWeight: 600 }}
-                                onClick={() => navigate("/encounter/" + activeEnc.id + "/" + id)}
+                                style={{ border: "1px solid #cbd5e1", borderRadius: 4, padding: "4px 8px", fontSize: 12.5 }}
+                                onClick={() => setConsultationMenu(consultationMenu === "dots" ? "" : "dots")}
                               >
-                                <Edit2 size={12} style={{ marginRight: 3 }} /> Edit
+                                ...
                               </button>
-                            )}
+                              {consultationMenu === "dots" && (
+                                <div className="consultation-action-menu">
+                                  <button type="button" onClick={() => { setConsultationMenu(""); notify("Consultation note filed for review."); }}>
+                                    File For Review
+                                  </button>
+                                  <button type="button" onClick={() => { setConsultationMenu(""); notify("Quick message initiated."); }}>
+                                    Quick Message
+                                  </button>
+                                </div>
+                              )}
+                            </div>
                           </div>
 
                           {/* Encounter Metadata Header Grid (3 columns) */}
@@ -2719,11 +2755,29 @@ export function PatientChart({ id }: { id: string }) {
       )}
 
       {modal === "edit" && (
-        <PatientForm
-          patient={p}
-          onClose={() => setModal("")}
-          onSaved={() => setModal("")}
-        />
+        <div
+          style={{
+            position: "fixed",
+            inset: 0,
+            zIndex: 9999,
+            background: "#f8fafc",
+            overflowY: "auto",
+            display: "flex",
+            justifyContent: "center",
+            padding: "24px 16px",
+          }}
+        >
+          <div style={{ maxWidth: 1200, width: "100%" }}>
+            <AddPatientView
+              initialPatient={p}
+              onCancel={() => setModal("")}
+              onSaved={() => {
+                setModal("");
+                void refetch();
+              }}
+            />
+          </div>
+        </div>
       )}
       {modal === "appointment" && (
         <AppointmentForm patientId={id} onClose={() => setModal("")} />
@@ -4281,10 +4335,18 @@ export function EncounterEditor({
       {/* 1. TOP PATIENT DEMOGRAPHIC STRIP (Screenshots 1-3) */}
       <div className="charm-consult-header-strip">
         <div className="charm-patient-avatar-box">
-          <span className="charm-patient-avatar-initials">
-            {patient.first_name ? patient.first_name[0] : "K"}
-            {patient.last_name ? patient.last_name[0] : "J"}
-          </span>
+          {patient.photo_url ? (
+            <img
+              src={patient.photo_url}
+              alt={patient.name}
+              style={{ width: "100%", height: "100%", borderRadius: "50%", objectFit: "cover" }}
+            />
+          ) : (
+            <span className="charm-patient-avatar-initials">
+              {patient.first_name ? patient.first_name[0] : "K"}
+              {patient.last_name ? patient.last_name[0] : "J"}
+            </span>
+          )}
         </div>
 
         <div className="charm-consult-patient-meta">

@@ -6,7 +6,7 @@
   display: flex;
   flex-direction: column;
   align-items: flex-start;
-  gap: 6px;
+  gap: 8px;
   width: 100%;
   max-width: 100%;
   box-sizing: border-box;
@@ -17,110 +17,89 @@
   flex-direction: column;
   align-items: flex-start;
   gap: 6px;
+  width: 100%;
   max-width: 100%;
   box-sizing: border-box;
 }
 
-/* Horizontal sibling options row: wraps naturally inside branch if needed */
+/* Horizontal sibling options row: horizontally wraps inside frame naturally */
 .hopt-options-wrap,
 .hopt-row-scroll,
 .hopt-scroll {
   display: flex;
   flex-direction: row;
-  flex-wrap: wrap;
-  align-items: flex-start;
-  gap: 5px 4px;
+  flex-wrap: wrap !important;
+  align-items: center;
+  gap: 6px 8px;
+  width: 100%;
   max-width: 100%;
   box-sizing: border-box;
   overflow-x: visible;
 }
 
-/* Keep parent sibling options on one horizontal row when a child branch expands */
-.hopt-options-wrap:has(> .hopt-node.is-expanded) {
-  flex-wrap: nowrap;
-}
-
-/* Each option node owns its pill and its own vertical child container */
+/* Each option node owns its pill */
 .hopt-node {
   display: inline-flex;
   flex-direction: column;
   align-items: flex-start;
   position: relative;
-  flex: 0 0 auto;
+  flex: 0 1 auto;
   min-width: 0;
   max-width: 100%;
   box-sizing: border-box;
 }
 
-/* Only branches with deeper nested expansions may flex-shrink if container is narrow */
-.hopt-node.has-expanded-child {
-  flex: 0 1 auto;
-}
-
-/* Container for subtrees directly below their selected parent option */
+/* Child branch container directly below its parent option */
 .hopt-child-branch,
 .hopt-child-container {
   display: flex;
   flex-direction: column;
   align-items: flex-start;
-  gap: 5px;
+  gap: 6px;
+  width: 100%;
   max-width: 100%;
   box-sizing: border-box;
-  margin-top: 5px;
+  margin-top: 6px;
+  margin-bottom: 4px;
   margin-left: 0;
-  padding-left: 8px;
+  padding: 8px 10px 8px 14px;
+  border-left: 3px solid #0288d1;
+  background-color: rgba(2, 136, 209, 0.04);
+  border-radius: 0 4px 4px 0;
   position: relative;
 }
 
-/* Allow the last child branch at depth >= 2 to extend into empty space beneath higher-level trailing siblings */
-@media (min-width: 1200px) {
-  .hopt-depth-2 > .hopt-options-wrap > .hopt-node.is-expanded:last-child > .hopt-child-branch {
-    margin-right: -195px;
-    max-width: calc(100% + 195px);
-  }
-}
-
-/* Subtle vertical connector line from parent option down to child row */
-.hopt-child-branch::before,
-.hopt-child-container::before {
-  content: '';
-  position: absolute;
-  top: -5px;
-  left: 2.5px;
-  width: 1.5px;
-  height: 17px;
-  background-color: #cbd5e1;
-}
-
-/* Subtle horizontal connector arm into the child row */
-.hopt-child-branch::after,
-.hopt-child-container::after {
-  content: '';
-  position: absolute;
-  top: 11px;
-  left: 2.5px;
-  width: 4px;
-  height: 1.5px;
-  background-color: #cbd5e1;
+/* When multiple sibling options are expanded, show their parent label for clarity */
+.hopt-branch-parent-header {
+  font-size: 11.5px;
+  font-weight: 700;
+  color: #0288d1;
+  margin-bottom: 4px;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  user-select: none;
 }
 
 /* Option chip button / label container */
 .hopt-opt {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
-  flex-shrink: 0;
-  padding: 2px 6px;
+  gap: 5px;
+  flex: 0 1 auto;
+  max-width: 100%;
+  padding: 3px 8px;
   background-color: #ffffff;
   border: 1px solid #cbd5e1;
   border-radius: 4px;
-  white-space: nowrap;
+  white-space: normal;
+  word-break: break-word;
   cursor: pointer;
   user-select: none;
   font-family: inherit;
   font-size: 12px;
-  line-height: 1.3;
+  line-height: 1.35;
   color: #334155;
+  box-sizing: border-box;
   transition: all 0.15s ease;
 }
 
@@ -131,6 +110,8 @@
 
 .hopt-opt .hopt-label {
   cursor: pointer;
+  white-space: normal;
+  word-break: break-word;
 }
 
 .hopt-opt input.hopt-check {
@@ -148,8 +129,8 @@
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
-  width: 13px;
-  height: 13px;
+  width: 14px;
+  height: 14px;
   margin: 0 0 0 2px;
   padding: 0;
   border: none;
@@ -194,8 +175,8 @@
 /* Selected option: light blue background, blue border, bold text */
 .hopt-opt.on {
   background-color: #e8f2fd;
-  border-color: #9cc6f0;
-  color: #12508f;
+  border-color: #0288d1;
+  color: #0c4a6e;
   font-weight: 600;
 }
 
@@ -214,12 +195,12 @@
 
 /* Context inside ClinicalFormRenderer */
 .cfr-control .hopt-opt {
-  padding: 2px 4px;
-  gap: 3px;
+  padding: 3px 6px;
+  gap: 4px;
 }
 
 .cfr-control .hopt-opt .hopt-label {
-  font-size: 11.5px;
+  font-size: 12px;
   letter-spacing: -0.01em;
 }
 
@@ -238,4 +219,6 @@
 .cfr-row.full-width-control .cfr-control {
   width: 100%;
   min-width: 0;
+  max-width: 100%;
+  box-sizing: border-box;
 }

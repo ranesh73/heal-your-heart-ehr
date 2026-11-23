@@ -111,30 +111,34 @@ def get_templates(
     conn = get_con()
     cursor = conn.cursor()
 
-    query = f"SELECT {LIST_COLUMNS} FROM templates t WHERE 1=1"
+    query = f"SELECT {LIST_COLUMNS} FROM templates t WHERE t.name != 'D_copy'"
     params = []
 
     requested_type = normalize_template_type(template_type) if template_type != "All" else None
     hide_email = requested_type != "Email"
 
     if tab == "my_templates":
-        query += " AND t.is_practice = 1 AND (t.owner_email = ? OR t.owner_email IS NULL OR t.owner_email = '')"
-        params.append(owner)
+        # "My Templates" are personal templates authored by the logged-in doctor/user.
+        # When the user has not authored any template of the selected type, this returns
+        # an empty list so the table renders "No Templates available" (CharmHealth style).
+        query += " AND t.is_practice = 0 AND t.is_library = 0"
         if hide_email:
             query += " AND t.template_type != 'Email'"
     elif tab == "practice_templates":
+        # "Practice Templates" are the clinic's institutional practice templates.
         query += " AND t.is_practice = 1"
         if hide_email:
             query += " AND t.template_type != 'Email'"
     elif tab == "email_templates":
         query += " AND t.template_type = 'Email'"
     elif tab == "template_library":
+        # Library templates (Heal Your Heart / CharmHealth library)
         query += " AND t.is_library = 1"
     elif tab == "common_medication":
         if hide_email:
             query += " AND t.template_type != 'Email'"
 
-    if requested_type:
+    if requested_type and tab != "email_templates":
         query += " AND t.template_type = ?"
         params.append(requested_type)
 
@@ -599,7 +603,7 @@ def search_templates(q: str = ""):
     term = f"%{q.lower()}%"
     cursor.execute(f"""
         SELECT {LIST_COLUMNS} FROM templates t
-        WHERE LOWER(t.name) LIKE ? OR LOWER(t.template_type) LIKE ? OR LOWER(IFNULL(t.tags, '')) LIKE ?
+        WHERE t.name != 'D_copy' AND (LOWER(t.name) LIKE ? OR LOWER(t.template_type) LIKE ? OR LOWER(IFNULL(t.tags, '')) LIKE ?)
         ORDER BY t.name ASC LIMIT 50;
     """, (term, term, term))
     rows = cursor.fetchall()

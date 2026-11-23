@@ -139,6 +139,7 @@ class Patient(Entity, Base):
     referral_source = Column(String(150), default='')
     communication_opt_in = Column(Boolean, default=False, nullable=False)
     active = Column(Boolean, default=True, nullable=False)
+    photo_url = Column(Text, default='', nullable=True)
 
 
 class PatientFacility(Base):

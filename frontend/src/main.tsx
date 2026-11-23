@@ -668,6 +668,10 @@ function Workspace() {
             ) : (
               <SettingsDashboard />
             ))}
+          {page === "templates" && (
+            <IndividualSettingPage categoryId="templates" optionId={parts[1] || "my_templates"} />
+          )}
+
           {page === "labs" && <LabsPage />}
           {page === "images" && <ImagesPage />}
           {page === "documents" && <DocumentsPage />}
@@ -691,6 +695,7 @@ function Workspace() {
             "communication",
             "administration",
             "settings",
+            "templates",
             "labs",
             "images",
             "documents",

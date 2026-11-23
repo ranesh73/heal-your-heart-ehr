@@ -14,12 +14,28 @@ export function DiagnosisTemplatesModal({
   onClose: () => void;
   onAdd: (diagnoses: { code: string; diagnosis: string }[], comment?: string) => void;
 }) {
-  const [activeTab, setActiveTab] = useState<"D_copy" | "Vasomeditech EECP Diagnosis">("D_copy");
+  const [activeTab, setActiveTab] = useState<"Vasomeditech EECP Diagnosis" | "CAD & Ischemic Heart Disease">("Vasomeditech EECP Diagnosis");
   const [checkedMap, setCheckedMap] = useState<Record<string, boolean>>({});
   const [comment, setComment] = useState("");
 
   const templatesData: Record<string, { code: string; name: string }[]> = {
-    D_copy: [
+    "Vasomeditech EECP Diagnosis": [
+      { code: "41702007", name: "CAD - Coronary artery disease" },
+      { code: "I25.9", name: "Chronic ischemic heart disease" },
+      { code: "I25.118", name: "Stable angina" },
+      { code: "I20.8", name: "Microvascular angina" },
+      { code: "I20.0", name: "Unstable angina" },
+      { code: "I42.0", name: "DCM - Dilated cardiomyopathy" },
+      { code: "I50.9", name: "Refractory heart failure" },
+      { code: "I25.5", name: "Ischemic cardiomyopathy" },
+      { code: "373144005", name: "Single vessel coronary artery disease" },
+      { code: "373145006", name: "Double vessel coronary artery disease" },
+      { code: "373146007", name: "Triple vessel coronary artery disease" },
+      { code: "I25.2", name: "ECG: old myocardial infarction" },
+      { code: "E08.9", name: "MRDM" },
+      { code: "I82.409", name: "DVT - Deep vein thrombosis" },
+    ],
+    "CAD & Ischemic Heart Disease": [
       { code: "41702007", name: "CAD - Coronary artery disease" },
       { code: "I25.9", name: "Chronic ischemic heart disease" },
       { code: "I25.118", name: "Stable angina" },
@@ -27,16 +43,6 @@ export function DiagnosisTemplatesModal({
       { code: "I20.8", name: "Microvascular angina" },
       { code: "I20.0", name: "Unstable angina" },
       { code: "I25.2", name: "ECG: old myocardial infarction" },
-    ],
-    "Vasomeditech EECP Diagnosis": [
-      { code: "I42.0", name: "DCM - Dilated cardiomyopathy" },
-      { code: "E08.9", name: "MRDM" },
-      { code: "I82.409", name: "DVT - Deep vein thrombosis" },
-      { code: "373144005", name: "Single vessel coronary artery disease" },
-      { code: "373145006", name: "Double vessel coronary artery disease" },
-      { code: "373146007", name: "Triple vessel coronary artery disease" },
-      { code: "I50.9", name: "Refractory heart failure" },
-      { code: "I25.5", name: "Ischemic cardiomyopathy" },
     ],
   };
 
@@ -86,17 +92,17 @@ export function DiagnosisTemplatesModal({
             <div className="charm-tpl-group-title">PRACTICE TEMPLATES</div>
             <button
               type="button"
-              className={`charm-tpl-tab-item ${activeTab === "D_copy" ? "active" : ""}`}
-              onClick={() => setActiveTab("D_copy")}
-            >
-              D_copy
-            </button>
-            <button
-              type="button"
               className={`charm-tpl-tab-item ${activeTab === "Vasomeditech EECP Diagnosis" ? "active" : ""}`}
               onClick={() => setActiveTab("Vasomeditech EECP Diagnosis")}
             >
               Vasomeditech EECP Diagnosis
+            </button>
+            <button
+              type="button"
+              className={`charm-tpl-tab-item ${activeTab === "CAD & Ischemic Heart Disease" ? "active" : ""}`}
+              onClick={() => setActiveTab("CAD & Ischemic Heart Disease")}
+            >
+              CAD &amp; Ischemic Heart Disease
             </button>
 
             <div className="charm-tpl-group-title" style={{ marginTop: 24 }}>MY TEMPLATES</div>

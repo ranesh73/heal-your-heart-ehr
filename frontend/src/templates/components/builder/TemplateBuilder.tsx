@@ -593,11 +593,12 @@ export const TemplateBuilder: React.FC<TemplateBuilderProps> = ({
                     overflow: 'hidden'
                   }}
                 >
-                  {/* Section Header with Orange Title */}
+                  {/* Section Header with Pastel Heading Bar */}
                   <div
                     style={{
-                      backgroundColor: '#fffaf5',
-                      borderBottom: '1px solid #fed7aa',
+                      backgroundColor: ['#F0E5F8', '#E8F5E9', '#E1ECFA', '#F8E1EA', '#FFF7ED', '#F4F3E6', '#FFEFE6'][sIdx % 7],
+                      borderLeft: `4px solid ${['#C6B3CA', '#AECBB8', '#C1DBDF', '#E79897', '#EBDEC0', '#C6C09C', '#FCAC83'][sIdx % 7]}`,
+                      borderBottom: '1px solid rgba(0, 0, 0, 0.08)',
                       padding: '10px 16px',
                       display: 'flex',
                       alignItems: 'center',
@@ -605,7 +606,7 @@ export const TemplateBuilder: React.FC<TemplateBuilderProps> = ({
                     }}
                   >
                     <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flex: 1 }}>
-                      <Layers size={16} style={{ color: '#f57c00' }} />
+                      <Layers size={16} style={{ color: '#475569' }} />
                       <input
                         type="text"
                         value={section.title}
@@ -613,15 +614,17 @@ export const TemplateBuilder: React.FC<TemplateBuilderProps> = ({
                         style={{
                           fontSize: '14px',
                           fontWeight: 700,
-                          color: '#c2410c',
+                          color: '#0f172a',
                           border: 'none',
                           background: 'transparent',
                           outline: 'none',
                           width: '100%',
-                          maxWidth: '400px'
+                          maxWidth: '400px',
+                          textTransform: 'uppercase',
+                          letterSpacing: '0.4px'
                         }}
                       />
-                      <span style={{ fontSize: '11px', color: '#9ca3af', backgroundColor: '#ffedd5', padding: '2px 8px', borderRadius: '10px', textTransform: 'uppercase', fontWeight: 600 }}>
+                      <span style={{ fontSize: '11px', color: '#475569', backgroundColor: 'rgba(255,255,255,0.7)', padding: '2px 8px', borderRadius: '10px', textTransform: 'uppercase', fontWeight: 600 }}>
                         {section.category || 'Custom'}
                       </span>
                     </div>
