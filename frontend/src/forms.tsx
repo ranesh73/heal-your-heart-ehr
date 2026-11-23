@@ -562,6 +562,8 @@ export function AppointmentForm({
   initialProviderId,
   initialResourceId,
   initialDuration,
+  isEecpMode: propIsEecpMode,
+  initialVisitType,
   waitingListEntry,
   onBooked,
 }: {
@@ -573,6 +575,8 @@ export function AppointmentForm({
   initialProviderId?: string;
   initialResourceId?: string;
   initialDuration?: number;
+  isEecpMode?: boolean;
+  initialVisitType?: string;
   waitingListEntry?: Row;
   onBooked?: (date?: string) => void;
 }) {
@@ -599,11 +603,31 @@ export function AppointmentForm({
   const [showPatientDropdown, setShowPatientDropdown] = useState(false);
   const patientDropdownRef = useRef<HTMLDivElement>(null);
 
-  // Provider and resource
-  const [providerId, setProviderId] = useState(
-    appointment?.provider_id || initialProviderId || plan?.therapist_id || (staff.find((s) => ["doctor", "therapist"].includes(s.role))?.id || "")
-  );
   const [resourceId, setResourceId] = useState(appointment?.resource_id || initialResourceId || "");
+
+  const isEecp = Boolean(
+    propIsEecpMode ||
+    plan ||
+    (initialResourceId && resources.find((r) => r.id === initialResourceId)?.name?.toLowerCase().includes("eecp")) ||
+    (resourceId && resources.find((r) => r.id === resourceId)?.name?.toLowerCase().includes("eecp"))
+  );
+
+  // Provider and resource
+  const [providerId, setProviderId] = useState(() => {
+    if (appointment?.provider_id) return appointment.provider_id;
+    if (initialProviderId) return initialProviderId;
+    if (plan?.therapist_id) return plan.therapist_id;
+    const isEecpInit = Boolean(
+      propIsEecpMode ||
+      plan ||
+      (initialResourceId && resources.find((r) => r.id === initialResourceId)?.name?.toLowerCase().includes("eecp"))
+    );
+    if (isEecpInit) {
+      return "";
+    }
+    const docOrTherapist = staff.find((s) => s.active !== false && ["doctor", "therapist"].includes(s.role));
+    return docOrTherapist?.id || "";
+  });
 
   // Real-time therapist & room availability engine state
   const [availableData, setAvailableData] = useState<{
@@ -645,9 +669,16 @@ export function AppointmentForm({
   const [availableVisitTypes, setAvailableVisitTypes] = useState<{ id: string; name: string; mode?: string; duration?: number; color?: string }[]>(() => {
     try {
       const saved = localStorage.getItem("hyh_visit_types");
-      if (saved) return JSON.parse(saved);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (!parsed.some((vt: any) => vt.name === "EECP Therapy Session")) {
+          parsed.unshift({ id: "vt0", name: "EECP Therapy Session", duration: 60 });
+        }
+        return parsed;
+      }
     } catch { }
     return [
+      { id: "vt0", name: "EECP Therapy Session", duration: 60 },
       { id: "vt1", name: "Cardiology Consultation", duration: 30 },
       { id: "vt2", name: "EECP session", duration: 60 },
       { id: "vt3", name: "EECP Treatment", duration: 60 },
@@ -737,11 +768,42 @@ export function AppointmentForm({
   const [duration, setDuration] = useState<number>(
     appointment
       ? (new Date(appointment.end_at).getTime() - new Date(appointment.start_at).getTime()) / 60000
-      : initialDuration || (plan ? 60 : 30)
+      : initialDuration || (isEecp || plan ? 60 : 30)
   );
-  const [visitType, setVisitType] = useState(
-    appointment?.visit_type || waitingListEntry?.visit_type || (plan ? "EECP session" : "Cardiology Consultation")
-  );
+  const [visitType, setVisitType] = useState(() => {
+    if (appointment?.visit_type) return appointment.visit_type;
+    if (waitingListEntry?.visit_type) return waitingListEntry.visit_type;
+    if (initialVisitType) return initialVisitType;
+    if (isEecp || plan) return "EECP Therapy Session";
+    return "Cardiology Consultation";
+  });
+
+  useEffect(() => {
+    if (resourceId) {
+      const resName = resources.find((r) => r.id === resourceId)?.name?.toLowerCase() || "";
+      if (resName.includes("eecp")) {
+        if (!visitType || visitType === "Cardiology Consultation") {
+          setVisitType("EECP Therapy Session");
+          setDuration((prev) => (prev === 30 ? 60 : prev));
+        }
+        if (providerId) {
+          const prv = staff.find((s) => s.id === providerId);
+          if (prv && prv.role !== "therapist") {
+            setProviderId("");
+          }
+        }
+      }
+    }
+  }, [resourceId, resources]);
+
+  useEffect(() => {
+    if (isEecp && providerId) {
+      const prv = staff.find((s) => s.id === providerId);
+      if (prv && prv.role !== "therapist") {
+        setProviderId("");
+      }
+    }
+  }, [isEecp, providerId, staff]);
   const [mode, setMode] = useState<"In person" | "Phone" | "Video">(() => {
     const savedMode = (appointment?.mode || waitingListEntry?.mode || "").trim().toLowerCase();
     if (savedMode.includes("phone")) return "Phone";
@@ -1229,49 +1291,21 @@ export function AppointmentForm({
 
             {!waitingListEntry && (
               <div className="charm-form-row" style={{ alignItems: "flex-start" }}>
-                <div style={{ display: "flex", flexDirection: "column", gap: 4, width: "100%" }}>
-                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 2 }}>
-                    <label className="charm-field-label" style={{ width: "auto", margin: 0, fontWeight: 600 }}>
-                      Provider / Therapist *
-                    </label>
-                    {availableData && (
-                      <div
-                        style={{
-                          display: "inline-flex",
-                          alignItems: "center",
-                          gap: 6,
-                          fontSize: 11.5,
-                          padding: "2px 8px",
-                          borderRadius: 12,
-                          background: availableData.available_count > 0 ? "#ecfdf5" : "#fef2f2",
-                          color: availableData.available_count > 0 ? "#065f46" : "#991b1b",
-                          border: `1px solid ${availableData.available_count > 0 ? "#a7f3d0" : "#fecaca"}`,
-                          fontWeight: 500,
-                        }}
-                      >
-                        <span
-                          style={{
-                            width: 6,
-                            height: 6,
-                            borderRadius: "50%",
-                            background: availableData.available_count > 0 ? "#10b981" : "#ef4444",
-                            display: "inline-block",
-                          }}
-                        />
-                        {availableData.available_count} Therapist{availableData.available_count === 1 ? "" : "s"} Available for {availableData.start_time} – {availableData.end_time}
-                      </div>
-                    )}
-                  </div>
+                <label className="charm-field-label" style={{ paddingTop: 6 }}>
+                  {isEecp ? "Therapist *" : "Provider *"}
+                </label>
+                <div style={{ display: "flex", flexDirection: "column", width: "100%" }}>
                   <select
-                    aria-label="Provider / therapist"
+                    aria-label={isEecp ? "Therapist" : "Provider / therapist"}
                     className="charm-field-input"
+                    style={{ width: "100%" }}
                     value={providerId}
                     onChange={(e) => setProviderId(e.target.value)}
                     required
                   >
-                    <option value="">--Select--</option>
-                    {/* Doctors */}
-                    {staff.filter((s) => s.role === "doctor" && s.active !== false).length > 0 && (
+                    <option value="">{isEecp ? "-- Select Therapist --" : "-- Select --"}</option>
+                    {/* Doctors (strictly excluded in EECP mode) */}
+                    {!isEecp && staff.filter((s) => s.role === "doctor" && s.active !== false).length > 0 && (
                       <optgroup label="Doctors / Physicians">
                         {staff
                           .filter((s) => s.role === "doctor" && s.active !== false)
@@ -1301,6 +1335,24 @@ export function AppointmentForm({
                       </optgroup>
                     )}
                   </select>
+                  {availableData && (
+                    <div
+                      className="mt-1.5 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-emerald-50 text-emerald-700 border border-emerald-200"
+                      style={{ width: "fit-content" }}
+                    >
+                      <span
+                        style={{
+                          width: 6,
+                          height: 6,
+                          borderRadius: "50%",
+                          background: availableData.available_count > 0 ? "#10b981" : "#ef4444",
+                          display: "inline-block",
+                          marginRight: 6,
+                        }}
+                      />
+                      {availableData.available_count} Therapist{availableData.available_count === 1 ? "" : "s"} Available for {availableData.start_time} – {availableData.end_time}
+                    </div>
+                  )}
                 </div>
               </div>
             )}

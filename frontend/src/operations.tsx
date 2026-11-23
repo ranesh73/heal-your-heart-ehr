@@ -454,14 +454,14 @@ function AppointmentStatusDropdown({
     (selectedOption.label.toLowerCase().includes("checked in")
       ? "#008000"
       : selectedOption.label.toLowerCase().includes("completed")
-      ? "#64748b"
-      : selectedOption.label.toLowerCase().includes("confirmed")
-      ? "#84cc16"
-      : selectedOption.label.toLowerCase().includes("eecp")
-      ? "#78350f"
-      : selectedOption.label.toLowerCase().includes("cancelled")
-      ? "#ef4444"
-      : "#7c3aed");
+        ? "#64748b"
+        : selectedOption.label.toLowerCase().includes("confirmed")
+          ? "#84cc16"
+          : selectedOption.label.toLowerCase().includes("eecp")
+            ? "#78350f"
+            : selectedOption.label.toLowerCase().includes("cancelled")
+              ? "#ef4444"
+              : "#7c3aed");
 
   return (
     <>
@@ -500,19 +500,19 @@ function AppointmentStatusDropdown({
         {(appointment.status === "checked-in" ||
           appointment.status_label === "Checked in" ||
           appointment.checked_in_at) && (
-          <span style={{ fontSize: 11, color: "#475569" }}>
-            at{" "}
-            {appointment.checked_in_at
-              ? new Date(appointment.checked_in_at)
+            <span style={{ fontSize: 11, color: "#475569" }}>
+              at{" "}
+              {appointment.checked_in_at
+                ? new Date(appointment.checked_in_at)
                   .toLocaleTimeString([], {
                     hour: "2-digit",
                     minute: "2-digit",
                     hour12: true,
                   })
                   .toLowerCase()
-              : "10:47 am"}
-          </span>
-        )}
+                : "10:47 am"}
+            </span>
+          )}
       </div>
       {open &&
         position &&
@@ -704,7 +704,7 @@ function NewWaitingListModal({
         const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
         return `${months[dt.getMonth()]} ${String(dt.getDate()).padStart(2, "0")}, ${dt.getFullYear()}`;
       }
-    } catch {}
+    } catch { }
     return dStr;
   };
 
@@ -935,373 +935,373 @@ function NewWaitingListModal({
                           fontSize: 13,
                         }}
                       />
-                    {patientQuery && (
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setPatientQuery("");
-                          setSelPatient("");
-                          setShowPatientDropdown(true);
-                        }}
-                        style={{ position: "absolute", right: 8, top: "50%", transform: "translateY(-50%)", background: "transparent", border: "none", color: "#94a3b8", cursor: "pointer", fontSize: 13 }}
-                      >
-                        ✕
-                      </button>
-                    )}
-                  </div>
-                  <button
-                    type="button"
-                    style={{ background: "#f59e0b", color: "#fff", border: "none", borderRadius: 4, width: 28, height: 28, fontSize: 16, fontWeight: "bold", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}
-                    onClick={() => setShowQuickNewPatient(true)}
-                    title="Add Patient"
-                  >
-                    +
-                  </button>
-
-                  {showPatientDropdown && (
-                    <div style={{ position: "absolute", top: "100%", left: 0, right: 34, background: "#fff", border: "1px solid #cbd5e1", borderRadius: 4, boxShadow: "0 4px 12px rgba(0,0,0,0.15)", maxHeight: 180, overflowY: "auto", zIndex: 100, marginTop: 4 }}>
-                      {filteredPatients.length === 0 ? (
-                        <div style={{ padding: "8px 12px", color: "#64748b", fontSize: 12 }}>No matching patients found.</div>
-                      ) : (
-                        filteredPatients.map((p) => (
-                          <div
-                            key={p.id}
-                            style={{ padding: "6px 10px", cursor: "pointer", borderBottom: "1px solid #f1f5f9", fontSize: 12 }}
-                            onMouseDown={(e) => {
-                              e.preventDefault();
-                              setSelPatient(p.id);
-                              setPatientQuery(`${p.name} (${p.mrn})`);
-                              setShowPatientDropdown(false);
-                            }}
-                            onClick={() => {
-                              setSelPatient(p.id);
-                              setPatientQuery(`${p.name} (${p.mrn})`);
-                              setShowPatientDropdown(false);
-                            }}
-                          >
-                            <div style={{ fontWeight: 600, color: "#0f172a" }}>{p.name}</div>
-                            <div style={{ color: "#64748b", fontSize: 11 }}>ID: {p.mrn} {p.phone ? `• Ph: ${p.phone}` : ""}</div>
-                          </div>
-                        ))
+                      {patientQuery && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setPatientQuery("");
+                            setSelPatient("");
+                            setShowPatientDropdown(true);
+                          }}
+                          style={{ position: "absolute", right: 8, top: "50%", transform: "translateY(-50%)", background: "transparent", border: "none", color: "#94a3b8", cursor: "pointer", fontSize: 13 }}
+                        >
+                          ✕
+                        </button>
                       )}
                     </div>
-                  )}
-                </div>
-              </div>
-
-              {/* Provider * */}
-              <div style={{ display: "grid", gridTemplateColumns: "140px 1fr", alignItems: "center", gap: 12 }}>
-                <label style={{ textAlign: "right", fontSize: 13, color: "#334155", fontWeight: 500 }}>
-                  Provider <span style={{ color: "#ef4444" }}>*</span>
-                </label>
-                <select
-                  value={providerId}
-                  onChange={(e) => setProviderId(e.target.value)}
-                  style={{ width: "100%", padding: "6px 10px", border: "1px solid #cbd5e1", borderRadius: 4, fontSize: 13, background: "#fff" }}
-                >
-                  <option value="">--Select--</option>
-                  {staff.filter((s) => ["doctor", "therapist"].includes(s.role)).map((s) => (
-                    <option key={s.id} value={s.id}>{s.name}</option>
-                  ))}
-                </select>
-              </div>
-
-              {/* Visit Type */}
-              <div style={{ display: "grid", gridTemplateColumns: "140px 1fr", alignItems: "center", gap: 12 }}>
-                <label style={{ textAlign: "right", fontSize: 13, color: "#334155", fontWeight: 500 }}>Visit Type</label>
-                <select
-                  value={visitType}
-                  onChange={(e) => setVisitType(e.target.value)}
-                  style={{ width: "100%", padding: "6px 10px", border: "1px solid #cbd5e1", borderRadius: 4, fontSize: 13, background: "#fff" }}
-                >
-                  <option value="--Select--">--Select--</option>
-                  <option value="Cardiology Consultation">Cardiology Consultation</option>
-                  <option value="EECP session">EECP session</option>
-                  <option value="EECP Treatment">EECP Treatment</option>
-                  <option value="Follow-up Visit">Follow-up Visit</option>
-                  <option value="New Patient Visit">New Patient Visit</option>
-                  <option value="Telehealth Video Consult">Telehealth Video Consult</option>
-                  <option value="Walk-in visits">Walk-in visits</option>
-                  <option value="EECP 15th Day Review">EECP 15th Day Review</option>
-                </select>
-              </div>
-
-              {/* Resource */}
-              <div style={{ display: "grid", gridTemplateColumns: "140px 1fr", alignItems: "center", gap: 12 }}>
-                <label style={{ textAlign: "right", fontSize: 13, color: "#334155", fontWeight: 500 }}>Resource</label>
-                <select
-                  value={resource}
-                  onChange={(e) => setResource(e.target.value)}
-                  style={{ width: "100%", padding: "6px 10px", border: "1px solid #cbd5e1", borderRadius: 4, fontSize: 13, background: "#fff" }}
-                >
-                  <option value="--Select--">--Select--</option>
-                  <option value="EECP Bed 1">EECP Bed 1</option>
-                  <option value="EECP Bed 2">EECP Bed 2</option>
-                  <option value="EECP Bed 3">EECP Bed 3</option>
-                  <option value="EECP Bed 4">EECP Bed 4</option>
-                  <option value="Consultation Room 1">Consultation Room 1</option>
-                  <option value="Consultation Room 2">Consultation Room 2</option>
-                </select>
-              </div>
-
-              {/* Appointment Mode */}
-              <div style={{ display: "grid", gridTemplateColumns: "140px 1fr", alignItems: "center", gap: 12 }}>
-                <label style={{ textAlign: "right", fontSize: 13, color: "#334155", fontWeight: 500 }}>Appointment Mode</label>
-                <div style={{ display: "flex", gap: 16, alignItems: "center" }}>
-                  <label style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 13, cursor: "pointer" }}>
-                    <input
-                      type="radio"
-                      name="wl_appt_mode"
-                      checked={apptMode === "In Person"}
-                      onChange={() => setApptMode("In Person")}
-                      style={{ accentColor: "#009688" }}
-                    />
-                    <span>In Person</span>
-                  </label>
-                  <label style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 13, cursor: "pointer" }}>
-                    <input
-                      type="radio"
-                      name="wl_appt_mode"
-                      checked={apptMode === "Phone Call"}
-                      onChange={() => setApptMode("Phone Call")}
-                      style={{ accentColor: "#009688" }}
-                    />
-                    <span>Phone Call</span>
-                  </label>
-                </div>
-              </div>
-
-              {/* Date Preference */}
-              <div style={{ display: "grid", gridTemplateColumns: "140px 1fr", alignItems: "center", gap: 12 }}>
-                <label style={{ textAlign: "right", fontSize: 13, color: "#334155", fontWeight: 500 }}>Date Preference</label>
-                <div style={{ display: "flex", gap: 16, alignItems: "center" }}>
-                  <label style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 13, cursor: "pointer" }}>
-                    <input
-                      type="radio"
-                      name="wl_date_pref"
-                      checked={datePreference === "Specific Date(s)"}
-                      onChange={() => setDatePreference("Specific Date(s)")}
-                      style={{ accentColor: "#009688" }}
-                    />
-                    <span>Specific Date(s)</span>
-                  </label>
-                  <label style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 13, cursor: "pointer" }}>
-                    <input
-                      type="radio"
-                      name="wl_date_pref"
-                      checked={datePreference === "Period"}
-                      onChange={() => setDatePreference("Period")}
-                      style={{ accentColor: "#009688" }}
-                    />
-                    <span>Period</span>
-                  </label>
-                </div>
-              </div>
-
-              {/* Date Inputs based on Date Preference */}
-              {datePreference === "Specific Date(s)" ? (
-                <>
-                  <div style={{ display: "grid", gridTemplateColumns: "140px 1fr", alignItems: "center", gap: 12 }}>
-                    <label style={{ textAlign: "right", fontSize: 13, color: "#334155" }}>Option 1</label>
-                    <div style={{ display: "flex", width: 180, position: "relative" }}>
-                      <input
-                        type="text"
-                        value={opt1}
-                        onChange={(e) => setOpt1(e.target.value)}
-                        style={{ width: "100%", padding: "5px 8px", border: "1px solid #cbd5e1", borderRadius: "4px 0 0 4px", fontSize: 13 }}
-                      />
-                      <input
-                        type="date"
-                        ref={datePickerRef1}
-                        value={opt1Raw}
-                        onChange={(e) => {
-                          setOpt1Raw(e.target.value);
-                          setOpt1(formatDisplayDate(e.target.value));
-                        }}
-                        style={{ position: "absolute", opacity: 0, width: 0, height: 0, pointerEvents: "none" }}
-                      />
-                      <button
-                        type="button"
-                        onClick={() => datePickerRef1.current?.showPicker?.()}
-                        style={{ background: "#f8fafc", border: "1px solid #cbd5e1", borderLeft: "none", borderRadius: "0 4px 4px 0", padding: "5px 8px", cursor: "pointer", color: "#64748b" }}
-                      >
-                        📅
-                      </button>
-                    </div>
-                  </div>
-                  <div style={{ display: "grid", gridTemplateColumns: "140px 1fr", alignItems: "center", gap: 12 }}>
-                    <label style={{ textAlign: "right", fontSize: 13, color: "#334155" }}>Option 2</label>
-                    <div style={{ display: "flex", width: 180, position: "relative" }}>
-                      <input
-                        type="text"
-                        value={opt2}
-                        onChange={(e) => setOpt2(e.target.value)}
-                        style={{ width: "100%", padding: "5px 8px", border: "1px solid #cbd5e1", borderRadius: "4px 0 0 4px", fontSize: 13 }}
-                      />
-                      <input
-                        type="date"
-                        ref={datePickerRef2}
-                        value={opt2Raw}
-                        onChange={(e) => {
-                          setOpt2Raw(e.target.value);
-                          setOpt2(formatDisplayDate(e.target.value));
-                        }}
-                        style={{ position: "absolute", opacity: 0, width: 0, height: 0, pointerEvents: "none" }}
-                      />
-                      <button
-                        type="button"
-                        onClick={() => datePickerRef2.current?.showPicker?.()}
-                        style={{ background: "#f8fafc", border: "1px solid #cbd5e1", borderLeft: "none", borderRadius: "0 4px 4px 0", padding: "5px 8px", cursor: "pointer", color: "#64748b" }}
-                      >
-                        📅
-                      </button>
-                    </div>
-                  </div>
-                  <div style={{ display: "grid", gridTemplateColumns: "140px 1fr", alignItems: "center", gap: 12 }}>
-                    <label style={{ textAlign: "right", fontSize: 13, color: "#334155" }}>Option 3</label>
-                    <div style={{ display: "flex", width: 180, position: "relative" }}>
-                      <input
-                        type="text"
-                        value={opt3}
-                        onChange={(e) => setOpt3(e.target.value)}
-                        style={{ width: "100%", padding: "5px 8px", border: "1px solid #cbd5e1", borderRadius: "4px 0 0 4px", fontSize: 13 }}
-                      />
-                      <input
-                        type="date"
-                        ref={datePickerRef3}
-                        value={opt3Raw}
-                        onChange={(e) => {
-                          setOpt3Raw(e.target.value);
-                          setOpt3(formatDisplayDate(e.target.value));
-                        }}
-                        style={{ position: "absolute", opacity: 0, width: 0, height: 0, pointerEvents: "none" }}
-                      />
-                      <button
-                        type="button"
-                        onClick={() => datePickerRef3.current?.showPicker?.()}
-                        style={{ background: "#f8fafc", border: "1px solid #cbd5e1", borderLeft: "none", borderRadius: "0 4px 4px 0", padding: "5px 8px", cursor: "pointer", color: "#64748b" }}
-                      >
-                        📅
-                      </button>
-                    </div>
-                  </div>
-                </>
-              ) : (
-                <>
-                  <div style={{ display: "grid", gridTemplateColumns: "140px 1fr", alignItems: "center", gap: 12 }}>
-                    <label style={{ textAlign: "right", fontSize: 13, color: "#334155" }}>From Date</label>
-                    <div style={{ display: "flex", width: 180, position: "relative" }}>
-                      <input
-                        type="text"
-                        value={fromDate}
-                        onChange={(e) => setFromDate(e.target.value)}
-                        style={{ width: "100%", padding: "5px 8px", border: "1px solid #cbd5e1", borderRadius: "4px 0 0 4px", fontSize: 13 }}
-                      />
-                      <input
-                        type="date"
-                        ref={fromDatePickerRef}
-                        value={fromDateRaw}
-                        onChange={(e) => {
-                          setFromDateRaw(e.target.value);
-                          setFromDate(formatDisplayDate(e.target.value));
-                        }}
-                        style={{ position: "absolute", opacity: 0, width: 0, height: 0, pointerEvents: "none" }}
-                      />
-                      <button
-                        type="button"
-                        onClick={() => fromDatePickerRef.current?.showPicker?.()}
-                        style={{ background: "#f8fafc", border: "1px solid #cbd5e1", borderLeft: "none", borderRadius: "0 4px 4px 0", padding: "5px 8px", cursor: "pointer", color: "#64748b" }}
-                      >
-                        📅
-                      </button>
-                    </div>
-                  </div>
-                  <div style={{ display: "grid", gridTemplateColumns: "140px 1fr", alignItems: "center", gap: 12 }}>
-                    <label style={{ textAlign: "right", fontSize: 13, color: "#334155" }}>To Date</label>
-                    <div style={{ display: "flex", width: 180, position: "relative" }}>
-                      <input
-                        type="text"
-                        value={toDate}
-                        onChange={(e) => setToDate(e.target.value)}
-                        style={{ width: "100%", padding: "5px 8px", border: "1px solid #cbd5e1", borderRadius: "4px 0 0 4px", fontSize: 13 }}
-                      />
-                      <input
-                        type="date"
-                        ref={toDatePickerRef}
-                        value={toDateRaw}
-                        onChange={(e) => {
-                          setToDateRaw(e.target.value);
-                          setToDate(formatDisplayDate(e.target.value));
-                        }}
-                        style={{ position: "absolute", opacity: 0, width: 0, height: 0, pointerEvents: "none" }}
-                      />
-                      <button
-                        type="button"
-                        onClick={() => toDatePickerRef.current?.showPicker?.()}
-                        style={{ background: "#f8fafc", border: "1px solid #cbd5e1", borderLeft: "none", borderRadius: "0 4px 4px 0", padding: "5px 8px", cursor: "pointer", color: "#64748b" }}
-                      >
-                        📅
-                      </button>
-                    </div>
-                  </div>
-                </>
-              )}
-
-              {/* Time Preference */}
-              <div style={{ display: "grid", gridTemplateColumns: "140px 1fr", alignItems: "center", gap: 12 }}>
-                <label style={{ textAlign: "right", fontSize: 13, color: "#334155", fontWeight: 500 }}>Time Preference</label>
-                <select
-                  value={timePreference}
-                  onChange={(e) => setTimePreference(e.target.value)}
-                  style={{ width: "100%", padding: "6px 10px", border: "1px solid #cbd5e1", borderRadius: 4, fontSize: 13, background: "#fff" }}
-                >
-                  <option value="Any Time">Any Time</option>
-                  <option value="Morning">Morning</option>
-                  <option value="Afternoon">Afternoon</option>
-                  <option value="Evening">Evening</option>
-                </select>
-              </div>
-
-              {/* Reason */}
-              <div style={{ display: "grid", gridTemplateColumns: "140px 1fr", alignItems: "flex-start", gap: 12 }}>
-                <label style={{ textAlign: "right", fontSize: 13, color: "#334155", fontWeight: 500, paddingTop: 4 }}>Reason</label>
-                <textarea
-                  value={reason}
-                  onChange={(e) => setReason(e.target.value)}
-                  rows={2}
-                  style={{ width: "100%", padding: "6px 10px", border: "1px solid #cbd5e1", borderRadius: 4, fontSize: 13, resize: "vertical" }}
-                />
-              </div>
-
-              {/* Actions Footer */}
-              <div style={{ display: "grid", gridTemplateColumns: "140px 1fr", alignItems: "center", gap: 12, marginTop: 8 }}>
-                <div></div>
-                <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                  {err && (
-                    <div style={{ color: "#dc2626", fontSize: 12.5, fontWeight: 500 }}>
-                      {err}
-                    </div>
-                  )}
-                  <div style={{ display: "flex", gap: 8 }}>
-                    <button
-                      type="submit"
-                      style={{ background: "#f59e0b", color: "#fff", border: "none", borderRadius: 4, padding: "7px 20px", fontSize: 13, fontWeight: 600, cursor: "pointer" }}
-                    >
-                      {initialEntry ? "Update" : "Confirm"}
-                    </button>
                     <button
                       type="button"
-                      onClick={onClose}
-                      style={{ background: "#f1f5f9", color: "#475569", border: "1px solid #cbd5e1", borderRadius: 4, padding: "7px 18px", fontSize: 13, cursor: "pointer" }}
+                      style={{ background: "#f59e0b", color: "#fff", border: "none", borderRadius: 4, width: 28, height: 28, fontSize: 16, fontWeight: "bold", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}
+                      onClick={() => setShowQuickNewPatient(true)}
+                      title="Add Patient"
                     >
-                      Cancel
+                      +
                     </button>
+
+                    {showPatientDropdown && (
+                      <div style={{ position: "absolute", top: "100%", left: 0, right: 34, background: "#fff", border: "1px solid #cbd5e1", borderRadius: 4, boxShadow: "0 4px 12px rgba(0,0,0,0.15)", maxHeight: 180, overflowY: "auto", zIndex: 100, marginTop: 4 }}>
+                        {filteredPatients.length === 0 ? (
+                          <div style={{ padding: "8px 12px", color: "#64748b", fontSize: 12 }}>No matching patients found.</div>
+                        ) : (
+                          filteredPatients.map((p) => (
+                            <div
+                              key={p.id}
+                              style={{ padding: "6px 10px", cursor: "pointer", borderBottom: "1px solid #f1f5f9", fontSize: 12 }}
+                              onMouseDown={(e) => {
+                                e.preventDefault();
+                                setSelPatient(p.id);
+                                setPatientQuery(`${p.name} (${p.mrn})`);
+                                setShowPatientDropdown(false);
+                              }}
+                              onClick={() => {
+                                setSelPatient(p.id);
+                                setPatientQuery(`${p.name} (${p.mrn})`);
+                                setShowPatientDropdown(false);
+                              }}
+                            >
+                              <div style={{ fontWeight: 600, color: "#0f172a" }}>{p.name}</div>
+                              <div style={{ color: "#64748b", fontSize: 11 }}>ID: {p.mrn} {p.phone ? `• Ph: ${p.phone}` : ""}</div>
+                            </div>
+                          ))
+                        )}
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Provider * */}
+                <div style={{ display: "grid", gridTemplateColumns: "140px 1fr", alignItems: "center", gap: 12 }}>
+                  <label style={{ textAlign: "right", fontSize: 13, color: "#334155", fontWeight: 500 }}>
+                    Provider <span style={{ color: "#ef4444" }}>*</span>
+                  </label>
+                  <select
+                    value={providerId}
+                    onChange={(e) => setProviderId(e.target.value)}
+                    style={{ width: "100%", padding: "6px 10px", border: "1px solid #cbd5e1", borderRadius: 4, fontSize: 13, background: "#fff" }}
+                  >
+                    <option value="">--Select--</option>
+                    {staff.filter((s) => ["doctor", "therapist"].includes(s.role)).map((s) => (
+                      <option key={s.id} value={s.id}>{s.name}</option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Visit Type */}
+                <div style={{ display: "grid", gridTemplateColumns: "140px 1fr", alignItems: "center", gap: 12 }}>
+                  <label style={{ textAlign: "right", fontSize: 13, color: "#334155", fontWeight: 500 }}>Visit Type</label>
+                  <select
+                    value={visitType}
+                    onChange={(e) => setVisitType(e.target.value)}
+                    style={{ width: "100%", padding: "6px 10px", border: "1px solid #cbd5e1", borderRadius: 4, fontSize: 13, background: "#fff" }}
+                  >
+                    <option value="--Select--">--Select--</option>
+                    <option value="Cardiology Consultation">Cardiology Consultation</option>
+                    <option value="EECP session">EECP session</option>
+                    <option value="EECP Treatment">EECP Treatment</option>
+                    <option value="Follow-up Visit">Follow-up Visit</option>
+                    <option value="New Patient Visit">New Patient Visit</option>
+                    <option value="Telehealth Video Consult">Telehealth Video Consult</option>
+                    <option value="Walk-in visits">Walk-in visits</option>
+                    <option value="EECP 15th Day Review">EECP 15th Day Review</option>
+                  </select>
+                </div>
+
+                {/* Resource */}
+                <div style={{ display: "grid", gridTemplateColumns: "140px 1fr", alignItems: "center", gap: 12 }}>
+                  <label style={{ textAlign: "right", fontSize: 13, color: "#334155", fontWeight: 500 }}>Resource</label>
+                  <select
+                    value={resource}
+                    onChange={(e) => setResource(e.target.value)}
+                    style={{ width: "100%", padding: "6px 10px", border: "1px solid #cbd5e1", borderRadius: 4, fontSize: 13, background: "#fff" }}
+                  >
+                    <option value="--Select--">--Select--</option>
+                    <option value="EECP Bed 1">EECP Bed 1</option>
+                    <option value="EECP Bed 2">EECP Bed 2</option>
+                    <option value="EECP Bed 3">EECP Bed 3</option>
+                    <option value="EECP Bed 4">EECP Bed 4</option>
+                    <option value="Consultation Room 1">Consultation Room 1</option>
+                    <option value="Consultation Room 2">Consultation Room 2</option>
+                  </select>
+                </div>
+
+                {/* Appointment Mode */}
+                <div style={{ display: "grid", gridTemplateColumns: "140px 1fr", alignItems: "center", gap: 12 }}>
+                  <label style={{ textAlign: "right", fontSize: 13, color: "#334155", fontWeight: 500 }}>Appointment Mode</label>
+                  <div style={{ display: "flex", gap: 16, alignItems: "center" }}>
+                    <label style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 13, cursor: "pointer" }}>
+                      <input
+                        type="radio"
+                        name="wl_appt_mode"
+                        checked={apptMode === "In Person"}
+                        onChange={() => setApptMode("In Person")}
+                        style={{ accentColor: "#009688" }}
+                      />
+                      <span>In Person</span>
+                    </label>
+                    <label style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 13, cursor: "pointer" }}>
+                      <input
+                        type="radio"
+                        name="wl_appt_mode"
+                        checked={apptMode === "Phone Call"}
+                        onChange={() => setApptMode("Phone Call")}
+                        style={{ accentColor: "#009688" }}
+                      />
+                      <span>Phone Call</span>
+                    </label>
+                  </div>
+                </div>
+
+                {/* Date Preference */}
+                <div style={{ display: "grid", gridTemplateColumns: "140px 1fr", alignItems: "center", gap: 12 }}>
+                  <label style={{ textAlign: "right", fontSize: 13, color: "#334155", fontWeight: 500 }}>Date Preference</label>
+                  <div style={{ display: "flex", gap: 16, alignItems: "center" }}>
+                    <label style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 13, cursor: "pointer" }}>
+                      <input
+                        type="radio"
+                        name="wl_date_pref"
+                        checked={datePreference === "Specific Date(s)"}
+                        onChange={() => setDatePreference("Specific Date(s)")}
+                        style={{ accentColor: "#009688" }}
+                      />
+                      <span>Specific Date(s)</span>
+                    </label>
+                    <label style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 13, cursor: "pointer" }}>
+                      <input
+                        type="radio"
+                        name="wl_date_pref"
+                        checked={datePreference === "Period"}
+                        onChange={() => setDatePreference("Period")}
+                        style={{ accentColor: "#009688" }}
+                      />
+                      <span>Period</span>
+                    </label>
+                  </div>
+                </div>
+
+                {/* Date Inputs based on Date Preference */}
+                {datePreference === "Specific Date(s)" ? (
+                  <>
+                    <div style={{ display: "grid", gridTemplateColumns: "140px 1fr", alignItems: "center", gap: 12 }}>
+                      <label style={{ textAlign: "right", fontSize: 13, color: "#334155" }}>Option 1</label>
+                      <div style={{ display: "flex", width: 180, position: "relative" }}>
+                        <input
+                          type="text"
+                          value={opt1}
+                          onChange={(e) => setOpt1(e.target.value)}
+                          style={{ width: "100%", padding: "5px 8px", border: "1px solid #cbd5e1", borderRadius: "4px 0 0 4px", fontSize: 13 }}
+                        />
+                        <input
+                          type="date"
+                          ref={datePickerRef1}
+                          value={opt1Raw}
+                          onChange={(e) => {
+                            setOpt1Raw(e.target.value);
+                            setOpt1(formatDisplayDate(e.target.value));
+                          }}
+                          style={{ position: "absolute", opacity: 0, width: 0, height: 0, pointerEvents: "none" }}
+                        />
+                        <button
+                          type="button"
+                          onClick={() => datePickerRef1.current?.showPicker?.()}
+                          style={{ background: "#f8fafc", border: "1px solid #cbd5e1", borderLeft: "none", borderRadius: "0 4px 4px 0", padding: "5px 8px", cursor: "pointer", color: "#64748b" }}
+                        >
+                          📅
+                        </button>
+                      </div>
+                    </div>
+                    <div style={{ display: "grid", gridTemplateColumns: "140px 1fr", alignItems: "center", gap: 12 }}>
+                      <label style={{ textAlign: "right", fontSize: 13, color: "#334155" }}>Option 2</label>
+                      <div style={{ display: "flex", width: 180, position: "relative" }}>
+                        <input
+                          type="text"
+                          value={opt2}
+                          onChange={(e) => setOpt2(e.target.value)}
+                          style={{ width: "100%", padding: "5px 8px", border: "1px solid #cbd5e1", borderRadius: "4px 0 0 4px", fontSize: 13 }}
+                        />
+                        <input
+                          type="date"
+                          ref={datePickerRef2}
+                          value={opt2Raw}
+                          onChange={(e) => {
+                            setOpt2Raw(e.target.value);
+                            setOpt2(formatDisplayDate(e.target.value));
+                          }}
+                          style={{ position: "absolute", opacity: 0, width: 0, height: 0, pointerEvents: "none" }}
+                        />
+                        <button
+                          type="button"
+                          onClick={() => datePickerRef2.current?.showPicker?.()}
+                          style={{ background: "#f8fafc", border: "1px solid #cbd5e1", borderLeft: "none", borderRadius: "0 4px 4px 0", padding: "5px 8px", cursor: "pointer", color: "#64748b" }}
+                        >
+                          📅
+                        </button>
+                      </div>
+                    </div>
+                    <div style={{ display: "grid", gridTemplateColumns: "140px 1fr", alignItems: "center", gap: 12 }}>
+                      <label style={{ textAlign: "right", fontSize: 13, color: "#334155" }}>Option 3</label>
+                      <div style={{ display: "flex", width: 180, position: "relative" }}>
+                        <input
+                          type="text"
+                          value={opt3}
+                          onChange={(e) => setOpt3(e.target.value)}
+                          style={{ width: "100%", padding: "5px 8px", border: "1px solid #cbd5e1", borderRadius: "4px 0 0 4px", fontSize: 13 }}
+                        />
+                        <input
+                          type="date"
+                          ref={datePickerRef3}
+                          value={opt3Raw}
+                          onChange={(e) => {
+                            setOpt3Raw(e.target.value);
+                            setOpt3(formatDisplayDate(e.target.value));
+                          }}
+                          style={{ position: "absolute", opacity: 0, width: 0, height: 0, pointerEvents: "none" }}
+                        />
+                        <button
+                          type="button"
+                          onClick={() => datePickerRef3.current?.showPicker?.()}
+                          style={{ background: "#f8fafc", border: "1px solid #cbd5e1", borderLeft: "none", borderRadius: "0 4px 4px 0", padding: "5px 8px", cursor: "pointer", color: "#64748b" }}
+                        >
+                          📅
+                        </button>
+                      </div>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <div style={{ display: "grid", gridTemplateColumns: "140px 1fr", alignItems: "center", gap: 12 }}>
+                      <label style={{ textAlign: "right", fontSize: 13, color: "#334155" }}>From Date</label>
+                      <div style={{ display: "flex", width: 180, position: "relative" }}>
+                        <input
+                          type="text"
+                          value={fromDate}
+                          onChange={(e) => setFromDate(e.target.value)}
+                          style={{ width: "100%", padding: "5px 8px", border: "1px solid #cbd5e1", borderRadius: "4px 0 0 4px", fontSize: 13 }}
+                        />
+                        <input
+                          type="date"
+                          ref={fromDatePickerRef}
+                          value={fromDateRaw}
+                          onChange={(e) => {
+                            setFromDateRaw(e.target.value);
+                            setFromDate(formatDisplayDate(e.target.value));
+                          }}
+                          style={{ position: "absolute", opacity: 0, width: 0, height: 0, pointerEvents: "none" }}
+                        />
+                        <button
+                          type="button"
+                          onClick={() => fromDatePickerRef.current?.showPicker?.()}
+                          style={{ background: "#f8fafc", border: "1px solid #cbd5e1", borderLeft: "none", borderRadius: "0 4px 4px 0", padding: "5px 8px", cursor: "pointer", color: "#64748b" }}
+                        >
+                          📅
+                        </button>
+                      </div>
+                    </div>
+                    <div style={{ display: "grid", gridTemplateColumns: "140px 1fr", alignItems: "center", gap: 12 }}>
+                      <label style={{ textAlign: "right", fontSize: 13, color: "#334155" }}>To Date</label>
+                      <div style={{ display: "flex", width: 180, position: "relative" }}>
+                        <input
+                          type="text"
+                          value={toDate}
+                          onChange={(e) => setToDate(e.target.value)}
+                          style={{ width: "100%", padding: "5px 8px", border: "1px solid #cbd5e1", borderRadius: "4px 0 0 4px", fontSize: 13 }}
+                        />
+                        <input
+                          type="date"
+                          ref={toDatePickerRef}
+                          value={toDateRaw}
+                          onChange={(e) => {
+                            setToDateRaw(e.target.value);
+                            setToDate(formatDisplayDate(e.target.value));
+                          }}
+                          style={{ position: "absolute", opacity: 0, width: 0, height: 0, pointerEvents: "none" }}
+                        />
+                        <button
+                          type="button"
+                          onClick={() => toDatePickerRef.current?.showPicker?.()}
+                          style={{ background: "#f8fafc", border: "1px solid #cbd5e1", borderLeft: "none", borderRadius: "0 4px 4px 0", padding: "5px 8px", cursor: "pointer", color: "#64748b" }}
+                        >
+                          📅
+                        </button>
+                      </div>
+                    </div>
+                  </>
+                )}
+
+                {/* Time Preference */}
+                <div style={{ display: "grid", gridTemplateColumns: "140px 1fr", alignItems: "center", gap: 12 }}>
+                  <label style={{ textAlign: "right", fontSize: 13, color: "#334155", fontWeight: 500 }}>Time Preference</label>
+                  <select
+                    value={timePreference}
+                    onChange={(e) => setTimePreference(e.target.value)}
+                    style={{ width: "100%", padding: "6px 10px", border: "1px solid #cbd5e1", borderRadius: 4, fontSize: 13, background: "#fff" }}
+                  >
+                    <option value="Any Time">Any Time</option>
+                    <option value="Morning">Morning</option>
+                    <option value="Afternoon">Afternoon</option>
+                    <option value="Evening">Evening</option>
+                  </select>
+                </div>
+
+                {/* Reason */}
+                <div style={{ display: "grid", gridTemplateColumns: "140px 1fr", alignItems: "flex-start", gap: 12 }}>
+                  <label style={{ textAlign: "right", fontSize: 13, color: "#334155", fontWeight: 500, paddingTop: 4 }}>Reason</label>
+                  <textarea
+                    value={reason}
+                    onChange={(e) => setReason(e.target.value)}
+                    rows={2}
+                    style={{ width: "100%", padding: "6px 10px", border: "1px solid #cbd5e1", borderRadius: 4, fontSize: 13, resize: "vertical" }}
+                  />
+                </div>
+
+                {/* Actions Footer */}
+                <div style={{ display: "grid", gridTemplateColumns: "140px 1fr", alignItems: "center", gap: 12, marginTop: 8 }}>
+                  <div></div>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                    {err && (
+                      <div style={{ color: "#dc2626", fontSize: 12.5, fontWeight: 500 }}>
+                        {err}
+                      </div>
+                    )}
+                    <div style={{ display: "flex", gap: 8 }}>
+                      <button
+                        type="submit"
+                        style={{ background: "#f59e0b", color: "#fff", border: "none", borderRadius: 4, padding: "7px 20px", fontSize: 13, fontWeight: 600, cursor: "pointer" }}
+                      >
+                        {initialEntry ? "Update" : "Confirm"}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={onClose}
+                        style={{ background: "#f1f5f9", color: "#475569", border: "1px solid #cbd5e1", borderRadius: 4, padding: "7px 18px", fontSize: 13, cursor: "pointer" }}
+                      >
+                        Cancel
+                      </button>
+                    </div>
                   </div>
                 </div>
               </div>
-            </div>
-          </form>
-        )}
+            </form>
+          )}
         </div>
       </div>
     </div>
@@ -1424,13 +1424,13 @@ function Schedule() {
   useEffect(() => {
     try {
       if (date) sessionStorage.setItem("hyh_cal_date", date);
-    } catch {}
+    } catch { }
   }, [date]);
 
   useEffect(() => {
     try {
       if (view) sessionStorage.setItem("hyh_cal_view", view);
-    } catch {}
+    } catch { }
   }, [view]);
   const [provider, setProvider] = useState("");
   const [add, setAdd] = useState(false);
@@ -1574,7 +1574,7 @@ function Schedule() {
         const parsed = JSON.parse(saved);
         if (Array.isArray(parsed) && parsed.length > 0) return parsed;
       }
-    } catch {}
+    } catch { }
     return [
       { id: "status-1", name: "Absent", color: "#0000ff" },
       { id: "status-2", name: "Admission", color: "#004d40" },
@@ -1603,7 +1603,7 @@ function Schedule() {
           return parsed;
         }
       }
-    } catch {}
+    } catch { }
     return [
       { id: "vt1", name: "Cardiology Consultation", duration: 30, color: "#2563eb", mode: "In Person" },
       { id: "vt2", name: "EECP Treatment", duration: 60, color: "#ea580c", mode: "In Person" },
@@ -1639,7 +1639,7 @@ function Schedule() {
           localStorage.setItem("hyh_appointment_statuses", JSON.stringify(data));
         }
       })
-      .catch(() => {});
+      .catch(() => { });
 
     api<any[]>("/calendar/visit-types")
       .then((data) => {
@@ -1649,7 +1649,7 @@ function Schedule() {
           localStorage.setItem("hyh_visit_types", JSON.stringify(clean));
         }
       })
-      .catch(() => {});
+      .catch(() => { });
 
     const onStatusUpdate = () => {
       api<any[]>("/calendar/appointment-statuses")
@@ -1663,7 +1663,7 @@ function Schedule() {
           try {
             const saved = localStorage.getItem("hyh_appointment_statuses");
             if (saved) setAvailableStatuses(JSON.parse(saved));
-          } catch {}
+          } catch { }
         });
     };
     const onVisitTypeUpdate = () => {
@@ -1676,7 +1676,7 @@ function Schedule() {
             setAvailableVisitTypes(clean);
           }
         }
-      } catch {}
+      } catch { }
     };
 
     window.addEventListener("hyh_appointment_statuses_updated", onStatusUpdate);
@@ -2135,7 +2135,7 @@ function Schedule() {
         year: "numeric",
       }).format(new Date(viewYear, viewMonth - 1, 1, 12, 0, 0))
       : activeCalView === "Week"
-      ? (() => {
+        ? (() => {
           const dObj = new Date(date + "T12:00:00Z");
           const sWeek = new Date(dObj);
           sWeek.setUTCDate(dObj.getUTCDate() - dObj.getUTCDay());
@@ -2147,12 +2147,12 @@ function Schedule() {
           const year = eWeek.getUTCFullYear();
           return `${sMonth} ${sDay} - ${eDay} ${year}`;
         })()
-      : new Intl.DateTimeFormat("en-US", {
-        weekday: "long",
-        month: "short",
-        day: "numeric",
-        year: "numeric",
-      }).format(new Date(date + "T12:00:00Z"));
+        : new Intl.DateTimeFormat("en-US", {
+          weekday: "long",
+          month: "short",
+          day: "numeric",
+          year: "numeric",
+        }).format(new Date(date + "T12:00:00Z"));
 
   const waitingDateObj = new Date(date + "T12:00:00Z");
   const waitingDayTitle = new Intl.DateTimeFormat("en-US", {
@@ -2548,997 +2548,998 @@ function Schedule() {
               />
             ) : (
               <>
-            {/* Controls Header */}
-            <div className="charm-cal-controls">
-              {/* View switcher buttons */}
-              <div className="charm-calendar-view-switcher">
-                <button
-                  type="button"
-                  className={`charm-provider-availability-toggle ${providerAvailabilityOpen ? "active" : ""}`}
-                  onClick={toggleProviderAvailability}
-                  aria-label={providerAvailabilityOpen ? "Close Provider Availability" : "Open Provider Availability"}
-                  aria-expanded={providerAvailabilityOpen}
-                  title="Provider Availability"
-                >
-                  <Clock3 size={18} />
-                </button>
-                <div className="charm-view-pills">
-                  {["List View", "Day", "EECP Treatment", "Week", "Month"].map((v) => (
+                {/* Controls Header */}
+                <div className="charm-cal-controls">
+                  {/* View switcher buttons */}
+                  <div className="charm-calendar-view-switcher">
                     <button
-                      key={v}
-                      className={`charm-view-btn ${view === v ? "active" : ""}`}
-                      onClick={() => setView(v)}
+                      type="button"
+                      className={`charm-provider-availability-toggle ${providerAvailabilityOpen ? "active" : ""}`}
+                      onClick={toggleProviderAvailability}
+                      aria-label={providerAvailabilityOpen ? "Close Provider Availability" : "Open Provider Availability"}
+                      aria-expanded={providerAvailabilityOpen}
+                      title="Provider Availability"
                     >
-                      {v}
+                      <Clock3 size={18} />
                     </button>
-                  ))}
+                    <div className="charm-view-pills">
+                      {["List View", "Day", "EECP Treatment", "Week", "Month"].map((v) => (
+                        <button
+                          key={v}
+                          className={`charm-view-btn ${view === v ? "active" : ""}`}
+                          onClick={() => setView(v)}
+                        >
+                          {v}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Date Display and Nav */}
+                  <div className="charm-date-navigator">
+                    <span className="charm-date-title">{formattedDate}</span>
+                    <input
+                      type="date"
+                      aria-label="Schedule date"
+                      value={date}
+                      onChange={(e) => setDate(e.target.value)}
+                      style={{ width: 28, height: 28, opacity: 0, position: "absolute", cursor: "pointer" }}
+                    />
+                    <button
+                      type="button"
+                      className="charm-nav-arrow"
+                      aria-label="Previous period"
+                      onClick={() => shift(-1)}
+                    >
+                      &lt;
+                    </button>
+                    <button
+                      type="button"
+                      className="charm-today-btn"
+                      onClick={() => setDate(today())}
+                    >
+                      Today
+                    </button>
+                    <button
+                      type="button"
+                      className="charm-nav-arrow"
+                      aria-label="Next period"
+                      onClick={() => shift(1)}
+                    >
+                      &gt;
+                    </button>
+                  </div>
+
+                  {/* Action buttons */}
+                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                    {["reception", "doctor", "therapist", "admin"].includes(user.role) && (
+                      <button
+                        type="button"
+                        className="charm-btn-confirm"
+                        style={{ padding: "6px 14px", fontSize: 12, borderRadius: 4 }}
+                        onClick={() => {
+                          if (view === "EECP Treatment") {
+                            setBookingSlot({
+                              startAt: `${date}T08:00:00`,
+                              duration: 60,
+                            });
+                          } else {
+                            setAdd(true);
+                          }
+                        }}
+                      >
+                        + Book Appointment
+                      </button>
+                    )}
+                  </div>
                 </div>
-              </div>
 
-              {/* Date Display and Nav */}
-              <div className="charm-date-navigator">
-                <span className="charm-date-title">{formattedDate}</span>
-                <input
-                  type="date"
-                  aria-label="Schedule date"
-                  value={date}
-                  onChange={(e) => setDate(e.target.value)}
-                  style={{ width: 28, height: 28, opacity: 0, position: "absolute", cursor: "pointer" }}
-                />
-                <button
-                  type="button"
-                  className="charm-nav-arrow"
-                  aria-label="Previous period"
-                  onClick={() => shift(-1)}
-                >
-                  &lt;
-                </button>
-                <button
-                  type="button"
-                  className="charm-today-btn"
-                  onClick={() => setDate(today())}
-                >
-                  Today
-                </button>
-                <button
-                  type="button"
-                  className="charm-nav-arrow"
-                  aria-label="Next period"
-                  onClick={() => shift(1)}
-                >
-                  &gt;
-                </button>
-              </div>
+                {/* Yellow Timezone Banner with Functional Sort by Selector */}
+                <div className="charm-cal-yellow-banner" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "6px 14px", background: "#fef9c3", border: "1px solid #fef08a", borderRadius: 4, marginBottom: 12 }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                    <span style={{ fontSize: 12, color: "#854d0e" }}>
+                      Appointments are shown in <strong>Asia/Kolkata (IST)</strong> time zone
+                    </span>
+                    {(view === "List View" || view === "Day" || view === "EECP Treatment") && (
+                      <WaitingListDateBadge
+                        date={date}
+                        count={waitingEntriesForDate(date).length}
+                        onClick={() => openWaitingDetails(date)}
+                      />
+                    )}
+                  </div>
+                  {/* Right Controls per View */}
+                  {view === "List View" && (
+                    <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: "#475569" }}>
+                      <span style={{ fontWeight: 500 }}>Sort by</span>
+                      <select
+                        value={calSortBy}
+                        onChange={(e) => setCalSortBy(e.target.value as any)}
+                        aria-label="Sort appointments by"
+                        style={{
+                          padding: "3px 8px",
+                          fontSize: 12,
+                          border: "1px solid #cbd5e1",
+                          borderRadius: 3,
+                          background: "#fff",
+                          color: "#0f172a",
+                          fontWeight: 500,
+                          cursor: "pointer",
+                          outline: "none",
+                        }}
+                      >
+                        <option value="Time">Time</option>
+                        <option value="Token">Token</option>
+                        <option value="Status">Status</option>
+                        <option value="Resource">Resource</option>
+                        <option value="Provider">Provider</option>
+                      </select>
+                    </div>
+                  )}
 
-              {/* Action buttons */}
-              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                {["reception", "doctor", "therapist", "admin"].includes(user.role) && (
-                  <button
-                    type="button"
-                    className="charm-btn-confirm"
-                    style={{ padding: "6px 14px", fontSize: 12, borderRadius: 4 }}
-                    onClick={() => {
-                      if (view === "EECP Treatment") {
-                        setBookingSlot({
-                          startAt: `${date}T08:00:00`,
-                          duration: 60,
-                        });
-                      } else {
-                        setAdd(true);
-                      }
-                    }}
-                  >
-                    + Book Appointment
-                  </button>
-                )}
-              </div>
-            </div>
+                  {(view === "Day" || view === "EECP Treatment") && (
+                    <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: "#475569" }}>
+                      <span style={{ fontWeight: 500 }}>View</span>
+                      <select
+                        value={view === "EECP Treatment" ? "Resource View" : dayViewMode}
+                        onChange={(e) => {
+                          if (view !== "EECP Treatment") setDayViewMode(e.target.value as any);
+                        }}
+                        aria-label="Day view mode"
+                        disabled={view === "EECP Treatment"}
+                        style={{
+                          padding: "3px 8px",
+                          fontSize: 12,
+                          border: "1px solid #cbd5e1",
+                          borderRadius: 3,
+                          background: "#fff",
+                          color: "#0f172a",
+                          fontWeight: 500,
+                          cursor: view === "EECP Treatment" ? "default" : "pointer",
+                          outline: "none",
+                        }}
+                      >
+                        <option value="Resource View">Resource View</option>
+                        {view !== "EECP Treatment" && <option value="Provider View">Provider View</option>}
+                      </select>
+                    </div>
+                  )}
 
-            {/* Yellow Timezone Banner with Functional Sort by Selector */}
-            <div className="charm-cal-yellow-banner" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "6px 14px", background: "#fef9c3", border: "1px solid #fef08a", borderRadius: 4, marginBottom: 12 }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                <span style={{ fontSize: 12, color: "#854d0e" }}>
-                  Appointments are shown in <strong>Asia/Kolkata (IST)</strong> time zone
-                </span>
-                {(view === "List View" || view === "Day" || view === "EECP Treatment") && (
-                  <WaitingListDateBadge
-                    date={date}
-                    count={waitingEntriesForDate(date).length}
-                    onClick={() => openWaitingDetails(date)}
-                  />
-                )}
-              </div>
-              {/* Right Controls per View */}
-              {view === "List View" && (
-                <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: "#475569" }}>
-                  <span style={{ fontWeight: 500 }}>Sort by</span>
-                  <select
-                    value={calSortBy}
-                    onChange={(e) => setCalSortBy(e.target.value as any)}
-                    aria-label="Sort appointments by"
-                    style={{
-                      padding: "3px 8px",
-                      fontSize: 12,
-                      border: "1px solid #cbd5e1",
-                      borderRadius: 3,
-                      background: "#fff",
-                      color: "#0f172a",
-                      fontWeight: 500,
-                      cursor: "pointer",
-                      outline: "none",
-                    }}
-                  >
-                    <option value="Time">Time</option>
-                    <option value="Token">Token</option>
-                    <option value="Status">Status</option>
-                    <option value="Resource">Resource</option>
-                    <option value="Provider">Provider</option>
-                  </select>
+                  {view === "Week" && (
+                    <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: "#475569" }}>
+                      <span style={{ fontWeight: 500 }}>Showing working hours of</span>
+                      <select
+                        value={weekWorkingHoursProvider || (staff[0]?.id || "")}
+                        onChange={(e) => setWeekWorkingHoursProvider(e.target.value)}
+                        aria-label="Showing working hours of provider"
+                        style={{
+                          padding: "3px 8px",
+                          fontSize: 12,
+                          border: "1px solid #cbd5e1",
+                          borderRadius: 3,
+                          background: "#fff",
+                          color: "#0f172a",
+                          fontWeight: 500,
+                          cursor: "pointer",
+                          outline: "none",
+                        }}
+                      >
+                        {staff.map((s) => (
+                          <option key={s.id} value={s.id}>{s.name}</option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
                 </div>
-              )}
 
-              {(view === "Day" || view === "EECP Treatment") && (
-                <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: "#475569" }}>
-                  <span style={{ fontWeight: 500 }}>View</span>
-                  <select
-                    value={view === "EECP Treatment" ? "Resource View" : dayViewMode}
-                    onChange={(e) => {
-                      if (view !== "EECP Treatment") setDayViewMode(e.target.value as any);
-                    }}
-                    aria-label="Day view mode"
-                    disabled={view === "EECP Treatment"}
-                    style={{
-                      padding: "3px 8px",
-                      fontSize: 12,
-                      border: "1px solid #cbd5e1",
-                      borderRadius: 3,
-                      background: "#fff",
-                      color: "#0f172a",
-                      fontWeight: 500,
-                      cursor: view === "EECP Treatment" ? "default" : "pointer",
-                      outline: "none",
-                    }}
-                  >
-                    <option value="Resource View">Resource View</option>
-                    {view !== "EECP Treatment" && <option value="Provider View">Provider View</option>}
-                  </select>
-                </div>
-              )}
-
-              {view === "Week" && (
-                <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: "#475569" }}>
-                  <span style={{ fontWeight: 500 }}>Showing working hours of</span>
-                  <select
-                    value={weekWorkingHoursProvider || (staff[0]?.id || "")}
-                    onChange={(e) => setWeekWorkingHoursProvider(e.target.value)}
-                    aria-label="Showing working hours of provider"
-                    style={{
-                      padding: "3px 8px",
-                      fontSize: 12,
-                      border: "1px solid #cbd5e1",
-                      borderRadius: 3,
-                      background: "#fff",
-                      color: "#0f172a",
-                      fontWeight: 500,
-                      cursor: "pointer",
-                      outline: "none",
-                    }}
-                  >
-                    {staff.map((s) => (
-                      <option key={s.id} value={s.id}>{s.name}</option>
-                    ))}
-                  </select>
-                </div>
-              )}
-            </div>
-
-            {/* Dynamic CharmHealth Stat Summary Pills - ONLY ON LIST VIEW */}
-            {view === "List View" && (
-              <div className="charm-stat-pills" style={{ display: "flex", flexWrap: "wrap", gap: 8, alignItems: "center", marginBottom: 12 }}>
-                <div
-                  className={`charm-stat-chip ${statusFilter === "ALL" ? "orange" : ""}`}
-                  onClick={() => setStatusFilter("ALL")}
-                  style={{
-                    cursor: "pointer",
-                    display: "flex",
-                    flexDirection: "column",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    minWidth: 54,
-                    padding: "4px 10px",
-                    background: statusFilter === "ALL" ? "#ea580c" : "#fff",
-                    color: statusFilter === "ALL" ? "#fff" : "#ea580c",
-                    borderColor: "#ea580c",
-                    borderWidth: 1,
-                    borderStyle: "solid",
-                    borderRadius: 4,
-                    boxShadow: "0 1px 2px rgba(0,0,0,0.04)",
-                    transition: "all 0.15s ease",
-                  }}
-                >
-                  <span style={{ fontSize: 15, fontWeight: 700, lineHeight: 1.1 }}>{scopedAppts.length}</span>
-                  <span style={{ fontSize: 9.5, fontWeight: 700, letterSpacing: "0.5px", marginTop: 2 }}>ALL</span>
-                </div>
-                {Object.entries(statusCounts).map(([sName, count]) => {
-                  const conf = availableStatuses.find((s) => s.name.toLowerCase() === sName.toLowerCase());
-                  const chipColor = conf?.color || "#7c3aed";
-                  const isSelected = statusFilter.toLowerCase() === sName.toLowerCase();
-                  return (
+                {/* Dynamic CharmHealth Stat Summary Pills - ONLY ON LIST VIEW */}
+                {view === "List View" && (
+                  <div className="charm-stat-pills" style={{ display: "flex", flexWrap: "wrap", gap: 8, alignItems: "center", marginBottom: 12 }}>
                     <div
-                      key={sName}
-                      className="charm-stat-chip"
-                      onClick={() => setStatusFilter(isSelected ? "ALL" : sName)}
+                      className={`charm-stat-chip ${statusFilter === "ALL" ? "orange" : ""}`}
+                      onClick={() => setStatusFilter("ALL")}
                       style={{
                         cursor: "pointer",
                         display: "flex",
                         flexDirection: "column",
                         alignItems: "center",
                         justifyContent: "center",
-                        minWidth: 70,
-                        padding: "4px 12px",
-                        background: isSelected ? chipColor : "#fff",
-                        color: isSelected ? "#fff" : chipColor,
-                        borderColor: chipColor,
+                        minWidth: 54,
+                        padding: "4px 10px",
+                        background: statusFilter === "ALL" ? "#ea580c" : "#fff",
+                        color: statusFilter === "ALL" ? "#fff" : "#ea580c",
+                        borderColor: "#ea580c",
                         borderWidth: 1,
                         borderStyle: "solid",
                         borderRadius: 4,
                         boxShadow: "0 1px 2px rgba(0,0,0,0.04)",
                         transition: "all 0.15s ease",
-                        textAlign: "center",
                       }}
-                      title={`Click to filter by ${sName}`}
                     >
-                      <span style={{ fontSize: 15, fontWeight: 700, lineHeight: 1.1 }}>{count}</span>
-                      <span style={{ fontSize: 9.5, fontWeight: 700, letterSpacing: "0.5px", marginTop: 2, maxWidth: 140, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                        {sName.toUpperCase()}
-                      </span>
+                      <span style={{ fontSize: 15, fontWeight: 700, lineHeight: 1.1 }}>{scopedAppts.length}</span>
+                      <span style={{ fontSize: 9.5, fontWeight: 700, letterSpacing: "0.5px", marginTop: 2 }}>ALL</span>
                     </div>
-                  );
-                })}
-              </div>
-            )}
-
-            <ErrorBox error={appts.error || error} />
-
-            {appts.isLoading ? (
-              <Loading />
-            ) : view === "Week" ? (
-              /* 3. Authentic CharmHealth Week Grid (10-minute continuous multi-lane matrix matching frame_022.png) */
-              (() => {
-                const dObj = new Date(date + "T12:00:00Z");
-                const weekStart = new Date(dObj);
-                weekStart.setUTCDate(dObj.getUTCDate() - dObj.getUTCDay());
-                weekStart.setUTCHours(0, 0, 0, 0);
-
-                const weekDays = Array.from({ length: 7 }, (_, i) => {
-                  const d = new Date(weekStart.getTime() + i * 86400000);
-                  const dayDateStr = localInput(d.toISOString()).slice(0, 10);
-                  const dayName = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"][d.getUTCDay()];
-                  const isCurrent = dayDateStr === date;
-                  const dayMonth = d.getUTCMonth() + 1;
-                  const dayDate = d.getUTCDate();
-                  return { d, dayDateStr, dayName, dayMonth, dayDate, isCurrent };
-                });
-
-                const activeProvId = weekWorkingHoursProvider || staff[0]?.id;
-
-                const isWeekSlotWorkingHour = (d: Date, hour: number, minute: number): boolean => {
-                  const slotMin = hour * 60 + minute;
-                  const dayIdx = d.getUTCDay(); // 0 is Sunday
-                  const pyDay = (dayIdx + 6) % 7; // 0 is Monday
-                  if (avail.data && activeProvId) {
-                    const provAvail = (avail.data as any[]).find(
-                      (a) =>
-                        (a.user_id === activeProvId || a.provider_id === activeProvId) &&
-                        (a.day_of_week === pyDay || a.day_of_week === dayIdx)
-                    );
-                    if (provAvail) {
-                      return slotMin >= provAvail.start_minute && slotMin < provAvail.end_minute;
-                    }
-                  }
-                  if (dayIdx === 0) return false; // Sunday off
-                  return slotMin >= 480 && slotMin < 1200; // 8:00 AM - 8:00 PM
-                };
-
-                return (
-                  <div className="charm-day-matrix-container">
-                    <div className="charm-day-matrix-scroll-wrapper">
-                      <div className="charm-day-matrix-grid" style={{ width: "100%" }}>
-                        {/* Sticky Week Days Header */}
-                        <div className="charm-day-matrix-header-row">
-                          <div className="charm-day-matrix-corner-cell" style={{ height: 44 }}>
-                            <Clock3 size={15} color="#64748b" />
-                          </div>
-                          {weekDays.map((day) => (
-                            <div
-                              key={day.dayDateStr}
-                              className={`charm-week-matrix-col-header ${day.isCurrent ? "is-today" : ""}`}
-                            >
-                              <span>
-                                {day.dayName} {day.dayMonth}/{day.dayDate}
-                              </span>
-                              <WaitingListDateBadge
-                                date={day.dayDateStr}
-                                count={waitingEntriesForDate(day.dayDateStr).length}
-                                onClick={() => openWaitingDetails(day.dayDateStr)}
-                              />
-                            </div>
-                          ))}
+                    {Object.entries(statusCounts).map(([sName, count]) => {
+                      const conf = availableStatuses.find((s) => s.name.toLowerCase() === sName.toLowerCase());
+                      const chipColor = conf?.color || "#7c3aed";
+                      const isSelected = statusFilter.toLowerCase() === sName.toLowerCase();
+                      return (
+                        <div
+                          key={sName}
+                          className="charm-stat-chip"
+                          onClick={() => setStatusFilter(isSelected ? "ALL" : sName)}
+                          style={{
+                            cursor: "pointer",
+                            display: "flex",
+                            flexDirection: "column",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            minWidth: 70,
+                            padding: "4px 12px",
+                            background: isSelected ? chipColor : "#fff",
+                            color: isSelected ? "#fff" : chipColor,
+                            borderColor: chipColor,
+                            borderWidth: 1,
+                            borderStyle: "solid",
+                            borderRadius: 4,
+                            boxShadow: "0 1px 2px rgba(0,0,0,0.04)",
+                            transition: "all 0.15s ease",
+                            textAlign: "center",
+                          }}
+                          title={`Click to filter by ${sName}`}
+                        >
+                          <span style={{ fontSize: 15, fontWeight: 700, lineHeight: 1.1 }}>{count}</span>
+                          <span style={{ fontSize: 9.5, fontWeight: 700, letterSpacing: "0.5px", marginTop: 2, maxWidth: 140, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                            {sName.toUpperCase()}
+                          </span>
                         </div>
-
-                        {/* Matrix Body with Sticky Time Gutter */}
-                        <div className="charm-day-matrix-body">
-                          {/* Left Time Gutter */}
-                          <div className="charm-day-matrix-time-gutter">
-                            {matrixTimeSlots.map((slot) => (
-                              <div
-                                key={slot.timeKey}
-                                className={`charm-day-matrix-time-slot ${slot.isHour ? "is-hour" : ""}`}
-                              >
-                                <span>{slot.label}</span>
-                              </div>
-                            ))}
-                          </div>
-
-                          {/* 7 Day Columns Area */}
-                          <div className="charm-day-matrix-columns-area" style={{ width: "100%" }}>
-                            {weekDays.map((day) => {
-                              const dayAppts = scopedAppts.filter((a) => {
-                                const localStart = localInput(a.start_at);
-                                return localStart.startsWith(day.dayDateStr);
-                              });
-
-                              const placedLayouts = computeColumnLayout(dayAppts, 7);
-
-                              return (
-                                <div key={day.dayDateStr} className="charm-week-matrix-column">
-                                  {/* 10-minute slot cells */}
-                                  {matrixTimeSlots.map((slot) => {
-                                    const isWorking = isWeekSlotWorkingHour(day.d, slot.hour, slot.minute);
-                                    return (
-                                      <div
-                                        key={slot.timeKey}
-                                        className={`charm-day-matrix-slot-cell charm-week-slot charm-week-slot-empty ${isWorking ? "working-hour" : "off-hour"} ${slot.isHour ? "hour-border" : ""}`}
-                                        onClick={() => {
-                                          if (["reception", "doctor", "therapist", "admin"].includes(user.role)) {
-                                            const slotTime = `${day.dayDateStr}T${String(slot.hour).padStart(2, "0")}:${String(slot.minute).padStart(2, "0")}`;
-                                            setBookingSlot({
-                                              startAt: slotTime,
-                                              providerId: activeProvId || undefined,
-                                              duration: 30,
-                                            });
-                                          }
-                                        }}
-                                        title={`Click to book appointment on ${day.dayDateStr} at ${slot.label}`}
-                                      >
-                                        <span className="charm-slot-hover-add">+</span>
-                                      </div>
-                                    );
-                                  })}
-
-                                  {/* Placed Appointment Cards for this day */}
-                                  {placedLayouts.map(({ appt, top, height, leftPct, widthPct }) => {
-                                    const pat = patients.find((p) => p.id === appt.patient_id);
-                                    const prv = staff.find((s) => s.id === appt.provider_id);
-                                    const res = resources.find((r) => r.id === appt.resource_id);
-                                    const localStart = localInput(appt.start_at);
-                                    const localEnd = localInput(appt.end_at);
-                                    const cStyle = getCharmCardStyle(appt);
-                                    const patName = pat?.name || patientName(appt.patient_id, patients);
-                                    const prvName = prv?.name || "Staff";
-                                    const rName = getApptResourceName(appt.resource_id);
-                                    const sTime = localStart.slice(11, 16);
-                                    const eTime = localEnd.length >= 16 ? localEnd.slice(11, 16) : "";
-
-                                    return (
-                                      <div
-                                        key={appt.id}
-                                        className="charm-matrix-appt-card charm-week-appt-card"
-                                        style={{
-                                          top: `${top}px`,
-                                          height: `${height}px`,
-                                          left: `calc(${leftPct}% + 1px)`,
-                                          width: `calc(${widthPct}% - 2px)`,
-                                          background: cStyle.bg,
-                                          color: cStyle.color,
-                                          borderColor: cStyle.border,
-                                        }}
-                                        onClick={(e) => {
-                                          e.stopPropagation();
-                                          setSelectedAppt(appt);
-                                        }}
-                                        title={`${sTime} - ${eTime} | ${patName} | ${prvName} | ${rName || "Consultation"} | ${appt.visit_type || "Visit"}`}
-                                      >
-                                        <div className="charm-matrix-card-time">
-                                          {sTime} - {eTime}
-                                        </div>
-                                        <div className="charm-matrix-card-pat" style={{ display: "flex", alignItems: "center", gap: 4 }}>
-                                          <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{patName}</span>
-                                          <PatientAlertBadgePopover
-                                            alerts={appt.active_alerts || pat?.active_alerts}
-                                            patientId={appt.patient_id}
-                                            compact
-                                          />
-                                          <CalendarStickyNotePopover
-                                            notes={appt.quick_notes || pat?.quick_notes}
-                                            patientId={appt.patient_id}
-                                            patientName={patName}
-                                            compact
-                                          />
-                                        </div>
-                                        <div className="charm-matrix-card-sub">
-                                          {prvName}
-                                          {rName && rName !== "-- Select --" ? ` · ${rName}` : ""}
-                                        </div>
-                                      </div>
-                                    );
-                                  })}
-                                </div>
-                              );
-                            })}
-                          </div>
-                        </div>
-                      </div>
-                    </div>
+                      );
+                    })}
                   </div>
-                );
-              })()
-            ) : (view === "Day" || view === "EECP Treatment") ? (
-              /* Authentic CharmHealth Multi-Column Day & EECP Treatment Resource Matrix with Overlap Lanes & Multi-Booking */
-              (() => {
-                const isResourceMode = view === "EECP Treatment" || dayViewMode === "Resource View";
-                return (
-                  <div className="charm-day-matrix-container">
-                    <div className="charm-day-matrix-scroll-wrapper">
-                      <div className="charm-day-matrix-grid">
-                        {/* Sticky Column Headers */}
-                        <div className="charm-day-matrix-header-row">
-                          <div className="charm-day-matrix-corner-cell">
-                            <Clock3 size={15} color="#64748b" />
-                          </div>
-                          {isResourceMode ? (
-                            dayResourceColumns.map((colName) => (
-                              <div key={colName} className="charm-day-matrix-col-header" title={colName}>
-                                <span>{colName}</span>
-                              </div>
-                            ))
-                          ) : (
-                            dayProviderColumns.map((prv) => (
-                              <div key={prv.id} className="charm-day-matrix-col-header" title={prv.name}>
-                                <span>{prv.name}</span>
-                              </div>
-                            ))
-                          )}
-                        </div>
+                )}
 
-                        {/* Matrix Body with Sticky Time Gutter */}
-                        <div className="charm-day-matrix-body">
-                          {/* Left Time Gutter */}
-                          <div className="charm-day-matrix-time-gutter">
-                            {matrixTimeSlots.map((slot) => (
-                              <div
-                                key={slot.timeKey}
-                                className={`charm-day-matrix-time-slot ${slot.isHour ? "is-hour" : ""}`}
-                              >
-                                <span>{slot.label}</span>
-                              </div>
-                            ))}
-                          </div>
+                <ErrorBox error={appts.error || error} />
 
-                          {/* Columns Grid */}
-                          <div className="charm-day-matrix-columns-area">
-                            {(isResourceMode ? dayResourceColumns : dayProviderColumns).map((colItem) => {
-                              const colId = typeof colItem === "string" ? colItem : colItem.id;
-                              const colTitle = typeof colItem === "string" ? colItem : colItem.name;
+                {appts.isLoading ? (
+                  <Loading />
+                ) : view === "Week" ? (
+                  /* 3. Authentic CharmHealth Week Grid (10-minute continuous multi-lane matrix matching frame_022.png) */
+                  (() => {
+                    const dObj = new Date(date + "T12:00:00Z");
+                    const weekStart = new Date(dObj);
+                    weekStart.setUTCDate(dObj.getUTCDate() - dObj.getUTCDay());
+                    weekStart.setUTCHours(0, 0, 0, 0);
 
-                              const colAppts = scopedAppts.filter((a) => {
-                                const localStart = localInput(a.start_at);
-                                if (!localStart.startsWith(date)) return false;
-                                if (isResourceMode) {
-                                  const rName = getApptResourceName(a.resource_id);
-                                  if (colTitle === "Unassigned") {
-                                    return (
-                                      !a.resource_id ||
-                                      rName === "-- Select --" ||
-                                      rName === "" ||
-                                      !dayResourceColumns.slice(1).some((c) => c.toLowerCase() === rName.toLowerCase())
-                                    );
-                                  }
-                                  return rName.toLowerCase() === colTitle.toLowerCase();
-                                } else {
-                                  return a.provider_id === colId;
-                                }
-                              });
+                    const weekDays = Array.from({ length: 7 }, (_, i) => {
+                      const d = new Date(weekStart.getTime() + i * 86400000);
+                      const dayDateStr = localInput(d.toISOString()).slice(0, 10);
+                      const dayName = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"][d.getUTCDay()];
+                      const isCurrent = dayDateStr === date;
+                      const dayMonth = d.getUTCMonth() + 1;
+                      const dayDate = d.getUTCDate();
+                      return { d, dayDateStr, dayName, dayMonth, dayDate, isCurrent };
+                    });
 
-                              const placedLayouts = computeColumnLayout(colAppts, 7);
+                    const activeProvId = weekWorkingHoursProvider || staff[0]?.id;
 
-                              return (
-                                <div key={colId} className="charm-day-matrix-column">
-                                  {/* 10-minute grid cell rows */}
-                                  {matrixTimeSlots.map((slot) => {
-                                    const isWorkingHour = slot.hour >= 8 && slot.hour < 20;
-                                    return (
-                                      <div
-                                        key={slot.timeKey}
-                                        className={`charm-day-matrix-slot-cell ${isWorkingHour ? "working-hour" : "off-hour"} ${slot.isHour ? "hour-border" : ""}`}
-                                        onClick={() => {
-                                          if (["reception", "doctor", "therapist", "admin"].includes(user.role)) {
-                                            const slotTime = `${date}T${String(slot.hour).padStart(2, "0")}:${String(slot.minute).padStart(2, "0")}`;
-                                            const rObj = colTitle === "Unassigned" ? undefined : resources.find((r) => r.name.toLowerCase() === colTitle.toLowerCase());
-                                            setBookingSlot({
-                                              startAt: slotTime,
-                                              resourceId: rObj?.id,
-                                              providerId: (!isResourceMode && dayViewMode === "Provider View") ? colId : (provider || undefined),
-                                              duration: view === "EECP Treatment" ? 60 : 30,
-                                            });
-                                          }
-                                        }}
-                                        title={`Click to book appointment on ${colTitle} at ${slot.label}`}
-                                      >
-                                        <span className="charm-slot-hover-add">+</span>
-                                      </div>
-                                    );
-                                  })}
-
-                                  {/* Placed Appointment Cards with Overlap Lane Layout */}
-                                  {placedLayouts.map(({ appt, top, height, leftPct, widthPct }) => {
-                                    const pat = patients.find((p) => p.id === appt.patient_id);
-                                    const prv = staff.find((s) => s.id === appt.provider_id);
-                                    const localStart = localInput(appt.start_at);
-                                    const cStyle = getCharmCardStyle(appt);
-                                    const patName = pat?.name || patientName(appt.patient_id, patients);
-                                    const prvName = prv?.name || "Staff";
-                                    const timeRange = formatApptTimeRange(appt.start_at, appt.end_at);
-                                    const sDay = appt.reason || (appt.session_number
-                                      ? `EECP ${appt.session_number}th Day`
-                                      : (appt.visit_type?.includes("Day") ? appt.visit_type : (appt.visit_type || "EECP Session")));
-
-                                    return (
-                                      <div
-                                        key={appt.id}
-                                        className="charm-matrix-appt-card"
-                                        style={{
-                                          top: `${top}px`,
-                                          height: `${height}px`,
-                                          left: `calc(${leftPct}% + 2px)`,
-                                          width: `calc(${widthPct}% - 4px)`,
-                                          background: cStyle.bg,
-                                          color: cStyle.color,
-                                          borderColor: cStyle.border,
-                                          borderWidth: 1,
-                                          borderStyle: "solid",
-                                          padding: "3px 6px",
-                                          display: "flex",
-                                          flexDirection: "column",
-                                          justifyContent: "flex-start",
-                                          gap: 1,
-                                          lineHeight: 1.25,
-                                          boxShadow: "0 1px 3px rgba(0,0,0,0.08)",
-                                          overflow: "hidden",
-                                          cursor: "pointer",
-                                        }}
-                                        onClick={(e) => {
-                                          e.stopPropagation();
-                                          setSelectedAppt(appt);
-                                        }}
-                                        title={`${patName}, ${prvName}, ${sDay}`}
-                                      >
-                                        {/* Line 1: Start Time - End Time */}
-                                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", width: "100%" }}>
-                                          <span style={{ fontSize: 11, fontWeight: 700, color: cStyle.color }}>{timeRange}</span>
-                                          {["reception", "doctor", "therapist", "admin"].includes(user.role) && (
-                                            <button
-                                              type="button"
-                                              className="charm-card-plus-btn"
-                                              title="Book another appointment at this time"
-                                              style={{ color: cStyle.color }}
-                                              onClick={(e) => {
-                                                e.stopPropagation();
-                                                setBookingSlot({
-                                                  startAt: localStart.slice(0, 16),
-                                                  resourceId: appt.resource_id,
-                                                  providerId: appt.provider_id,
-                                                  duration: view === "EECP Treatment" ? 60 : 30,
-                                                });
-                                              }}
-                                            >
-                                              +
-                                            </button>
-                                          )}
-                                        </div>
-
-                                        {/* Line 2: Patient Full Name */}
-                                        <div style={{ fontSize: 11.5, fontWeight: 700, color: cStyle.color, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                                          {patName}
-                                        </div>
-
-                                        {/* Line 3: Assigned Therapist Name */}
-                                        <div style={{ fontSize: 11, fontWeight: 500, color: cStyle.color, opacity: 0.95, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                                          {prvName}
-                                        </div>
-
-                                        {/* Line 4: Session Counter / Reason */}
-                                        <div style={{ fontSize: 11, fontWeight: 600, color: cStyle.color, opacity: 0.95, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                                          {sDay}
-                                        </div>
-                                      </div>
-                                    );
-                                  })}
-                                </div>
-                              );
-                            })}
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                );
-              })()
-            ) : view === "Month" ? (
-              /* Authentic CharmHealth Month Grid (1:1 with CharmTracker) */
-              <div className="charm-cal-month-wrap">
-                {/* Day of Week Headers */}
-                <div className="charm-cal-month-header-row">
-                  {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((dayName) => (
-                    <div key={dayName} className="charm-cal-month-th">
-                      {dayName}
-                    </div>
-                  ))}
-                </div>
-
-                {/* 7-column Calendar Month Grid */}
-                <div className="charm-cal-month-cells-grid">
-                  {monthCells.map((cell) => {
-                    const dayAppts = scopedAppts
-                      .filter((a) => localInput(a.start_at).slice(0, 10) === cell.dateStr)
-                      .sort((a, b) => a.start_at.localeCompare(b.start_at));
-                    const waitingCount = waitingEntriesForDate(cell.dateStr).length;
+                    const isWeekSlotWorkingHour = (d: Date, hour: number, minute: number): boolean => {
+                      const slotMin = hour * 60 + minute;
+                      const dayIdx = d.getUTCDay(); // 0 is Sunday
+                      const pyDay = (dayIdx + 6) % 7; // 0 is Monday
+                      if (avail.data && activeProvId) {
+                        const provAvail = (avail.data as any[]).find(
+                          (a) =>
+                            (a.user_id === activeProvId || a.provider_id === activeProvId) &&
+                            (a.day_of_week === pyDay || a.day_of_week === dayIdx)
+                        );
+                        if (provAvail) {
+                          return slotMin >= provAvail.start_minute && slotMin < provAvail.end_minute;
+                        }
+                      }
+                      if (dayIdx === 0) return false; // Sunday off
+                      return slotMin >= 480 && slotMin < 1200; // 8:00 AM - 8:00 PM
+                    };
 
                     return (
-                      <div
-                        key={cell.dateStr}
-                        className={`charm-cal-month-cell-box ${!cell.isCurrentMonth ? "inactive" : ""} ${cell.isToday ? "is-today" : ""}`}
-                        onClick={() => {
-                          if (["reception", "doctor", "therapist", "admin"].includes(user.role)) {
-                            setBookingSlot({
-                              startAt: `${cell.dateStr}T09:00`,
-                              providerId: provider || undefined,
-                              duration: 30,
-                            });
-                          }
-                        }}
-                        title={cell.isToday ? "Today" : `Click to book appointment on ${cell.dateStr}`}
-                      >
-                        <div className="charm-cal-month-cell-top">
-                          <span className={`charm-cal-month-day-num ${cell.isToday ? "today-badge" : ""}`}>
-                            {cell.dayNum}
-                          </span>
-                          {["reception", "doctor", "therapist", "admin"].includes(user.role) && (
-                            <span className="charm-cal-cell-plus-hover" title="Book Appointment">
-                              +
-                            </span>
-                          )}
-                        </div>
-
-                        <WaitingListDateBadge
-                          date={cell.dateStr}
-                          count={waitingCount}
-                          onClick={() => openWaitingDetails(cell.dateStr)}
-                        />
-
-                        <div className="charm-cal-month-chips-container">
-                          {dayAppts.map((appt) => {
-                            const isEECP = appt.visit_type?.toLowerCase().includes("eecp");
-                            const pat = patients.find((p) => p.id === appt.patient_id);
-                            const timeStr = localInput(appt.start_at).slice(11, 16);
-                            const patientDisplayName = pat?.name || patientName(appt.patient_id, patients);
-
-                            return (
-                              <div
-                                key={appt.id}
-                                className={`charm-cal-month-chip-item status-${appt.status} ${isEECP ? "is-eecp" : "is-consult"}`}
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  setSelectedAppt(appt);
-                                }}
-                                title={`${timeStr} · ${patientDisplayName} · ${appt.visit_type} · [${appt.status}]`}
-                              >
-                                <span className="charm-month-chip-time">{timeStr}</span>
-                                <span className="charm-month-chip-name">{patientDisplayName}</span>
+                      <div className="charm-day-matrix-container">
+                        <div className="charm-day-matrix-scroll-wrapper">
+                          <div className="charm-day-matrix-grid" style={{ width: "100%" }}>
+                            {/* Sticky Week Days Header */}
+                            <div className="charm-day-matrix-header-row">
+                              <div className="charm-day-matrix-corner-cell" style={{ height: 44 }}>
+                                <Clock3 size={15} color="#64748b" />
                               </div>
-                            );
-                          })}
+                              {weekDays.map((day) => (
+                                <div
+                                  key={day.dayDateStr}
+                                  className={`charm-week-matrix-col-header ${day.isCurrent ? "is-today" : ""}`}
+                                >
+                                  <span>
+                                    {day.dayName} {day.dayMonth}/{day.dayDate}
+                                  </span>
+                                  <WaitingListDateBadge
+                                    date={day.dayDateStr}
+                                    count={waitingEntriesForDate(day.dayDateStr).length}
+                                    onClick={() => openWaitingDetails(day.dayDateStr)}
+                                  />
+                                </div>
+                              ))}
+                            </div>
+
+                            {/* Matrix Body with Sticky Time Gutter */}
+                            <div className="charm-day-matrix-body">
+                              {/* Left Time Gutter */}
+                              <div className="charm-day-matrix-time-gutter">
+                                {matrixTimeSlots.map((slot) => (
+                                  <div
+                                    key={slot.timeKey}
+                                    className={`charm-day-matrix-time-slot ${slot.isHour ? "is-hour" : ""}`}
+                                  >
+                                    <span>{slot.label}</span>
+                                  </div>
+                                ))}
+                              </div>
+
+                              {/* 7 Day Columns Area */}
+                              <div className="charm-day-matrix-columns-area" style={{ width: "100%" }}>
+                                {weekDays.map((day) => {
+                                  const dayAppts = scopedAppts.filter((a) => {
+                                    const localStart = localInput(a.start_at);
+                                    return localStart.startsWith(day.dayDateStr);
+                                  });
+
+                                  const placedLayouts = computeColumnLayout(dayAppts, 7);
+
+                                  return (
+                                    <div key={day.dayDateStr} className="charm-week-matrix-column">
+                                      {/* 10-minute slot cells */}
+                                      {matrixTimeSlots.map((slot) => {
+                                        const isWorking = isWeekSlotWorkingHour(day.d, slot.hour, slot.minute);
+                                        return (
+                                          <div
+                                            key={slot.timeKey}
+                                            className={`charm-day-matrix-slot-cell charm-week-slot charm-week-slot-empty ${isWorking ? "working-hour" : "off-hour"} ${slot.isHour ? "hour-border" : ""}`}
+                                            onClick={() => {
+                                              if (["reception", "doctor", "therapist", "admin"].includes(user.role)) {
+                                                const slotTime = `${day.dayDateStr}T${String(slot.hour).padStart(2, "0")}:${String(slot.minute).padStart(2, "0")}`;
+                                                setBookingSlot({
+                                                  startAt: slotTime,
+                                                  providerId: activeProvId || undefined,
+                                                  duration: 30,
+                                                });
+                                              }
+                                            }}
+                                            title={`Click to book appointment on ${day.dayDateStr} at ${slot.label}`}
+                                          >
+                                            <span className="charm-slot-hover-add">+</span>
+                                          </div>
+                                        );
+                                      })}
+
+                                      {/* Placed Appointment Cards for this day */}
+                                      {placedLayouts.map(({ appt, top, height, leftPct, widthPct }) => {
+                                        const pat = patients.find((p) => p.id === appt.patient_id);
+                                        const prv = staff.find((s) => s.id === appt.provider_id);
+                                        const res = resources.find((r) => r.id === appt.resource_id);
+                                        const localStart = localInput(appt.start_at);
+                                        const localEnd = localInput(appt.end_at);
+                                        const cStyle = getCharmCardStyle(appt);
+                                        const patName = pat?.name || patientName(appt.patient_id, patients);
+                                        const prvName = prv?.name || "Staff";
+                                        const rName = getApptResourceName(appt.resource_id);
+                                        const sTime = localStart.slice(11, 16);
+                                        const eTime = localEnd.length >= 16 ? localEnd.slice(11, 16) : "";
+
+                                        return (
+                                          <div
+                                            key={appt.id}
+                                            className="charm-matrix-appt-card charm-week-appt-card"
+                                            style={{
+                                              top: `${top}px`,
+                                              height: `${height}px`,
+                                              left: `calc(${leftPct}% + 1px)`,
+                                              width: `calc(${widthPct}% - 2px)`,
+                                              background: cStyle.bg,
+                                              color: cStyle.color,
+                                              borderColor: cStyle.border,
+                                            }}
+                                            onClick={(e) => {
+                                              e.stopPropagation();
+                                              setSelectedAppt(appt);
+                                            }}
+                                            title={`${sTime} - ${eTime} | ${patName} | ${prvName} | ${rName || "Consultation"} | ${appt.visit_type || "Visit"}`}
+                                          >
+                                            <div className="charm-matrix-card-time">
+                                              {sTime} - {eTime}
+                                            </div>
+                                            <div className="charm-matrix-card-pat" style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                                              <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{patName}</span>
+                                              <PatientAlertBadgePopover
+                                                alerts={appt.active_alerts || pat?.active_alerts}
+                                                patientId={appt.patient_id}
+                                                compact
+                                              />
+                                              <CalendarStickyNotePopover
+                                                notes={appt.quick_notes || pat?.quick_notes}
+                                                patientId={appt.patient_id}
+                                                patientName={patName}
+                                                compact
+                                              />
+                                            </div>
+                                            <div className="charm-matrix-card-sub">
+                                              {prvName}
+                                              {rName && rName !== "-- Select --" ? ` · ${rName}` : ""}
+                                            </div>
+                                          </div>
+                                        );
+                                      })}
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            </div>
+                          </div>
                         </div>
                       </div>
                     );
-                  })}
-                </div>
-              </div>
-            ) : (
-              /* 4. Authentic CharmHealth List View (Image 3) */
-              <div className="charm-appt-card-list">
-                {displayedAppts.map((a) => {
-                  const pat = patients.find((p) => p.id === a.patient_id);
-                  const prv = staff.find((s) => s.id === a.provider_id);
-                  const res = resources.find((r) => r.id === a.resource_id);
-                  const startStr = localInput(a.start_at).slice(11, 16);
-                  const endStr = localInput(a.end_at).slice(11, 16);
-
-                  return (
-                    <div key={a.id} className="charm-list-card">
-                      {/* Left Column of Card (Frame 072) */}
-                      <div className="charm-list-card-left">
-                        <div className="charm-patient-header-line">
-                          <input type="checkbox" />
-                          <button
-                            type="button"
-                            className="charm-patient-link"
-                            onClick={() => navigate("/patients/" + a.patient_id)}
-                          >
-                            <strong>{pat?.name || patientName(a.patient_id, patients)} [ {pat?.mrn || "HUHNKR" + a.id.slice(0, 4)} ]</strong>
-                          </button>
-                          <PatientAlertBadgePopover
-                            alerts={a.active_alerts || pat?.active_alerts}
-                            patientId={a.patient_id}
-                          />
-                          <CalendarStickyNotePopover
-                            notes={a.quick_notes || pat?.quick_notes}
-                            patientId={a.patient_id}
-                            patientName={pat?.name || patientName(a.patient_id, patients)}
-                          />
-                          <span
-                            className="charm-red-bubble"
-                            title="Patient Chat / Notes"
-                            onClick={() => navigate("/communication")}
-                            style={{ cursor: "pointer" }}
-                          >
-                            ✉
-                          </span>
-                        </div>
-
-                        <div className="charm-patient-info-row">
-                          <div className="charm-avatar-circle-gray">
-                            👤
-                          </div>
-                          <div className="charm-patient-details-text">
-                            <div>Reason: <span style={{ color: "#334155" }}>{a.reason || "-"}</span></div>
-                            <div style={{ marginTop: 4 }}>
-                              <span>DOB: {pat?.dob || "Aug 14, 1950"}</span>
-                              <span style={{ marginLeft: 12 }}>📱 {pat?.phone || "9940322368"}</span>
+                  })()
+                ) : (view === "Day" || view === "EECP Treatment") ? (
+                  /* Authentic CharmHealth Multi-Column Day & EECP Treatment Resource Matrix with Overlap Lanes & Multi-Booking */
+                  (() => {
+                    const isResourceMode = view === "EECP Treatment" || dayViewMode === "Resource View";
+                    return (
+                      <div className="charm-day-matrix-container">
+                        <div className="charm-day-matrix-scroll-wrapper">
+                          <div className="charm-day-matrix-grid">
+                            {/* Sticky Column Headers */}
+                            <div className="charm-day-matrix-header-row">
+                              <div className="charm-day-matrix-corner-cell">
+                                <Clock3 size={15} color="#64748b" />
+                              </div>
+                              {isResourceMode ? (
+                                dayResourceColumns.map((colName) => (
+                                  <div key={colName} className="charm-day-matrix-col-header" title={colName}>
+                                    <span>{colName}</span>
+                                  </div>
+                                ))
+                              ) : (
+                                dayProviderColumns.map((prv) => (
+                                  <div key={prv.id} className="charm-day-matrix-col-header" title={prv.name}>
+                                    <span>{prv.name}</span>
+                                  </div>
+                                ))
+                              )}
                             </div>
-                            <div style={{ marginTop: 8 }}>
-                              <AppointmentStatusDropdown
-                                appointment={a}
-                                statuses={availableStatuses}
-                              />
+
+                            {/* Matrix Body with Sticky Time Gutter */}
+                            <div className="charm-day-matrix-body">
+                              {/* Left Time Gutter */}
+                              <div className="charm-day-matrix-time-gutter">
+                                {matrixTimeSlots.map((slot) => (
+                                  <div
+                                    key={slot.timeKey}
+                                    className={`charm-day-matrix-time-slot ${slot.isHour ? "is-hour" : ""}`}
+                                  >
+                                    <span>{slot.label}</span>
+                                  </div>
+                                ))}
+                              </div>
+
+                              {/* Columns Grid */}
+                              <div className="charm-day-matrix-columns-area">
+                                {(isResourceMode ? dayResourceColumns : dayProviderColumns).map((colItem) => {
+                                  const colId = typeof colItem === "string" ? colItem : colItem.id;
+                                  const colTitle = typeof colItem === "string" ? colItem : colItem.name;
+
+                                  const colAppts = scopedAppts.filter((a) => {
+                                    const localStart = localInput(a.start_at);
+                                    if (!localStart.startsWith(date)) return false;
+                                    if (isResourceMode) {
+                                      const rName = getApptResourceName(a.resource_id);
+                                      if (colTitle === "Unassigned") {
+                                        return (
+                                          !a.resource_id ||
+                                          rName === "-- Select --" ||
+                                          rName === "" ||
+                                          !dayResourceColumns.slice(1).some((c) => c.toLowerCase() === rName.toLowerCase())
+                                        );
+                                      }
+                                      return rName.toLowerCase() === colTitle.toLowerCase();
+                                    } else {
+                                      return a.provider_id === colId;
+                                    }
+                                  });
+
+                                  const placedLayouts = computeColumnLayout(colAppts, 7);
+
+                                  return (
+                                    <div key={colId} className="charm-day-matrix-column">
+                                      {/* 10-minute grid cell rows */}
+                                      {matrixTimeSlots.map((slot) => {
+                                        const isWorkingHour = slot.hour >= 8 && slot.hour < 20;
+                                        return (
+                                          <div
+                                            key={slot.timeKey}
+                                            className={`charm-day-matrix-slot-cell ${isWorkingHour ? "working-hour" : "off-hour"} ${slot.isHour ? "hour-border" : ""}`}
+                                            onClick={() => {
+                                              if (["reception", "doctor", "therapist", "admin"].includes(user.role)) {
+                                                const slotTime = `${date}T${String(slot.hour).padStart(2, "0")}:${String(slot.minute).padStart(2, "0")}`;
+                                                const rObj = colTitle === "Unassigned" ? undefined : resources.find((r) => r.name.toLowerCase() === colTitle.toLowerCase());
+                                                const isEecpCol = view === "EECP Treatment" || colTitle.toLowerCase().includes("eecp");
+                                                setBookingSlot({
+                                                  startAt: slotTime,
+                                                  resourceId: rObj?.id,
+                                                  providerId: (!isResourceMode && dayViewMode === "Provider View") ? colId : (isEecpCol ? undefined : (provider || undefined)),
+                                                  duration: isEecpCol ? 60 : 30,
+                                                });
+                                              }
+                                            }}
+                                            title={`Click to book appointment on ${colTitle} at ${slot.label}`}
+                                          >
+                                            <span className="charm-slot-hover-add">+</span>
+                                          </div>
+                                        );
+                                      })}
+
+                                      {/* Placed Appointment Cards with Overlap Lane Layout */}
+                                      {placedLayouts.map(({ appt, top, height, leftPct, widthPct }) => {
+                                        const pat = patients.find((p) => p.id === appt.patient_id);
+                                        const prv = staff.find((s) => s.id === appt.provider_id);
+                                        const localStart = localInput(appt.start_at);
+                                        const cStyle = getCharmCardStyle(appt);
+                                        const patName = pat?.name || patientName(appt.patient_id, patients);
+                                        const prvName = prv?.name || "Staff";
+                                        const timeRange = formatApptTimeRange(appt.start_at, appt.end_at);
+                                        const sDay = appt.reason || (appt.session_number
+                                          ? `EECP ${appt.session_number}th Day`
+                                          : (appt.visit_type?.includes("Day") ? appt.visit_type : (appt.visit_type || "EECP Session")));
+
+                                        return (
+                                          <div
+                                            key={appt.id}
+                                            className="charm-matrix-appt-card"
+                                            style={{
+                                              top: `${top}px`,
+                                              height: `${height}px`,
+                                              left: `calc(${leftPct}% + 2px)`,
+                                              width: `calc(${widthPct}% - 4px)`,
+                                              background: cStyle.bg,
+                                              color: cStyle.color,
+                                              borderColor: cStyle.border,
+                                              borderWidth: 1,
+                                              borderStyle: "solid",
+                                              padding: "3px 6px",
+                                              display: "flex",
+                                              flexDirection: "column",
+                                              justifyContent: "flex-start",
+                                              gap: 1,
+                                              lineHeight: 1.25,
+                                              boxShadow: "0 1px 3px rgba(0,0,0,0.08)",
+                                              overflow: "hidden",
+                                              cursor: "pointer",
+                                            }}
+                                            onClick={(e) => {
+                                              e.stopPropagation();
+                                              setSelectedAppt(appt);
+                                            }}
+                                            title={`${patName}, ${prvName}, ${sDay}`}
+                                          >
+                                            {/* Line 1: Start Time - End Time */}
+                                            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", width: "100%" }}>
+                                              <span style={{ fontSize: 11, fontWeight: 700, color: cStyle.color }}>{timeRange}</span>
+                                              {["reception", "doctor", "therapist", "admin"].includes(user.role) && (
+                                                <button
+                                                  type="button"
+                                                  className="charm-card-plus-btn"
+                                                  title="Book another appointment at this time"
+                                                  style={{ color: cStyle.color }}
+                                                  onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    setBookingSlot({
+                                                      startAt: localStart.slice(0, 16),
+                                                      resourceId: appt.resource_id,
+                                                      providerId: appt.provider_id,
+                                                      duration: view === "EECP Treatment" ? 60 : 30,
+                                                    });
+                                                  }}
+                                                >
+                                                  +
+                                                </button>
+                                              )}
+                                            </div>
+
+                                            {/* Line 2: Patient Full Name */}
+                                            <div style={{ fontSize: 11.5, fontWeight: 700, color: cStyle.color, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                                              {patName}
+                                            </div>
+
+                                            {/* Line 3: Assigned Therapist Name */}
+                                            <div style={{ fontSize: 11, fontWeight: 500, color: cStyle.color, opacity: 0.95, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                                              {prvName}
+                                            </div>
+
+                                            {/* Line 4: Session Counter / Reason */}
+                                            <div style={{ fontSize: 11, fontWeight: 600, color: cStyle.color, opacity: 0.95, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                                              {sDay}
+                                            </div>
+                                          </div>
+                                        );
+                                      })}
+                                    </div>
+                                  );
+                                })}
+                              </div>
                             </div>
                           </div>
                         </div>
                       </div>
+                    );
+                  })()
+                ) : view === "Month" ? (
+                  /* Authentic CharmHealth Month Grid (1:1 with CharmTracker) */
+                  <div className="charm-cal-month-wrap">
+                    {/* Day of Week Headers */}
+                    <div className="charm-cal-month-header-row">
+                      {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((dayName) => (
+                        <div key={dayName} className="charm-cal-month-th">
+                          {dayName}
+                        </div>
+                      ))}
+                    </div>
 
-                      {/* Right Column of Card (Frame 072) */}
-                      <div className="charm-list-card-right">
-                        {(() => {
-                          const prvIdx = clinicalProviders.findIndex((p: any) => p.id === a.provider_id);
-                          const colors = ["#00bcd4", "#4caf50", "#2196f3", "#9c27b0", "#ff9800", "#e91e63"];
-                          const swatchColor = prvIdx >= 0 ? colors[prvIdx % colors.length] : "#8b5cf6";
-                          return (
-                            <div className="charm-right-top-meta" style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                              <input type="checkbox" />
-                              <span style={{ display: "inline-block", width: 8, height: 8, backgroundColor: swatchColor, borderRadius: 1, flexShrink: 0 }} />
-                              <span style={{ fontWeight: 600, color: "#0f172a" }}>
-                                {formatDoctorName(prv?.name || "Dr. Ramasamy S")}
+                    {/* 7-column Calendar Month Grid */}
+                    <div className="charm-cal-month-cells-grid">
+                      {monthCells.map((cell) => {
+                        const dayAppts = scopedAppts
+                          .filter((a) => localInput(a.start_at).slice(0, 10) === cell.dateStr)
+                          .sort((a, b) => a.start_at.localeCompare(b.start_at));
+                        const waitingCount = waitingEntriesForDate(cell.dateStr).length;
+
+                        return (
+                          <div
+                            key={cell.dateStr}
+                            className={`charm-cal-month-cell-box ${!cell.isCurrentMonth ? "inactive" : ""} ${cell.isToday ? "is-today" : ""}`}
+                            onClick={() => {
+                              if (["reception", "doctor", "therapist", "admin"].includes(user.role)) {
+                                setBookingSlot({
+                                  startAt: `${cell.dateStr}T09:00`,
+                                  providerId: provider || undefined,
+                                  duration: 30,
+                                });
+                              }
+                            }}
+                            title={cell.isToday ? "Today" : `Click to book appointment on ${cell.dateStr}`}
+                          >
+                            <div className="charm-cal-month-cell-top">
+                              <span className={`charm-cal-month-day-num ${cell.isToday ? "today-badge" : ""}`}>
+                                {cell.dayNum}
                               </span>
-                              <span style={{ color: "#cbd5e1" }}>|</span>
-                              <span style={{ color: "#475569" }}>Heal Your Heart Neelankarai</span>
-                              <span style={{ color: "#cbd5e1" }}>|</span>
-                              <span style={{ fontWeight: 600, color: "#0f4c81" }}>
-                                {startStr} - {endStr}
-                              </span>
+                              {["reception", "doctor", "therapist", "admin"].includes(user.role) && (
+                                <span className="charm-cal-cell-plus-hover" title="Book Appointment">
+                                  +
+                                </span>
+                              )}
                             </div>
-                          );
-                        })()}
 
-                        <div className="charm-right-details-grid">
-                          <div>
-                            <span className="charm-dim-label">Visit Type: </span>
-                            <strong style={{ display: "block", color: "#0f172a", marginTop: 2 }}>{a.visit_type || formatSessionDay(a)}</strong>
+                            <WaitingListDateBadge
+                              date={cell.dateStr}
+                              count={waitingCount}
+                              onClick={() => openWaitingDetails(cell.dateStr)}
+                            />
+
+                            <div className="charm-cal-month-chips-container">
+                              {dayAppts.map((appt) => {
+                                const isEECP = appt.visit_type?.toLowerCase().includes("eecp");
+                                const pat = patients.find((p) => p.id === appt.patient_id);
+                                const timeStr = localInput(appt.start_at).slice(11, 16);
+                                const patientDisplayName = pat?.name || patientName(appt.patient_id, patients);
+
+                                return (
+                                  <div
+                                    key={appt.id}
+                                    className={`charm-cal-month-chip-item status-${appt.status} ${isEECP ? "is-eecp" : "is-consult"}`}
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setSelectedAppt(appt);
+                                    }}
+                                    title={`${timeStr} · ${patientDisplayName} · ${appt.visit_type} · [${appt.status}]`}
+                                  >
+                                    <span className="charm-month-chip-time">{timeStr}</span>
+                                    <span className="charm-month-chip-name">{patientDisplayName}</span>
+                                  </div>
+                                );
+                              })}
+                            </div>
                           </div>
-                          <div>
-                            <span className="charm-dim-label">Patient Balance Due: </span>
-                            {shownBalances[a.id] ? (
-                              <strong style={{ color: "#0f172a", fontSize: 11.5 }}>Rs. 0.00</strong>
-                            ) : (
+                        );
+                      })}
+                    </div>
+                  </div>
+                ) : (
+                  /* 4. Authentic CharmHealth List View (Image 3) */
+                  <div className="charm-appt-card-list">
+                    {displayedAppts.map((a) => {
+                      const pat = patients.find((p) => p.id === a.patient_id);
+                      const prv = staff.find((s) => s.id === a.provider_id);
+                      const res = resources.find((r) => r.id === a.resource_id);
+                      const startStr = localInput(a.start_at).slice(11, 16);
+                      const endStr = localInput(a.end_at).slice(11, 16);
+
+                      return (
+                        <div key={a.id} className="charm-list-card">
+                          {/* Left Column of Card (Frame 072) */}
+                          <div className="charm-list-card-left">
+                            <div className="charm-patient-header-line">
+                              <input type="checkbox" />
                               <button
                                 type="button"
-                                className="text-link"
-                                onClick={() => setShownBalances((prev) => ({ ...prev, [a.id]: true }))}
-                                style={{ fontSize: 11, color: "#0284c7" }}
+                                className="charm-patient-link"
+                                onClick={() => navigate("/patients/" + a.patient_id)}
                               >
-                                Show
+                                <strong>{pat?.name || patientName(a.patient_id, patients)} [ {pat?.mrn || "HUHNKR" + a.id.slice(0, 4)} ]</strong>
                               </button>
-                            )}
-                          </div>
-                          <div>
-                            <span className="charm-dim-label">Last Visit: </span>
-                            <button
-                              type="button"
-                              className="text-link"
-                              onClick={() => setLastVisitModalAppt(a)}
-                              style={{ color: "#0284c7", fontSize: 11.5, padding: 0 }}
-                            >
-                              {day(a.start_at)}
-                            </button>
-                          </div>
-                          <div>
-                            <span className="charm-dim-label">Token #: </span>
-                            {a.token_number ? (
-                              <span style={{ fontSize: 11.5 }}>
-                                <strong style={{ color: "#0f172a" }}>{a.token_number}</strong>
-                                <span style={{ color: "#94a3b8", margin: "0 5px" }}>|</span>
-                                <button
-                                  type="button"
-                                  className="text-link"
-                                  onClick={() => setPaymentModalAppt(a)}
-                                  style={{ color: "#2563eb", fontWeight: 500 }}
-                                >
-                                  Pay
-                                </button>
+                              <PatientAlertBadgePopover
+                                alerts={a.active_alerts || pat?.active_alerts}
+                                patientId={a.patient_id}
+                              />
+                              <CalendarStickyNotePopover
+                                notes={a.quick_notes || pat?.quick_notes}
+                                patientId={a.patient_id}
+                                patientName={pat?.name || patientName(a.patient_id, patients)}
+                              />
+                              <span
+                                className="charm-red-bubble"
+                                title="Patient Chat / Notes"
+                                onClick={() => navigate("/communication")}
+                                style={{ cursor: "pointer" }}
+                              >
+                                ✉
                               </span>
-                            ) : (
-                              <span style={{ fontSize: 11.5 }}>
+                            </div>
+
+                            <div className="charm-patient-info-row">
+                              <div className="charm-avatar-circle-gray">
+                                👤
+                              </div>
+                              <div className="charm-patient-details-text">
+                                <div>Reason: <span style={{ color: "#334155" }}>{a.reason || "-"}</span></div>
+                                <div style={{ marginTop: 4 }}>
+                                  <span>DOB: {pat?.dob || "Aug 14, 1950"}</span>
+                                  <span style={{ marginLeft: 12 }}>📱 {pat?.phone || "9940322368"}</span>
+                                </div>
+                                <div style={{ marginTop: 8 }}>
+                                  <AppointmentStatusDropdown
+                                    appointment={a}
+                                    statuses={availableStatuses}
+                                  />
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Right Column of Card (Frame 072) */}
+                          <div className="charm-list-card-right">
+                            {(() => {
+                              const prvIdx = clinicalProviders.findIndex((p: any) => p.id === a.provider_id);
+                              const colors = ["#00bcd4", "#4caf50", "#2196f3", "#9c27b0", "#ff9800", "#e91e63"];
+                              const swatchColor = prvIdx >= 0 ? colors[prvIdx % colors.length] : "#8b5cf6";
+                              return (
+                                <div className="charm-right-top-meta" style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                                  <input type="checkbox" />
+                                  <span style={{ display: "inline-block", width: 8, height: 8, backgroundColor: swatchColor, borderRadius: 1, flexShrink: 0 }} />
+                                  <span style={{ fontWeight: 600, color: "#0f172a" }}>
+                                    {formatDoctorName(prv?.name || "Dr. Ramasamy S")}
+                                  </span>
+                                  <span style={{ color: "#cbd5e1" }}>|</span>
+                                  <span style={{ color: "#475569" }}>Heal Your Heart Neelankarai</span>
+                                  <span style={{ color: "#cbd5e1" }}>|</span>
+                                  <span style={{ fontWeight: 600, color: "#0f4c81" }}>
+                                    {startStr} - {endStr}
+                                  </span>
+                                </div>
+                              );
+                            })()}
+
+                            <div className="charm-right-details-grid">
+                              <div>
+                                <span className="charm-dim-label">Visit Type: </span>
+                                <strong style={{ display: "block", color: "#0f172a", marginTop: 2 }}>{a.visit_type || formatSessionDay(a)}</strong>
+                              </div>
+                              <div>
+                                <span className="charm-dim-label">Patient Balance Due: </span>
+                                {shownBalances[a.id] ? (
+                                  <strong style={{ color: "#0f172a", fontSize: 11.5 }}>Rs. 0.00</strong>
+                                ) : (
+                                  <button
+                                    type="button"
+                                    className="text-link"
+                                    onClick={() => setShownBalances((prev) => ({ ...prev, [a.id]: true }))}
+                                    style={{ fontSize: 11, color: "#0284c7" }}
+                                  >
+                                    Show
+                                  </button>
+                                )}
+                              </div>
+                              <div>
+                                <span className="charm-dim-label">Last Visit: </span>
                                 <button
                                   type="button"
                                   className="text-link"
-                                  onClick={async () => {
+                                  onClick={() => setLastVisitModalAppt(a)}
+                                  style={{ color: "#0284c7", fontSize: 11.5, padding: 0 }}
+                                >
+                                  {day(a.start_at)}
+                                </button>
+                              </div>
+                              <div>
+                                <span className="charm-dim-label">Token #: </span>
+                                {a.token_number ? (
+                                  <span style={{ fontSize: 11.5 }}>
+                                    <strong style={{ color: "#0f172a" }}>{a.token_number}</strong>
+                                    <span style={{ color: "#94a3b8", margin: "0 5px" }}>|</span>
+                                    <button
+                                      type="button"
+                                      className="text-link"
+                                      onClick={() => setPaymentModalAppt(a)}
+                                      style={{ color: "#2563eb", fontWeight: 500 }}
+                                    >
+                                      Pay
+                                    </button>
+                                  </span>
+                                ) : (
+                                  <span style={{ fontSize: 11.5 }}>
+                                    <button
+                                      type="button"
+                                      className="text-link"
+                                      onClick={async () => {
+                                        try {
+                                          await api("/appointments/" + a.id + "/token", "POST");
+                                          await refresh();
+                                          notify("Token number generated.");
+                                        } catch (err: any) {
+                                          notify(err.message || "Failed to generate token");
+                                        }
+                                      }}
+                                      style={{ color: "#2563eb", fontWeight: 500 }}
+                                    >
+                                      Generate
+                                    </button>
+                                    <span style={{ color: "#94a3b8", margin: "0 5px" }}>|</span>
+                                    <button
+                                      type="button"
+                                      className="text-link"
+                                      onClick={() => setPaymentModalAppt(a)}
+                                      style={{ color: "#2563eb", fontWeight: 500 }}
+                                    >
+                                      Pay
+                                    </button>
+                                  </span>
+                                )}
+                              </div>
+                              <div>
+                                <span className="charm-dim-label">Resource: </span>
+                                <select
+                                  value={a.resource_id || ""}
+                                  onChange={async (e) => {
+                                    const newResId = e.target.value || null;
                                     try {
-                                      await api("/appointments/" + a.id + "/token", "POST");
+                                      await api("/appointments/" + a.id, "PATCH", { resource_id: newResId });
                                       await refresh();
-                                      notify("Token number generated.");
+                                      notify("Resource updated.");
                                     } catch (err: any) {
-                                      notify(err.message || "Failed to generate token");
+                                      notify(err?.message || "Failed to update resource");
                                     }
                                   }}
-                                  style={{ color: "#2563eb", fontWeight: 500 }}
+                                  style={{ border: "1px solid #cbd5e1", borderRadius: 3, padding: "2px 6px", background: "#fff", fontWeight: 500, fontSize: 11.5, color: "#0f172a", cursor: "pointer" }}
                                 >
-                                  Generate
-                                </button>
-                                <span style={{ color: "#94a3b8", margin: "0 5px" }}>|</span>
+                                  <option value="">-- Select --</option>
+                                  {resources
+                                    .filter((r) => !r.facility_id || r.facility_id === (a.facility_id || branch))
+                                    .map((r) => (
+                                      <option key={r.id} value={r.id}>
+                                        {r.name}
+                                      </option>
+                                    ))}
+                                </select>
+                              </div>
+                              <div>
+                                <span className="charm-dim-label">Consultation: </span>
                                 <button
                                   type="button"
                                   className="text-link"
-                                  onClick={() => setPaymentModalAppt(a)}
-                                  style={{ color: "#2563eb", fontWeight: 500 }}
+                                  onClick={() => handleStartConsultation(a.patient_id, a.visit_type)}
+                                  style={{ fontWeight: 700, color: "#0284c7" }}
                                 >
-                                  Pay
+                                  {(a.status === "checked-in" || a.status === "completed" || a.status === "started" || a.status_label === "Checked in") ? "Edit" : "Start"}
                                 </button>
-                              </span>
+                              </div>
+                            </div>
+
+                            {/* Bottom action and quick links */}
+                            <div className="charm-right-actions-bar">
+                              <div className="charm-quick-nav-links">
+                                <button
+                                  type="button"
+                                  className="text-link"
+                                  onClick={() => navigate("/patients/" + a.patient_id)}
+                                >
+                                  Face Sheet
+                                </button>
+                                <span>|</span>
+                                <span className="text-link" style={{ cursor: "pointer" }} onClick={() => navigate("/patients/" + a.patient_id)}>
+                                  Questionnaire
+                                </span>
+                                <span>|</span>
+                                <span className="text-link" style={{ cursor: "pointer" }} onClick={() => navigate("/patients/" + a.patient_id)}>
+                                  Past Visits
+                                </span>
+                              </div>
+
+                              <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+                                {a.status === "confirmed" && (
+                                  <button
+                                    type="button"
+                                    className="charm-btn-confirm"
+                                    style={{ padding: "4px 10px", fontSize: 11, background: "#10b981", borderRadius: 4 }}
+                                    onClick={async () => {
+                                      try {
+                                        await api("/appointments/" + a.id + "/status", "POST", {
+                                          version: a.version,
+                                          status: "checked-in",
+                                        });
+                                        await refresh();
+                                        notify("Patient checked in.");
+                                      } catch (e) {
+                                        setError(e);
+                                      }
+                                    }}
+                                  >
+                                    Check in
+                                  </button>
+                                )}
+                                <button
+                                  type="button"
+                                  className="charm-btn-cancel"
+                                  style={{ padding: "4px 8px", fontSize: 11 }}
+                                  onClick={() => setReschedule(a)}
+                                >
+                                  Reschedule
+                                </button>
+                              </div>
+                            </div>
+
+                            {/* Live Active Clinical Workflow Progress Tracker */}
+                            {calendarWorkflowMap[a.patient_id]?.length > 0 && (
+                              <PatientWorkflowProgressBar
+                                workflows={calendarWorkflowMap[a.patient_id]}
+                                compact
+                                onOpenTasks={() => navigate(`/patients/${a.patient_id}?section=Tasks`)}
+                              />
                             )}
                           </div>
-                          <div>
-                            <span className="charm-dim-label">Resource: </span>
-                            <select
-                              value={a.resource_id || ""}
-                              onChange={async (e) => {
-                                const newResId = e.target.value || null;
-                                try {
-                                  await api("/appointments/" + a.id, "PATCH", { resource_id: newResId });
-                                  await refresh();
-                                  notify("Resource updated.");
-                                } catch (err: any) {
-                                  notify(err?.message || "Failed to update resource");
-                                }
-                              }}
-                              style={{ border: "1px solid #cbd5e1", borderRadius: 3, padding: "2px 6px", background: "#fff", fontWeight: 500, fontSize: 11.5, color: "#0f172a", cursor: "pointer" }}
-                            >
-                              <option value="">-- Select --</option>
-                              {resources
-                                .filter((r) => !r.facility_id || r.facility_id === (a.facility_id || branch))
-                                .map((r) => (
-                                  <option key={r.id} value={r.id}>
-                                    {r.name}
-                                  </option>
-                                ))}
-                            </select>
-                          </div>
-                          <div>
-                            <span className="charm-dim-label">Consultation: </span>
-                            <button
-                              type="button"
-                              className="text-link"
-                              onClick={() => handleStartConsultation(a.patient_id, a.visit_type)}
-                              style={{ fontWeight: 700, color: "#0284c7" }}
-                            >
-                              {(a.status === "checked-in" || a.status === "completed" || a.status === "started" || a.status_label === "Checked in") ? "Edit" : "Start"}
-                            </button>
-                          </div>
                         </div>
+                      );
+                    })}
 
-                        {/* Bottom action and quick links */}
-                        <div className="charm-right-actions-bar">
-                          <div className="charm-quick-nav-links">
-                            <button
-                              type="button"
-                              className="text-link"
-                              onClick={() => navigate("/patients/" + a.patient_id)}
-                            >
-                              Face Sheet
-                            </button>
-                            <span>|</span>
-                            <span className="text-link" style={{ cursor: "pointer" }} onClick={() => navigate("/patients/" + a.patient_id)}>
-                              Questionnaire
-                            </span>
-                            <span>|</span>
-                            <span className="text-link" style={{ cursor: "pointer" }} onClick={() => navigate("/patients/" + a.patient_id)}>
-                              Past Visits
-                            </span>
-                          </div>
-
-                          <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
-                            {a.status === "confirmed" && (
-                              <button
-                                type="button"
-                                className="charm-btn-confirm"
-                                style={{ padding: "4px 10px", fontSize: 11, background: "#10b981", borderRadius: 4 }}
-                                onClick={async () => {
-                                  try {
-                                    await api("/appointments/" + a.id + "/status", "POST", {
-                                      version: a.version,
-                                      status: "checked-in",
-                                    });
-                                    await refresh();
-                                    notify("Patient checked in.");
-                                  } catch (e) {
-                                    setError(e);
-                                  }
-                                }}
-                              >
-                                Check in
-                              </button>
-                            )}
-                            <button
-                              type="button"
-                              className="charm-btn-cancel"
-                              style={{ padding: "4px 8px", fontSize: 11 }}
-                              onClick={() => setReschedule(a)}
-                            >
-                              Reschedule
-                            </button>
-                          </div>
-                        </div>
-
-                        {/* Live Active Clinical Workflow Progress Tracker */}
-                        {calendarWorkflowMap[a.patient_id]?.length > 0 && (
-                          <PatientWorkflowProgressBar
-                            workflows={calendarWorkflowMap[a.patient_id]}
-                            compact
-                            onOpenTasks={() => navigate(`/patients/${a.patient_id}?section=Tasks`)}
-                          />
-                        )}
+                    {filtered.length === 0 ? (
+                      <div style={{ padding: 32, textAlign: "center", color: "#64748b", background: "#fff", border: "1px solid #e2e8f0", borderRadius: 6 }}>
+                        No appointments scheduled for this date.
                       </div>
-                    </div>
-                  );
-                })}
-
-                {filtered.length === 0 ? (
-                  <div style={{ padding: 32, textAlign: "center", color: "#64748b", background: "#fff", border: "1px solid #e2e8f0", borderRadius: 6 }}>
-                    No appointments scheduled for this date.
+                    ) : displayedAppts.length === 0 ? (
+                      <div style={{ padding: 32, textAlign: "center", color: "#64748b", background: "#fff", border: "1px solid #e2e8f0", borderRadius: 6 }}>
+                        No appointments found matching status "<strong>{statusFilter}</strong>".{" "}
+                        <button
+                          type="button"
+                          className="text-link"
+                          onClick={() => setStatusFilter("ALL")}
+                          style={{ marginLeft: 6, fontWeight: 600 }}
+                        >
+                          Show all ({filtered.length})
+                        </button>
+                      </div>
+                    ) : null}
                   </div>
-                ) : displayedAppts.length === 0 ? (
-                  <div style={{ padding: 32, textAlign: "center", color: "#64748b", background: "#fff", border: "1px solid #e2e8f0", borderRadius: 6 }}>
-                    No appointments found matching status "<strong>{statusFilter}</strong>".{" "}
-                    <button
-                      type="button"
-                      className="text-link"
-                      onClick={() => setStatusFilter("ALL")}
-                      style={{ marginLeft: 6, fontWeight: 600 }}
-                    >
-                      Show all ({filtered.length})
-                    </button>
-                  </div>
-                ) : null}
-              </div>
-            )}
+                )}
               </>
             )}
           </section>
@@ -3578,8 +3579,8 @@ function Schedule() {
                 {waitingListView === "Day"
                   ? waitingDayTitle
                   : waitingListView === "Week"
-                  ? waitingWeekTitle
-                  : waitingMonthTitle}
+                    ? waitingWeekTitle
+                    : waitingMonthTitle}
               </span>
               <button
                 type="button"
@@ -3698,62 +3699,62 @@ function Schedule() {
                     Waiting List not available
                   </div>
                 ) : (
-                <table className="charm-reports-table" style={{ width: "100%" }}>
-                  <thead>
-                    <tr>
-                      <th>Patient Name</th>
-                      <th>MRN</th>
-                      <th>Phone</th>
-                      <th>Facility</th>
-                      <th>Provider</th>
-                      <th>Visit Type</th>
-                      <th>Time Preference</th>
-                      <th>Mode</th>
-                      <th>Reason</th>
-                      <th style={{ textAlign: "right" }}>Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {dayEntries.map((entry) => (
-                      <tr key={entry.id}>
-                        <td style={{ fontWeight: 600, color: "#0f172a" }}>{entry.patient_name}</td>
-                        <td style={{ color: "#009688", fontWeight: 500 }}>{entry.mrn || "—"}</td>
-                        <td>{entry.phone || "—"}</td>
-                        <td>{entry.facility || "Heal Your Heart Neelankarai - HUH001"}</td>
-                        <td>{entry.provider_name || "—"}</td>
-                        <td><span className="badge-eecp">{entry.visit_type || "Consultation"}</span></td>
-                        <td>{entry.time_preference || "Any Time"}</td>
-                        <td>{entry.mode || "In Person"}</td>
-                        <td style={{ maxWidth: 160, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                          {entry.reason || "—"}
-                        </td>
-                        <td style={{ textAlign: "right" }}>
-                          <div className="charm-waiting-actions">
-                            <button
-                              type="button"
-                              onClick={() => openWaitingEntryConfirmation(entry)}
-                            >
-                              Confirm
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => openWaitingEntryEdit(entry)}
-                            >
-                              Edit
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => removeWaitingEntry(entry.id)}
-                            >
-                              Cancel
-                            </button>
-                          </div>
-                        </td>
+                  <table className="charm-reports-table" style={{ width: "100%" }}>
+                    <thead>
+                      <tr>
+                        <th>Patient Name</th>
+                        <th>MRN</th>
+                        <th>Phone</th>
+                        <th>Facility</th>
+                        <th>Provider</th>
+                        <th>Visit Type</th>
+                        <th>Time Preference</th>
+                        <th>Mode</th>
+                        <th>Reason</th>
+                        <th style={{ textAlign: "right" }}>Actions</th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
-              )}
+                    </thead>
+                    <tbody>
+                      {dayEntries.map((entry) => (
+                        <tr key={entry.id}>
+                          <td style={{ fontWeight: 600, color: "#0f172a" }}>{entry.patient_name}</td>
+                          <td style={{ color: "#009688", fontWeight: 500 }}>{entry.mrn || "—"}</td>
+                          <td>{entry.phone || "—"}</td>
+                          <td>{entry.facility || "Heal Your Heart Neelankarai - HUH001"}</td>
+                          <td>{entry.provider_name || "—"}</td>
+                          <td><span className="badge-eecp">{entry.visit_type || "Consultation"}</span></td>
+                          <td>{entry.time_preference || "Any Time"}</td>
+                          <td>{entry.mode || "In Person"}</td>
+                          <td style={{ maxWidth: 160, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                            {entry.reason || "—"}
+                          </td>
+                          <td style={{ textAlign: "right" }}>
+                            <div className="charm-waiting-actions">
+                              <button
+                                type="button"
+                                onClick={() => openWaitingEntryConfirmation(entry)}
+                              >
+                                Confirm
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => openWaitingEntryEdit(entry)}
+                              >
+                                Edit
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => removeWaitingEntry(entry.id)}
+                              >
+                                Cancel
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                )}
               </div>
             </div>
           )}
@@ -4398,7 +4399,9 @@ function Schedule() {
           initialStart={bookingSlot?.startAt || `${date}T09:00:00`}
           initialProviderId={bookingSlot?.providerId}
           initialResourceId={bookingSlot?.resourceId}
-          initialDuration={bookingSlot?.duration}
+          initialDuration={bookingSlot?.duration || (view === "EECP Treatment" ? 60 : undefined)}
+          isEecpMode={view === "EECP Treatment" || Boolean(bookingSlot?.resourceId && resources.find((r) => r.id === bookingSlot.resourceId)?.name?.toLowerCase().includes("eecp"))}
+          initialVisitType={view === "EECP Treatment" ? "EECP Therapy Session" : undefined}
           onBooked={(bookedDate) => {
             console.log("operations.tsx onBooked callback received:", bookedDate);
             if (bookedDate) {
