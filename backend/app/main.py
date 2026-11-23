@@ -42,7 +42,7 @@ async def headers(request:Request,call_next):
     response.headers['X-Content-Type-Options']='nosniff'
     response.headers['Referrer-Policy']='no-referrer'
     response.headers['Cache-Control']='no-store'
-    response.headers['Permissions-Policy']='camera=(), microphone=(), geolocation=()'
+    response.headers['Permissions-Policy']='camera=(self), microphone=(), geolocation=()'
 
     path = request.url.path.lower()
     is_doc_stream = (

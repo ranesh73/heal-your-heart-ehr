@@ -155,6 +155,8 @@ export function AddPatientView({ onCancel, onSaved, initialPatient }: AddPatient
   const [avatarPreview, setAvatarPreview] = useState<string | null>(initialPatient?.photo_url || null);
   const [showPhotoChooser, setShowPhotoChooser] = useState(false);
   const [showCameraModal, setShowCameraModal] = useState(false);
+  const [liveCameraStream, setLiveCameraStream] = useState<MediaStream | null>(null);
+  const [liveCameraError, setLiveCameraError] = useState<any>(null);
 
   const avatarInputRef = useRef<HTMLInputElement>(null);
   const fileInputRefs = useRef<(HTMLInputElement | null)[]>([]);
@@ -475,7 +477,11 @@ export function AddPatientView({ onCancel, onSaved, initialPatient }: AddPatient
           <PatientPhotoChooserModal
             isOpen={showPhotoChooser}
             onClose={() => setShowPhotoChooser(false)}
-            onOpenLiveCamera={() => setShowCameraModal(true)}
+            onOpenLiveCamera={(stream, error) => {
+              setLiveCameraStream(stream || null);
+              setLiveCameraError(error || null);
+              setShowCameraModal(true);
+            }}
             onOpenDeviceUpload={() => avatarInputRef.current?.click()}
             onRemovePhoto={() => setAvatarPreview(null)}
             hasPhoto={!!avatarPreview}
@@ -484,8 +490,18 @@ export function AddPatientView({ onCancel, onSaved, initialPatient }: AddPatient
           {/* Live Camera Modal */}
           <CameraCaptureModal
             isOpen={showCameraModal}
-            onClose={() => setShowCameraModal(false)}
-            onPhotoAccepted={(dataUrl) => setAvatarPreview(dataUrl)}
+            initialStream={liveCameraStream}
+            initialError={liveCameraError}
+            onClose={() => {
+              setShowCameraModal(false);
+              setLiveCameraStream(null);
+              setLiveCameraError(null);
+            }}
+            onPhotoAccepted={(dataUrl) => {
+              setAvatarPreview(dataUrl);
+              setLiveCameraStream(null);
+              setLiveCameraError(null);
+            }}
             onFallbackToUpload={() => avatarInputRef.current?.click()}
           />
 

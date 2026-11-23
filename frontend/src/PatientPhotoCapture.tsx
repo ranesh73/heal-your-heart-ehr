@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useRef, useEffect, useCallback } from "react";
 import {
   Camera,
   Upload,
@@ -8,12 +8,46 @@ import {
   Trash2,
   AlertCircle,
   FlipHorizontal,
+  RefreshCw,
 } from "lucide-react";
+
+export function getCameraDiagnosticMessage(err?: any): string {
+  if (typeof window !== "undefined" && window.isSecureContext === false) {
+    return "Camera requires HTTPS or localhost. Browsers strictly block webcam access over insecure HTTP LAN URLs.";
+  }
+  if (typeof navigator === "undefined" || !navigator.mediaDevices?.getUserMedia) {
+    return "Camera access is not supported by your browser environment or webview.";
+  }
+  if (!err) {
+    return "Unable to access webcam.";
+  }
+
+  const errName = err.name || "";
+  const errMsg = err.message || "";
+
+  if (errName === "NotAllowedError" || errName === "PermissionDeniedError") {
+    return "Browser or Windows Camera permission is blocked—click the lock icon in the address bar and set Camera to Allow, then click Retry.";
+  }
+  if (errName === "NotFoundError" || errName === "DevicesNotFoundError") {
+    return "No webcam detected on this device.";
+  }
+  if (errName === "NotReadableError" || errName === "TrackStartError") {
+    return "Camera is currently in use by another app.";
+  }
+  if (errName === "OverconstrainedError" || errName === "ConstraintNotSatisfiedError") {
+    return "Webcam constraints could not be satisfied. Click Retry to use basic camera mode.";
+  }
+  if (errName === "SecurityError") {
+    return "Camera access blocked by browser security policy. Please verify site permissions.";
+  }
+
+  return errMsg || "Camera access failed. Please click Retry or choose 'Upload Photo from Device Instead'.";
+}
 
 interface PatientPhotoChooserProps {
   isOpen: boolean;
   onClose: () => void;
-  onOpenLiveCamera: () => void;
+  onOpenLiveCamera: (initialStream?: MediaStream | null, initialError?: any) => void;
   onOpenDeviceUpload: () => void;
   onRemovePhoto?: () => void;
   hasPhoto?: boolean;
@@ -28,6 +62,35 @@ export function PatientPhotoChooserModal({
   hasPhoto,
 }: PatientPhotoChooserProps) {
   if (!isOpen) return null;
+
+  const handleLiveCameraTrigger = async () => {
+    // 1. Direct user-gesture trigger:
+    // Call getUserMedia directly within the user click event handler
+    let stream: MediaStream | null = null;
+    let error: any = null;
+
+    if (typeof window !== "undefined" && window.isSecureContext === false) {
+      error = new Error("Camera requires HTTPS or localhost");
+      onOpenLiveCamera(null, error);
+      onClose();
+      return;
+    }
+
+    if (navigator.mediaDevices?.getUserMedia) {
+      try {
+        // Simple video: true first for maximum compatibility on desktop webcams
+        stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+      } catch (err: any) {
+        console.warn("Direct user-gesture getUserMedia caught:", err);
+        error = err;
+      }
+    } else {
+      error = new Error("Camera not supported");
+    }
+
+    onOpenLiveCamera(stream, error);
+    onClose();
+  };
 
   return (
     <div
@@ -89,10 +152,7 @@ export function PatientPhotoChooserModal({
           {/* Option 1: Live Camera */}
           <button
             type="button"
-            onClick={() => {
-              onClose();
-              onOpenLiveCamera();
-            }}
+            onClick={handleLiveCameraTrigger}
             style={{
               display: "flex",
               alignItems: "center",
@@ -126,7 +186,7 @@ export function PatientPhotoChooserModal({
                 Capture Photo (Live Camera)
               </div>
               <div style={{ fontSize: 11.5, color: "#64748b" }}>
-                Use webcam or tablet front/rear camera
+                Prompt camera on desktop webcam or mobile
               </div>
             </div>
           </button>
@@ -213,6 +273,8 @@ interface CameraCaptureModalProps {
   onClose: () => void;
   onPhotoAccepted: (dataUrl: string) => void;
   onFallbackToUpload?: () => void;
+  initialStream?: MediaStream | null;
+  initialError?: any;
 }
 
 export function CameraCaptureModal({
@@ -220,17 +282,20 @@ export function CameraCaptureModal({
   onClose,
   onPhotoAccepted,
   onFallbackToUpload,
+  initialStream,
+  initialError,
 }: CameraCaptureModalProps) {
   const [facingMode, setFacingMode] = useState<"user" | "environment">("user");
   const [capturedPhoto, setCapturedPhoto] = useState<string | null>(null);
   const [cameraError, setCameraError] = useState<string | null>(null);
   const [hasMultipleCameras, setHasMultipleCameras] = useState(false);
+  const [isStarting, setIsStarting] = useState(false);
 
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
 
-  // Stop media tracks
-  const stopTracks = () => {
+  // Stop media tracks cleanly
+  const stopTracks = useCallback(() => {
     if (streamRef.current) {
       streamRef.current.getTracks().forEach((track) => {
         try {
@@ -242,19 +307,87 @@ export function CameraCaptureModal({
     if (videoRef.current) {
       videoRef.current.srcObject = null;
     }
-  };
+  }, []);
 
   // Check multiple cameras
   useEffect(() => {
     if (navigator.mediaDevices?.enumerateDevices) {
-      navigator.mediaDevices.enumerateDevices().then((devices) => {
-        const videoInputs = devices.filter((d) => d.kind === "videoinput");
-        setHasMultipleCameras(videoInputs.length > 1);
-      }).catch(() => {});
+      navigator.mediaDevices
+        .enumerateDevices()
+        .then((devices) => {
+          const videoInputs = devices.filter((d) => d.kind === "videoinput");
+          setHasMultipleCameras(videoInputs.length > 1);
+        })
+        .catch(() => {});
     }
   }, []);
 
-  // Start live stream when open and no captured photo
+  // Core function to start webcam with resilient fallback
+  const startCamera = useCallback(
+    async (preferFacingMode?: "user" | "environment") => {
+      setIsStarting(true);
+      setCameraError(null);
+      stopTracks();
+
+      // Diagnostic check for secure context
+      if (typeof window !== "undefined" && window.isSecureContext === false) {
+        setIsStarting(false);
+        setCameraError(
+          "Camera requires HTTPS or localhost. Browsers strictly block camera permissions on insecure HTTP LAN origins."
+        );
+        return;
+      }
+
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        setIsStarting(false);
+        setCameraError("Camera access is not supported by your browser environment.");
+        return;
+      }
+
+      const targetMode = preferFacingMode || facingMode;
+
+      try {
+        // Attempt 1: non-strict facingMode (never use exact, which breaks desktop webcams)
+        const stream = await navigator.mediaDevices.getUserMedia({
+          video: targetMode ? { facingMode: targetMode } : true,
+          audio: false,
+        });
+
+        streamRef.current = stream;
+        if (videoRef.current) {
+          videoRef.current.srcObject = stream;
+          videoRef.current.play().catch(() => {});
+        }
+        setCameraError(null);
+      } catch (err1: any) {
+        console.warn("Attempt 1 camera request failed:", err1?.name, err1?.message);
+
+        // Attempt 2: fallback to simplest possible constraint: { video: true, audio: false }
+        try {
+          const fallbackStream = await navigator.mediaDevices.getUserMedia({
+            video: true,
+            audio: false,
+          });
+
+          streamRef.current = fallbackStream;
+          if (videoRef.current) {
+            videoRef.current.srcObject = fallbackStream;
+            videoRef.current.play().catch(() => {});
+          }
+          setCameraError(null);
+        } catch (err2: any) {
+          console.warn("Attempt 2 fallback camera request failed:", err2?.name, err2?.message);
+          const diagnostic = getCameraDiagnosticMessage(err2 || err1);
+          setCameraError(diagnostic);
+        }
+      } finally {
+        setIsStarting(false);
+      }
+    },
+    [facingMode, stopTracks]
+  );
+
+  // Initialize camera when modal opens
   useEffect(() => {
     if (!isOpen) {
       stopTracks();
@@ -269,48 +402,30 @@ export function CameraCaptureModal({
       return;
     }
 
-    let isMounted = true;
-    setCameraError(null);
-
-    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-      setCameraError("Camera access is not supported by your browser environment.");
+    // If an initialStream was acquired during direct user gesture in the chooser, attach it!
+    if (initialStream && initialStream.active && initialStream.getVideoTracks().length > 0) {
+      streamRef.current = initialStream;
+      setCameraError(null);
+      if (videoRef.current) {
+        videoRef.current.srcObject = initialStream;
+        videoRef.current.play().catch(() => {});
+      }
       return;
     }
 
-    navigator.mediaDevices
-      .getUserMedia({
-        video: {
-          facingMode: facingMode,
-          width: { ideal: 1280 },
-          height: { ideal: 720 },
-        },
-        audio: false,
-      })
-      .then((stream) => {
-        if (!isMounted) {
-          stream.getTracks().forEach((t) => t.stop());
-          return;
-        }
-        streamRef.current = stream;
-        if (videoRef.current) {
-          videoRef.current.srcObject = stream;
-          videoRef.current.play().catch(() => {});
-        }
-      })
-      .catch((err) => {
-        console.warn("Camera getUserMedia error:", err);
-        if (isMounted) {
-          setCameraError(
-            "Camera access denied or device not found. Please allow camera permissions in your browser or choose 'Upload Photo from Device'."
-          );
-        }
-      });
+    // If an initialError occurred during direct user gesture
+    if (initialError) {
+      setCameraError(getCameraDiagnosticMessage(initialError));
+      return;
+    }
+
+    // Otherwise, start camera automatically
+    void startCamera(facingMode);
 
     return () => {
-      isMounted = false;
       stopTracks();
     };
-  }, [isOpen, facingMode, capturedPhoto]);
+  }, [isOpen, initialStream, initialError, capturedPhoto, facingMode, startCamera, stopTracks]);
 
   // Clean close
   const handleClose = () => {
@@ -326,7 +441,6 @@ export function CameraCaptureModal({
     if (!video || !video.videoWidth) return;
 
     const canvas = document.createElement("canvas");
-    // Standard square avatar crop
     const size = Math.min(video.videoWidth, video.videoHeight);
     canvas.width = size;
     canvas.height = size;
@@ -345,6 +459,7 @@ export function CameraCaptureModal({
 
   const handleRetake = () => {
     setCapturedPhoto(null);
+    void startCamera(facingMode);
   };
 
   const handleUsePhoto = () => {
@@ -356,7 +471,9 @@ export function CameraCaptureModal({
 
   const toggleCamera = () => {
     stopTracks();
-    setFacingMode((prev) => (prev === "user" ? "environment" : "user"));
+    const nextMode = facingMode === "user" ? "environment" : "user";
+    setFacingMode(nextMode);
+    void startCamera(nextMode);
   };
 
   if (!isOpen) return null;
@@ -443,39 +560,80 @@ export function CameraCaptureModal({
               style={{
                 padding: "24px 20px",
                 textAlign: "center",
-                maxWidth: 360,
+                maxWidth: 400,
                 display: "flex",
                 flexDirection: "column",
                 alignItems: "center",
                 gap: 12,
               }}
             >
-              <AlertCircle size={36} color="#f87171" />
-              <div style={{ fontSize: 13, color: "#fca5a5", lineHeight: 1.5 }}>
+              <AlertCircle size={40} color="#f87171" />
+              <div style={{ fontSize: 15, fontWeight: 700, color: "#fca5a5" }}>
+                Camera Access Needed
+              </div>
+              <div style={{ fontSize: 13, color: "#e2e8f0", lineHeight: 1.5 }}>
                 {cameraError}
               </div>
-              {onFallbackToUpload && (
+              <div
+                style={{
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: 8,
+                  width: "100%",
+                  maxWidth: 280,
+                  marginTop: 8,
+                }}
+              >
+                {/* User Gesture Retry Button */}
                 <button
                   type="button"
-                  onClick={() => {
-                    handleClose();
-                    onFallbackToUpload();
-                  }}
+                  onClick={() => startCamera(facingMode)}
+                  disabled={isStarting}
                   style={{
                     background: "#0d9488",
                     color: "#ffffff",
                     border: "none",
                     borderRadius: 8,
-                    padding: "8px 16px",
+                    padding: "9px 16px",
                     fontSize: 13,
                     fontWeight: 600,
-                    cursor: "pointer",
-                    marginTop: 6,
+                    cursor: isStarting ? "not-allowed" : "pointer",
+                    display: "inline-flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    gap: 6,
+                    boxShadow: "0 2px 8px rgba(13, 148, 136, 0.4)",
                   }}
                 >
-                  Upload Photo from Device Instead
+                  <RefreshCw size={14} className={isStarting ? "spin" : ""} />
+                  {isStarting ? "Requesting Camera..." : "Retry Camera Permission"}
                 </button>
-              )}
+                {onFallbackToUpload && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      handleClose();
+                      onFallbackToUpload();
+                    }}
+                    style={{
+                      background: "#1e293b",
+                      color: "#cbd5e1",
+                      border: "1px solid #475569",
+                      borderRadius: 8,
+                      padding: "8px 16px",
+                      fontSize: 12.5,
+                      fontWeight: 500,
+                      cursor: "pointer",
+                      display: "inline-flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      gap: 6,
+                    }}
+                  >
+                    <Upload size={14} /> Upload Photo from Device Instead
+                  </button>
+                )}
+              </div>
             </div>
           ) : capturedPhoto ? (
             /* Review Captured Photo */
@@ -648,7 +806,7 @@ export function CameraCaptureModal({
                 </button>
               )}
 
-              {/* Camera Switch button if available */}
+              {/* Camera Switch button if multiple cameras available */}
               {hasMultipleCameras && !cameraError ? (
                 <button
                   type="button"
