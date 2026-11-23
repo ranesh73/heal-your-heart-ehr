@@ -605,6 +605,17 @@ export function AppointmentForm({
   );
   const [resourceId, setResourceId] = useState(appointment?.resource_id || initialResourceId || "");
 
+  // Real-time therapist & room availability engine state
+  const [availableData, setAvailableData] = useState<{
+    available_count: number;
+    start_time: string;
+    end_time: string;
+    therapists: { id: string; name: string; email?: string; phone?: string; available: boolean }[];
+    busy_therapists: { id: string; name: string; occupied_time?: string; patient_name?: string }[];
+    rooms: { id: string; name: string; available: boolean; occupied_time?: string; patient_name?: string }[];
+  } | null>(null);
+  const [loadingAvail, setLoadingAvail] = useState(false);
+
   // Dynamic Appointment Statuses synchronized from Settings & localStorage
   const [availableStatuses, setAvailableStatuses] = useState<{ id: string; name: string; color: string }[]>(() => {
     try {
@@ -784,6 +795,36 @@ export function AppointmentForm({
       setSelectedFacilityId(facilities[0].id);
     }
   }, [facilities, selectedFacilityId]);
+
+  // Real-time Therapist & Room Availability Engine
+  useEffect(() => {
+    if (!selDate || !startHour || !startMin || !startAmpm) return;
+    const timeStr = `${startHour}:${startMin} ${startAmpm}`;
+    const params = new URLSearchParams({
+      facility: selectedFacilityId || "",
+      date: selDate,
+      start_time: timeStr,
+      duration: String(duration || 60),
+    });
+    if (appointment?.id) params.set("exclude_appointment_id", appointment.id);
+
+    let active = true;
+    setLoadingAvail(true);
+    api<any>(`/appointments/available-therapists?${params.toString()}`)
+      .then((data) => {
+        if (active && data) {
+          setAvailableData(data);
+        }
+      })
+      .catch((e) => console.warn("Failed to fetch therapist availability:", e))
+      .finally(() => {
+        if (active) setLoadingAvail(false);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [selDate, startHour, startMin, startAmpm, duration, selectedFacilityId, appointment?.id]);
 
   // Close dropdowns on outside click
   useEffect(() => {
@@ -1186,25 +1227,83 @@ export function AppointmentForm({
               </div>
             )}
 
-            {!waitingListEntry && <div className="charm-form-row">
-              <label className="charm-field-label">Provider *</label>
-              <select
-                aria-label="Provider / therapist"
-                className="charm-field-input"
-                value={providerId}
-                onChange={(e) => setProviderId(e.target.value)}
-                required
-              >
-                <option value="">--Select--</option>
-                {staff
-                  .filter((s) => (plan ? s.id === plan.therapist_id : ["doctor", "therapist"].includes(s.role)))
-                  .map((s) => (
-                    <option key={s.id} value={s.id} label={s.name}>
-                      {s.name}
-                    </option>
-                  ))}
-              </select>
-            </div>}
+            {!waitingListEntry && (
+              <div className="charm-form-row" style={{ alignItems: "flex-start" }}>
+                <div style={{ display: "flex", flexDirection: "column", gap: 4, width: "100%" }}>
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 2 }}>
+                    <label className="charm-field-label" style={{ width: "auto", margin: 0, fontWeight: 600 }}>
+                      Provider / Therapist *
+                    </label>
+                    {availableData && (
+                      <div
+                        style={{
+                          display: "inline-flex",
+                          alignItems: "center",
+                          gap: 6,
+                          fontSize: 11.5,
+                          padding: "2px 8px",
+                          borderRadius: 12,
+                          background: availableData.available_count > 0 ? "#ecfdf5" : "#fef2f2",
+                          color: availableData.available_count > 0 ? "#065f46" : "#991b1b",
+                          border: `1px solid ${availableData.available_count > 0 ? "#a7f3d0" : "#fecaca"}`,
+                          fontWeight: 500,
+                        }}
+                      >
+                        <span
+                          style={{
+                            width: 6,
+                            height: 6,
+                            borderRadius: "50%",
+                            background: availableData.available_count > 0 ? "#10b981" : "#ef4444",
+                            display: "inline-block",
+                          }}
+                        />
+                        {availableData.available_count} Therapist{availableData.available_count === 1 ? "" : "s"} Available for {availableData.start_time} – {availableData.end_time}
+                      </div>
+                    )}
+                  </div>
+                  <select
+                    aria-label="Provider / therapist"
+                    className="charm-field-input"
+                    value={providerId}
+                    onChange={(e) => setProviderId(e.target.value)}
+                    required
+                  >
+                    <option value="">--Select--</option>
+                    {/* Doctors */}
+                    {staff.filter((s) => s.role === "doctor" && s.active !== false).length > 0 && (
+                      <optgroup label="Doctors / Physicians">
+                        {staff
+                          .filter((s) => s.role === "doctor" && s.active !== false)
+                          .map((s) => (
+                            <option key={s.id} value={s.id}>
+                              {s.name}
+                            </option>
+                          ))}
+                      </optgroup>
+                    )}
+                    {/* Available Therapists */}
+                    <optgroup label={`Available Therapists (${availableData?.therapists ? availableData.therapists.length : staff.filter((s) => s.role === "therapist" && s.active !== false).length})`}>
+                      {(availableData?.therapists || staff.filter((s) => s.role === "therapist" && s.active !== false)).map((t) => (
+                        <option key={t.id} value={t.id}>
+                          {t.name}
+                        </option>
+                      ))}
+                    </optgroup>
+                    {/* Busy Therapists (Disabled with conflict details) */}
+                    {availableData?.busy_therapists && availableData.busy_therapists.length > 0 && (
+                      <optgroup label="Busy Therapists (Conflict)">
+                        {availableData.busy_therapists.map((bt) => (
+                          <option key={bt.id} value={bt.id} disabled style={{ color: "#94a3b8" }}>
+                            {bt.name} (Busy: {bt.occupied_time || "Occupied"})
+                          </option>
+                        ))}
+                      </optgroup>
+                    )}
+                  </select>
+                </div>
+              </div>
+            )}
 
             <div className="charm-form-row">
               <label className="charm-field-label">Status</label>
@@ -1277,11 +1376,22 @@ export function AppointmentForm({
                 <option value="">--Select--</option>
                 {resources
                   .filter((r) => !plan || r.kind === "EECP bed")
-                  .map((r) => (
-                    <option key={r.id} value={r.id} label={r.name}>
-                      {r.name}
-                    </option>
-                  ))}
+                  .map((r) => {
+                    const roomInfo = availableData?.rooms?.find(
+                      (rm) => rm.id === r.id || rm.name.toLowerCase() === r.name.toLowerCase()
+                    );
+                    const isOcc = roomInfo && !roomInfo.available;
+                    return (
+                      <option
+                        key={r.id}
+                        value={r.id}
+                        disabled={isOcc}
+                        style={isOcc ? { color: "#94a3b8" } : undefined}
+                      >
+                        {r.name} {isOcc ? `(Occupied ${roomInfo.occupied_time || ""})` : ""}
+                      </option>
+                    );
+                  })}
               </select>
             </div>
 

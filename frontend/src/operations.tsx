@@ -1813,11 +1813,24 @@ function Schedule() {
     return [...eecpRooms, ...extras, "Consultation Room 1"];
   }, [resources]);
 
+  const formatApptTimeRange = (startIso: string, endIso?: string) => {
+    try {
+      const dStart = new Date(startIso);
+      const sStr = dStart.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", hour12: true }).toLowerCase();
+      if (!endIso) return sStr;
+      const dEnd = new Date(endIso);
+      const eStr = dEnd.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", hour12: true }).toLowerCase();
+      return `${sStr} - ${eStr}`;
+    } catch {
+      return "";
+    }
+  };
+
   const matrixTimeSlots = useMemo(() => {
     const slots: { timeKey: string; label: string; hour: number; minute: number; isHour: boolean }[] = [];
-    for (let h = 7; h <= 20; h++) {
+    for (let h = 7; h <= 21; h++) {
       for (let m = 0; m < 60; m += 10) {
-        if (h === 20 && m > 30) break;
+        if (h === 21 && m > 0) break;
         const isHour = m === 0;
         const period = h >= 12 ? "pm" : "am";
         const h12 = h === 0 ? 12 : h > 12 ? h - 12 : h;
@@ -1854,52 +1867,39 @@ function Schedule() {
   const getCharmCardStyle = (appt: Row) => {
     const vType = (appt.visit_type || "").toLowerCase();
     const status = (appt.status || "").toLowerCase();
+    const reason = (appt.reason || "").toLowerCase();
     const sessionNum = appt.session_number;
 
     if (appt.color) {
-      return { bg: appt.color, color: "#ffffff", border: appt.color };
+      return { bg: appt.color, color: "#1e293b", border: appt.color };
+    }
+    if (status === "absent" || reason.includes("absent") || vType.includes("absent")) {
+      return { bg: "#86efac", color: "#14532d", border: "#4ade80" };
     }
     if (status === "completed") {
-      return { bg: "#64748b", color: "#ffffff", border: "#475569" };
+      return { bg: "#cbd5e1", color: "#1e293b", border: "#94a3b8" };
     }
-    if (status === "absent" || status === "cancelled") {
-      return { bg: "#1e3a8a", color: "#ffffff", border: "#172554" };
+    if (status === "cancelled") {
+      return { bg: "#e2e8f0", color: "#475569", border: "#cbd5e1" };
     }
-    if (vType.includes("24th") || vType.includes("12th") || vType.includes("21st") || vType.includes("11th")) {
-      return { bg: "#dc2626", color: "#ffffff", border: "#b91c1c" };
-    }
-    if (vType.includes("29th") || vType.includes("26th") || vType.includes("23rd") || vType.includes("13th") || vType.includes("ongoing")) {
-      return { bg: "#16a34a", color: "#ffffff", border: "#15803d" };
-    }
-    if (vType.includes("3rd") || vType.includes("22nd") || vType.includes("30th") || vType.includes("17th") || vType.includes("19th")) {
-      return { bg: "#fde047", color: "#713f12", border: "#eab308" };
-    }
-    if (vType.includes("18th") || vType.includes("16th") || vType.includes("14th")) {
-      return { bg: "#8b5cf6", color: "#ffffff", border: "#7c3aed" };
-    }
-    if (vType.includes("27th") || vType.includes("15th") || vType.includes("demo")) {
-      return { bg: "#ea580c", color: "#ffffff", border: "#c2410c" };
-    }
-    if (vType.includes("25th") || vType.includes("28th") || vType.includes("7th") || vType.includes("20th")) {
-      return { bg: "#2563eb", color: "#ffffff", border: "#1d4ed8" };
-    }
-    if (vType.includes("8th")) {
-      return { bg: "#0284c7", color: "#ffffff", border: "#0369a1" };
-    }
-    if (vType.includes("10th")) {
-      return { bg: "#c084fc", color: "#3b0764", border: "#a855f7" };
-    }
-    const colors = [
-      { bg: "#16a34a", color: "#ffffff", border: "#15803d" },
-      { bg: "#fde047", color: "#713f12", border: "#eab308" },
-      { bg: "#8b5cf6", color: "#ffffff", border: "#7c3aed" },
-      { bg: "#ef4444", color: "#ffffff", border: "#dc2626" },
-      { bg: "#2563eb", color: "#ffffff", border: "#1d4ed8" },
-      { bg: "#ea580c", color: "#ffffff", border: "#c2410c" },
-      { bg: "#64748b", color: "#ffffff", border: "#475569" },
+
+    // Exact vibrant pastel palette matching media_1795426451210_9552c76f.jpg
+    const palette = [
+      { bg: "#fed7aa", color: "#7c2d12", border: "#f97316" }, // Amber / Warm Orange (Joseph Sasi Rajan M.)
+      { bg: "#99f6e4", color: "#134e4a", border: "#14b8a6" }, // Teal (Madhavan Nair K P)
+      { bg: "#ddd6fe", color: "#4c1d95", border: "#8b5cf6" }, // Lavender / Violet (Chinna Kannu)
+      { bg: "#d9f99d", color: "#365314", border: "#84cc16" }, // Lime / Light Green (Sheikathi Rawther)
+      { bg: "#fef08a", color: "#713f12", border: "#eab308" }, // Warm Yellow (Narayana Swamy)
+      { bg: "#bfdbfe", color: "#1e3a8a", border: "#60a5fa" }, // Soft Sky Blue (Sairam Padmanaban)
+      { bg: "#fecdd3", color: "#881337", border: "#f43f5e" }, // Coral Pink (Periyasamy Marudhai)
+      { bg: "#a5f3fc", color: "#155e75", border: "#06b6d4" }, // Cyan (Kuppammal Arumugam)
+      { bg: "#c084fc", color: "#3b0764", border: "#9333ea" }, // Rich Violet (Murugavel Kathirvel)
+      { bg: "#7dd3fc", color: "#075985", border: "#0284c7" }, // Bright Blue
+      { bg: "#e9d5ff", color: "#581c87", border: "#a855f7" }, // Light Purple (Yovan Gopal)
     ];
-    const idx = Math.abs((sessionNum || 0) + (appt.id?.charCodeAt(0) || 0)) % colors.length;
-    return colors[idx];
+
+    const hashSeed = (appt.patient_id || appt.id || "").split("").reduce((acc: number, c: string) => acc + c.charCodeAt(0), (sessionNum || 0) * 11);
+    return palette[Math.abs(hashSeed) % palette.length];
   };
 
   const getApptResourceName = (resId?: string) => {
@@ -2563,7 +2563,7 @@ function Schedule() {
                   <Clock3 size={18} />
                 </button>
                 <div className="charm-view-pills">
-                  {["List View", "Day", "Week", "Month"].map((v) => (
+                  {["List View", "Day", "EECP Treatment", "Week", "Month"].map((v) => (
                     <button
                       key={v}
                       className={`charm-view-btn ${view === v ? "active" : ""}`}
@@ -2617,7 +2617,16 @@ function Schedule() {
                     type="button"
                     className="charm-btn-confirm"
                     style={{ padding: "6px 14px", fontSize: 12, borderRadius: 4 }}
-                    onClick={() => setAdd(true)}
+                    onClick={() => {
+                      if (view === "EECP Treatment") {
+                        setBookingSlot({
+                          startAt: `${date}T08:00:00`,
+                          duration: 60,
+                        });
+                      } else {
+                        setAdd(true);
+                      }
+                    }}
                   >
                     + Book Appointment
                   </button>
@@ -2631,7 +2640,7 @@ function Schedule() {
                 <span style={{ fontSize: 12, color: "#854d0e" }}>
                   Appointments are shown in <strong>Asia/Kolkata (IST)</strong> time zone
                 </span>
-                {view === "List View" && (
+                {(view === "List View" || view === "Day" || view === "EECP Treatment") && (
                   <WaitingListDateBadge
                     date={date}
                     count={waitingEntriesForDate(date).length}
@@ -2668,13 +2677,16 @@ function Schedule() {
                 </div>
               )}
 
-              {view === "Day" && (
+              {(view === "Day" || view === "EECP Treatment") && (
                 <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: "#475569" }}>
                   <span style={{ fontWeight: 500 }}>View</span>
                   <select
-                    value={dayViewMode}
-                    onChange={(e) => setDayViewMode(e.target.value as any)}
+                    value={view === "EECP Treatment" ? "Resource View" : dayViewMode}
+                    onChange={(e) => {
+                      if (view !== "EECP Treatment") setDayViewMode(e.target.value as any);
+                    }}
                     aria-label="Day view mode"
+                    disabled={view === "EECP Treatment"}
                     style={{
                       padding: "3px 8px",
                       fontSize: 12,
@@ -2683,12 +2695,12 @@ function Schedule() {
                       background: "#fff",
                       color: "#0f172a",
                       fontWeight: 500,
-                      cursor: "pointer",
+                      cursor: view === "EECP Treatment" ? "default" : "pointer",
                       outline: "none",
                     }}
                   >
                     <option value="Resource View">Resource View</option>
-                    <option value="Provider View">Provider View</option>
+                    {view !== "EECP Treatment" && <option value="Provider View">Provider View</option>}
                   </select>
                 </div>
               )}
@@ -2971,188 +2983,197 @@ function Schedule() {
                   </div>
                 );
               })()
-            ) : view === "Day" ? (
-              /* Authentic CharmHealth Multi-Column Day Matrix with Overlap Lanes & Multi-Booking */
-              <div className="charm-day-matrix-container">
-                <div className="charm-day-matrix-scroll-wrapper">
-                  <div className="charm-day-matrix-grid">
-                    {/* Sticky Column Headers */}
-                    <div className="charm-day-matrix-header-row">
-                      <div className="charm-day-matrix-corner-cell">
-                        <Clock3 size={15} color="#64748b" />
-                      </div>
-                      {dayViewMode === "Resource View" ? (
-                        dayResourceColumns.map((colName) => (
-                          <div key={colName} className="charm-day-matrix-col-header" title={colName}>
-                            <span>{colName}</span>
+            ) : (view === "Day" || view === "EECP Treatment") ? (
+              /* Authentic CharmHealth Multi-Column Day & EECP Treatment Resource Matrix with Overlap Lanes & Multi-Booking */
+              (() => {
+                const isResourceMode = view === "EECP Treatment" || dayViewMode === "Resource View";
+                return (
+                  <div className="charm-day-matrix-container">
+                    <div className="charm-day-matrix-scroll-wrapper">
+                      <div className="charm-day-matrix-grid">
+                        {/* Sticky Column Headers */}
+                        <div className="charm-day-matrix-header-row">
+                          <div className="charm-day-matrix-corner-cell">
+                            <Clock3 size={15} color="#64748b" />
                           </div>
-                        ))
-                      ) : (
-                        dayProviderColumns.map((prv) => (
-                          <div key={prv.id} className="charm-day-matrix-col-header" title={prv.name}>
-                            <span>{prv.name}</span>
+                          {isResourceMode ? (
+                            dayResourceColumns.map((colName) => (
+                              <div key={colName} className="charm-day-matrix-col-header" title={colName}>
+                                <span>{colName}</span>
+                              </div>
+                            ))
+                          ) : (
+                            dayProviderColumns.map((prv) => (
+                              <div key={prv.id} className="charm-day-matrix-col-header" title={prv.name}>
+                                <span>{prv.name}</span>
+                              </div>
+                            ))
+                          )}
+                        </div>
+
+                        {/* Matrix Body with Sticky Time Gutter */}
+                        <div className="charm-day-matrix-body">
+                          {/* Left Time Gutter */}
+                          <div className="charm-day-matrix-time-gutter">
+                            {matrixTimeSlots.map((slot) => (
+                              <div
+                                key={slot.timeKey}
+                                className={`charm-day-matrix-time-slot ${slot.isHour ? "is-hour" : ""}`}
+                              >
+                                <span>{slot.label}</span>
+                              </div>
+                            ))}
                           </div>
-                        ))
-                      )}
-                    </div>
 
-                    {/* Matrix Body with Sticky Time Gutter */}
-                    <div className="charm-day-matrix-body">
-                      {/* Left Time Gutter */}
-                      <div className="charm-day-matrix-time-gutter">
-                        {matrixTimeSlots.map((slot) => (
-                          <div
-                            key={slot.timeKey}
-                            className={`charm-day-matrix-time-slot ${slot.isHour ? "is-hour" : ""}`}
-                          >
-                            <span>{slot.label}</span>
-                          </div>
-                        ))}
-                      </div>
+                          {/* Columns Grid */}
+                          <div className="charm-day-matrix-columns-area">
+                            {(isResourceMode ? dayResourceColumns : dayProviderColumns).map((colItem) => {
+                              const colId = typeof colItem === "string" ? colItem : colItem.id;
+                              const colTitle = typeof colItem === "string" ? colItem : colItem.name;
 
-                      {/* Columns Grid */}
-                      <div className="charm-day-matrix-columns-area">
-                        {(dayViewMode === "Resource View" ? dayResourceColumns : dayProviderColumns).map((colItem) => {
-                          const colId = typeof colItem === "string" ? colItem : colItem.id;
-                          const colTitle = typeof colItem === "string" ? colItem : colItem.name;
+                              const colAppts = scopedAppts.filter((a) => {
+                                const localStart = localInput(a.start_at);
+                                if (!localStart.startsWith(date)) return false;
+                                if (isResourceMode) {
+                                  const rName = getApptResourceName(a.resource_id);
+                                  if (colTitle === "Unassigned") {
+                                    return (
+                                      !a.resource_id ||
+                                      rName === "-- Select --" ||
+                                      rName === "" ||
+                                      !dayResourceColumns.slice(1).some((c) => c.toLowerCase() === rName.toLowerCase())
+                                    );
+                                  }
+                                  return rName.toLowerCase() === colTitle.toLowerCase();
+                                } else {
+                                  return a.provider_id === colId;
+                                }
+                              });
 
-                          const colAppts = scopedAppts.filter((a) => {
-                            const localStart = localInput(a.start_at);
-                            if (!localStart.startsWith(date)) return false;
-                            if (dayViewMode === "Resource View") {
-                              const rName = getApptResourceName(a.resource_id);
-                              if (colTitle === "Unassigned") {
-                                return (
-                                  !a.resource_id ||
-                                  rName === "-- Select --" ||
-                                  rName === "" ||
-                                  !dayResourceColumns.slice(1).some((c) => c.toLowerCase() === rName.toLowerCase())
-                                );
-                              }
-                              return rName.toLowerCase() === colTitle.toLowerCase();
-                            } else {
-                              return a.provider_id === colId;
-                            }
-                          });
+                              const placedLayouts = computeColumnLayout(colAppts, 7);
 
-                          const placedLayouts = computeColumnLayout(colAppts, 7);
-
-                          return (
-                            <div key={colId} className="charm-day-matrix-column">
-                              {/* 10-minute grid cell rows */}
-                              {matrixTimeSlots.map((slot) => {
-                                const isWorkingHour = slot.hour >= 8 && slot.hour < 20;
-                                return (
-                                  <div
-                                    key={slot.timeKey}
-                                    className={`charm-day-matrix-slot-cell ${isWorkingHour ? "working-hour" : "off-hour"} ${slot.isHour ? "hour-border" : ""}`}
-                                    onClick={() => {
-                                      if (["reception", "doctor", "therapist", "admin"].includes(user.role)) {
-                                        const slotTime = `${date}T${String(slot.hour).padStart(2, "0")}:${String(slot.minute).padStart(2, "0")}`;
-                                        const rObj = colTitle === "Unassigned" ? undefined : resources.find((r) => r.name.toLowerCase() === colTitle.toLowerCase());
-                                        setBookingSlot({
-                                          startAt: slotTime,
-                                          resourceId: rObj?.id,
-                                          providerId: dayViewMode === "Provider View" ? colId : provider || undefined,
-                                          duration: 30,
-                                        });
-                                      }
-                                    }}
-                                    title={`Click to book appointment on ${colTitle} at ${slot.label}`}
-                                  >
-                                    <span className="charm-slot-hover-add">+</span>
-                                  </div>
-                                );
-                              })}
-
-                              {/* Placed Appointment Cards with Overlap Lane Layout */}
-                              {placedLayouts.map(({ appt, top, height, leftPct, widthPct }) => {
-                                const pat = patients.find((p) => p.id === appt.patient_id);
-                                const prv = staff.find((s) => s.id === appt.provider_id);
-                                const res = resources.find((r) => r.id === appt.resource_id);
-                                const localStart = localInput(appt.start_at);
-                                const localEnd = localInput(appt.end_at);
-                                const cStyle = getCharmCardStyle(appt);
-                                const patName = pat?.name || patientName(appt.patient_id, patients);
-                                const prvName = prv?.name || "Staff";
-                                const sTime = localStart.slice(11, 16);
-                                const eTime = localEnd.length >= 16 ? localEnd.slice(11, 16) : "";
-                                const sDay = appt.session_number
-                                  ? `EECP ${appt.session_number}th Day`
-                                  : (appt.visit_type?.includes("Day") ? appt.visit_type : "");
-
-                                return (
-                                  <div
-                                    key={appt.id}
-                                    className="charm-matrix-appt-card"
-                                    style={{
-                                      top: `${top}px`,
-                                      height: `${height}px`,
-                                      left: `calc(${leftPct}% + 2px)`,
-                                      width: `calc(${widthPct}% - 4px)`,
-                                      background: cStyle.bg,
-                                      color: cStyle.color,
-                                      borderColor: cStyle.border,
-                                    }}
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      setSelectedAppt(appt);
-                                    }}
-                                    title={`${sTime} - ${eTime} | ${patName} | ${prvName} | ${res?.name || colTitle} | ${appt.visit_type || "Visit"}`}
-                                  >
-                                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", width: "100%", gap: 2 }}>
-                                      <span className="charm-matrix-card-time">{sTime} - {eTime}</span>
-                                      {["reception", "doctor", "therapist", "admin"].includes(user.role) && (
-                                        <button
-                                          type="button"
-                                          className="charm-card-plus-btn"
-                                          title="Book another appointment at this time"
-                                          onClick={(e) => {
-                                            e.stopPropagation();
+                              return (
+                                <div key={colId} className="charm-day-matrix-column">
+                                  {/* 10-minute grid cell rows */}
+                                  {matrixTimeSlots.map((slot) => {
+                                    const isWorkingHour = slot.hour >= 8 && slot.hour < 20;
+                                    return (
+                                      <div
+                                        key={slot.timeKey}
+                                        className={`charm-day-matrix-slot-cell ${isWorkingHour ? "working-hour" : "off-hour"} ${slot.isHour ? "hour-border" : ""}`}
+                                        onClick={() => {
+                                          if (["reception", "doctor", "therapist", "admin"].includes(user.role)) {
+                                            const slotTime = `${date}T${String(slot.hour).padStart(2, "0")}:${String(slot.minute).padStart(2, "0")}`;
+                                            const rObj = colTitle === "Unassigned" ? undefined : resources.find((r) => r.name.toLowerCase() === colTitle.toLowerCase());
                                             setBookingSlot({
-                                              startAt: localStart.slice(0, 16),
-                                              resourceId: appt.resource_id,
-                                              providerId: appt.provider_id,
-                                              duration: 30,
+                                              startAt: slotTime,
+                                              resourceId: rObj?.id,
+                                              providerId: (!isResourceMode && dayViewMode === "Provider View") ? colId : (provider || undefined),
+                                              duration: view === "EECP Treatment" ? 60 : 30,
                                             });
-                                          }}
-                                        >
-                                          +
-                                        </button>
-                                      )}
-                                    </div>
-                                    <div className="charm-matrix-card-pat" style={{ display: "flex", alignItems: "center", gap: 4 }}>
-                                      <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{patName}</span>
-                                      <PatientAlertBadgePopover
-                                        alerts={appt.active_alerts || pat?.active_alerts}
-                                        patientId={appt.patient_id}
-                                        compact
-                                      />
-                                      <CalendarStickyNotePopover
-                                        notes={appt.quick_notes || pat?.quick_notes}
-                                        patientId={appt.patient_id}
-                                        patientName={patName}
-                                        compact
-                                      />
-                                    </div>
-                                    <div className="charm-matrix-card-sub">
-                                      {dayViewMode === "Resource View" ? (
-                                        <>{prvName}{sDay ? `, ${sDay}` : ""}</>
-                                      ) : (
-                                        <>{res?.name || "Consultation"}{sDay ? `, ${sDay}` : ""}</>
-                                      )}
-                                    </div>
-                                  </div>
-                                );
-                              })}
-                            </div>
-                          );
-                        })}
+                                          }
+                                        }}
+                                        title={`Click to book appointment on ${colTitle} at ${slot.label}`}
+                                      >
+                                        <span className="charm-slot-hover-add">+</span>
+                                      </div>
+                                    );
+                                  })}
+
+                                  {/* Placed Appointment Cards with Overlap Lane Layout */}
+                                  {placedLayouts.map(({ appt, top, height, leftPct, widthPct }) => {
+                                    const pat = patients.find((p) => p.id === appt.patient_id);
+                                    const prv = staff.find((s) => s.id === appt.provider_id);
+                                    const localStart = localInput(appt.start_at);
+                                    const cStyle = getCharmCardStyle(appt);
+                                    const patName = pat?.name || patientName(appt.patient_id, patients);
+                                    const prvName = prv?.name || "Staff";
+                                    const timeRange = formatApptTimeRange(appt.start_at, appt.end_at);
+                                    const sDay = appt.reason || (appt.session_number
+                                      ? `EECP ${appt.session_number}th Day`
+                                      : (appt.visit_type?.includes("Day") ? appt.visit_type : (appt.visit_type || "EECP Session")));
+
+                                    return (
+                                      <div
+                                        key={appt.id}
+                                        className="charm-matrix-appt-card"
+                                        style={{
+                                          top: `${top}px`,
+                                          height: `${height}px`,
+                                          left: `calc(${leftPct}% + 2px)`,
+                                          width: `calc(${widthPct}% - 4px)`,
+                                          background: cStyle.bg,
+                                          color: cStyle.color,
+                                          borderColor: cStyle.border,
+                                          borderWidth: 1,
+                                          borderStyle: "solid",
+                                          padding: "3px 6px",
+                                          display: "flex",
+                                          flexDirection: "column",
+                                          justifyContent: "flex-start",
+                                          gap: 1,
+                                          lineHeight: 1.25,
+                                          boxShadow: "0 1px 3px rgba(0,0,0,0.08)",
+                                          overflow: "hidden",
+                                          cursor: "pointer",
+                                        }}
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          setSelectedAppt(appt);
+                                        }}
+                                        title={`${patName}, ${prvName}, ${sDay}`}
+                                      >
+                                        {/* Line 1: Start Time - End Time */}
+                                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", width: "100%" }}>
+                                          <span style={{ fontSize: 11, fontWeight: 700, color: cStyle.color }}>{timeRange}</span>
+                                          {["reception", "doctor", "therapist", "admin"].includes(user.role) && (
+                                            <button
+                                              type="button"
+                                              className="charm-card-plus-btn"
+                                              title="Book another appointment at this time"
+                                              style={{ color: cStyle.color }}
+                                              onClick={(e) => {
+                                                e.stopPropagation();
+                                                setBookingSlot({
+                                                  startAt: localStart.slice(0, 16),
+                                                  resourceId: appt.resource_id,
+                                                  providerId: appt.provider_id,
+                                                  duration: view === "EECP Treatment" ? 60 : 30,
+                                                });
+                                              }}
+                                            >
+                                              +
+                                            </button>
+                                          )}
+                                        </div>
+
+                                        {/* Line 2: Patient Full Name */}
+                                        <div style={{ fontSize: 11.5, fontWeight: 700, color: cStyle.color, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                                          {patName}
+                                        </div>
+
+                                        {/* Line 3: Assigned Therapist Name */}
+                                        <div style={{ fontSize: 11, fontWeight: 500, color: cStyle.color, opacity: 0.95, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                                          {prvName}
+                                        </div>
+
+                                        {/* Line 4: Session Counter / Reason */}
+                                        <div style={{ fontSize: 11, fontWeight: 600, color: cStyle.color, opacity: 0.95, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                                          {sDay}
+                                        </div>
+                                      </div>
+                                    );
+                                  })}
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
                       </div>
                     </div>
                   </div>
-                </div>
-              </div>
+                );
+              })()
             ) : view === "Month" ? (
               /* Authentic CharmHealth Month Grid (1:1 with CharmTracker) */
               <div className="charm-cal-month-wrap">

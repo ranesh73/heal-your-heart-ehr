@@ -132,6 +132,7 @@ def startup_sync():
             phr_service.ensure_phr_seed_data(db)
             from .billing_service import ensure_all_facilities_billing_defaults
             ensure_all_facilities_billing_defaults(db)
+            scheduling.ensure_eecp_scheduling_seed_data(db)
             db.commit()
     except Exception as e:
         logging.getLogger('ehr').warning('Startup seed data failed: %s', e)
