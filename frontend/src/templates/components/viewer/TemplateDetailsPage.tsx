@@ -275,7 +275,7 @@ export const TemplateDetailsPage: React.FC<TemplateDetailsPageProps> = ({
   }, [medications, medSearch]);
 
   return (
-    <div className="template-details-container" style={{ padding: '24px 32px', maxWidth: '1200px', margin: '0 auto' }}>
+    <div className="template-details-container print-sheet charm-print-container" style={{ padding: '24px 32px', maxWidth: '1200px', margin: '0 auto' }}>
       {/* Printable Clinic Header (Rendered cleanly when printing) */}
       <div className="print-clinic-header">
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', borderBottom: '2px solid #10afa3', paddingBottom: '12px', marginBottom: '16px' }}>

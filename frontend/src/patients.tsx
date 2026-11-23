@@ -134,6 +134,9 @@ import {
   QuestionnairesView,
   ProcedureCodesView,
 } from "./charmChartTypes";
+import { ClinicalFormRenderer } from "./templates/components/clinical/ClinicalFormRenderer";
+import { ClinicalTemplate } from "./templates/types";
+import { allComponentsOf, computeVisibility, pruneHiddenAnswers } from "./templates/components/clinical/conditionalLogic";
 
 export function PatientsPage() {
   const { user, notify } = useApp();
@@ -3933,6 +3936,106 @@ export function EncounterEditor({
   const [viewingTemplate, setViewingTemplate] = useState<Row | null>(null);
   const [activeRailSection, setActiveRailSection] = useState("CC");
 
+  // Connected Clinical Template state for SOAP & Diet templates inside Chart Notes
+  const [activeLoadedTemplate, setActiveLoadedTemplate] = useState<ClinicalTemplate | null>(null);
+  const [templateAnswers, setTemplateAnswers] = useState<Record<number, string>>({});
+  const [loadingTemplate, setLoadingTemplate] = useState(false);
+
+  const loadFullTemplate = async (templateName: string) => {
+    setLoadingTemplate(true);
+    try {
+      let tplId: number | null = null;
+      const searchRes = await api<{ items: Array<{ id: number; name: string }> }>(
+        "/templates?search=" + encodeURIComponent(templateName)
+      ).catch(() => null);
+
+      if (searchRes && searchRes.items && searchRes.items.length > 0) {
+        const matched =
+          searchRes.items.find(
+            (t) => t.name.toLowerCase() === templateName.toLowerCase()
+          ) || searchRes.items[0];
+        tplId = matched.id;
+      }
+
+      if (!tplId) {
+        if (templateName.includes("EECP")) tplId = 426;
+        else if (templateName.includes("Anemia")) tplId = 410;
+        else if (templateName.includes("BP Patient")) tplId = 411;
+        else if (templateName.includes("Cholesterol")) tplId = 412;
+        else if (templateName.includes("Diabetes")) tplId = 413;
+        else if (templateName.includes("Healthy Heart")) tplId = 414;
+        else if (templateName.includes("Kidney")) tplId = 415;
+        else if (templateName.includes("Thyroid")) tplId = 416;
+        else if (templateName.includes("Heart Failure")) tplId = 421;
+      }
+
+      if (tplId) {
+        const full = await api<ClinicalTemplate>("/templates/" + tplId).catch(() => null);
+        if (full && full.sections && full.sections.length > 0) {
+          setActiveLoadedTemplate(full);
+          const storageKey = `hyh_encounter_answers_${id}_${full.id}`;
+          const cached = localStorage.getItem(storageKey);
+          if (cached) {
+            try {
+              setTemplateAnswers(JSON.parse(cached));
+            } catch {
+              const comps = allComponentsOf(full);
+              const initial: Record<number, string> = {};
+              comps.forEach((c) => {
+                if (c.id && c.default_value && !c.default_value.includes("${patient.")) {
+                  initial[c.id] = c.default_value;
+                }
+              });
+              setTemplateAnswers(initial);
+            }
+          } else {
+            const comps = allComponentsOf(full);
+            const initial: Record<number, string> = {};
+            comps.forEach((c) => {
+              if (c.id && c.default_value && !c.default_value.includes("${patient.")) {
+                initial[c.id] = c.default_value;
+              }
+            });
+            setTemplateAnswers(initial);
+          }
+        }
+      }
+    } catch (err) {
+      console.error("Error loading template into Chart Notes:", err);
+    } finally {
+      setLoadingTemplate(false);
+    }
+  };
+
+  const handleTemplateAnswerChange = (componentId: number, value: string) => {
+    setTemplateAnswers((prev) => {
+      const updated = { ...prev, [componentId]: value };
+      if (activeLoadedTemplate) {
+        const comps = allComponentsOf(activeLoadedTemplate);
+        const { hidden } = computeVisibility(comps, activeLoadedTemplate.relationships || [], updated);
+        const pruned = pruneHiddenAnswers(updated, hidden);
+        try {
+          localStorage.setItem(
+            `hyh_encounter_answers_${id}_${activeLoadedTemplate.id}`,
+            JSON.stringify(pruned)
+          );
+        } catch {}
+        return pruned;
+      }
+      return updated;
+    });
+  };
+
+  // Pre-load HUH EECP SOAP_Practice if no template loaded on encounter open
+  useEffect(() => {
+    if (encounter && !activeLoadedTemplate) {
+      const defaultTpl = "HUH EECP SOAP_Practice";
+      setSelectedTemplate(defaultTpl);
+      setTemplateSearch(defaultTpl);
+      loadFullTemplate(defaultTpl);
+    }
+  }, [encounter?.id]);
+
   // Authentic CharmHealth: Treadmill Test (TMT) Practice Clinical Parameters
   const [tmtIndication, setTmtIndication] = useState<Record<string, boolean>>({
     "Exertional Chest Pain": true,
@@ -4265,6 +4368,7 @@ export function EncounterEditor({
     } else {
       notify(`Loaded template: ${templateName}`);
     }
+    loadFullTemplate(templateName);
   };
 
 
@@ -4309,6 +4413,33 @@ export function EncounterEditor({
         await api("/encounters/" + id + "/sign", "POST", {
           version: saved.version,
         });
+
+      if (activeLoadedTemplate && Object.keys(templateAnswers).length > 0) {
+        try {
+          localStorage.setItem(
+            `hyh_encounter_answers_${id}_${activeLoadedTemplate.id}`,
+            JSON.stringify(templateAnswers)
+          );
+          const responsesPayload = allComponentsOf(activeLoadedTemplate)
+            .filter((c) => c.id && templateAnswers[c.id] !== undefined && templateAnswers[c.id] !== "")
+            .map((c) => ({
+              component_id: c.id!,
+              component_label: c.label,
+              response_value: templateAnswers[c.id!],
+            }));
+          api("/consultations", "POST", {
+            patient_id: Number(patientId) || 1,
+            template_id: activeLoadedTemplate.id,
+            doctor_name: user?.name || "Dr. Sanjana K",
+            encounter_id: id,
+            notes: `Chart Notes clinical template response for ${activeLoadedTemplate.name}`,
+            responses: responsesPayload,
+          }).catch((err) => console.log("Consultation auto-save notice:", err));
+        } catch (e) {
+          console.error("Template answers persistence error:", e);
+        }
+      }
+
       await refresh();
       reset(values);
       notify(
@@ -5317,6 +5448,87 @@ export function EncounterEditor({
                       </div>
                     )}
                   </div>
+
+                  {/* Connected Interactive Clinical Template Form inside Chart Notes */}
+                  {activeLoadedTemplate && (
+                    <div
+                      className="charm-embedded-template-container"
+                      style={{
+                        margin: "16px 0 24px",
+                        backgroundColor: "#ffffff",
+                        borderRadius: "4px",
+                        border: "1px solid #e2e8f0",
+                        padding: "16px 20px",
+                        boxShadow: "0 1px 3px rgba(0,0,0,0.03)",
+                      }}
+                    >
+                      <div
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "space-between",
+                          borderBottom: "1px solid #e2e8f0",
+                          paddingBottom: "10px",
+                          marginBottom: "16px",
+                        }}
+                      >
+                        <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                          <span
+                            style={{
+                              fontSize: "13px",
+                              fontWeight: 700,
+                              color: "#0f766e",
+                              textTransform: "uppercase",
+                              letterSpacing: "0.04em",
+                            }}
+                          >
+                            Active Clinical Template:
+                          </span>
+                          <span style={{ fontSize: "14px", fontWeight: 600, color: "#1e293b" }}>
+                            {activeLoadedTemplate.name}
+                          </span>
+                          <span
+                            style={{
+                              fontSize: "11px",
+                              fontWeight: 600,
+                              backgroundColor: "#e0f2fe",
+                              color: "#0369a1",
+                              padding: "2px 8px",
+                              borderRadius: "12px",
+                            }}
+                          >
+                            {activeLoadedTemplate.template_type || "SOAP"}
+                          </span>
+                        </div>
+                        <button
+                          type="button"
+                          className="no-print"
+                          onClick={() => {
+                            setActiveLoadedTemplate(null);
+                            setSelectedTemplate("");
+                            setTemplateSearch("");
+                          }}
+                          style={{
+                            border: "none",
+                            background: "transparent",
+                            color: "#64748b",
+                            fontSize: "12px",
+                            cursor: "pointer",
+                            padding: "4px 8px",
+                          }}
+                        >
+                          ✕ Remove Template
+                        </button>
+                      </div>
+
+                      <ClinicalFormRenderer
+                        template={activeLoadedTemplate}
+                        answers={templateAnswers}
+                        onAnswer={handleTemplateAnswerChange}
+                        disabled={busy}
+                      />
+                    </div>
+                  )}
 
                   {/* SECTION: CHIEF COMPLAINTS (Authentic CharmHealth (S) CC - Clean Textarea matching frame_001) */}
                   <div id="sec-cc" className="charm-editor-section">

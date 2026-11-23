@@ -569,14 +569,26 @@
     margin: 15mm 12mm 15mm 12mm;
   }
 
-  /* Hide app navigation, headers, footers, sidebars, buttons, AI Copilot */
+  /* Ensure print document content is visible and takes full width */
   body, html {
     background-color: #ffffff !important;
     color: #000000 !important;
     font-size: 11pt !important;
+    visibility: visible !important;
   }
 
+  .template-details-container,
+  .template-details-container *,
+  .print-clinic-header,
+  .print-clinic-header *,
+  .cfr-form,
+  .cfr-form * {
+    visibility: visible !important;
+  }
+
+  /* Hide app navigation, headers, footers, sidebars, buttons, AI Copilot, floating icons */
   .no-print,
+  .charm-global-topbar,
   .charm-header,
   .charm-tabs-header,
   .template-nav-tabs,
@@ -585,11 +597,41 @@
   .ai-copilot-pill,
   .copilot-trigger,
   .charm-bottom-status-bar,
+  .charm-collab-dock,
+  .charm-floating-vertical-toolbar,
+  .workspace-sidebar,
+  .charm-left-nav,
   .btn-print,
   .btn-save,
   .btn-secondary,
   .hopt-arrow,
   button {
+    display: none !important;
+    visibility: hidden !important;
+  }
+
+  /* Print Only Answered Questions - Exclude unanswered fields, empty sections & unselected options */
+  .cfr-unanswered,
+  .cfr-section-unanswered,
+  .cfr-subheading-unanswered,
+  .cfr-table-row-unanswered {
+    display: none !important;
+  }
+
+  .hopt-opt:not(.on) {
+    display: none !important;
+  }
+
+  .cfr-checkbox-group label:not(.selected-opt),
+  .cfr-radio-group label:not(.selected-opt) {
+    display: none !important;
+  }
+
+  .cfr-rating-btn:not(.selected) {
+    display: none !important;
+  }
+
+  .cfr-yesno-btn:not(.selected) {
     display: none !important;
   }
 
@@ -603,6 +645,9 @@
     padding: 0 !important;
     margin: 0 !important;
     max-width: 100% !important;
+    position: static !important;
+    width: 100% !important;
+    overflow: visible !important;
   }
 
   .template-header-card {

@@ -18,6 +18,10 @@ export const LibraryTemplatesTable: React.FC<LibraryTemplatesTableProps> = ({
   onTemplateClick,
   onQuickImport
 }) => {
+  const visibleTemplates = templates.filter(
+    (t) => t.name !== 'D_copy' && !t.name.toLowerCase().startsWith('d_copy')
+  );
+
   if (loading) {
     return (
       <div className="charm-table-container">
@@ -26,7 +30,7 @@ export const LibraryTemplatesTable: React.FC<LibraryTemplatesTableProps> = ({
     );
   }
 
-  if (templates.length === 0) {
+  if (visibleTemplates.length === 0) {
     return (
       <div className="charm-table-container">
         <div className="empty-table-state">No Library Templates available</div>
@@ -46,7 +50,7 @@ export const LibraryTemplatesTable: React.FC<LibraryTemplatesTableProps> = ({
           </tr>
         </thead>
         <tbody>
-          {templates.map((tpl) => (
+          {visibleTemplates.map((tpl) => (
             <tr key={tpl.id}>
               <td>
                 <span
@@ -64,11 +68,6 @@ export const LibraryTemplatesTable: React.FC<LibraryTemplatesTableProps> = ({
                 >
                   {tpl.name}
                 </span>
-                {tpl.description && (
-                  <div style={{ fontSize: '12px', color: '#6b7280', marginTop: '2px' }}>
-                    {tpl.description}
-                  </div>
-                )}
               </td>
               <td>
                 <span className="type-pill">{tpl.template_type}</span>

@@ -206,6 +206,7 @@ export const ClinicalFormRenderer: React.FC<ClinicalFormRendererProps> = ({
             return (
               <label
                 key={opt.id ?? i}
+                className={on ? 'selected-opt' : 'unselected-opt'}
                 style={{
                   display: 'inline-flex',
                   alignItems: 'center',
@@ -283,6 +284,7 @@ export const ClinicalFormRenderer: React.FC<ClinicalFormRendererProps> = ({
               return (
                 <label
                   key={opt.id ?? i}
+                  className={on ? 'selected-opt cfr-yesno-btn selected' : 'unselected-opt cfr-yesno-btn'}
                   style={{
                     display: 'inline-flex',
                     alignItems: 'center',
@@ -324,6 +326,7 @@ export const ClinicalFormRenderer: React.FC<ClinicalFormRendererProps> = ({
             return (
               <label
                 key={opt.id ?? i}
+                className={on ? 'selected-opt cfr-radio-item selected' : 'unselected-opt cfr-radio-item'}
                 style={{
                   display: 'inline-flex',
                   alignItems: 'center',
@@ -455,9 +458,18 @@ export const ClinicalFormRenderer: React.FC<ClinicalFormRendererProps> = ({
                   const isExtraRow = rIdx >= configRows.length;
                   const extraIdx = rIdx - configRows.length;
 
+                  // Check if this row has entered answer
+                  const isRowAnswered = isHeaderRow || row.some((cell: any, cIdx: number) => {
+                    if (cIdx === 0 && !isExtraRow) return false; // skip label
+                    const cellKey = `${rIdx}_${cIdx}`;
+                    const val = cellValues[cellKey] ?? (!isExtraRow && rIdx > 0 && cIdx > 0 ? (cell.text || '') : '');
+                    return typeof val === 'string' && val.trim().length > 0;
+                  });
+
                   return (
                     <tr
                       key={rIdx}
+                      className={isRowAnswered ? 'cfr-table-row-answered' : 'cfr-table-row-unanswered'}
                       style={{
                         backgroundColor: isHeaderRow ? '#f8fafc' : rIdx % 2 === 0 ? '#fcfdfd' : '#ffffff'
                       }}
@@ -604,35 +616,39 @@ export const ClinicalFormRenderer: React.FC<ClinicalFormRendererProps> = ({
                 </tr>
               </thead>
               <tbody>
-                {options.map((row, i) => (
-                  <tr key={row.id ?? i}>
-                    <th
-                      scope="row"
-                      style={{
-                        padding: '6px 10px',
-                        textAlign: 'left',
-                        border: '1px solid #cbd5e1',
-                        backgroundColor: '#f8fafc',
-                        fontWeight: 500
-                      }}
-                    >
-                      {row.option_label}
-                    </th>
-                    <td style={{ padding: '6px', border: '1px solid #cbd5e1' }}>
-                      <input
-                        type="text"
-                        className="cfr-input"
-                        id={`cfr-tbl-${id}-${i}`}
-                        style={{ width: '100%', padding: '5px 8px', border: '1px solid #cbd5e1', borderRadius: '3px' }}
-                        value={tableData[String(i)] ?? tableData[row.option_label] ?? ''}
-                        placeholder="Enter answer..."
-                        disabled={disabled}
-                        onChange={(e) => handleOptionCellChange(i, e.target.value)}
-                        aria-label={row.option_label}
-                      />
-                    </td>
-                  </tr>
-                ))}
+                {options.map((row, i) => {
+                  const val = tableData[String(i)] ?? tableData[row.option_label] ?? '';
+                  const hasVal = typeof val === 'string' && val.trim().length > 0;
+                  return (
+                    <tr key={row.id ?? i} className={hasVal ? 'cfr-table-row-answered' : 'cfr-table-row-unanswered'}>
+                      <th
+                        scope="row"
+                        style={{
+                          padding: '6px 10px',
+                          textAlign: 'left',
+                          border: '1px solid #cbd5e1',
+                          backgroundColor: '#f8fafc',
+                          fontWeight: 500
+                        }}
+                      >
+                        {row.option_label}
+                      </th>
+                      <td style={{ padding: '6px', border: '1px solid #cbd5e1' }}>
+                        <input
+                          type="text"
+                          className="cfr-input"
+                          id={`cfr-tbl-${id}-${i}`}
+                          style={{ width: '100%', padding: '5px 8px', border: '1px solid #cbd5e1', borderRadius: '3px' }}
+                          value={val}
+                          placeholder="Enter answer..."
+                          disabled={disabled}
+                          onChange={(e) => handleOptionCellChange(i, e.target.value)}
+                          aria-label={row.option_label}
+                        />
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
@@ -668,6 +684,31 @@ export const ClinicalFormRenderer: React.FC<ClinicalFormRendererProps> = ({
     );
   };
 
+  const isComponentAnswered = (comp: TemplateComponent): boolean => {
+    const id = comp.id as number;
+    const val = answers[id];
+    if (val === undefined || val === null || val === '') return false;
+    const str = String(val).trim();
+    if (!str) return false;
+    if (comp.component_type === 'Table') {
+      try {
+        if (str.startsWith('{')) {
+          const parsed = JSON.parse(str);
+          const cells = parsed.cells || parsed;
+          const hasText = Object.values(cells).some((v) => typeof v === 'string' && v.trim().length > 0);
+          if (hasText) return true;
+          if (Array.isArray(parsed.extraRows) && parsed.extraRows.some((row: any[]) => row.some((c: any) => c.text?.trim()))) {
+            return true;
+          }
+          return false;
+        }
+      } catch {
+        return str.length > 0;
+      }
+    }
+    return true;
+  };
+
   return (
     <div className="cfr-form">
       {sections.map((section, sIdx) => {
@@ -678,8 +719,24 @@ export const ClinicalFormRenderer: React.FC<ClinicalFormRendererProps> = ({
 
         const pastelClass = PASTEL_BAR_CLASSES[sIdx % PASTEL_BAR_CLASSES.length];
 
+        // Check if section has any answered question
+        const hasSectionAnswers = shown.some(
+          (c) => c.component_type !== 'Heading' && c.component_type !== 'Centered Heading' && isComponentAnswered(c)
+        );
+
+        // Pre-compute which subheadings have answered questions underneath them
+        const activeSubheadingIds = new Set<number>();
+        let currentSubheadingId: number | null = null;
+        for (const c of shown) {
+          if (c.component_type === 'Heading' || c.component_type === 'Centered Heading') {
+            currentSubheadingId = c.id as number;
+          } else if (currentSubheadingId !== null && isComponentAnswered(c)) {
+            activeSubheadingIds.add(currentSubheadingId);
+          }
+        }
+
         return (
-          <section className="cfr-section" key={section.id ?? sIdx}>
+          <section className={`cfr-section ${hasSectionAnswers ? 'cfr-section-has-answers' : 'cfr-section-unanswered'}`} key={section.id ?? sIdx}>
             <h3 className={`cfr-section-title pastel-heading-bar ${pastelClass}`}>{section.title}</h3>
 
             <div className="cfr-rows">
@@ -688,9 +745,10 @@ export const ClinicalFormRenderer: React.FC<ClinicalFormRendererProps> = ({
 
                 if (comp.component_type === 'Heading' || comp.component_type === 'Centered Heading') {
                   const isCentered = comp.component_type === 'Centered Heading';
+                  const hasUnderlyingAnswers = activeSubheadingIds.has(id);
                   return (
                     <h4
-                      className={`cfr-subheading ${isCentered ? 'ctv-centered-heading' : ''}`}
+                      className={`cfr-subheading ${isCentered ? 'ctv-centered-heading' : ''} ${hasUnderlyingAnswers ? 'cfr-subheading-answered' : 'cfr-subheading-unanswered'}`}
                       key={id}
                       style={isCentered ? { textAlign: 'center', margin: '14px 0 10px 0', fontSize: '15px', fontWeight: 700 } : undefined}
                     >
@@ -704,10 +762,11 @@ export const ClinicalFormRenderer: React.FC<ClinicalFormRendererProps> = ({
                   comp.component_type === 'Table' ||
                   Boolean(comp.options && comp.options.length > 0 && isNestedTree(comp.options));
                 const isMandatory = Boolean(comp.is_required || comp.is_mandatory);
+                const answered = isComponentAnswered(comp);
 
                 return (
                   <div
-                    className={`cfr-row ${isFollowUp ? 'followup' : ''} ${isFullWidth ? 'full-width-control' : ''}`}
+                    className={`cfr-row ${isFollowUp ? 'followup' : ''} ${isFullWidth ? 'full-width-control' : ''} ${answered ? 'cfr-answered' : 'cfr-unanswered'}`}
                     key={id}
                   >
                     <label className="cfr-label" htmlFor={`cfr-${id}`}>

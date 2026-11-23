@@ -102,17 +102,10 @@ export const PracticeTemplatesTable: React.FC<PracticeTemplatesTableProps> = ({
                       </span>
                     )}
                   </div>
-
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '3px' }}>
-                    <span
-                      className={`specialty-tag ${
-                        tpl.specialty === 'EECP' ? 'eecp-badge' : ''
-                      }`}
-                    >
-                      {tpl.specialty}
-                    </span>
-
-                    {/* Section 14: Default values configured in green text */}
+                </td>
+                <td>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                    <span className="type-pill">{tpl.template_type}</span>
                     {hasDefaults && (
                       <span style={{ fontSize: '11px', color: '#2e7d32', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
                         <CheckCircle2 size={11} color="#2e7d32" />
@@ -120,9 +113,6 @@ export const PracticeTemplatesTable: React.FC<PracticeTemplatesTableProps> = ({
                       </span>
                     )}
                   </div>
-                </td>
-                <td>
-                  <span className="type-pill">{tpl.template_type}</span>
                 </td>
                 <td>
                   <span style={{ fontSize: '13px', color: '#4b5563' }}>

@@ -3368,7 +3368,21 @@ main.main-patient-chart {
   }
 
   .print-sheet,
-  .print-sheet * {
+  .print-sheet *,
+  .template-details-container,
+  .template-details-container *,
+  .charm-consult-editor,
+  .charm-consult-editor *,
+  .charm-consult-wrapper,
+  .charm-consult-wrapper *,
+  .charm-embedded-template-container,
+  .charm-embedded-template-container *,
+  .cfr-form,
+  .cfr-form *,
+  .charm-print-container,
+  .charm-print-container *,
+  .charm-soap-preview-canvas,
+  .charm-soap-preview-canvas * {
     visibility: visible !important;
   }
 
@@ -7925,9 +7939,9 @@ main.main-encounter {
 }
 
 .charm-consult-btn-save {
-  background: #f59e0b;
+  background: #10afa3;
   color: #ffffff;
-  border: 1px solid #d97706;
+  border: 1px solid #0d9488;
   border-radius: 4px;
   padding: 5px 16px;
   font-weight: 700;
@@ -7937,7 +7951,7 @@ main.main-encounter {
 }
 
 .charm-consult-btn-save:hover {
-  background: #d97706;
+  background: #0d9488;
 }
 
 .charm-consult-btn {
@@ -8464,20 +8478,94 @@ main.main-encounter {
   background: #ffffff;
 }
 
+/* Authentic CharmHealth Pastel Heading Bars for Chart Notes */
 .charm-section-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
   margin-bottom: 14px;
-  border-bottom: 1px solid #f1f5f9;
-  padding-bottom: 8px;
+  padding: 8px 14px;
+  border-radius: 4px;
+  background-color: #F0E5F8; /* Default lavender pastel */
+  border-left: 5px solid #C6B3CA;
+  border-bottom: none;
+  -webkit-print-color-adjust: exact !important;
+  print-color-adjust: exact !important;
 }
 
 .charm-section-header h3 {
   font-size: 14px;
   font-weight: 700;
-  color: #0f172a;
+  color: #0F172A !important;
   margin: 0;
+  letter-spacing: -0.01em;
+}
+
+/* Distinct approved pastel palettes for each Chart Notes clinical section */
+#sec-cc .charm-section-header {
+  background-color: #F0E5F8 !important; /* Wisteria / Lavender */
+  border-left: 5px solid #C6B3CA !important;
+}
+
+#sec-sym .charm-section-header {
+  background-color: #E8F5E9 !important; /* Mint / Sage */
+  border-left: 5px solid #AECBB8 !important;
+}
+
+#sec-hpi .charm-section-header {
+  background-color: #E1ECFA !important; /* Dewpoint / Soft Blue */
+  border-left: 5px solid #C1DBDF !important;
+}
+
+#sec-pmh .charm-section-header {
+  background-color: #F8E1EA !important; /* Rose / Peony */
+  border-left: 5px solid #E79897 !important;
+}
+
+#sec-fh .charm-section-header,
+#sec-sh .charm-section-header {
+  background-color: #FFF7ED !important; /* Cream / Fennel */
+  border-left: 5px solid #EBDEC0 !important;
+}
+
+#sec-allergies .charm-section-header {
+  background-color: #FEE2E2 !important; /* Soft Coral */
+  border-left: 5px solid #FCA5A5 !important;
+}
+
+#sec-vitals .charm-section-header {
+  background-color: #F4F3E6 !important; /* Pistachio */
+  border-left: 5px solid #C6C09C !important;
+}
+
+#sec-pe .charm-section-header {
+  background-color: #FFEFE6 !important; /* Peach / Honey */
+  border-left: 5px solid #FCAC83 !important;
+}
+
+#sec-ros .charm-section-header {
+  background-color: #E0F2FE !important; /* Sky Blue */
+  border-left: 5px solid #7DD3FC !important;
+}
+
+#sec-assessment .charm-section-header {
+  background-color: #F0E5F8 !important; /* Lavender */
+  border-left: 5px solid #C6B3CA !important;
+}
+
+#sec-plan .charm-section-header {
+  background-color: #E8F5E9 !important; /* Mint */
+  border-left: 5px solid #AECBB8 !important;
+}
+
+#sec-diet .charm-section-header {
+  background-color: #E1ECFA !important; /* Dewpoint */
+  border-left: 5px solid #C1DBDF !important;
+}
+
+#sec-tmt .charm-section-header {
+  background-color: #F4F3E6 !important; /* Pistachio */
+  border-left: 5px solid #C6C09C !important;
 }
 
 .charm-cc-textarea {
@@ -13218,22 +13306,11 @@ textarea.charm-input {
    CHARMHEALTH SETTINGS SYSTEM & FLOATING TOOLBAR REPLICA
    ========================================================================== */
 
-/* 1. Persistent Right-Docked Vertical Floating Toolbar */
+/* 1. Persistent Right-Docked Vertical Floating Toolbar - Removed per Priority 9 */
 .charm-floating-vertical-toolbar {
-  position: fixed;
-  right: 0;
-  top: 50%;
-  transform: translateY(-50%);
-  display: flex;
-  flex-direction: column;
-  background: #ffffff;
-  border: 1px solid #e2e8f0;
-  border-right: none;
-  border-radius: 8px 0 0 8px;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08), 0 1px 3px rgba(0, 0, 0, 0.04);
-  padding: 4px 2px;
-  z-index: 1050;
-  gap: 2px;
+  display: none !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
 }
 
 .charm-rail-btn-wrapper {
@@ -16618,7 +16695,19 @@ textarea.charm-input {
   .charm-soap-preview-canvas,
   .charm-soap-preview-canvas *,
   .charm-print-container,
-  .charm-print-container * {
+  .charm-print-container *,
+  .template-details-container,
+  .template-details-container *,
+  .charm-consult-editor,
+  .charm-consult-editor *,
+  .charm-consult-wrapper,
+  .charm-consult-wrapper *,
+  .charm-embedded-template-container,
+  .charm-embedded-template-container *,
+  .cfr-form,
+  .cfr-form *,
+  .print-sheet,
+  .print-sheet * {
     visibility: visible !important;
   }
 

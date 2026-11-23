@@ -132,17 +132,6 @@ export const MyTemplatesTable: React.FC<MyTemplatesTableProps> = ({
                       <span className="badge badge-inactive">Inactive</span>
                     )}
                   </div>
-
-                  {tpl.description && (
-                    <p className="name-cell-description">{tpl.description}</p>
-                  )}
-
-                  {hasDefaults && (
-                    <span className="default-values-note">
-                      <CheckCircle2 size={11} aria-hidden="true" />
-                      Default values configured
-                    </span>
-                  )}
                 </td>
 
                 <td data-label="Category">
@@ -152,7 +141,15 @@ export const MyTemplatesTable: React.FC<MyTemplatesTableProps> = ({
                 </td>
 
                 <td data-label="Template Type">
-                  <span className="badge badge-type">{tpl.template_type}</span>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                    <span className="badge badge-type">{tpl.template_type}</span>
+                    {hasDefaults && (
+                      <span className="default-values-note" style={{ margin: 0 }}>
+                        <CheckCircle2 size={11} aria-hidden="true" />
+                        Default values configured
+                      </span>
+                    )}
+                  </div>
                 </td>
 
                 <td data-label="Actions" className="col-actions">
