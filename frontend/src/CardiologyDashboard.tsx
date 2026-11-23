@@ -82,7 +82,7 @@ export function CardiologyDashboard({
   const recentPatients = patientList.slice(0, 5);
 
   return (
-    <div className="charm-home-launcher-container max-w-[1440px] w-full mx-auto px-6 py-6 space-y-6">
+    <div className="charm-home-launcher-container w-full px-6 py-6 space-y-6">
       {/* Welcome Banner */}
       <div className="bg-gradient-to-r from-[#0B6E75] to-[#168C89] rounded-2xl px-6 py-4 text-white shadow-sm flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
         <div>
@@ -308,13 +308,12 @@ export function CardiologyDashboard({
                   </div>
                   <div>
                     <span
-                      className={`px-2 py-0.5 rounded-full text-[10px] font-semibold ${
-                        appt.status === "Completed"
-                          ? "bg-green-50 text-green-700 border border-green-200"
-                          : appt.status === "Checked In"
+                      className={`px-2 py-0.5 rounded-full text-[10px] font-semibold ${appt.status === "Completed"
+                        ? "bg-green-50 text-green-700 border border-green-200"
+                        : appt.status === "Checked In"
                           ? "bg-teal-50 text-teal-700 border border-teal-200"
                           : "bg-slate-50 text-slate-700 border border-slate-200"
-                      }`}
+                        }`}
                     >
                       {appt.status || "Scheduled"}
                     </span>

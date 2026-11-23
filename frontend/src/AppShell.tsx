@@ -287,25 +287,13 @@ export function AppShell({
       >
         {/* Brand Header */}
         <div
-          className={`h-14 flex items-center border-b border-slate-200 px-3 cursor-pointer shrink-0 ${
-            collapsed ? "justify-center" : "gap-2.5"
-          }`}
+          className="h-14 flex items-center justify-center border-b border-slate-200 px-3 cursor-pointer shrink-0"
           onClick={() => navigate("/home")}
           title="Heal Your Heart EHR · Home"
         >
           <div className="w-8 h-8 rounded-lg bg-[var(--color-primary-clinical,#0B6E75)] flex items-center justify-center text-white shrink-0 shadow-xs">
             <HeartPulse size={20} className="text-white" />
           </div>
-          {!collapsed && (
-            <div className="flex flex-col min-w-0">
-              <span className="font-bold text-sm tracking-tight text-[#0f172a] leading-none truncate">
-                Heal Your Heart
-              </span>
-              <span className="text-[11px] font-medium text-[var(--color-primary-clinical,#0B6E75)] tracking-wider uppercase mt-0.5 truncate">
-                Cardiology & EECP
-              </span>
-            </div>
-          )}
         </div>
 
         {/* Navigation Groups */}
@@ -490,7 +478,7 @@ export function AppShell({
             </div>
           </div>
 
-          {/* Center Area: Patient Search Bar with ⌘K Badge */}
+          {/* Center Area: Patient Search Bar */}
           <div className="flex-1 max-w-xl mx-auto relative">
             <div className="relative flex items-center w-full">
               <Search
@@ -503,26 +491,18 @@ export function AppShell({
                 placeholder="Search Patient by Name / MRN..."
                 value={search}
                 onChange={(e) => onSearchChange(e.target.value)}
-                className="w-full bg-[#F8FAFC] focus:bg-white text-xs text-[#0F172A] placeholder-[#94A3B8] border border-[var(--color-border-subtle,#E1E8E8)] focus:border-[var(--color-primary-clinical,#0B6E75)] rounded-lg pl-9 pr-14 py-2 outline-none transition-all shadow-2xs focus:ring-1 focus:ring-[var(--color-primary-clinical,#0B6E75)]"
+                className="w-full bg-[#F8FAFC] focus:bg-white text-xs text-[#0F172A] placeholder-[#94A3B8] border border-[var(--color-border-subtle,#E1E8E8)] focus:border-[var(--color-primary-clinical,#0B6E75)] rounded-lg pl-9 pr-8 py-2 outline-none transition-all shadow-2xs focus:ring-1 focus:ring-[var(--color-primary-clinical,#0B6E75)]"
               />
               {search.length > 0 && (
                 <button
                   type="button"
                   title="Clear search"
                   onClick={() => onSearchChange("")}
-                  className="absolute right-10 text-[#94A3B8] hover:text-[#0F172A] p-1"
+                  className="absolute right-2.5 text-[#94A3B8] hover:text-[#0F172A] p-1"
                 >
                   <X size={13} />
                 </button>
               )}
-              <button
-                type="button"
-                title="Open Command Palette"
-                onClick={() => setCommandPaletteOpen(true)}
-                className="absolute right-2 text-[10px] font-mono text-[#64748B] bg-white border border-[#CBD5E1] rounded px-1.5 py-0.5 shadow-2xs hover:border-[#94A3B8]"
-              >
-                ⌘K
-              </button>
             </div>
 
             {/* Inline search dropdown directly anchored below search box */}
