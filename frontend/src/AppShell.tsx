@@ -416,8 +416,16 @@ export function AppShell({
           className="charm-global-topbar h-14 bg-white border-b border-slate-200 px-4 flex items-center justify-between gap-4 shrink-0 z-20"
           style={{ height: 56 }}
         >
-          {/* Left Area: Custom Styled Branch Selector Dropdown */}
-          <div className="flex items-center gap-3 min-w-0">
+          {/* Left Area: Brand Logo + Custom Styled Branch Selector Dropdown */}
+          <div className="flex items-center gap-3.5 min-w-0">
+            <img
+              src="/assets/dashboard/heal_your_heart_logo_transparent.png"
+              alt="Heal Your Heart EHR"
+              onClick={() => navigate("/home")}
+              className="h-8 w-auto object-contain cursor-pointer shrink-0 hover:opacity-90 transition-opacity"
+              title="Heal Your Heart EHR · Home"
+            />
+            <div className="h-5 w-px bg-slate-200 shrink-0" />
             <div className="relative" ref={branchMenuRef}>
               <button
                 type="button"
@@ -429,7 +437,7 @@ export function AppShell({
                   size={15}
                   className="text-[#0B6E75] shrink-0"
                 />
-                <span className="truncate max-w-[140px] text-left">
+                <span className="truncate max-w-[260px] text-left">
                   {currentFacility?.name.replace("Heal Your Heart · ", "") || "Select Branch"}
                 </span>
                 <ChevronDown size={13} className="text-slate-500 shrink-0" />

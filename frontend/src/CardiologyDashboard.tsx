@@ -84,7 +84,7 @@ export function CardiologyDashboard({
   return (
     <div className="charm-home-launcher-container max-w-[1440px] w-full mx-auto px-6 py-6 space-y-6">
       {/* Welcome Banner */}
-      <div className="bg-gradient-to-r from-[#0B6E75] to-[#168C89] rounded-2xl p-6 text-white shadow-sm flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+      <div className="bg-gradient-to-r from-[#0B6E75] to-[#168C89] rounded-2xl px-6 py-4 text-white shadow-sm flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
         <div>
           <div className="flex items-center gap-2 text-[#99F6E4] text-xs font-semibold uppercase tracking-wider">
             <HeartPulse size={16} />
@@ -102,7 +102,7 @@ export function CardiologyDashboard({
             <button
               type="button"
               onClick={onRegister}
-              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg bg-white text-[#0B6E75] font-semibold text-xs shadow-xs hover:bg-teal-50 transition-colors"
+              className="inline-flex items-center gap-1.5 h-9 px-3.5 text-xs font-semibold rounded-lg bg-white text-[#0B6E75] shadow-xs hover:bg-teal-50 transition-colors"
             >
               <Plus size={15} />
               <span>Register Patient</span>
@@ -112,7 +112,7 @@ export function CardiologyDashboard({
             <button
               type="button"
               onClick={onBook}
-              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg bg-[#084F54] text-white font-semibold text-xs border border-teal-600/40 hover:bg-[#063B3F] transition-colors"
+              className="inline-flex items-center gap-1.5 h-9 px-3.5 text-xs font-semibold rounded-lg bg-[#084F54] text-white border border-teal-600/40 hover:bg-[#063B3F] transition-colors"
             >
               <CalendarDays size={15} />
               <span>Schedule Visit</span>
@@ -219,7 +219,7 @@ export function CardiologyDashboard({
       {/* Quick Action Navigation Tiles */}
       <div className="bg-white rounded-xl border border-[#E1E8E8] p-5 shadow-2xs">
         <h2 className="text-sm font-bold text-[#0F172A] mb-3">Clinical Workspaces</h2>
-        <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
           {[
             { id: "patients", title: "Patients", desc: "Charts & Directory", icon: Users, route: "/patients" },
             { id: "calendar", title: "Calendar", desc: "Provider Schedule", icon: CalendarDays, route: "/calendar" },
@@ -235,17 +235,19 @@ export function CardiologyDashboard({
               <div
                 key={m.id}
                 onClick={() => navigate(m.route)}
-                className="charm-grid-module-card flex flex-col items-center text-center p-3 rounded-lg border border-[#E2E8F0] hover:border-[var(--color-primary-clinical,#0B6E75)] hover:bg-[#F8FAFC] transition-all cursor-pointer group"
+                className="flex items-center gap-3 px-3.5 py-2.5 rounded-lg border border-[#E2E8F0] hover:border-[var(--color-primary-clinical,#0B6E75)] hover:bg-[#F8FAFC] transition-all cursor-pointer group bg-white w-full"
               >
-                <div className="w-10 h-10 rounded-lg bg-[#E8F4F3] text-[var(--color-primary-clinical,#0B6E75)] flex items-center justify-center mb-2 group-hover:scale-105 transition-transform">
-                  <Icon size={20} />
+                <div className="w-9 h-9 shrink-0 rounded-lg bg-[#E8F4F3] text-[var(--color-primary-clinical,#0B6E75)] flex items-center justify-center group-hover:scale-105 transition-transform">
+                  <Icon size={18} />
                 </div>
-                <span className="font-semibold text-xs text-[#0F172A] group-hover:text-[var(--color-primary-clinical,#0B6E75)] whitespace-nowrap w-full block">
-                  {m.title}
-                </span>
-                <span className="text-[11px] text-[#64748B] whitespace-nowrap w-full block mt-0.5">
-                  {m.desc}
-                </span>
+                <div className="flex flex-col min-w-0 flex-1">
+                  <span className="font-semibold text-xs text-[#0F172A] group-hover:text-[var(--color-primary-clinical,#0B6E75)] truncate">
+                    {m.title}
+                  </span>
+                  <span className="text-[11px] text-[#64748B] truncate mt-0.5 tracking-tight">
+                    {m.desc}
+                  </span>
+                </div>
               </div>
             );
           })}

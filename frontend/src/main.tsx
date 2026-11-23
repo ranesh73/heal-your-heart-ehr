@@ -589,8 +589,8 @@ function Workspace() {
 
   const activePatientId =
     (page === "patients" && parts[1]) ? parts[1] :
-    (page === "encounter" && parts[2]) ? parts[2] :
-    undefined;
+      (page === "encounter" && parts[2]) ? parts[2] :
+        undefined;
   const activePatient = activePatientId
     ? (patients.data?.items || []).find((p: Row) => p.id === activePatientId)
     : undefined;
@@ -708,13 +708,13 @@ function Workspace() {
             "inventory",
             "analytics",
           ].includes(page) && (
-            <Empty
-              title="Workspace not found"
-              action={
-                <Button onClick={() => navigate("/home")}>Go home</Button>
-              }
-            />
-          )}
+              <Empty
+                title="Workspace not found"
+                action={
+                  <Button onClick={() => navigate("/home")}>Go home</Button>
+                }
+              />
+            )}
         </div>
       </AppShell>
 

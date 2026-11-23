@@ -66,8 +66,13 @@ export function SettingsLayout({
     return getSectionForCategory(currentCategoryId);
   }, [currentCategoryId]);
 
-  // Determine tabs to display from activeSection (the canonical 8-section tab list)
-  const displayTabs = activeSection.tabs;
+  // Determine tabs to display
+  const displayTabs = useMemo(() => {
+    if (tabs && tabs.length > 0) {
+      return tabs;
+    }
+    return activeSection.tabs;
+  }, [tabs, activeSection]);
 
   // Search results
   const searchResults = useMemo(() => {
@@ -88,20 +93,10 @@ export function SettingsLayout({
     navigate(`/settings/${opt.categoryId}/${opt.id}`);
   };
 
-  const currentTabId = useMemo(() => {
-    if (activeTab) {
-      const match = displayTabs.find((t) => t.id === activeTab || t.optionId === activeTab);
-      if (match) return match.id;
-    }
-    if (currentCategoryId) {
-      const match = displayTabs.find((t) => t.categoryId === currentCategoryId);
-      if (match) return match.id;
-    }
-    return displayTabs[0]?.id;
-  }, [displayTabs, activeTab, currentCategoryId]);
+  const currentTabId = activeTab || displayTabs[0]?.id;
 
   return (
-    <div className="flex h-full min-h-0 w-full overflow-hidden bg-[#F7F9FA]">
+    <div className="flex h-[calc(100vh-56px)] w-full overflow-hidden bg-[#F7F9FA]">
       {/* =========================================================================
           LEFT SETTINGS SIDEBAR (w-64 shrink-0 overflow-y-auto border-r border-slate-200)
          ========================================================================= */}
@@ -179,15 +174,11 @@ export function SettingsLayout({
               <button
                 key={sec.id}
                 type="button"
-                onClick={() => {
-                  setSearchQuery("");
-                  navigate(sec.defaultRoute);
-                }}
-                className={`w-full flex items-center gap-3 px-3 py-2 text-xs font-medium rounded-lg text-left transition-colors relative ${
-                  isActive
-                    ? "bg-[#EFF8F7] text-[#0B6E75] font-semibold shadow-2xs"
-                    : "text-slate-600 hover:text-slate-900 hover:bg-slate-50"
-                }`}
+                onClick={() => navigate(sec.defaultRoute)}
+                className={`w-full flex items-center gap-3 px-3 py-2 text-xs font-medium rounded-lg text-left transition-colors relative ${isActive
+                  ? "bg-[#EFF8F7] text-[#0B6E75] font-semibold shadow-2xs"
+                  : "text-slate-600 hover:text-slate-900 hover:bg-slate-50"
+                  }`}
               >
                 {isActive && (
                   <span
@@ -197,9 +188,8 @@ export function SettingsLayout({
                 )}
                 <Icon
                   size={16}
-                  className={`shrink-0 ${
-                    isActive ? "text-[#0B6E75]" : "text-slate-400"
-                  }`}
+                  className={`shrink-0 ${isActive ? "text-[#0B6E75]" : "text-slate-400"
+                    }`}
                 />
                 <span className="truncate flex-1">{sec.title}</span>
               </button>
@@ -211,10 +201,7 @@ export function SettingsLayout({
       {/* =========================================================================
           RIGHT CONTENT PANE (flex-1 min-w-0 overflow-y-auto p-6 bg-[#F7F9FA])
          ========================================================================= */}
-      <section
-        aria-label="Settings Content Pane"
-        className="flex-1 min-w-0 h-full overflow-y-auto p-6 bg-[#F7F9FA] flex flex-col"
-      >
+      <main className="flex-1 min-w-0 h-full overflow-y-auto p-6 bg-[#F7F9FA] flex flex-col">
         {/* Section Title Header */}
         <div className="mb-4 shrink-0">
           <h1 className="text-xl font-bold text-slate-900 tracking-tight">
@@ -234,17 +221,17 @@ export function SettingsLayout({
                 key={tab.id}
                 type="button"
                 onClick={() => {
-                  if (tab.route) {
-                    navigate(tab.route);
-                  } else if (onTabChange) {
+                  if (onTabChange) {
                     onTabChange(tab.id);
                   }
+                  if (tab.route) {
+                    navigate(tab.route);
+                  }
                 }}
-                className={`pb-3 text-xs font-medium transition-colors relative whitespace-nowrap flex items-center gap-1.5 cursor-pointer ${
-                  isActive
-                    ? "text-[#0B6E75] font-semibold"
-                    : "text-slate-500 hover:text-slate-800"
-                }`}
+                className={`pb-3 text-xs font-medium transition-colors relative whitespace-nowrap flex items-center gap-1.5 cursor-pointer ${isActive
+                  ? "text-[#0B6E75] font-semibold"
+                  : "text-slate-500 hover:text-slate-800"
+                  }`}
               >
                 <span>{tab.label}</span>
                 {tab.badge && (
@@ -264,7 +251,7 @@ export function SettingsLayout({
         <div className="bg-white border border-slate-200 rounded-xl p-6 shadow-2xs flex-1 min-h-0">
           {children}
         </div>
-      </section>
+      </main>
     </div>
   );
 }
