@@ -275,6 +275,7 @@ export function AppShell({
          ========================================================================= */}
       <aside
         aria-label="Global Navigation"
+        data-collapsed={collapsed ? "true" : "false"}
         className={`charm-global-sidebar flex flex-col shrink-0 transition-all duration-200 border-r border-slate-200 bg-white select-none ${
           collapsed ? "w-16" : "w-[232px]"
         }`}
@@ -286,7 +287,7 @@ export function AppShell({
       >
         {/* Brand Header */}
         <div
-          className={`h-14 flex items-center border-b border-slate-200 px-3 cursor-pointer ${
+          className={`h-14 flex items-center border-b border-slate-200 px-3 cursor-pointer shrink-0 ${
             collapsed ? "justify-center" : "gap-2.5"
           }`}
           onClick={() => navigate("/home")}
@@ -308,16 +309,20 @@ export function AppShell({
         </div>
 
         {/* Navigation Groups */}
-        <div className="flex-1 overflow-y-auto overflow-x-hidden py-3 px-2 space-y-4">
+        <div
+          className={`flex-1 overflow-y-auto overflow-x-hidden [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden ${
+            collapsed ? "py-1.5 px-1 space-y-1.5" : "py-3 px-2 space-y-4"
+          }`}
+        >
           {DEFAULT_NAV_SECTIONS.map((section) => (
-            <div key={section.title} className="space-y-1">
+            <div key={section.title} className={collapsed ? "space-y-0.5" : "space-y-1"}>
               {!collapsed && (
                 <div className="px-2.5 py-1 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">
                   {section.title}
                 </div>
               )}
               {collapsed && (
-                <div className="my-1.5 mx-auto w-6 border-t border-slate-200" />
+                <div className="my-1 mx-auto w-5 border-t border-slate-200" />
               )}
               {section.items.map((item) => {
                 const Icon = item.icon;
@@ -334,7 +339,7 @@ export function AppShell({
                     onClick={() => navigate(item.route)}
                     className={`charm-sidebar-btn w-full flex items-center rounded-md text-sm font-medium transition-colors text-left relative ${
                       collapsed
-                        ? "justify-center h-10 px-0"
+                        ? "justify-center h-8 my-0.5 px-0"
                         : "gap-3 px-3 py-2"
                     } ${
                       isActive
@@ -477,7 +482,7 @@ export function AppShell({
             </div>
           </div>
 
-          {/* Center Area: Patient Search Bar with Ctrl+K Hint */}
+          {/* Center Area: Patient Search Bar with ⌘K Badge */}
           <div className="flex-1 max-w-xl mx-auto relative">
             <div className="relative flex items-center w-full">
               <Search
@@ -487,29 +492,21 @@ export function AppShell({
               <input
                 type="text"
                 aria-label="Find a patient"
-                placeholder="Search Patient by Name / MRN... (Ctrl+K)"
+                placeholder="Search Patient by Name / MRN..."
                 value={search}
                 onChange={(e) => onSearchChange(e.target.value)}
-                className="w-full bg-[#F8FAFC] focus:bg-white text-xs text-[#0F172A] placeholder-[#94A3B8] border border-[var(--color-border-subtle,#E1E8E8)] focus:border-[var(--color-primary-clinical,#0B6E75)] rounded-lg pl-9 pr-20 py-2 outline-none transition-all shadow-2xs focus:ring-1 focus:ring-[var(--color-primary-clinical,#0B6E75)]"
+                className="w-full bg-[#F8FAFC] focus:bg-white text-xs text-[#0F172A] placeholder-[#94A3B8] border border-[var(--color-border-subtle,#E1E8E8)] focus:border-[var(--color-primary-clinical,#0B6E75)] rounded-lg pl-9 pr-14 py-2 outline-none transition-all shadow-2xs focus:ring-1 focus:ring-[var(--color-primary-clinical,#0B6E75)]"
               />
               {search.length > 0 && (
                 <button
                   type="button"
                   title="Clear search"
                   onClick={() => onSearchChange("")}
-                  className="absolute right-12 text-[#94A3B8] hover:text-[#0F172A] p-1"
+                  className="absolute right-10 text-[#94A3B8] hover:text-[#0F172A] p-1"
                 >
                   <X size={13} />
                 </button>
               )}
-              <button
-                type="button"
-                title="Add New Patient"
-                onClick={onNewPatient}
-                className="absolute right-7 text-[var(--color-primary-clinical,#0B6E75)] hover:bg-[#E8F4F3] p-1 rounded"
-              >
-                <Plus size={14} />
-              </button>
               <button
                 type="button"
                 title="Open Command Palette"

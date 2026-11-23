@@ -4628,6 +4628,25 @@ main.main-patient-chart {
   box-shadow: none !important;
   overflow-y: auto !important;
   overflow-x: hidden !important;
+  scrollbar-width: none !important;
+  -ms-overflow-style: none !important;
+}
+
+.charm-global-sidebar::-webkit-scrollbar,
+.charm-global-sidebar *::-webkit-scrollbar {
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
+}
+
+.charm-global-sidebar[data-collapsed="true"] .charm-sidebar-btn {
+  width: 100% !important;
+  min-height: 32px !important;
+  height: 32px !important;
+  padding: 4px 0 !important;
+  justify-content: center !important;
+  gap: 0 !important;
+  margin: 2px 0 !important;
 }
 
 .charm-sidebar-btn {

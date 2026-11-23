@@ -52,6 +52,11 @@ export function CardiologyDashboard({
     queryFn: () => api<Row[]>("/labs/orders"),
   });
 
+  const patientsQuery = useQuery({
+    queryKey: ["dashboard-patients", branchId],
+    queryFn: () => api<{ items: Row[] }>("/patients?limit=10"),
+  });
+
   const todayStr = today();
   const appointments = apptsQuery.data || [];
   const todayAppts = appointments.filter(
@@ -73,10 +78,11 @@ export function CardiologyDashboard({
     (l) => l.status === "Ordered" || l.status === "Pending" || l.status === "In Progress"
   );
 
-  const recentPatients = (patients || []).slice(0, 6);
+  const patientList = patientsQuery.data?.items || (Array.isArray(patients) ? patients : patients?.items) || [];
+  const recentPatients = patientList.slice(0, 5);
 
   return (
-    <div className="charm-home-launcher-container max-w-7xl mx-auto p-6 space-y-6">
+    <div className="charm-home-launcher-container max-w-[1440px] w-full mx-auto px-6 py-6 space-y-6">
       {/* Welcome Banner */}
       <div className="bg-gradient-to-r from-[#0B6E75] to-[#168C89] rounded-2xl p-6 text-white shadow-sm flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
         <div>
@@ -120,7 +126,7 @@ export function CardiologyDashboard({
         {/* Card 1: Today's Appointments */}
         <div
           onClick={() => navigate("/calendar")}
-          className="bg-white rounded-xl border border-[#E1E8E8] p-4.5 hover:border-[#0B6E75] hover:shadow-sm transition-all cursor-pointer group"
+          className="bg-white rounded-xl border border-[#E1E8E8] p-5 hover:border-[#0B6E75] hover:shadow-sm transition-all cursor-pointer group"
         >
           <div className="flex items-center justify-between text-[#64748B]">
             <span className="text-xs font-semibold uppercase tracking-wider">Today's Visits</span>
@@ -129,7 +135,7 @@ export function CardiologyDashboard({
             </div>
           </div>
           <div className="mt-3 flex items-baseline gap-2">
-            <span className="text-2xl font-bold text-[#0F172A] font-mono">
+            <span className="text-2xl font-bold text-[#0F172A]">
               {todayAppts.length}
             </span>
             <span className="text-xs text-[#64748B]">scheduled</span>
@@ -143,7 +149,7 @@ export function CardiologyDashboard({
         {/* Card 2: Active EECP Courses */}
         <div
           onClick={() => navigate("/eecp")}
-          className="bg-white rounded-xl border border-[#E1E8E8] p-4.5 hover:border-[#0B6E75] hover:shadow-sm transition-all cursor-pointer group"
+          className="bg-white rounded-xl border border-[#E1E8E8] p-5 hover:border-[#0B6E75] hover:shadow-sm transition-all cursor-pointer group"
         >
           <div className="flex items-center justify-between text-[#64748B]">
             <span className="text-xs font-semibold uppercase tracking-wider">Active EECP</span>
@@ -152,7 +158,7 @@ export function CardiologyDashboard({
             </div>
           </div>
           <div className="mt-3 flex items-baseline gap-2">
-            <span className="text-2xl font-bold text-[#0F172A] font-mono">
+            <span className="text-2xl font-bold text-[#0F172A]">
               {activeEecpCourses.length}
             </span>
             <span className="text-xs text-[#64748B]">treatment plans</span>
@@ -166,7 +172,7 @@ export function CardiologyDashboard({
         {/* Card 3: Pending Lab Reviews */}
         <div
           onClick={() => navigate("/labs")}
-          className="bg-white rounded-xl border border-[#E1E8E8] p-4.5 hover:border-[#0B6E75] hover:shadow-sm transition-all cursor-pointer group"
+          className="bg-white rounded-xl border border-[#E1E8E8] p-5 hover:border-[#0B6E75] hover:shadow-sm transition-all cursor-pointer group"
         >
           <div className="flex items-center justify-between text-[#64748B]">
             <span className="text-xs font-semibold uppercase tracking-wider">Pending Labs</span>
@@ -175,7 +181,7 @@ export function CardiologyDashboard({
             </div>
           </div>
           <div className="mt-3 flex items-baseline gap-2">
-            <span className="text-2xl font-bold text-[#0F172A] font-mono">
+            <span className="text-2xl font-bold text-[#0F172A]">
               {pendingLabs.length}
             </span>
             <span className="text-xs text-[#64748B]">awaiting review</span>
@@ -189,7 +195,7 @@ export function CardiologyDashboard({
         {/* Card 4: Outstanding Tasks */}
         <div
           onClick={() => navigate("/tasks")}
-          className="bg-white rounded-xl border border-[#E1E8E8] p-4.5 hover:border-[#0B6E75] hover:shadow-sm transition-all cursor-pointer group"
+          className="bg-white rounded-xl border border-[#E1E8E8] p-5 hover:border-[#0B6E75] hover:shadow-sm transition-all cursor-pointer group"
         >
           <div className="flex items-center justify-between text-[#64748B]">
             <span className="text-xs font-semibold uppercase tracking-wider">Care Tasks</span>
@@ -198,7 +204,7 @@ export function CardiologyDashboard({
             </div>
           </div>
           <div className="mt-3 flex items-baseline gap-2">
-            <span className="text-2xl font-bold text-[#0F172A] font-mono">
+            <span className="text-2xl font-bold text-[#0F172A]">
               {pendingTasks.length}
             </span>
             <span className="text-xs text-[#64748B]">pending actions</span>
@@ -210,18 +216,18 @@ export function CardiologyDashboard({
         </div>
       </div>
 
-      {/* Quick Action Navigation Tiles (Maintains charm-grid-module-card class for test compatibility) */}
+      {/* Quick Action Navigation Tiles */}
       <div className="bg-white rounded-xl border border-[#E1E8E8] p-5 shadow-2xs">
         <h2 className="text-sm font-bold text-[#0F172A] mb-3">Clinical Workspaces</h2>
-        <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-8 gap-3">
+        <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-3">
           {[
             { id: "patients", title: "Patients", desc: "Charts & Directory", icon: Users, route: "/patients" },
             { id: "calendar", title: "Calendar", desc: "Provider Schedule", icon: CalendarDays, route: "/calendar" },
-            { id: "chart-notes", title: "Chart Notes", desc: "SOAP & Consultations", icon: ClipboardList, route: "/chart-notes" },
+            { id: "chart-notes", title: "Chart Notes", desc: "SOAP & Consults", icon: ClipboardList, route: "/chart-notes" },
             { id: "eecp", title: "EECP Therapy", desc: "35-Hour Treatment", icon: HeartPulse, route: "/eecp" },
             { id: "labs", title: "Labs", desc: "Biomarkers & Results", icon: FlaskConical, route: "/labs" },
-            { id: "images", title: "Images", desc: "Echo, ECG & Angio", icon: FileText, route: "/images" },
-            { id: "billing", title: "Billing", desc: "Invoices & Receipts", icon: IndianRupee, route: "/billing" },
+            { id: "images", title: "Images", desc: "Echo, ECG & Scans", icon: FileText, route: "/images" },
+            { id: "billing", title: "Billing", desc: "Invoices & Ledger", icon: IndianRupee, route: "/billing" },
             { id: "tasks", title: "Tasks", desc: "Team Worklist", icon: CheckCircle2, route: "/tasks" },
           ].map((m) => {
             const Icon = m.icon;
@@ -234,10 +240,10 @@ export function CardiologyDashboard({
                 <div className="w-10 h-10 rounded-lg bg-[#E8F4F3] text-[var(--color-primary-clinical,#0B6E75)] flex items-center justify-center mb-2 group-hover:scale-105 transition-transform">
                   <Icon size={20} />
                 </div>
-                <span className="font-semibold text-xs text-[#0F172A] group-hover:text-[var(--color-primary-clinical,#0B6E75)] truncate w-full">
+                <span className="font-semibold text-xs text-[#0F172A] group-hover:text-[var(--color-primary-clinical,#0B6E75)] whitespace-nowrap w-full block">
                   {m.title}
                 </span>
-                <span className="text-[10px] text-[#64748B] truncate w-full mt-0.5">
+                <span className="text-[11px] text-[#64748B] whitespace-nowrap w-full block mt-0.5">
                   {m.desc}
                 </span>
               </div>
@@ -265,7 +271,7 @@ export function CardiologyDashboard({
             </button>
           </div>
 
-          <div className="flex-1 divide-y divide-[#F1F5F9] overflow-y-auto max-h-72">
+          <div className="flex-1 divide-y divide-[#F1F5F9]">
             {todayAppts.length === 0 ? (
               <div className="py-8 text-center text-[#64748B] text-xs">
                 No appointments scheduled for today ({formatClinicalDate(todayStr)}).
@@ -334,7 +340,7 @@ export function CardiologyDashboard({
             </button>
           </div>
 
-          <div className="flex-1 divide-y divide-[#F1F5F9] overflow-y-auto max-h-72">
+          <div className="flex-1 divide-y divide-[#F1F5F9]">
             {recentPatients.length === 0 ? (
               <div className="py-8 text-center text-[#64748B] text-xs">
                 No patients found in current facility.
