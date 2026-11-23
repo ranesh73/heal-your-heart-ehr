@@ -140,7 +140,6 @@ export function PatientsPage() {
   const [q, setQ] = useState("");
   const [offset, setOffset] = useState(0);
   const [viewMode, setViewMode] = useState<"list" | "add">("list");
-  const [addModal, setAddModal] = useState(false);
   const [showInactive, setShowInactive] = useState(false);
   const [showImport, setShowImport] = useState(false);
   const [showMoreActions, setShowMoreActions] = useState(false);
@@ -193,11 +192,10 @@ export function PatientsPage() {
             <button
               type="button"
               className="charm-btn-patient-add"
-              aria-label="Register patient"
-              onClick={() => setAddModal(true)}
+              onClick={() => setViewMode("add")}
             >
               <Plus size={16} style={{ marginRight: 4 }} />
-              Register patient
+              Patient
             </button>
             <div className="charm-more-actions-container">
               <button
@@ -359,17 +357,6 @@ export function PatientsPage() {
           onClose={() => setShowImport(false)}
           onSuccess={() => {
             refetch();
-          }}
-        />
-      )}
-
-      {addModal && (
-        <PatientForm
-          onClose={() => setAddModal(false)}
-          onSaved={(p) => {
-            setAddModal(false);
-            refetch();
-            navigate("/patients/" + p.id);
           }}
         />
       )}
