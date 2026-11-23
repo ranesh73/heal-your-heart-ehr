@@ -6,6 +6,7 @@ import {
   Edit3,
   Eye,
   Power,
+  Printer,
   Share2,
   ShieldCheck,
   Sliders,
@@ -17,6 +18,7 @@ import { ClinicalTemplate } from '../../types';
 export type ActionOption =
   | 'view'
   | 'edit'
+  | 'print'
   | 'assign_roles'
   | 'default_values'
   | 'duplicate'
@@ -98,16 +100,18 @@ export const ThreeDotMenu: React.FC<ThreeDotMenuProps> = ({ template, mode, onAc
 
   const viewEntry: MenuEntry = { action: 'view', label: 'View', icon: <Eye size={14} /> };
   const editEntry: MenuEntry = { action: 'edit', label: 'Edit', icon: <Edit3 size={14} /> };
+  const printEntry: MenuEntry = { action: 'print', label: 'Print', icon: <Printer size={14} /> };
 
   let entries: MenuEntry[];
   if (mode === 'email') {
-    entries = [viewEntry, editEntry];
+    entries = [viewEntry, editEntry, printEntry];
   } else if (mode === 'library') {
-    entries = [viewEntry, { action: 'import', label: 'Import', icon: <Download size={14} /> }];
+    entries = [viewEntry, printEntry, { action: 'import', label: 'Import', icon: <Download size={14} /> }];
   } else {
     entries = [
       viewEntry,
       editEntry,
+      printEntry,
       { action: 'assign_roles', label: 'Assign Roles', icon: <ShieldCheck size={14} /> },
       { action: 'default_values', label: 'Default Values', icon: <CheckSquare size={14} /> },
       { action: 'duplicate', label: 'Duplicate', icon: <Copy size={14} /> },

@@ -670,10 +670,6 @@ export const ClinicalFormRenderer: React.FC<ClinicalFormRendererProps> = ({
 
   return (
     <div className="cfr-form">
-      <div className="cfr-progress" role="status" aria-live="polite">
-        {answeredCount} / {visibleCount} answered
-      </div>
-
       {sections.map((section, sIdx) => {
         const shown = (section.components || []).filter(
           (c) => typeof c.id === 'number' && visible.has(c.id)

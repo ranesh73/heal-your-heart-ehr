@@ -3,6 +3,7 @@ import {
   ArrowLeft,
   Edit,
   Save,
+  Printer,
   CheckCircle,
   AlertCircle,
   RotateCcw,
@@ -247,6 +248,10 @@ export const TemplateDetailsPage: React.FC<TemplateDetailsPageProps> = ({
     }
   };
 
+  const handlePrint = () => {
+    window.print();
+  };
+
   const { visible } = useMemo(
     () => computeVisibility(allComponents, currentTemplate.relationships || [], answers),
     [allComponents, currentTemplate.relationships, answers]
@@ -270,9 +275,35 @@ export const TemplateDetailsPage: React.FC<TemplateDetailsPageProps> = ({
   }, [medications, medSearch]);
 
   return (
-    <div style={{ padding: '24px 32px', maxWidth: '1200px', margin: '0 auto' }}>
+    <div className="template-details-container" style={{ padding: '24px 32px', maxWidth: '1200px', margin: '0 auto' }}>
+      {/* Printable Clinic Header (Rendered cleanly when printing) */}
+      <div className="print-clinic-header">
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', borderBottom: '2px solid #10afa3', paddingBottom: '12px', marginBottom: '16px' }}>
+          <div>
+            <h1 style={{ margin: 0, fontSize: '20px', fontWeight: 800, color: '#0f766e', letterSpacing: '-0.02em' }}>
+              Heal Your Heart · Neelankarai
+            </h1>
+            <p style={{ margin: '3px 0 0', fontSize: '12px', color: '#475569' }}>
+              Vaso-Meditech EECP Center · Non-Invasive Revascularization
+            </p>
+          </div>
+          <div style={{ textAlign: 'right', fontSize: '12px', color: '#334155' }}>
+            <div><strong>Date:</strong> {new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</div>
+            <div><strong>Clinician:</strong> {currentUser?.full_name || 'Dr. Sanjana K, MD'}</div>
+          </div>
+        </div>
+
+        <div style={{ backgroundColor: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '4px', padding: '10px 14px', marginBottom: '18px', display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '8px', fontSize: '12px' }}>
+          <div><strong>Patient:</strong> {activePatient?.full_name || 'Walking Patient'}</div>
+          <div><strong>MRN:</strong> {activePatient?.mrn || 'MRN-7821'}</div>
+          <div><strong>Template:</strong> {currentTemplate.name}</div>
+          <div><strong>Type:</strong> {currentTemplate.template_type}</div>
+        </div>
+      </div>
+
       {/* Top action bar */}
       <div
+        className="no-print"
         style={{
           display: 'flex',
           alignItems: 'center',
@@ -317,7 +348,29 @@ export const TemplateDetailsPage: React.FC<TemplateDetailsPageProps> = ({
 
           <button
             type="button"
-            className="btn-orange"
+            className="btn-print"
+            onClick={handlePrint}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              padding: '7px 18px',
+              fontSize: '13.5px',
+              fontWeight: 600,
+              backgroundColor: '#10afa3',
+              color: '#ffffff',
+              border: 'none',
+              borderRadius: '4px',
+              cursor: 'pointer',
+              boxShadow: '0 1px 2px rgba(16, 175, 163, 0.2)'
+            }}
+          >
+            <Printer size={15} /> Print
+          </button>
+
+          <button
+            type="button"
+            className="btn-save"
             onClick={() => handleSave(false)}
             disabled={saving}
             style={{
@@ -327,36 +380,16 @@ export const TemplateDetailsPage: React.FC<TemplateDetailsPageProps> = ({
               padding: '7px 20px',
               fontSize: '13.5px',
               fontWeight: 600,
-              backgroundColor: '#ea580c',
+              backgroundColor: '#10afa3',
               color: '#ffffff',
               border: 'none',
               borderRadius: '4px',
               cursor: saving ? 'not-allowed' : 'pointer',
-              opacity: saving ? 0.7 : 1
+              opacity: saving ? 0.7 : 1,
+              boxShadow: '0 1px 2px rgba(16, 175, 163, 0.2)'
             }}
           >
             <Save size={15} /> {saving ? 'Saving...' : 'Save'}
-          </button>
-
-          <button
-            type="button"
-            onClick={() => handleSave(true)}
-            disabled={saving}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '6px',
-              padding: '7px 16px',
-              fontSize: '13.5px',
-              fontWeight: 600,
-              backgroundColor: '#0288d1',
-              color: '#ffffff',
-              border: 'none',
-              borderRadius: '4px',
-              cursor: saving ? 'not-allowed' : 'pointer'
-            }}
-          >
-            Save &amp; Exit
           </button>
         </div>
       </div>
@@ -442,7 +475,7 @@ export const TemplateDetailsPage: React.FC<TemplateDetailsPageProps> = ({
         </div>
       )}
 
-      {/* Interactive Clinical Template Form Card */}
+      {/* Interactive Form Card */}
       <div
         style={{
           backgroundColor: '#ffffff',
@@ -453,51 +486,6 @@ export const TemplateDetailsPage: React.FC<TemplateDetailsPageProps> = ({
           marginBottom: '24px'
         }}
       >
-        {/* Card Header: CLINICAL TEMPLATE */}
-        <div
-          style={{
-            backgroundColor: '#f9fafb',
-            borderBottom: '1px solid #e5e7eb',
-            padding: '14px 20px',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            flexWrap: 'wrap',
-            gap: '10px'
-          }}
-        >
-          <div>
-            <span
-              style={{
-                fontSize: '15px',
-                fontWeight: 700,
-                color: '#111827',
-                letterSpacing: '0.4px',
-                display: 'block'
-              }}
-            >
-              CLINICAL TEMPLATE
-            </span>
-            <span style={{ fontSize: '12.5px', color: '#6b7280' }}>
-              Fill and record clinical findings directly below. Answers persist to the database.
-            </span>
-          </div>
-
-          <div
-            style={{
-              padding: '4px 12px',
-              borderRadius: '12px',
-              backgroundColor: progressPercent === 100 ? '#ecfdf5' : '#f0f9ff',
-              color: progressPercent === 100 ? '#047857' : '#0369a1',
-              fontSize: '12.5px',
-              fontWeight: 600,
-              border: `1px solid ${progressPercent === 100 ? '#a7f3d0' : '#bae6fd'}`
-            }}
-          >
-            {answeredCount} / {visibleQuestions.length} fields completed ({progressPercent}%)
-          </div>
-        </div>
-
         {/* Live Form Renderer */}
         <div style={{ padding: '24px' }}>
           <ClinicalFormRenderer
@@ -536,7 +524,7 @@ export const TemplateDetailsPage: React.FC<TemplateDetailsPageProps> = ({
           }}
         >
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <Pill size={16} color="#ea580c" />
+            <Pill size={16} color="#10afa3" />
             <span style={{ fontSize: '14px', fontWeight: 600, color: '#334155' }}>
               Common Medication Reference (Clinician Reference Only)
             </span>
@@ -627,6 +615,7 @@ export const TemplateDetailsPage: React.FC<TemplateDetailsPageProps> = ({
 
       {/* Bottom Save & Exit Action Bar */}
       <div
+        className="no-print"
         style={{
           display: 'flex',
           alignItems: 'center',
@@ -669,28 +658,29 @@ export const TemplateDetailsPage: React.FC<TemplateDetailsPageProps> = ({
 
           <button
             type="button"
-            onClick={() => handleSave(true)}
-            disabled={saving}
+            className="btn-print"
+            onClick={handlePrint}
             style={{
               display: 'flex',
               alignItems: 'center',
               gap: '6px',
-              padding: '8px 18px',
-              fontSize: '13.5px',
+              padding: '8px 20px',
+              fontSize: '14px',
               fontWeight: 600,
-              backgroundColor: '#0288d1',
+              backgroundColor: '#10afa3',
               color: '#ffffff',
               border: 'none',
               borderRadius: '4px',
-              cursor: saving ? 'not-allowed' : 'pointer'
+              cursor: 'pointer',
+              boxShadow: '0 1px 3px rgba(16, 175, 163, 0.25)'
             }}
           >
-            Save &amp; Exit
+            <Printer size={16} /> Print
           </button>
 
           <button
             type="button"
-            className="btn-orange"
+            className="btn-save"
             onClick={() => handleSave(false)}
             disabled={saving}
             style={{
@@ -700,12 +690,12 @@ export const TemplateDetailsPage: React.FC<TemplateDetailsPageProps> = ({
               padding: '8px 24px',
               fontSize: '14px',
               fontWeight: 700,
-              backgroundColor: '#ea580c',
+              backgroundColor: '#10afa3',
               color: '#ffffff',
               border: 'none',
               borderRadius: '4px',
               cursor: saving ? 'not-allowed' : 'pointer',
-              boxShadow: '0 1px 3px rgba(234, 88, 12, 0.25)'
+              boxShadow: '0 1px 3px rgba(16, 175, 163, 0.25)'
             }}
           >
             <Save size={16} /> {saving ? 'Saving...' : 'SAVE'}

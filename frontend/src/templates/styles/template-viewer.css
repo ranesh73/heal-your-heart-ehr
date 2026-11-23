@@ -554,3 +554,105 @@
     grid-template-columns: 1fr !important;
   }
 }
+
+/* ==========================================================================
+   Print Document Stylesheet
+   ========================================================================== */
+
+.print-clinic-header {
+  display: none;
+}
+
+@media print {
+  @page {
+    size: A4 portrait;
+    margin: 15mm 12mm 15mm 12mm;
+  }
+
+  /* Hide app navigation, headers, footers, sidebars, buttons, AI Copilot */
+  body, html {
+    background-color: #ffffff !important;
+    color: #000000 !important;
+    font-size: 11pt !important;
+  }
+
+  .no-print,
+  .charm-header,
+  .charm-tabs-header,
+  .template-nav-tabs,
+  .charm-templates-header-actions,
+  .three-dot-menu-popover,
+  .ai-copilot-pill,
+  .copilot-trigger,
+  .charm-bottom-status-bar,
+  .btn-print,
+  .btn-save,
+  .btn-secondary,
+  .hopt-arrow,
+  button {
+    display: none !important;
+  }
+
+  /* Show the printable clinic header */
+  .print-clinic-header {
+    display: block !important;
+    margin-bottom: 20px !important;
+  }
+
+  .template-details-container {
+    padding: 0 !important;
+    margin: 0 !important;
+    max-width: 100% !important;
+  }
+
+  .template-header-card {
+    border: 1px solid #cbd5e1 !important;
+    box-shadow: none !important;
+    margin-bottom: 14px !important;
+    padding: 10px 14px !important;
+  }
+
+  .cfr-form {
+    padding: 0 !important;
+  }
+
+  .cfr-section {
+    break-inside: avoid;
+    page-break-inside: avoid;
+    margin-bottom: 16px !important;
+    border: 1px solid #e2e8f0 !important;
+    box-shadow: none !important;
+  }
+
+  .cfr-section-header {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  .cfr-row {
+    break-inside: avoid;
+    page-break-inside: avoid;
+    border-bottom: 1px solid #f1f5f9 !important;
+  }
+
+  .cfr-input,
+  .cfr-select,
+  .cfr-textarea {
+    border: 1px solid #cbd5e1 !important;
+    background-color: #ffffff !important;
+    box-shadow: none !important;
+  }
+
+  .hopt-opt {
+    border: 1px solid #94a3b8 !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  .hopt-child-branch {
+    border-left: 3px solid #10afa3 !important;
+    background-color: #f8fafc !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+}

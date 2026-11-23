@@ -55,7 +55,11 @@ export const MyTemplatesTable: React.FC<MyTemplatesTableProps> = ({
     );
   }
 
-  if (templates.length === 0) {
+  const visibleTemplates = templates.filter(
+    (t) => t.name !== 'D_copy' && !t.name.toLowerCase().startsWith('d_copy')
+  );
+
+  if (visibleTemplates.length === 0) {
     return (
       <div className="charm-table-container">
         <div
@@ -89,7 +93,7 @@ export const MyTemplatesTable: React.FC<MyTemplatesTableProps> = ({
           </tr>
         </thead>
         <tbody>
-          {templates.map((tpl) => {
+          {visibleTemplates.map((tpl) => {
             const isInactive = tpl.is_active === false;
             const hasPathway = Boolean(tpl.relationships && tpl.relationships.length > 0);
             const hasDefaults = Boolean(

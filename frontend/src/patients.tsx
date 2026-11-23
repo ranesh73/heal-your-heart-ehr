@@ -1767,9 +1767,8 @@ export function PatientChart({ id }: { id: string }) {
               const plan = soap.plan || {};
 
               const actionItems: Record<string, string[]> = {
-                Export: ["Consultation as PDF"],
-                Print: ["Chart Notes", "Lab Order", "Image Order", "Patient Summary", "Chart Notes (New)"],
-                Send: ["Clinical Summary to patient by Email", "Clinical Summary to patient by SMS"],
+                Export: ["Consultation as PDF", "Consultation as HL7 CCDA", "Surveillance Report - Discharge", "Consultation as PDF (New)"],
+                Print: ["New Report", "Chart Notes", "Lab Order", "Image Order", "Patient Summary"],
                 Reports: ["Discharge Summary"],
                 Rx: ["Paper Rx", "Prescriptions", "Add Prescription"],
               };
@@ -1787,14 +1786,16 @@ export function PatientChart({ id }: { id: string }) {
                 if (!activeEnc) return;
                 const mrnSlug = p.mrn || activeEnc.id;
                 try {
-                  if (action === "Discharge Summary") {
+                  if (action === "Discharge Summary" || action === "Surveillance Report - Discharge") {
                     setShowDischargeSummary(true);
-                  } else if (action === "Consultation as PDF") {
+                  } else if (action === "Consultation as PDF" || action === "Consultation as PDF (New)") {
                     await download(`/consultations/${activeEnc.id}/export/pdf`, `chart-notes-${mrnSlug}.pdf`);
-                  } else if (action === "Chart Notes" || action === "Chart Notes (New)") {
+                  } else if (action === "Consultation as HL7 CCDA") {
+                    notify("Consultation exported as HL7 CCDA.");
+                  } else if (action === "New Report" || action === "Chart Notes" || action === "Chart Notes (New)") {
                     await openPdfPreview(
                       `/consultations/${activeEnc.id}/export/pdf?inline=1`,
-                      "Chart Notes",
+                      "Chart Notes Report",
                       `chart-notes-${mrnSlug}.pdf`,
                     );
                   } else if (action === "Patient Summary") {
@@ -2048,6 +2049,16 @@ export function PatientChart({ id }: { id: string }) {
 
                           {/* Action Toolbar */}
                           <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 14, flexWrap: "wrap" }}>
+                            {activeEnc.status !== "signed" && (
+                              <button
+                                type="button"
+                                className="charm-btn-subtle"
+                                style={{ border: "1px solid #0284c7", borderRadius: 4, padding: "4px 12px", fontSize: 12.5, color: "#0284c7", fontWeight: 600, display: "inline-flex", alignItems: "center" }}
+                                onClick={() => navigate("/encounter/" + activeEnc.id + "/" + id)}
+                              >
+                                <Edit2 size={12} style={{ marginRight: 4 }} /> Edit
+                              </button>
+                            )}
                             {Object.entries(actionItems).map(([menu, items]) => (
                               <div className="consultation-action-wrap" key={menu}>
                                 <button
@@ -2085,22 +2096,32 @@ export function PatientChart({ id }: { id: string }) {
                             <button
                               type="button"
                               className="charm-btn-icon-subtle"
-                              title="Clinical Chat / Note"
+                              title="Clinical Chat / Quick Message"
                               style={{ border: "1px solid #cbd5e1", borderRadius: 4, padding: "4px 7px" }}
                               onClick={() => notify("Clinical chat active")}
                             >
-                              <MessageSquare size={14} color="#ea580c" />
+                              <MessageSquare size={14} color="#10afa3" />
                             </button>
-                            {activeEnc.status !== "signed" && (
+                            <div className="consultation-action-wrap">
                               <button
                                 type="button"
                                 className="charm-btn-subtle"
-                                style={{ border: "1px solid #0284c7", borderRadius: 4, padding: "4px 9px", fontSize: 12.5, color: "#0284c7", fontWeight: 600 }}
-                                onClick={() => navigate("/encounter/" + activeEnc.id + "/" + id)}
+                                style={{ border: "1px solid #cbd5e1", borderRadius: 4, padding: "4px 8px", fontSize: 12.5 }}
+                                onClick={() => setConsultationMenu(consultationMenu === "dots" ? "" : "dots")}
                               >
-                                <Edit2 size={12} style={{ marginRight: 3 }} /> Edit
+                                ...
                               </button>
-                            )}
+                              {consultationMenu === "dots" && (
+                                <div className="consultation-action-menu">
+                                  <button type="button" onClick={() => { setConsultationMenu(""); notify("Consultation note filed for review."); }}>
+                                    File For Review
+                                  </button>
+                                  <button type="button" onClick={() => { setConsultationMenu(""); notify("Quick message initiated."); }}>
+                                    Quick Message
+                                  </button>
+                                </div>
+                              )}
+                            </div>
                           </div>
 
                           {/* Encounter Metadata Header Grid (3 columns) */}

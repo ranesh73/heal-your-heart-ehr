@@ -111,7 +111,7 @@ def get_templates(
     conn = get_con()
     cursor = conn.cursor()
 
-    query = f"SELECT {LIST_COLUMNS} FROM templates t WHERE 1=1"
+    query = f"SELECT {LIST_COLUMNS} FROM templates t WHERE t.name != 'D_copy'"
     params = []
 
     requested_type = normalize_template_type(template_type) if template_type != "All" else None
@@ -603,7 +603,7 @@ def search_templates(q: str = ""):
     term = f"%{q.lower()}%"
     cursor.execute(f"""
         SELECT {LIST_COLUMNS} FROM templates t
-        WHERE LOWER(t.name) LIKE ? OR LOWER(t.template_type) LIKE ? OR LOWER(IFNULL(t.tags, '')) LIKE ?
+        WHERE t.name != 'D_copy' AND (LOWER(t.name) LIKE ? OR LOWER(t.template_type) LIKE ? OR LOWER(IFNULL(t.tags, '')) LIKE ?)
         ORDER BY t.name ASC LIMIT 50;
     """, (term, term, term))
     rows = cursor.fetchall()

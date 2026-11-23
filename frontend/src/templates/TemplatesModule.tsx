@@ -147,6 +147,11 @@ export function TemplatesModule({
       const full = await loadFullTemplate(t);
       setSelectedTemplate(full);
       setViewMode('builder');
+    } else if (action === 'print') {
+      const full = await loadFullTemplate(t);
+      setSelectedTemplate(full);
+      setViewMode('viewer');
+      setTimeout(() => window.print(), 350);
     } else if (action === 'duplicate') {
       try {
         await api.duplicateTemplate(t.id);
