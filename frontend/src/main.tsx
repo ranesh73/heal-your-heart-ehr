@@ -9,6 +9,8 @@ import {
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { AppShell } from "./AppShell";
+import { CardiologyDashboard } from "./CardiologyDashboard";
 import { AICopilotDrawer } from "./AICopilotDrawer";
 import {
   HeartPulse,
@@ -141,7 +143,7 @@ const launcherModules = [
   { id: "billing", title: "Billing", sub: "Invoices & Ledger", icon: DollarSign, route: "/billing" },
   { id: "inventory", title: "Inventory", sub: "Supplies & Stock", icon: Package, route: "/inventory" },
   { id: "analytics", title: "Analytics", sub: "Clinical Reports", icon: BarChart3, route: "/analytics" },
-  { id: "settings", title: "Settings", sub: "Charm System Hub", icon: Settings, route: "/settings" },
+  { id: "settings", title: "Settings", sub: "Practice System Hub", icon: Settings, route: "/settings" },
 ];
 
 const specializedModules = [
@@ -225,7 +227,7 @@ function Login({ onLogin }: { onLogin: () => void }) {
       </section>
       <section className="login-form">
         <div className="login-inner">
-          <Badge value="CharmHealth Practice Portal" />
+          <Badge value="Practice Clinical Portal" />
           <h2>Welcome to your workspace</h2>
           <p>Sign in with your staff account to continue.</p>
 
@@ -425,6 +427,7 @@ function Workspace() {
     window.addEventListener("hyh_resource_updated", handleSettingUpdated);
     window.addEventListener("hyh_appointment_statuses_updated", handleSettingUpdated);
     window.addEventListener("hyh_visit_types_updated", handleSettingUpdated);
+    window.addEventListener("hyh_auth_change", handleSettingUpdated);
     return () => {
       window.removeEventListener("hyh_setting_updated", handleSettingUpdated);
       window.removeEventListener("hyh_facility_updated", handleSettingUpdated);
@@ -432,6 +435,7 @@ function Workspace() {
       window.removeEventListener("hyh_resource_updated", handleSettingUpdated);
       window.removeEventListener("hyh_appointment_statuses_updated", handleSettingUpdated);
       window.removeEventListener("hyh_visit_types_updated", handleSettingUpdated);
+      window.removeEventListener("hyh_auth_change", handleSettingUpdated);
     };
   }, [qc]);
 
@@ -596,551 +600,119 @@ function Workspace() {
 
   return (
     <AppContext.Provider value={context}>
-      <div
-        className={`app-shell ${isFullWidthPage ? "is-home" : "has-sidebar"}`}
-        onClick={() => {
-          if (userMenuOpen) setUserMenuOpen(false);
-          if (waffleOpen) setWaffleOpen(false);
-          if (moreMenuOpen) setMoreMenuOpen(false);
+      <AppShell
+        user={user}
+        facilities={me.data.facilities}
+        currentBranch={currentBranch}
+        onBranchChange={(newBranchId) => {
+          setSession(me.data.csrf, newBranchId);
+          setActiveBranch(newBranchId);
+          navigate("/home");
+          qc.removeQueries({
+            predicate: (q) =>
+              q.queryKey[0] !== "me" && q.queryKey[0] !== "metadata",
+          });
+          setSearch("");
+          setToast("Branch changed.");
+        }}
+        activePage={page}
+        search={search}
+        onSearchChange={setSearch}
+        searchResults={searchResults}
+        onSelectPatient={(pId) => {
+          navigate("/patients/" + pId);
+          setSearch("");
+        }}
+        onNewPatient={() => setModal("patient")}
+        onNewAppointment={() => setModal("appointment")}
+        notify={notify}
+        onLogout={async () => {
+          await api("/auth/logout", "POST", {});
+          setSession("", "");
+          qc.clear();
+          navigate("/");
+        }}
+        onSwitchRole={async (email) => {
+          try {
+            const r = await api("/auth/login", "POST", { email, password: "password123" });
+            setSession(r.csrf, r.facility_id || "");
+            await qc.invalidateQueries();
+            await qc.refetchQueries({ queryKey: ["me"] });
+            notify(`Switched role to ${r.user?.role || email}`);
+          } catch (e: any) {
+            notify("Could not switch role: " + (e?.message || "Error"));
+          }
         }}
       >
-        {/* Contextual CharmHealth Left Sidebar - Hidden on Home and Settings */}
-        {!isFullWidthPage && (
-          <nav className="charm-global-sidebar" aria-label="Global Navigation">
-            <button
-              type="button"
-              className="charm-sidebar-top-brand"
-              onClick={() => navigate("/home")}
-              title="Heal Your Heart EHR · Home"
-              aria-label="Home"
-            >
-              <svg width="26" height="26" viewBox="0 0 32 32" fill="none" className="charm-sidebar-brand-svg">
-                <defs>
-                  <linearGradient id="sidebarHeartGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-                    <stop offset="0%" stopColor="#ffffff" />
-                    <stop offset="60%" stopColor="#2dd4bf" />
-                    <stop offset="100%" stopColor="#0d9488" />
-                  </linearGradient>
-                </defs>
-                <path
-                  d="M16 26C16 26 4 18.5 4 11C4 7 7.5 4 11.5 4C13.8 4 15.2 5 16 6C16.8 5 18.2 4 20.5 4C24.5 4 28 7 28 11C28 18.5 16 26 16 26Z"
-                  stroke="url(#sidebarHeartGrad)"
-                  strokeWidth="2.5"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
-                <line x1="5" y1="29.5" x2="27" y2="29.5" stroke="#00d2b4" strokeWidth="2" strokeLinecap="round" />
-              </svg>
-            </button>
+        <main className={page === "encounter" ? "main-encounter" : (page === "patients" && parts[1] ? "main-patient-chart" : undefined)}>
+          {page === "home" && (
+            <CardiologyDashboard
+              onRegister={() => setModal("patient")}
+              onBook={() => setModal("appointment")}
+            />
+          )}
+          {page === "patients" &&
+            (parts[1] ? <PatientChart id={parts[1]} /> : <PatientsPage />)}
+          {(page === "clinical" || page === "chart-notes") && <CharmChartNotesGlobal />}
+          {page === "calendar" && <CalendarPage />}
+          {page === "encounter" && (
+            <EncounterEditor id={parts[1]} patientId={parts[2]} />
+          )}
+          {page === "eecp" && <EECPPage />}
+          {page === "operations" && <CalendarPage />}
+          {page === "communication" && <CommunicationPage />}
+          {page === "administration" && <AdministrationPage />}
+          {page === "settings" &&
+            (parts[1] ? (
+              <IndividualSettingPage categoryId={parts[1]} optionId={parts[2]} />
+            ) : (
+              <SettingsDashboard />
+            ))}
+          {page === "labs" && <LabsPage />}
+          {page === "images" && <ImagesPage />}
+          {page === "documents" && <DocumentsPage />}
+          {page === "injections" && <InjectionsPage />}
+          {page === "referrals" && <ReferralsPage />}
+          {page === "messages" && <MessagesPage />}
+          {page === "channels" && <ChannelsPage />}
+          {page === "tasks" && <TasksPage />}
+          {page === "billing" && <BillingPage />}
+          {page === "inventory" && <InventoryPage />}
+          {page === "analytics" && <AnalyticsPage />}
+          {![
+            "home",
+            "patients",
+            "clinical",
+            "chart-notes",
+            "calendar",
+            "encounter",
+            "eecp",
+            "operations",
+            "communication",
+            "administration",
+            "settings",
+            "labs",
+            "images",
+            "documents",
+            "injections",
+            "referrals",
+            "messages",
+            "channels",
+            "tasks",
+            "billing",
+            "inventory",
+            "analytics",
+          ].includes(page) && (
+            <Empty
+              title="Workspace not found"
+              action={
+                <Button onClick={() => navigate("/home")}>Go home</Button>
+              }
+            />
+          )}
+        </main>
+      </AppShell>
 
-            <div className="charm-sidebar-nav-list">
-              {sidebarNavItems.map((item) => {
-                const Icon = item.icon;
-                const isActive = item.activeMatch
-                  ? item.activeMatch.includes(page)
-                  : page === item.id;
-                return (
-                  <button
-                    key={item.id}
-                    type="button"
-                    aria-label={item.label}
-                    title={item.label}
-                    className={`charm-sidebar-btn ${isActive ? "active" : ""}`}
-                    onClick={() => navigate(item.route)}
-                  >
-                    <div className="charm-sidebar-icon-wrap">
-                      <Icon size={22} />
-                      {item.badge ? (
-                        <span className="charm-sidebar-badge-count">{item.badge}</span>
-                      ) : null}
-                    </div>
-                    <span className="charm-sidebar-btn-label">{item.label}</span>
-                  </button>
-                );
-              })}
-
-              <div className="charm-sidebar-divider" />
-
-              {/* More Action with Dropdown Flyout */}
-              <div className="charm-sidebar-more-wrap">
-                <button
-                  type="button"
-                  aria-label="More"
-                  title="More Modules"
-                  className={`charm-sidebar-btn ${isMoreActive ? "active" : ""}`}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setMoreMenuOpen(!moreMenuOpen);
-                  }}
-                >
-                  <div className="charm-sidebar-icon-wrap">
-                    <MoreHorizontal size={22} />
-                  </div>
-                  <span className="charm-sidebar-btn-label">More</span>
-                </button>
-
-                {moreMenuOpen && (
-                  <div
-                    className="charm-sidebar-more-flyout"
-                    onClick={(e) => e.stopPropagation()}
-                  >
-                    <div className="charm-more-flyout-head">
-                      <span>Clinical & Ops Modules</span>
-                    </div>
-                    {moreNavItems.map((m) => {
-                      const MIcon = m.icon;
-                      const isSubActive =
-                        page === m.id ||
-                        (m.id === "administration" && page === "settings");
-                      return (
-                        <button
-                          key={m.id}
-                          type="button"
-                          className={`charm-more-flyout-item ${isSubActive ? "active" : ""}`}
-                          onClick={() => {
-                            setMoreMenuOpen(false);
-                            navigate(m.route);
-                          }}
-                        >
-                          <MIcon size={16} />
-                          <span>{m.label}</span>
-                        </button>
-                      );
-                    })}
-                  </div>
-                )}
-              </div>
-            </div>
-          </nav>
-        )}
-
-        {/* Main Workspace Area (Full width on Home & Settings, Beside Sidebar inside modules) */}
-        <div className={`workspace ${isFullWidthPage ? "workspace-full" : "workspace-with-sidebar"}`}>
-          {/* Authentic CharmHealth Topbar Strip (NO horizontal navigation bar) */}
-          <header className="charm-global-topbar">
-            <div className="charm-header-top-row">
-              <div className="charm-header-left-group">
-                {/* 9-Dot Waffle App Launcher */}
-                <button
-                  type="button"
-                  className="charm-waffle-btn"
-                  title="CharmHealth App Launcher"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setWaffleOpen(!waffleOpen);
-                  }}
-                  aria-label="App Launcher"
-                >
-                  <span className="waffle-grid-icon">
-                    <span /><span /><span />
-                    <span /><span /><span />
-                    <span /><span /><span />
-                  </span>
-                </button>
-
-                {/* Heal Your Heart EHR Logo */}
-                <div
-                  className="charm-logo-area"
-                  onClick={() => navigate("/home")}
-                  title="Heal Your Heart EHR"
-                >
-                  <img
-                    src="/assets/dashboard/heal_your_heart_logo_transparent.png"
-                    alt="Heal Your Heart EHR"
-                    className="charm-header-brand-img"
-                    height={26}
-                  />
-                </div>
-              </div>
-
-              {/* Center: Prominent Centered Patient Search (fills empty space) */}
-              <div className="charm-header-center-search">
-                {page !== "home" && (
-                  <div className="charm-header-search-box">
-                    <Search size={15} color="#64748b" className="charm-header-search-icon" />
-                    <input
-                      aria-label="Find a patient"
-                      placeholder="Search Patient by Name / ID"
-                      value={search}
-                      onChange={(e) => setSearch(e.target.value)}
-                    />
-                    {search.length > 0 && (
-                      <button
-                        type="button"
-                        className="charm-search-clear-mini"
-                        title="Clear search"
-                        onClick={() => setSearch("")}
-                      >
-                        <X size={12} />
-                      </button>
-                    )}
-                    <button
-                      type="button"
-                      className="charm-add-pat-mini"
-                      title="Add Patient"
-                      onClick={() => setModal("patient")}
-                    >
-                      <Plus size={13} />
-                    </button>
-
-                    {/* Anchored search dropdown strictly beneath search box */}
-                    {search.length > 1 && (
-                      <div className="charm-search-dropdown-anchored">
-                        {searchResults.data?.items.map((p: Row) => (
-                          <button
-                            key={p.id}
-                            type="button"
-                            className="charm-search-result-item"
-                            onClick={() => {
-                              navigate("/patients/" + p.id);
-                              setSearch("");
-                            }}
-                          >
-                            <div className="charm-search-item-info">
-                              <strong>{p.name}</strong>
-                              <small>
-                                MRN: {p.mrn} · {p.phone || "No phone"}
-                              </small>
-                            </div>
-                          </button>
-                        ))}
-                        {searchResults.data?.items.length === 0 && (
-                          <p className="charm-search-no-results">
-                            No matching patients found.
-                          </p>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                )}
-              </div>
-
-              {/* Right Controls */}
-              <div className="charm-header-right-controls">
-                <button
-                  type="button"
-                  className="charm-btn-telehealth"
-                  onClick={() => notify("TeleHealth session initialized.")}
-                >
-                  <Video size={14} />
-                  <span>Enable TeleHealth</span>
-                </button>
-
-                <div className="charm-branch-selector-wrap">
-                  <Building2 size={15} color="#0f766e" />
-                  <select
-                    aria-label="Active branch"
-                    className="charm-branch-dropdown"
-                    value={currentBranch}
-                    onChange={(e) => {
-                      setSession(me.data.csrf, e.target.value);
-                      setActiveBranch(e.target.value);
-                      navigate("/home");
-                      qc.removeQueries({
-                        predicate: (q) =>
-                          q.queryKey[0] !== "me" && q.queryKey[0] !== "metadata",
-                      });
-                      setSearch("");
-                      setToast("Branch changed.");
-                    }}
-                  >
-                    {me.data.facilities.map((f: Row) => (
-                      <option key={f.id} value={f.id} label={f.name.replace("Heal Your Heart · ", "")}>
-                        {f.name.replace("Heal Your Heart · ", "")}
-                      </option>
-                    ))}
-                  </select>
-                  <ChevronDown size={14} color="#64748b" className="charm-branch-chevron" />
-                </div>
-
-                <TaskNotificationCenter />
-
-                <button
-                  className="charm-icon-btn-round"
-                  aria-label="Settings"
-                  onClick={() => navigate("/settings")}
-                  title="Settings"
-                >
-                  <Settings size={16} />
-                </button>
-
-                <div style={{ position: "relative" }}>
-                  <button
-                    type="button"
-                    className="charm-avatar-menu-trigger"
-                    style={{ background: "none", border: 0, padding: 0 }}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setUserMenuOpen(!userMenuOpen);
-                    }}
-                    title="User Profile"
-                  >
-                    <div className="charm-user-avatar-circle">
-                      {user.name.slice(0, 2).toUpperCase()}
-                    </div>
-                  </button>
-
-                  {userMenuOpen && (
-                    <div className="charm-user-popup" onClick={(e) => e.stopPropagation()}>
-                      <div className="charm-popup-header">
-                        <strong>{user.name}</strong>
-                        <small>{user.role} · ID: 20001463661</small>
-                        <div style={{ marginTop: 4, fontSize: 11, color: "#059669" }}>
-                          ● {currentFacility?.name.replace("Heal Your Heart · ", "") || "Branch"}
-                        </div>
-                      </div>
-                      <button
-                        className="charm-popup-item"
-                        onClick={() => {
-                          setUserMenuOpen(false);
-                          navigate("/settings");
-                        }}
-                      >
-                        <Settings size={14} />
-                        <span>Settings & Preferences</span>
-                      </button>
-                      <button
-                        className="charm-popup-item"
-                        onClick={() => {
-                          setUserMenuOpen(false);
-                          notify("Screen locked. Re-enter credentials to continue.");
-                        }}
-                      >
-                        <Lock size={14} />
-                        <span>Lock Screen</span>
-                      </button>
-                      <button
-                        className="charm-popup-item danger"
-                        aria-label="Sign out"
-                        onClick={async () => {
-                          await api("/auth/logout", "POST", {});
-                          setSession("", "");
-                          qc.clear();
-                          navigate("/");
-                        }}
-                      >
-                        <LogOut size={14} />
-                        <span>Sign Out</span>
-                      </button>
-                    </div>
-                  )}
-                </div>
-
-                <div className="charm-avatar-badge-circle" title="Account" onClick={() => navigate("/settings")}>
-                  <User size={18} color="#0f766e" />
-                </div>
-              </div>
-            </div>
-
-            {/* 9-Dot Waffle App Launcher Popover */}
-            {waffleOpen && (
-              <div className="charm-waffle-dropdown" onClick={(e) => e.stopPropagation()}>
-                <div className="charm-waffle-head">
-                  <span>Heal Your Heart EHR · Application Launcher</span>
-                  <button type="button" onClick={() => setWaffleOpen(false)}>
-                    <X size={14} />
-                  </button>
-                </div>
-                <div className="charm-waffle-grid">
-                  {launcherModules.map((m) => {
-                    return (
-                      <div
-                        key={m.id}
-                        className="charm-waffle-item"
-                        onClick={() => {
-                          setWaffleOpen(false);
-                          navigate(m.route);
-                        }}
-                      >
-                        <div className="charm-waffle-icon-box">
-                          <img
-                            src={`/assets/dashboard/tile_${m.id}_clean.svg`}
-                            alt={m.title}
-                            className="charm-waffle-tile-img"
-                            width={28}
-                            height={28}
-                            loading="lazy"
-                          />
-                        </div>
-                        <span>{m.title}</span>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
-
-            {/* Signature CharmHealth Teal Search Banner when on Home */}
-            {page === "home" && (
-              <div className="charm-home-teal-banner">
-                <div className="charm-teal-search-pill" style={{ position: "relative" }}>
-                  <Search size={18} color="#64748b" />
-                  <input
-                    aria-label="Find a patient"
-                    placeholder="Search Patient by Name / ID"
-                    value={search}
-                    onChange={(e) => setSearch(e.target.value)}
-                  />
-                  {search.length > 0 && (
-                    <button
-                      type="button"
-                      className="charm-search-clear-mini"
-                      title="Clear search"
-                      onClick={() => setSearch("")}
-                    >
-                      <X size={14} />
-                    </button>
-                  )}
-                  <button
-                    type="button"
-                    className="charm-pill-add-pat"
-                    title="Add Patient"
-                    onClick={() => setModal("patient")}
-                  >
-                    <Plus size={16} />
-                  </button>
-
-                  {/* Search Dropdown Anchored directly under teal search pill on home */}
-                  {search.length > 1 && (
-                    <div className="charm-search-dropdown-anchored">
-                      {searchResults.data?.items.map((p: Row) => (
-                        <button
-                          key={p.id}
-                          type="button"
-                          className="charm-search-result-item"
-                          onClick={() => {
-                            navigate("/patients/" + p.id);
-                            setSearch("");
-                          }}
-                        >
-                          <div className="charm-search-item-info">
-                            <strong>{p.name}</strong>
-                            <small>
-                              MRN: {p.mrn} · {p.phone || "No phone"}
-                            </small>
-                          </div>
-                        </button>
-                      ))}
-                      {searchResults.data?.items.length === 0 && (
-                        <p className="charm-search-no-results">
-                          No matching patients found.
-                        </p>
-                      )}
-                    </div>
-                  )}
-                </div>
-              </div>
-            )}
-          </header>
-
-          <main className={page === "encounter" ? "main-encounter" : (page === "patients" && parts[1] ? "main-patient-chart" : undefined)}>
-            {page === "home" && (
-              <Home
-                onRegister={() => setModal("patient")}
-                onBook={() => setModal("appointment")}
-                onOpenWaffle={() => setWaffleOpen(true)}
-              />
-            )}
-            {page === "patients" &&
-              (parts[1] ? <PatientChart id={parts[1]} /> : <PatientsPage />)}
-            {(page === "clinical" || page === "chart-notes") && <CharmChartNotesGlobal />}
-            {page === "calendar" && <CalendarPage />}
-            {page === "encounter" && (
-              <EncounterEditor id={parts[1]} patientId={parts[2]} />
-            )}
-            {page === "eecp" && <EECPPage />}
-            {page === "operations" && <CalendarPage />}
-            {page === "communication" && <CommunicationPage />}
-            {page === "administration" && <AdministrationPage />}
-            {page === "settings" &&
-              (parts[1] ? (
-                <IndividualSettingPage categoryId={parts[1]} optionId={parts[2]} />
-              ) : (
-                <SettingsDashboard />
-              ))}
-            {page === "labs" && <LabsPage />}
-            {page === "images" && <ImagesPage />}
-            {page === "documents" && <DocumentsPage />}
-            {page === "injections" && <InjectionsPage />}
-            {page === "referrals" && <ReferralsPage />}
-            {page === "messages" && <MessagesPage />}
-            {page === "channels" && <ChannelsPage />}
-            {page === "tasks" && <TasksPage />}
-            {page === "billing" && <BillingPage />}
-            {page === "inventory" && <InventoryPage />}
-            {page === "analytics" && <AnalyticsPage />}
-            {![
-              "home",
-              "patients",
-              "clinical",
-              "chart-notes",
-              "calendar",
-              "encounter",
-              "eecp",
-              "operations",
-              "communication",
-              "administration",
-              "settings",
-              "labs",
-              "images",
-              "documents",
-              "injections",
-              "referrals",
-              "messages",
-              "channels",
-              "tasks",
-              "billing",
-              "inventory",
-              "analytics",
-            ].includes(page) && (
-                <Empty
-                  title="Workspace not found"
-                  action={
-                    <Button onClick={() => navigate("/home")}>Go home</Button>
-                  }
-                />
-              )}
-          </main>
-        </div>
-
-        {/* Persistent Vertical Floating Toolbar (Refer a Friend, Add-ons, Help, Keyboard Shortcuts) */}
-        <FloatingToolbar
-          shortcutsOpen={shortcutsModalOpen}
-          onToggleShortcuts={setShortcutsModalOpen}
-        />
-
-        {/* Bottom Collaboration Dock matching CharmHealth */}
-        <footer className={`charm-collab-dock ${isHome ? "dock-full" : "dock-with-sidebar"}`}>
-          <div className="charm-dock-left">
-            <button className="charm-dock-btn" onClick={() => navigate("/tasks")}>
-              <Pin size={12} />
-              <span>My Pins</span>
-            </button>
-            <button className="charm-dock-btn" onClick={() => navigate("/messages")}>
-              <MessageCircle size={12} />
-              <span>Chats</span>
-              <span className="charm-dock-badge-red">1</span>
-            </button>
-            <button className="charm-dock-btn" onClick={() => navigate("/channels")}>
-              <Hash size={12} />
-              <span>Channels</span>
-            </button>
-            <button className="charm-dock-btn" onClick={() => navigate("/communication")}>
-              <Layers size={12} />
-              <span>Threads</span>
-            </button>
-            <button className="charm-dock-btn" onClick={() => navigate("/administration")}>
-              <Users size={12} />
-              <span>People</span>
-            </button>
-          </div>
-          <div className="charm-dock-right">
-            <button className="charm-dock-phone-btn" title="Phone Dialpad" onClick={() => notify("Telephony dialpad ready.")}>
-              <PhoneCall size={12} />
-            </button>
-          </div>
-        </footer>
-      </div>
       {modal === "patient" && (
         <PatientForm
           onClose={() => setModal("")}
@@ -1159,6 +731,7 @@ function Workspace() {
         selectedPatientId={activePatientId}
         selectedPatientName={activePatientName}
         currentPage={page}
+        hideFloatingLauncher={true}
       />
       {toast && (
         <div className="toast" role="status">

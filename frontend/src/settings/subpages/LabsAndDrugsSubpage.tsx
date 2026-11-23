@@ -229,11 +229,12 @@ export function LabsAndDrugsSubpage({ type }: LabsAndDrugsSubpageProps) {
 
           <button
             type="button"
-            className="charm-btn-orange-new"
+            className="btn-clinical-primary whitespace-nowrap inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded text-white"
+            style={{ backgroundColor: "#0b6e75", borderColor: "#08545a" }}
             onClick={() => setShowLabModal(true)}
           >
             <Plus size={14} />
-            <span>+ New Lab</span>
+            <span>New Lab</span>
           </button>
         </div>
       </div>

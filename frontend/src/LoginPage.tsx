@@ -151,7 +151,7 @@ export function LoginPage({ onLoginSuccess }: LoginPageProps) {
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
-          padding: "32px 16px",
+          padding: "16px",
         }}
       >
         <div
@@ -163,29 +163,29 @@ export function LoginPage({ onLoginSuccess }: LoginPageProps) {
             borderRadius: "16px",
             boxShadow: "0 10px 25px -5px rgba(0, 0, 0, 0.08), 0 8px 10px -6px rgba(0, 0, 0, 0.04)",
             border: "1px solid #e2e8f0",
-            padding: "36px 32px",
+            padding: "24px 28px",
           }}
         >
           {/* Card Brand Header */}
-          <div style={{ textAlign: "center", marginBottom: "24px" }}>
-            <div style={{ display: "inline-block", marginBottom: "12px" }}>
+          <div style={{ textAlign: "center", marginBottom: "16px" }}>
+            <div style={{ display: "inline-block", marginBottom: "8px" }}>
               <img
                 src="/images/hyh_logo.png"
                 alt="Heal Your Heart Logo"
-                style={{ height: "48px", width: "auto", objectFit: "contain" }}
+                style={{ height: "40px", width: "auto", objectFit: "contain" }}
               />
             </div>
             <h2
               style={{
-                fontSize: "22px",
+                fontSize: "20px",
                 fontWeight: 800,
                 color: "#0f172a",
-                margin: "0 0 6px 0",
+                margin: "0 0 4px 0",
               }}
             >
               Sign In to Heal Your Heart EHR
             </h2>
-            <p style={{ fontSize: "14px", color: "#64748b", margin: 0 }}>
+            <p style={{ fontSize: "13px", color: "#64748b", margin: 0 }}>
               Authorized Clinical &amp; Administrative Practice Portal
             </p>
           </div>

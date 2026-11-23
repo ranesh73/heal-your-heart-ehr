@@ -72,12 +72,12 @@ export const Header: React.FC<HeaderProps> = ({
         <div
           className="brand-logo-wrap"
           onClick={onNavigateHome}
-          title="charmhealth - Template Management"
+          title="Heal Your Heart - Template Management"
           style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px' }}
         >
           <img
-            src="/charm_logo.jpg"
-            alt="charmhealth"
+            src="/images/hyh_logo_ehr.png"
+            alt="Heal Your Heart EHR"
             style={{
               height: '32px',
               maxWidth: '160px',

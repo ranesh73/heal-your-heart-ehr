@@ -21,7 +21,7 @@ export const LibraryTemplatesTable: React.FC<LibraryTemplatesTableProps> = ({
   if (loading) {
     return (
       <div className="charm-table-container">
-        <div className="empty-table-state">Loading CharmHealth Library...</div>
+        <div className="empty-table-state">Loading Clinical Template Library...</div>
       </div>
     );
   }

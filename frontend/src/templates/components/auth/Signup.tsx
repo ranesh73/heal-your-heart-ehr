@@ -88,7 +88,7 @@ export const Signup: React.FC<SignupProps> = ({ onSignupSuccess, onNavigateToLog
     <div className="auth-page">
       <div className="auth-card wide">
         <div className="auth-brand">
-          <img src="/charm_logo.jpg" alt="charmhealth" />
+          <img src="/images/hyh_logo_ehr.png" alt="Heal Your Heart EHR" style={{ maxHeight: 40 }} />
         </div>
 
         <h1 className="auth-title">Create Account</h1>

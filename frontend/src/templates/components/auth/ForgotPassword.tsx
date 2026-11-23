@@ -100,7 +100,7 @@ export const ForgotPassword: React.FC<ForgotPasswordProps> = ({
     <div className="auth-page">
       <div className="auth-card">
         <div className="auth-brand">
-          <img src="/charm_logo.jpg" alt="charmhealth" />
+          <img src="/images/hyh_logo_ehr.png" alt="Heal Your Heart EHR" style={{ maxHeight: 40 }} />
         </div>
 
         <h1 className="auth-title">
@@ -111,7 +111,7 @@ export const ForgotPassword: React.FC<ForgotPasswordProps> = ({
             ? 'Enter the email address or mobile number for your account.'
             : step === 'reset'
               ? 'Choose a new password for your account.'
-              : 'to access charmhealth'}
+              : 'to access clinical workspace'}
         </p>
 
         {formError && (

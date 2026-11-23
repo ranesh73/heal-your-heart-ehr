@@ -31,10 +31,30 @@ import {
 } from "lucide-react";
 import { HealYourHeartLogo } from "./HealYourHeartLogo";
 import { HeroRibbonBackground } from "./HeroRibbonBackground";
-import { navigate } from "./api";
+import { navigate, api, setSession } from "./api";
 
 export function LandingPage() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [staffEmail, setStaffEmail] = useState("doctor@demo.local");
+  const [staffPassword, setStaffPassword] = useState("password123");
+  const [loggingIn, setLoggingIn] = useState(false);
+  const [loginError, setLoginError] = useState("");
+
+  const handleStaffLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoggingIn(true);
+    setLoginError("");
+    try {
+      const r = await api("/auth/login", "POST", { email: staffEmail, password: staffPassword });
+      setSession(r.csrf, r.facility_id || "");
+      window.dispatchEvent(new CustomEvent("hyh_auth_change"));
+      navigate("/home");
+    } catch (err: any) {
+      setLoginError(err?.message || "Sign in failed");
+    } finally {
+      setLoggingIn(false);
+    }
+  };
 
   const roleProfiles = [
     {
@@ -1422,6 +1442,89 @@ export function LandingPage() {
                 <LogIn size={14} color="#2dd4bf" />
                 <span>Clinical Staff Login</span>
               </button>
+
+              {/* Quick Staff Sign-In form */}
+              <form onSubmit={handleStaffLogin} style={{ marginTop: "4px" }}>
+                <div style={{ marginBottom: "6px" }}>
+                  <label htmlFor="landing-staff-email" style={{ display: "block", fontSize: "11px", color: "#94a3b8", marginBottom: "3px" }}>
+                    Staff email
+                  </label>
+                  <input
+                    id="landing-staff-email"
+                    aria-label="Staff email"
+                    type="email"
+                    autoComplete="username"
+                    value={staffEmail}
+                    onChange={(e) => setStaffEmail(e.target.value)}
+                    placeholder="doctor@demo.local"
+                    style={{
+                      width: "100%",
+                      boxSizing: "border-box",
+                      padding: "6px 8px",
+                      borderRadius: "6px",
+                      border: "1px solid #334155",
+                      backgroundColor: "#0f172a",
+                      color: "#ffffff",
+                      fontSize: "12px",
+                      outline: "none",
+                    }}
+                  />
+                </div>
+                <div style={{ marginBottom: "8px" }}>
+                  <label htmlFor="landing-staff-password" style={{ display: "block", fontSize: "11px", color: "#94a3b8", marginBottom: "3px" }}>
+                    Password
+                  </label>
+                  <input
+                    id="landing-staff-password"
+                    aria-label="Password"
+                    type="password"
+                    autoComplete="current-password"
+                    value={staffPassword}
+                    onChange={(e) => setStaffPassword(e.target.value)}
+                    placeholder="password123"
+                    style={{
+                      width: "100%",
+                      boxSizing: "border-box",
+                      padding: "6px 8px",
+                      borderRadius: "6px",
+                      border: "1px solid #334155",
+                      backgroundColor: "#0f172a",
+                      color: "#ffffff",
+                      fontSize: "12px",
+                      outline: "none",
+                    }}
+                  />
+                </div>
+                {loginError && (
+                  <div style={{ color: "#f87171", fontSize: "11px", marginBottom: "6px" }}>
+                    {loginError}
+                  </div>
+                )}
+                <button
+                  type="submit"
+                  aria-label="Sign in to workspace"
+                  disabled={loggingIn}
+                  style={{
+                    width: "100%",
+                    backgroundColor: "#0d9488",
+                    color: "#ffffff",
+                    border: "none",
+                    borderRadius: "6px",
+                    padding: "7px 12px",
+                    fontSize: "12px",
+                    fontWeight: 700,
+                    cursor: loggingIn ? "not-allowed" : "pointer",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    gap: 6,
+                  }}
+                >
+                  <LogIn size={13} />
+                  <span>Sign in to workspace</span>
+                </button>
+              </form>
+
               <button
                 type="button"
                 onClick={() => navigate("/forgot-password")}

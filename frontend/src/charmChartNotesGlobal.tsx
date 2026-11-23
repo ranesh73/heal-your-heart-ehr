@@ -480,12 +480,19 @@ export function CharmChartNotesGlobal() {
         <div className="charm-modal-backdrop" onClick={() => setShowConsultModal(false)}>
           <div
             className="charm-modal-card"
-            style={{ maxWidth: 540 }}
+            style={{
+              maxWidth: 540,
+              backgroundColor: "#ffffff",
+              borderRadius: "12px",
+              boxShadow: "0 20px 40px rgba(0, 0, 0, 0.2)",
+              border: "1px solid #e2e8f0",
+              overflow: "hidden"
+            }}
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="charm-modal-head">
+            <div className="charm-modal-head" style={{ backgroundColor: "#f8fafc", borderBottom: "1px solid #e2e8f0", padding: "16px 20px" }}>
               <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                <ClipboardList size={18} color="#00838f" />
+                <ClipboardList size={18} color="#0b6e75" />
                 <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700, color: "#0f172a" }}>
                   Start Consultation
                 </h3>
@@ -493,7 +500,9 @@ export function CharmChartNotesGlobal() {
               <button
                 type="button"
                 className="charm-modal-close"
+                aria-label="Close modal"
                 onClick={() => setShowConsultModal(false)}
+                style={{ background: "#f1f5f9", borderRadius: 6, padding: 6, color: "#334155", border: "1px solid #cbd5e1" }}
               >
                 <X size={16} />
               </button>

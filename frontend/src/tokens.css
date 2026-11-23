@@ -1,0 +1,237 @@
+/**
+ * Heal Your Heart EHR — Design Tokens (Day 1)
+ * Original Clinical Cardiology & EECP Workspace Design System
+ * (Replaces CharmHealth palette with clean light-surface clinical palette)
+ */
+
+:root {
+  /* =========================================================================
+     1. Brand & Clinical Cardiology Palette
+     ========================================================================= */
+  --hyh-teal-deep: #084B50;       /* Deep clinical slate teal */
+  --hyh-teal-dark: #0B6E75;       /* Primary Clinical Teal */
+  --hyh-teal-primary: #0B6E75;    /* Unified Primary Action Color */
+  --hyh-teal-hover: #08545A;      /* Button Hover */
+  --hyh-teal-active: #064146;     /* Button Active */
+  --hyh-teal-accent: #168C89;     /* Secondary Teal Accent */
+  --hyh-teal-light: #EFF8F7;      /* Active Row / Navigation Highlight */
+  --hyh-teal-subtle: #E0F2F1;     /* Subtle container tint */
+  --hyh-teal-border: #C6E6E4;     /* Focused border tint */
+
+  /* Cardiac Alert Crimson (Critical / Contraindicated / Severe) */
+  --cardiac-alert: #B83B4A;
+  --cardiac-alert-hover: #9E2E3C;
+  --cardiac-alert-bg: #FDF2F3;
+  --cardiac-alert-border: #F8D3D7;
+
+  /* Warning Amber (Pending / Follow-up / Overdue) */
+  --status-warning: #D97706;
+  --status-warning-hover: #B45309;
+  --status-warning-bg: #FFFBEB;
+  --status-warning-border: #FDE68A;
+
+  /* Success / Stable */
+  --status-success: #15803D;
+  --status-success-bg: #F0FDF4;
+  --status-success-border: #BBF7D0;
+
+  /* Info / Active Consultation */
+  --status-info: #0284C7;
+  --status-info-bg: #F0F9FF;
+  --status-info-border: #BAE6FD;
+
+  /* EECP Treatment Cyan */
+  --status-eecp: #0F766E;
+  --status-eecp-bg: #F0FDFA;
+  --status-eecp-border: #99F6E4;
+
+  /* =========================================================================
+     2. Neutral Surfaces & Backgrounds (Light Clinical Theme)
+     ========================================================================= */
+  --bg-app: #F7F9FA;              /* App Scaffold Canvas */
+  --bg-surface: #FFFFFF;          /* Panels & Cards */
+  --bg-surface-hover: #F8FAFB;    /* Hover State on Tables/Rows */
+  --bg-surface-subtle: #F1F4F5;   /* Table headers & input backgrounds */
+  --bg-surface-active: #E8EEF0;   /* Selected List Items */
+  --bg-surface-elevated: #FFFFFF; /* Modals, Popovers & Drawers */
+  --bg-sidebar: #FFFFFF;          /* New Light-Slate Sidebar */
+
+  /* =========================================================================
+     3. Typography & Text Hierarchy
+     ========================================================================= */
+  --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --font-mono: 'Cascadia Code', 'Fira Code', Menlo, Consolas, monospace;
+
+  --text-primary: #1C3033;        /* High-contrast body text */
+  --text-secondary: #58686B;      /* Meta labels, table secondary */
+  --text-muted: #879799;          /* Disabled states & placeholders */
+  --text-inverted: #FFFFFF;       /* Inverted text */
+  --text-link: #0B6E75;           /* Navigable identifiers */
+
+  /* Font Sizing Hierarchy (Minimum 12px for readability) */
+  --text-xs: 0.75rem;     /* 12px - Hard Floor for Clinical Clarity */
+  --text-sm: 0.8125rem;   /* 13px - Standard EHR Data Grid */
+  --text-base: 0.875rem;  /* 14px - Body / Form Fields */
+  --text-md: 1rem;        /* 16px - Headings & Cards */
+  --text-lg: 1.125rem;    /* 18px */
+  --text-xl: 1.25rem;     /* 20px */
+  --text-2xl: 1.5rem;     /* 24px */
+
+  /* =========================================================================
+     4. Borders & Dividers
+     ========================================================================= */
+  --border-default: #E1E8E8;
+  --border-subtle: #EDF2F2;
+  --border-focus: #0B6E75;
+  --border-strong: #C7D4D4;
+
+  /* =========================================================================
+     5. Layout Metrics & Radii
+     ========================================================================= */
+  --header-height: 56px;
+  --sidebar-expanded-width: 232px;
+  --sidebar-collapsed-width: 64px;
+  --copilot-drawer-width: 440px;
+
+  --radius-xs: 3px;
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 8px;
+  --radius-xl: 12px;
+  --radius-full: 9999px;
+
+  /* =========================================================================
+     6. Elevation Shadows (Tailwind v3.4 Compatible)
+     ========================================================================= */
+  --shadow-xs: 0 1px 2px rgba(8, 75, 80, 0.04);
+  --shadow-sm: 0 1px 3px rgba(8, 75, 80, 0.06), 0 1px 2px rgba(8, 75, 80, 0.04);
+  --shadow-md: 0 4px 12px rgba(8, 75, 80, 0.08);
+  --shadow-lg: 0 10px 25px rgba(8, 75, 80, 0.12);
+  --shadow-drawer: -6px 0 24px rgba(8, 75, 80, 0.16);
+
+  /* Animation timing */
+  --transition-fast: 150ms cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-normal: 250ms cubic-bezier(0.4, 0, 0.2, 1);
+
+  /* =========================================================================
+     7. Backward-compatible aliases for legacy classes
+     ========================================================================= */
+  --color-brand-primary: var(--hyh-teal-primary);
+  --color-brand-deep: var(--hyh-teal-deep);
+  --color-brand-light: var(--hyh-teal-light);
+  --color-brand-border: var(--hyh-teal-border);
+  --teal: var(--hyh-teal-primary);
+  --deep: var(--hyh-teal-deep);
+  --soft: var(--hyh-teal-light);
+  --line: var(--border-default);
+  --muted: var(--text-secondary);
+}
+
+/* Tabular figures for clinical metrics, MRNs, and Currency */
+.font-tabular,
+.mrn-text,
+.vitals-text,
+.currency-text {
+  font-family: var(--font-mono);
+  font-feature-settings: 'tnum' 1;
+}
+
+/* Opaque Modal Container Fix */
+.charm-modal-card,
+.hyh-modal-card {
+  background-color: #FFFFFF !important;
+  border-radius: var(--radius-xl);
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.16), 0 1px 3px rgba(0, 0, 0, 0.08);
+  border: 1px solid var(--border-default);
+  overflow: hidden;
+  position: relative;
+  z-index: 1001;
+}
+
+.charm-modal-backdrop,
+.hyh-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background-color: rgba(15, 23, 42, 0.55);
+  backdrop-filter: blur(2px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 16px;
+}
+
+.charm-modal-close,
+.hyh-modal-close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-md);
+  border: none;
+  background: transparent;
+  color: #64748B;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.charm-modal-close:hover,
+.hyh-modal-close:hover {
+  background-color: #F1F5F9;
+  color: #0F172A;
+}
+
+/* Unified Solid Clinical Teal Button Style */
+.btn-clinical-primary,
+.charm-btn-teal,
+.charm-btn-orange-new {
+  background-color: #0B6E75 !important;
+  color: #FFFFFF !important;
+  font-weight: 600;
+  border: 1px solid #08545A !important;
+  border-radius: var(--radius-md);
+  transition: background-color var(--transition-fast);
+  box-shadow: 0 1px 2px rgba(11, 110, 117, 0.15);
+}
+
+.btn-clinical-primary:hover,
+.charm-btn-teal:hover,
+.charm-btn-orange-new:hover {
+  background-color: #08545A !important;
+  border-color: #064146 !important;
+}
+
+/* Secondary Neutral Outline Button */
+.btn-clinical-secondary {
+  background-color: #FFFFFF;
+  color: var(--text-primary);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  font-weight: 500;
+  transition: all var(--transition-fast);
+}
+
+.btn-clinical-secondary:hover {
+  background-color: var(--bg-surface-subtle);
+  border-color: var(--border-strong);
+}
+
+/* Settings Sub-page Search Pill & Detached Icon Fix */
+.charm-settings-search-pill {
+  position: relative !important;
+  display: flex !important;
+  align-items: center !important;
+  background: #FFFFFF !important;
+  border: 1px solid #CBD5E1 !important;
+  border-radius: 9999px !important;
+  padding: 0 14px !important;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.04) !important;
+}
+
+.charm-settings-search-pill .charm-search-icon {
+  position: static !important;
+  color: #64748B !important;
+  margin-right: 8px !important;
+  flex-shrink: 0 !important;
+}

@@ -2886,7 +2886,7 @@ function Schedule() {
                                     return (
                                       <div
                                         key={slot.timeKey}
-                                        className={`charm-day-matrix-slot-cell ${isWorking ? "working-hour" : "off-hour"} ${slot.isHour ? "hour-border" : ""}`}
+                                        className={`charm-day-matrix-slot-cell charm-week-slot charm-week-slot-empty ${isWorking ? "working-hour" : "off-hour"} ${slot.isHour ? "hour-border" : ""}`}
                                         onClick={() => {
                                           if (["reception", "doctor", "therapist", "admin"].includes(user.role)) {
                                             const slotTime = `${day.dayDateStr}T${String(slot.hour).padStart(2, "0")}:${String(slot.minute).padStart(2, "0")}`;
@@ -2921,7 +2921,7 @@ function Schedule() {
                                     return (
                                       <div
                                         key={appt.id}
-                                        className="charm-matrix-appt-card"
+                                        className="charm-matrix-appt-card charm-week-appt-card"
                                         style={{
                                           top: `${top}px`,
                                           height: `${height}px`,

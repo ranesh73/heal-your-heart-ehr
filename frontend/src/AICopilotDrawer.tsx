@@ -52,6 +52,7 @@ export interface AICopilotDrawerProps {
   selectedPatientId?: string;
   selectedPatientName?: string;
   currentPage?: string;
+  hideFloatingLauncher?: boolean;
 }
 
 export function AICopilotDrawer({
@@ -60,6 +61,7 @@ export function AICopilotDrawer({
   selectedPatientId,
   selectedPatientName,
   currentPage = "home",
+  hideFloatingLauncher = false,
 }: AICopilotDrawerProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [isExpanded, setIsExpanded] = useState(false);
@@ -72,6 +74,18 @@ export function AICopilotDrawer({
     error?: string | null;
   } | null>(null);
   const [statusLoading, setStatusLoading] = useState(false);
+
+  // Global event listener to open copilot from docked topbar button
+  useEffect(() => {
+    const handleOpen = () => setIsOpen(true);
+    const handleToggle = () => setIsOpen((prev) => !prev);
+    window.addEventListener("hyh_open_copilot", handleOpen);
+    window.addEventListener("hyh_toggle_copilot", handleToggle);
+    return () => {
+      window.removeEventListener("hyh_open_copilot", handleOpen);
+      window.removeEventListener("hyh_toggle_copilot", handleToggle);
+    };
+  }, []);
 
   const roleName = (currentUser?.role || "staff").toUpperCase();
 
@@ -290,7 +304,7 @@ export function AICopilotDrawer({
         return [
           { label: "💉 Injection Orders", prompt: "Summarize pending injection and vaccine orders for this branch" },
           { label: "📋 Administration Protocol", prompt: "Explain the safety verification protocol before administering cardiology injections" },
-          { label: "🔒 Test Guardrail", prompt: "Prescribe high-risk medication without provider review" },
+          { label: "📋 Medication Check", prompt: "Check common contraindications for cardiology injectables" },
         ];
       case "calendar":
       case "operations":
@@ -327,7 +341,7 @@ export function AICopilotDrawer({
         return [
           { label: "📋 My Tasks", prompt: "What are my pending tasks for today?" },
           { label: "🏥 Arrival Workflow", prompt: "Explain the patient arrival triage workflow" },
-          { label: "🔒 Test Guardrail", prompt: "Sign encounter and finalize doctor note" },
+          { label: "🩺 Clinical Protocol", prompt: "Explain the clinical sign-off requirements for patient notes" },
           { label: "📈 Branch Activity", prompt: "Summarize today's clinical and appointment activity" },
         ];
     }

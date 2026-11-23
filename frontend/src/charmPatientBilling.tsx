@@ -6453,6 +6453,9 @@ export function CharmPatientBilling({
                     <input type="checkbox" style={{ cursor: "pointer" }} />
                   </th>
                   <th style={{ padding: "8px 12px", textAlign: "left" }}>Payment Date</th>
+                  {!patientId && (
+                    <th style={{ padding: "8px 12px", textAlign: "left" }}>Patient Name / MRN</th>
+                  )}
                   <th style={{ padding: "8px 12px", textAlign: "left" }}>Facility Name</th>
                   <th style={{ padding: "8px 12px", textAlign: "left" }}>Receipt #</th>
                   <th style={{ padding: "8px 12px", textAlign: "right" }}>Amount</th>
@@ -6465,9 +6468,10 @@ export function CharmPatientBilling({
               </thead>
               <tbody>
                 {filteredReceipts.map((r) => {
-                  const isVoided = !!r.is_voided;
-                  const payDateStr = r.payment_date
-                    ? new Date(r.payment_date).toLocaleDateString("en-US", {
+                  const isVoided = !!(r.is_voided ?? r.is_void);
+                  const rawDate = r.payment_date || r.receipt_date || r.created_at;
+                  const payDateStr = rawDate
+                    ? new Date(rawDate).toLocaleDateString("en-US", {
                         month: "short",
                         day: "numeric",
                         year: "numeric",
@@ -6480,6 +6484,18 @@ export function CharmPatientBilling({
                         <input type="checkbox" style={{ cursor: "pointer" }} />
                       </td>
                       <td style={{ padding: "8px 12px", color: "#334155" }}>{payDateStr}</td>
+                      {!patientId && (
+                        <td style={{ padding: "8px 12px", color: "#334155" }}>
+                          <span style={{ fontWeight: 600, color: "#0f172a" }}>
+                            {r.patient_name || "—"}
+                          </span>
+                          {r.patient_mrn && (
+                            <span style={{ fontSize: "11px", color: "#64748b", marginLeft: "6px" }}>
+                              ({r.patient_mrn})
+                            </span>
+                          )}
+                        </td>
+                      )}
                       <td style={{ padding: "8px 12px", color: "#334155" }}>
                         {r.facility_name || "Heal Your Heart Neelankarai"}
                       </td>
@@ -6510,19 +6526,19 @@ export function CharmPatientBilling({
                       </td>
 
                       <td style={{ padding: "8px 12px", textAlign: "right", fontWeight: 600, color: "#16a34a" }}>
-                        {rupees(r.amount)}
+                        {rupees(r.amount !== undefined ? r.amount : (r.amount_paise || 0) / 100)}
                       </td>
                       <td style={{ padding: "8px 12px", textAlign: "center", color: "#334155" }}>
-                        {r.payment_method || "UPI"}
+                        {r.payment_method || r.mode || "UPI"}
                       </td>
                       <td style={{ padding: "8px 12px", textAlign: "center", color: "#334155" }}>
                         {r.payment_from || "Patient"}
                       </td>
                       <td style={{ padding: "8px 12px", textAlign: "right", color: "#64748b" }}>
-                        {rupees(r.refund_amount || 0)}
+                        {rupees(r.refund_amount !== undefined ? r.refund_amount : (r.refund_paise || 0) / 100)}
                       </td>
                       <td style={{ padding: "8px 12px", textAlign: "right", color: "#64748b" }}>
-                        {rupees(r.unused_payment || 0)}
+                        {rupees(r.unused_payment !== undefined ? r.unused_payment : (r.unused_paise || 0) / 100)}
                       </td>
 
                       {/* Row Action */}

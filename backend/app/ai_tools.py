@@ -21,7 +21,7 @@ Declared Risk Classes:
 from dataclasses import dataclass
 from datetime import datetime, date, timedelta
 from typing import Optional, Dict, Any, List, Set, Union, Literal, Callable, Type
-from sqlalchemy import select, and_, func
+from sqlalchemy import select, and_, func, or_
 from sqlalchemy.orm import Session
 from fastapi import HTTPException
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
@@ -45,7 +45,11 @@ RiskClass = Literal["read", "safe_write", "propose_clinical", "forbidden"]
 
 # Explicit allowlist of all registered tools
 ALLOWLISTED_TOOLS: Set[str] = {
+    "search_patients",
     "read_patient_summary",
+    "book_appointment",
+    "list_appointments",
+    "get_clinic_summary",
     "get_appointment_details",
     "list_tasks",
     "create_administrative_task",
@@ -90,8 +94,33 @@ class ToolArgs(BaseModel):
     model_config = ConfigDict(extra="forbid", str_strip_whitespace=True)
 
 
+class SearchPatientsArgs(ToolArgs):
+    query: Optional[str] = Field(default="", description="Search query: patient first name, last name, MRN, or phone number")
+    limit: int = Field(default=10, ge=1, le=50, description="Maximum number of patient records to return")
+
+
 class ReadPatientSummaryArgs(ToolArgs):
-    patient_id: str = Field(..., min_length=1, description="Target patient ID")
+    patient_id: str = Field(..., min_length=1, description="Target patient ID, MRN, or full patient name (e.g. 'Aarav Demo')")
+
+
+class BookAppointmentArgs(ToolArgs):
+    patient_id: str = Field(..., min_length=1, description="Target patient ID, MRN, or full patient name")
+    start_time: str = Field(..., min_length=5, description="Appointment date and time (ISO format YYYY-MM-DDTHH:MM or 'YYYY-MM-DD HH:MM')")
+    provider_id: Optional[str] = Field(None, description="Doctor/therapist ID or provider full name. Defaults to current user if doctor.")
+    kind: str = Field(default="consultation", description="Appointment type: consultation, follow_up, eecp, review")
+    duration_minutes: int = Field(default=30, ge=15, le=120, description="Duration in minutes (e.g. 30 or 60)")
+    notes: Optional[str] = Field(None, max_length=500, description="Clinical or administrative booking note")
+
+
+class ListAppointmentsArgs(ToolArgs):
+    date_str: Optional[str] = Field(None, description="Date in YYYY-MM-DD format (defaults to today)")
+    provider_id: Optional[str] = Field(None, description="Optional provider ID or name filter")
+    status: Optional[str] = Field(None, description="Optional status filter: scheduled, checked-in, in-consultation, completed")
+    limit: int = Field(default=20, ge=1, le=50, description="Max appointments to return")
+
+
+class GetClinicSummaryArgs(ToolArgs):
+    date_str: Optional[str] = Field(None, description="Date in YYYY-MM-DD format (defaults to today)")
 
 
 class GetAppointmentDetailsArgs(ToolArgs):
@@ -139,9 +168,93 @@ class UpdateWorkflowStepArgs(ToolArgs):
 # Internal Tool Handlers (Zero permission/facility checks; executor guarantees pre-conditions)
 # ---------------------------------------------------------------------------
 
+def _handle_search_patients(ctx: ToolContext, args: SearchPatientsArgs) -> Dict[str, Any]:
+    from .security import CLINICAL
+    q = (args.query or "").strip().lower()
+
+    stmt = (
+        select(m.Patient)
+        .outerjoin(m.PatientFacility, m.PatientFacility.patient_id == m.Patient.id)
+        .where(
+            or_(
+                m.Patient.primary_facility_id == ctx.facility_id,
+                m.PatientFacility.facility_id == ctx.facility_id
+            )
+        )
+        .distinct()
+    )
+    if q:
+        stmt = stmt.where(
+            or_(
+                func.lower(m.Patient.first_name).contains(q),
+                func.lower(m.Patient.last_name).contains(q),
+                func.lower(func.concat(m.Patient.first_name, " ", m.Patient.last_name)).contains(q),
+                func.lower(m.Patient.mrn).contains(q),
+                m.Patient.phone.contains(q)
+            )
+        )
+
+    patients = ctx.db.scalars(stmt.order_by(m.Patient.created_at.desc()).limit(args.limit)).all()
+    today = date.today()
+    has_clinical_access = ctx.role in CLINICAL
+
+    results = []
+    for p in patients:
+        age = None
+        if p.dob:
+            age = today.year - p.dob.year - ((today.month, today.day) < (p.dob.month, p.dob.day))
+        info = {
+            "id": p.id,
+            "name": f"{p.first_name} {p.last_name}".strip(),
+            "mrn": p.mrn,
+            "sex": p.sex,
+            "age": age,
+            "phone": p.phone[-4:].rjust(len(p.phone), "*") if p.phone else "",
+        }
+        if has_clinical_access:
+            diag = ctx.db.scalars(
+                select(m.Diagnosis.description)
+                .where(m.Diagnosis.patient_id == p.id, m.Diagnosis.status == "active")
+                .limit(3)
+            ).all()
+            info["active_diagnoses"] = list(diag)
+        results.append(info)
+
+    return {
+        "count": len(results),
+        "query": args.query or "all",
+        "patients": results
+    }
+
+
 def _handle_read_patient_summary(ctx: ToolContext, args: ReadPatientSummaryArgs) -> Dict[str, Any]:
     from .security import CLINICAL
-    patient = ctx.db.get(m.Patient, args.patient_id)
+    target = args.patient_id.strip()
+    patient = ctx.db.get(m.Patient, target)
+    if not patient:
+        q_lower = target.lower()
+        patient = ctx.db.scalars(
+            select(m.Patient)
+            .outerjoin(m.PatientFacility, m.PatientFacility.patient_id == m.Patient.id)
+            .where(
+                or_(
+                    m.Patient.primary_facility_id == ctx.facility_id,
+                    m.PatientFacility.facility_id == ctx.facility_id
+                ),
+                or_(
+                    func.lower(m.Patient.mrn) == q_lower,
+                    func.lower(func.concat(m.Patient.first_name, " ", m.Patient.last_name)) == q_lower,
+                    func.lower(m.Patient.first_name) == q_lower,
+                    func.lower(m.Patient.last_name) == q_lower,
+                    func.lower(func.concat(m.Patient.first_name, " ", m.Patient.last_name)).contains(q_lower)
+                )
+            )
+            .limit(1)
+        ).first()
+
+    if not patient:
+        raise HTTPException(status_code=404, detail=f"Patient '{args.patient_id}' not found")
+
     today = date.today()
     age = None
     if patient.dob:
@@ -159,7 +272,7 @@ def _handle_read_patient_summary(ctx: ToolContext, args: ReadPatientSummaryArgs)
 
     pending_tasks = ctx.db.scalars(
         select(m.Task).where(
-            m.Task.patient_id == args.patient_id,
+            m.Task.patient_id == patient.id,
             m.Task.facility_id == ctx.facility_id,
             m.Task.status == "pending"
         ).order_by(m.Task.due_date.asc().nullslast()).limit(10)
@@ -183,7 +296,7 @@ def _handle_read_patient_summary(ctx: ToolContext, args: ReadPatientSummaryArgs)
 
     diagnoses = ctx.db.scalars(
         select(m.Diagnosis).where(
-            m.Diagnosis.patient_id == args.patient_id,
+            m.Diagnosis.patient_id == patient.id,
             m.Diagnosis.facility_id == ctx.facility_id,
             m.Diagnosis.status == "active"
         ).order_by(m.Diagnosis.created_at.desc()).limit(10)
@@ -191,14 +304,14 @@ def _handle_read_patient_summary(ctx: ToolContext, args: ReadPatientSummaryArgs)
 
     latest_vital = ctx.db.scalar(
         select(m.Vital).where(
-            m.Vital.patient_id == args.patient_id,
+            m.Vital.patient_id == patient.id,
             m.Vital.facility_id == ctx.facility_id
         ).order_by(m.Vital.observed_at.desc().nullslast(), m.Vital.created_at.desc()).limit(1)
     )
 
     medications = ctx.db.scalars(
         select(m.Medication).where(
-            m.Medication.patient_id == args.patient_id,
+            m.Medication.patient_id == patient.id,
             m.Medication.facility_id == ctx.facility_id,
             m.Medication.status == "active"
         ).order_by(m.Medication.created_at.desc()).limit(10)
@@ -474,6 +587,231 @@ def _handle_update_workflow_step(ctx: ToolContext, args: UpdateWorkflowStepArgs)
     )
 
 
+def _handle_book_appointment(ctx: ToolContext, args: BookAppointmentArgs) -> Dict[str, Any]:
+    from datetime import datetime
+    
+    patient = ctx.db.get(m.Patient, args.patient_id)
+    if not patient:
+        q_lower = args.patient_id.strip().lower()
+        patient = ctx.db.scalars(
+            select(m.Patient)
+            .outerjoin(m.PatientFacility, m.PatientFacility.patient_id == m.Patient.id)
+            .where(
+                or_(
+                    m.Patient.primary_facility_id == ctx.facility_id,
+                    m.PatientFacility.facility_id == ctx.facility_id
+                ),
+                or_(
+                    func.lower(m.Patient.mrn) == q_lower,
+                    func.lower(func.concat(m.Patient.first_name, " ", m.Patient.last_name)) == q_lower,
+                    func.lower(m.Patient.first_name) == q_lower,
+                    func.lower(m.Patient.last_name) == q_lower,
+                    func.lower(func.concat(m.Patient.first_name, " ", m.Patient.last_name)).contains(q_lower)
+                )
+            )
+            .limit(1)
+        ).first()
+    if not patient:
+        raise HTTPException(status_code=404, detail=f"Patient '{args.patient_id}' not found")
+
+    provider = None
+    if args.provider_id:
+        p_target = args.provider_id.strip()
+        provider = ctx.db.get(m.User, p_target)
+        if not provider:
+            q_lower = p_target.lower().replace("dr.", "").replace("dr ", "").strip()
+            provider = ctx.db.scalars(
+                select(m.User)
+                .join(m.UserFacility, m.UserFacility.user_id == m.User.id)
+                .where(
+                    m.UserFacility.facility_id == ctx.facility_id,
+                    m.User.active == True,
+                    func.lower(m.User.name).contains(q_lower)
+                )
+                .limit(1)
+            ).first()
+
+    if not provider and ctx.role == "doctor":
+        provider = ctx.db.get(m.User, ctx.user_id)
+
+    if not provider:
+        provider = ctx.db.scalars(
+            select(m.User)
+            .join(m.UserFacility, m.UserFacility.user_id == m.User.id)
+            .where(
+                m.UserFacility.facility_id == ctx.facility_id,
+                m.User.active == True,
+                m.User.role.in_(["doctor", "therapist"])
+            )
+            .limit(1)
+        ).first()
+
+    if not provider:
+        raise HTTPException(status_code=422, detail="No active provider found for scheduling")
+
+    cleaned_time = args.start_time.strip().replace(" ", "T")
+    try:
+        if len(cleaned_time) == 16:
+            start_dt = datetime.fromisoformat(cleaned_time)
+        elif len(cleaned_time) == 10:
+            start_dt = datetime.fromisoformat(f"{cleaned_time}T10:00:00")
+        else:
+            start_dt = datetime.fromisoformat(cleaned_time)
+    except Exception:
+        start_dt = datetime.now() + timedelta(days=1)
+        start_dt = start_dt.replace(hour=10, minute=0, second=0, microsecond=0)
+
+    end_dt = start_dt + timedelta(minutes=args.duration_minutes)
+
+    date_start = start_dt.replace(hour=0, minute=0, second=0, microsecond=0)
+    date_end = date_start + timedelta(days=1)
+    existing_count = ctx.db.scalar(
+        select(func.count(m.Appointment.id))
+        .where(
+            m.Appointment.facility_id == ctx.facility_id,
+            m.Appointment.start_at >= date_start,
+            m.Appointment.start_at < date_end
+        )
+    ) or 0
+    token_num = existing_count + 1
+
+    appt = m.Appointment(
+        facility_id=ctx.facility_id,
+        patient_id=patient.id,
+        author_id=ctx.user_id,
+        provider_id=provider.id,
+        start_at=start_dt,
+        end_at=end_dt,
+        visit_type=args.kind.title(),
+        status="scheduled",
+        token_number=token_num,
+        reason=args.notes or f"Booked via AI Copilot by {ctx.user_name or ctx.role}",
+        version=1
+    )
+    ctx.db.add(appt)
+    ctx.db.flush()
+
+    return {
+        "appointment_id": appt.id,
+        "token_number": token_num,
+        "status": "scheduled",
+        "patient_name": f"{patient.first_name} {patient.last_name}",
+        "patient_mrn": patient.mrn,
+        "provider_name": provider.name,
+        "start_time": start_dt.strftime("%Y-%m-%d %I:%M %p"),
+        "duration_minutes": args.duration_minutes,
+        "kind": args.kind,
+        "message": f"Appointment confirmed for {patient.first_name} {patient.last_name} with {provider.name} on {start_dt.strftime('%b %d, %Y at %I:%M %p')} (Token #{token_num})."
+    }
+
+
+def _handle_list_appointments(ctx: ToolContext, args: ListAppointmentsArgs) -> Dict[str, Any]:
+    from datetime import datetime
+    if args.date_str:
+        try:
+            target_date = datetime.strptime(args.date_str.strip(), "%Y-%m-%d").date()
+        except ValueError:
+            target_date = date.today()
+    else:
+        target_date = date.today()
+
+    start_dt = datetime.combine(target_date, datetime.min.time())
+    end_dt = datetime.combine(target_date, datetime.max.time())
+
+    stmt = (
+        select(m.Appointment, m.Patient, m.User)
+        .join(m.Patient, m.Patient.id == m.Appointment.patient_id)
+        .outerjoin(m.User, m.User.id == m.Appointment.provider_id)
+        .where(
+            m.Appointment.facility_id == ctx.facility_id,
+            m.Appointment.start_at >= start_dt,
+            m.Appointment.start_at <= end_dt
+        )
+    )
+    if args.status:
+        stmt = stmt.where(m.Appointment.status == args.status)
+
+    appts = ctx.db.execute(stmt.order_by(m.Appointment.start_at.asc()).limit(args.limit)).all()
+    results = []
+    for appt, patient, provider in appts:
+        results.append({
+            "appointment_id": appt.id,
+            "patient_name": f"{patient.first_name} {patient.last_name}".strip(),
+            "patient_mrn": patient.mrn,
+            "provider_name": provider.name if provider else "Unassigned",
+            "time": appt.start_at.strftime("%I:%M %p") if appt.start_at else "",
+            "visit_type": appt.visit_type,
+            "status": appt.status,
+            "token_number": appt.token_number
+        })
+
+    return {
+        "date": str(target_date),
+        "count": len(results),
+        "total_count": len(results),
+        "appointments": results
+    }
+
+
+def _handle_get_clinic_summary(ctx: ToolContext, args: GetClinicSummaryArgs) -> Dict[str, Any]:
+    from datetime import datetime
+    target_date = date.today()
+    if args.date_str:
+        try:
+            target_date = datetime.strptime(args.date_str.strip(), "%Y-%m-%d").date()
+        except ValueError:
+            pass
+
+    start_dt = datetime.combine(target_date, datetime.min.time())
+    end_dt = datetime.combine(target_date, datetime.max.time())
+
+    total_appts = ctx.db.scalar(
+        select(func.count(m.Appointment.id)).where(
+            m.Appointment.facility_id == ctx.facility_id,
+            m.Appointment.start_at >= start_dt,
+            m.Appointment.start_at <= end_dt
+        )
+    ) or 0
+
+    checked_in = ctx.db.scalar(
+        select(func.count(m.Appointment.id)).where(
+            m.Appointment.facility_id == ctx.facility_id,
+            m.Appointment.start_at >= start_dt,
+            m.Appointment.start_at <= end_dt,
+            m.Appointment.status == "checked-in"
+        )
+    ) or 0
+
+    completed = ctx.db.scalar(
+        select(func.count(m.Appointment.id)).where(
+            m.Appointment.facility_id == ctx.facility_id,
+            m.Appointment.start_at >= start_dt,
+            m.Appointment.start_at <= end_dt,
+            m.Appointment.status == "completed"
+        )
+    ) or 0
+
+    pending_tasks = ctx.db.scalar(
+        select(func.count(m.Task.id)).where(
+            m.Task.facility_id == ctx.facility_id,
+            m.Task.status == "pending"
+        )
+    ) or 0
+
+    facility = ctx.db.get(m.Facility, ctx.facility_id)
+    facility_name = facility.name if facility else ctx.facility_id
+
+    return {
+        "facility": facility_name,
+        "date": str(target_date),
+        "total_appointments_today": total_appts,
+        "checked_in_patients": checked_in,
+        "completed_appointments": completed,
+        "pending_worklist_tasks": pending_tasks,
+        "status_summary": f"{total_appts} appointments scheduled ({checked_in} checked in, {completed} completed); {pending_tasks} pending facility tasks."
+    }
+
+
 # ---------------------------------------------------------------------------
 # Tool Registry & Definition
 # ---------------------------------------------------------------------------
@@ -489,12 +827,44 @@ class ToolDefinition:
 
 
 TOOL_REGISTRY: Dict[str, ToolDefinition] = {
+    "search_patients": ToolDefinition(
+        name="search_patients",
+        description="Searches for patients in the facility by name, MRN, or phone number, or lists recent patients",
+        risk_class=RISK_READ,
+        args_schema=SearchPatientsArgs,
+        handler=_handle_search_patients,
+        allowed_roles=STAFF_ROLES,
+    ),
     "read_patient_summary": ToolDefinition(
         name="read_patient_summary",
-        description="Reads clinical summary (diagnoses, latest vitals, medications, pending tasks) for a patient",
+        description="Reads clinical summary (diagnoses, latest vitals, medications, pending tasks) for a patient. Accepts patient ID, MRN, or full patient name.",
         risk_class=RISK_READ,
         args_schema=ReadPatientSummaryArgs,
         handler=_handle_read_patient_summary,
+        allowed_roles=STAFF_ROLES,
+    ),
+    "book_appointment": ToolDefinition(
+        name="book_appointment",
+        description="Books a new appointment for a patient with a doctor or therapist. Prompts for human confirmation before finalizing.",
+        risk_class=RISK_SAFE_WRITE,
+        args_schema=BookAppointmentArgs,
+        handler=_handle_book_appointment,
+        allowed_roles=ADMINISTRATIVE_WRITE_ROLES,
+    ),
+    "list_appointments": ToolDefinition(
+        name="list_appointments",
+        description="Lists appointments for today or a specified date, optionally filtering by provider or status",
+        risk_class=RISK_READ,
+        args_schema=ListAppointmentsArgs,
+        handler=_handle_list_appointments,
+        allowed_roles=STAFF_ROLES,
+    ),
+    "get_clinic_summary": ToolDefinition(
+        name="get_clinic_summary",
+        description="Retrieves a high-level operational overview of today's appointments, check-ins, and pending tasks",
+        risk_class=RISK_READ,
+        args_schema=GetClinicSummaryArgs,
+        handler=_handle_get_clinic_summary,
         allowed_roles=STAFF_ROLES,
     ),
     "get_appointment_details": ToolDefinition(
@@ -680,12 +1050,41 @@ def execute_tool(
     patient_id = getattr(validated_args, "patient_id", None)
     if patient_id:
         patient = ctx.db.get(m.Patient, patient_id)
+        if not patient and isinstance(patient_id, str):
+            # Resolve name or MRN if user/LLM passed a patient name or MRN
+            target = patient_id.strip()
+            q_lower = target.lower()
+            patient = ctx.db.scalars(
+                select(m.Patient)
+                .outerjoin(m.PatientFacility, m.PatientFacility.patient_id == m.Patient.id)
+                .where(
+                    or_(
+                        m.Patient.primary_facility_id == ctx.facility_id,
+                        m.PatientFacility.facility_id == ctx.facility_id
+                    ),
+                    or_(
+                        func.lower(m.Patient.mrn) == q_lower,
+                        func.lower(func.concat(m.Patient.first_name, " ", m.Patient.last_name)) == q_lower,
+                        func.lower(m.Patient.first_name) == q_lower,
+                        func.lower(m.Patient.last_name) == q_lower,
+                        func.lower(func.concat(m.Patient.first_name, " ", m.Patient.last_name)).contains(q_lower)
+                    )
+                )
+                .limit(1)
+            ).first()
+            if patient:
+                patient_id = patient.id
+                try:
+                    setattr(validated_args, "patient_id", patient.id)
+                except Exception:
+                    pass
+
         affiliation = ctx.db.scalar(
             select(m.PatientFacility).where(
                 m.PatientFacility.patient_id == patient_id,
                 m.PatientFacility.facility_id == ctx.facility_id
             )
-        )
+        ) if patient else None
         if not patient or (not affiliation and patient.primary_facility_id != ctx.facility_id):
             ctx.db.add(m.AuditEvent(
                 facility_id=ctx.facility_id,

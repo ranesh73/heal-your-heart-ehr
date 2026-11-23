@@ -1,5 +1,5 @@
 import React from "react";
-import { ArrowLeft, Search } from "lucide-react";
+import { ArrowLeft, ArrowRight, Search } from "lucide-react";
 import { navigate } from "../api";
 
 interface SettingsLayoutProps {
@@ -27,10 +27,17 @@ export function SettingsLayout({
 }: SettingsLayoutProps) {
   return (
     <div className="charm-settings-container">
-      {/* Centered Top Search Bar matching live CharmHealth */}
+      {/* Centered Top Search Bar */}
       <div className="charm-settings-search-wrapper">
-        <div className="charm-settings-search-pill">
-          <Search size={18} className="charm-search-icon" />
+        <div
+          className="charm-settings-search-pill"
+          style={{ position: "relative", display: "flex", alignItems: "center" }}
+        >
+          <Search
+            size={18}
+            className="charm-search-icon"
+            style={{ position: "static", color: "#64748b", marginRight: "8px", flexShrink: 0 }}
+          />
           <input
             type="text"
             className="charm-settings-search-input"
@@ -46,8 +53,9 @@ export function SettingsLayout({
             className="charm-search-arrow-btn"
             title="Search Settings"
             onClick={() => navigate("/settings")}
+            style={{ display: "flex", alignItems: "center", justifyContent: "center" }}
           >
-            ➔
+            <ArrowRight size={16} />
           </button>
         </div>
       </div>

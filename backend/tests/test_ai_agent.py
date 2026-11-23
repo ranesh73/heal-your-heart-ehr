@@ -504,9 +504,13 @@ def test_tool_registry_invariants_and_risk_classes():
 
     # Invariant 1: Registered tool set equals explicit allowlist
     assert set(TOOL_REGISTRY.keys()) == ALLOWLISTED_TOOLS
-    assert len(TOOL_REGISTRY) == 8
+    assert len(TOOL_REGISTRY) == 12
     assert "get_patient_journey" in TOOL_REGISTRY
     assert "update_workflow_step" in TOOL_REGISTRY
+    assert "search_patients" in TOOL_REGISTRY
+    assert "book_appointment" in TOOL_REGISTRY
+    assert "list_appointments" in TOOL_REGISTRY
+    assert "get_clinic_summary" in TOOL_REGISTRY
 
     # Invariant 2: Every registered tool has a valid non-forbidden risk class
     valid_risk_classes = {RISK_READ, RISK_SAFE_WRITE, RISK_PROPOSE_CLINICAL}
@@ -1121,6 +1125,59 @@ def test_groq_agent_loop_with_tool_execution(monkeypatch):
             assert result["mode"] == "groq_live"
             assert "Patient" in result["response"]
             assert result["context_loaded"] is True
+
+
+def test_search_patients_and_name_resolution_in_patient_summary():
+    from app.ai_tools import execute_tool, ToolContext
+    from app.db import SessionLocal
+
+    c_doc = client("doctor")
+    p = patient(c_doc)
+    fac_id = c_doc.headers["X-Facility-ID"]
+    doc_id = c_doc.get("/api/auth/me").json()["user"]["id"]
+
+    with SessionLocal() as db:
+        ctx = ToolContext(db=db, user_id=doc_id, role="doctor", facility_id=fac_id)
+
+        # 1. search_patients by query
+        results = execute_tool(ctx, "search_patients", {"query": p["first_name"]})
+        assert results["count"] >= 1
+        assert any(r["id"] == p["id"] for r in results["patients"])
+
+        # 2. search_patients empty query (lists patients)
+        all_pts = execute_tool(ctx, "search_patients", {})
+        assert all_pts["count"] >= 1
+
+        # 3. read_patient_summary using patient name instead of UUID
+        full_name = f"{p['first_name']} {p['last_name']}"
+        summary = execute_tool(ctx, "read_patient_summary", {"patient_id": full_name})
+        assert summary["patient"]["id"] == p["id"]
+        assert summary["patient"]["mrn"] == p["mrn"]
+
+        # 4. read_patient_summary using MRN
+        summary_mrn = execute_tool(ctx, "read_patient_summary", {"patient_id": p["mrn"]})
+        assert summary_mrn["patient"]["id"] == p["id"]
+
+        # 5. get_clinic_summary
+        clinic_sum = execute_tool(ctx, "get_clinic_summary", {})
+        assert "total_appointments_today" in clinic_sum
+        assert "pending_worklist_tasks" in clinic_sum
+
+        # 6. book_appointment (resolves patient name & provider)
+        book_res = execute_tool(ctx, "book_appointment", {
+            "patient_id": f"{p['first_name']} {p['last_name']}",
+            "start_time": "2026-10-27 10:00",
+            "notes": "Routine cardiology review"
+        })
+        assert book_res["status"] == "scheduled"
+        assert book_res["token_number"] >= 1
+        assert "appointment_id" in book_res
+
+        # 7. list_appointments
+        appts = execute_tool(ctx, "list_appointments", {"date_str": "2026-10-27"})
+        assert appts["count"] >= 1
+        assert any(a["appointment_id"] == book_res["appointment_id"] for a in appts["appointments"])
+
 
 
 

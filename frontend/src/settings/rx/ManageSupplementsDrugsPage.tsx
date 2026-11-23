@@ -892,7 +892,7 @@ export function ManageSupplementsDrugsPage() {
       >
         <AlertCircle size={15} style={{ flexShrink: 0 }} />
         <span>
-          <strong>CharmHealth Policy:</strong> Supplements & Drugs added in Inventory cannot be deleted here (must be managed from Inventory). Items referenced in active prescription or supplement templates must first be removed from Settings &gt; Templates.
+          <strong>Practice EHR Policy:</strong> Supplements & Drugs added in Inventory cannot be deleted here (must be managed from Inventory). Items referenced in active prescription or supplement templates must first be removed from Settings &gt; Templates.
         </span>
       </div>
 

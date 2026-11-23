@@ -84,7 +84,11 @@ RESTRICTED_INTENT_PATTERNS: List[Tuple[str, re.Pattern]] = [
 
 # Mapping of tools to the minimum roles authorized to use them
 TOOL_PERMISSIONS: Dict[str, Set[str]] = {
+    'search_patients': STAFF_ROLES,
     'read_patient_summary': STAFF_ROLES,
+    'book_appointment': ADMINISTRATIVE_WRITE_ROLES,
+    'list_appointments': STAFF_ROLES,
+    'get_clinic_summary': STAFF_ROLES,
     'get_appointment_details': STAFF_ROLES,
     'list_tasks': STAFF_ROLES,
     'create_administrative_task': ADMINISTRATIVE_WRITE_ROLES,

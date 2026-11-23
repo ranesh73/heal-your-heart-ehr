@@ -3,14 +3,14 @@ import { Check, AlertCircle } from "lucide-react";
 import { api } from "../../api";
 
 export function TaskPreferencesPage() {
-  // Row 1: Task Reminder Notification (Email, Charm Message)
+  // Row 1: Task Reminder Notification (Email, Internal Message)
   const [reminderEmail, setReminderEmail] = useState(true);
   const [reminderCharmMessage, setReminderCharmMessage] = useState(true);
 
-  // Row 2: Task Assigned Notification (Charm Message)
+  // Row 2: Task Assigned Notification (Internal Message)
   const [assignedCharmMessage, setAssignedCharmMessage] = useState(true);
 
-  // Row 3: Task Completed Notification (Charm Message)
+  // Row 3: Task Completed Notification (Internal Message)
   const [completedCharmMessage, setCompletedCharmMessage] = useState(true);
 
   // Row 4: Sort Tasks By (Created Date, Due Date)
@@ -128,7 +128,7 @@ export function TaskPreferencesPage() {
                   checked={reminderCharmMessage}
                   onChange={(e) => setReminderCharmMessage(e.target.checked)}
                 />
-                Charm Message
+                Internal Message
               </label>
             </div>
           </div>
@@ -147,7 +147,7 @@ export function TaskPreferencesPage() {
                   checked={assignedCharmMessage}
                   onChange={(e) => setAssignedCharmMessage(e.target.checked)}
                 />
-                Charm Message
+                Internal Message
               </label>
             </div>
           </div>
@@ -166,7 +166,7 @@ export function TaskPreferencesPage() {
                   checked={completedCharmMessage}
                   onChange={(e) => setCompletedCharmMessage(e.target.checked)}
                 />
-                Charm Message
+                Internal Message
               </label>
             </div>
           </div>
