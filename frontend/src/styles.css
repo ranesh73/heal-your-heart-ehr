@@ -22438,3 +22438,24 @@ textarea.charm-input {
   background: linear-gradient(135deg, #0f766e 0%, #065f46 100%);
 }
 
+/* Cardiology Redesign - Teal Button Overrides */
+.charm-btn-orange,
+.charm-btn-orange-new,
+.charm-btn-orange-create,
+.charm-btn-orange-consult {
+  background-color: #0B6E75 !important;
+  background: #0B6E75 !important;
+  color: #ffffff !important;
+  border-radius: 6px !important;
+  transition: background-color 0.15s ease !important;
+}
+
+.charm-btn-orange:hover,
+.charm-btn-orange-new:hover,
+.charm-btn-orange-create:hover,
+.charm-btn-orange-consult:hover {
+  background-color: #09595F !important;
+  background: #09595F !important;
+}
+
+

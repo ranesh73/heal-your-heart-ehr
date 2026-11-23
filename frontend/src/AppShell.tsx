@@ -718,7 +718,7 @@ export function AppShell({
         </header>
 
         {/* Content Viewport */}
-        <main className="flex-1 min-w-0 overflow-y-auto bg-[var(--color-bg-canvas,#F7F9FA)]">
+        <main className={`flex-1 min-w-0 ${activePage === "settings" ? "overflow-hidden flex flex-col" : "overflow-y-auto"} bg-[var(--color-bg-canvas,#F7F9FA)]`}>
           {children}
         </main>
       </div>

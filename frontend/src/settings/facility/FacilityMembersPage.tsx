@@ -263,7 +263,7 @@ export function FacilityMembersPage() {
         <button
           type="button"
           data-testid="add-member-btn"
-          className="charm-btn-orange"
+          className="charm-btn-orange bg-[#0B6E75] hover:bg-[#09595F] text-white font-medium text-xs px-3.5 py-1.5 rounded-lg flex items-center gap-1.5 transition-colors shadow-2xs"
           style={{ marginLeft: "auto" }}
           onClick={() => setShowAddModal(true)}
         >

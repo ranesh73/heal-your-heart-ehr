@@ -662,12 +662,12 @@ function Workspace() {
           {page === "operations" && <CalendarPage />}
           {page === "communication" && <CommunicationPage />}
           {page === "administration" && <AdministrationPage />}
-          {page === "settings" &&
-            (parts[1] ? (
-              <IndividualSettingPage categoryId={parts[1]} optionId={parts[2]} />
-            ) : (
-              <SettingsDashboard />
-            ))}
+          {page === "settings" && (
+            <IndividualSettingPage
+              categoryId={parts[1] || "facility"}
+              optionId={parts[2] || (parts[1] ? undefined : "facility-list")}
+            />
+          )}
           {page === "templates" && (
             <IndividualSettingPage categoryId="templates" optionId={parts[1] || "my_templates"} />
           )}

@@ -1434,3 +1434,145 @@ export const SETTINGS_CATEGORIES: SettingCategory[] = [
 export const ALL_SETTING_OPTIONS: SettingOption[] = SETTINGS_CATEGORIES.flatMap(
   (c) => c.options
 );
+
+export interface SettingsSectionTab {
+  id: string;
+  label: string;
+  categoryId: string;
+  optionId: string;
+  route: string;
+  badge?: string;
+}
+
+export interface SettingsSection {
+  id: string;
+  title: string;
+  iconName: string;
+  defaultRoute: string;
+  categoryIds: string[];
+  tabs: SettingsSectionTab[];
+}
+
+export const SETTINGS_SECTIONS: SettingsSection[] = [
+  {
+    id: "practice-team",
+    title: "Practice & Team",
+    iconName: "Building2",
+    defaultRoute: "/settings/facility/facility-list",
+    categoryIds: ["facility"],
+    tabs: [
+      { id: "facility-list", label: "Facility List", categoryId: "facility", optionId: "facility-list", route: "/settings/facility/facility-list" },
+      { id: "facility-members", label: "Members", categoryId: "facility", optionId: "facility-members", route: "/settings/facility/facility-members" },
+      { id: "facility-resources", label: "Resources", categoryId: "facility", optionId: "facility-resources", route: "/settings/facility/facility-resources" },
+      { id: "departments", label: "Departments", categoryId: "facility", optionId: "departments", route: "/settings/facility/departments" },
+      { id: "roles", label: "Roles", categoryId: "facility", optionId: "roles", route: "/settings/facility/roles" },
+      { id: "kiosk-setup", label: "Kiosk", categoryId: "facility", optionId: "kiosk-setup", route: "/settings/facility/kiosk-setup" },
+      { id: "notifications", label: "Notifications", categoryId: "facility", optionId: "notifications", route: "/settings/facility/notifications" },
+    ],
+  },
+  {
+    id: "calendar-recalls",
+    title: "Calendar & Recalls",
+    iconName: "CalendarDays",
+    defaultRoute: "/settings/calendar/facility-timings",
+    categoryIds: ["calendar", "patient-recall"],
+    tabs: [
+      { id: "facility-timings", label: "Timings", categoryId: "calendar", optionId: "facility-timings", route: "/settings/calendar/facility-timings" },
+      { id: "provider-timings", label: "Providers", categoryId: "calendar", optionId: "provider-timings", route: "/settings/calendar/provider-timings" },
+      { id: "web-embed", label: "Online Booking", categoryId: "calendar", optionId: "web-embed", route: "/settings/calendar/web-embed" },
+      { id: "visit-types", label: "Visit Types", categoryId: "calendar", optionId: "visit-types", route: "/settings/calendar/visit-types" },
+      { id: "event-types", label: "Event Types", categoryId: "calendar", optionId: "event-types", route: "/settings/calendar/event-types" },
+      { id: "appointment-status", label: "Status", categoryId: "calendar", optionId: "appointment-status", route: "/settings/calendar/appointment-status" },
+      { id: "recall-types", label: "Patient Recall", categoryId: "patient-recall", optionId: "recall-types", route: "/settings/patient-recall/recall-types" },
+    ],
+  },
+  {
+    id: "patients-portal",
+    title: "Patients & Portal",
+    iconName: "UserCheck",
+    defaultRoute: "/settings/patient/patient-registration",
+    categoryIds: ["patient", "phr-settings"],
+    tabs: [
+      { id: "patient-registration", label: "Registration", categoryId: "patient", optionId: "patient-registration", route: "/settings/patient/patient-registration" },
+      { id: "patient-demographics", label: "Demographics", categoryId: "patient", optionId: "patient-demographics", route: "/settings/patient/patient-demographics" },
+      { id: "text-voice-notifications", label: "Notifications", categoryId: "patient", optionId: "text-voice-notifications", route: "/settings/patient/text-voice-notifications" },
+      { id: "patient-alerts", label: "Alerts", categoryId: "patient", optionId: "patient-alerts", route: "/settings/patient/patient-alerts" },
+      { id: "preferences", label: "PHR Settings", categoryId: "phr-settings", optionId: "preferences", route: "/settings/phr-settings/preferences" },
+      { id: "share-clinical-data", label: "Share Clinical Data", categoryId: "phr-settings", optionId: "share-clinical-data", route: "/settings/phr-settings/share-clinical-data" },
+      { id: "custom-app", label: "Custom App", categoryId: "phr-settings", optionId: "custom-app", route: "/settings/phr-settings/custom-app" },
+    ],
+  },
+  {
+    id: "clinical-templates",
+    title: "Clinical & Templates",
+    iconName: "ClipboardList",
+    defaultRoute: "/settings/consultation/consult-types",
+    categoryIds: ["consultation", "health-trackers", "templates", "questionnaires", "documents", "quick-text"],
+    tabs: [
+      { id: "consult-types", label: "Consultation", categoryId: "consultation", optionId: "consult-types", route: "/settings/consultation/consult-types" },
+      { id: "vitals-config", label: "Vitals & Trackers", categoryId: "health-trackers", optionId: "vitals-config", route: "/settings/health-trackers/vitals-config" },
+      { id: "my_templates", label: "Templates", categoryId: "templates", optionId: "my_templates", route: "/settings/templates/my_templates" },
+      { id: "intake-forms", label: "Questionnaires", categoryId: "questionnaires", optionId: "intake-forms", route: "/settings/questionnaires/intake-forms" },
+      { id: "clinical-docs", label: "Documents", categoryId: "documents", optionId: "clinical-docs", route: "/settings/documents/clinical-docs" },
+      { id: "snippets", label: "Quick Text", categoryId: "quick-text", optionId: "snippets", route: "/settings/quick-text/snippets" },
+    ],
+  },
+  {
+    id: "labs-rx-injections",
+    title: "Labs, Rx & Injections",
+    iconName: "FlaskConical",
+    defaultRoute: "/settings/lab-image/labs-settings",
+    categoryIds: ["lab-image", "rx", "injections", "immunization"],
+    tabs: [
+      { id: "labs-settings", label: "Lab / Image", categoryId: "lab-image", optionId: "labs-settings", route: "/settings/lab-image/labs-settings" },
+      { id: "manage-supplements-drugs", label: "Rx Drugs & Supplements", categoryId: "rx", optionId: "manage-supplements-drugs", route: "/settings/rx/manage-supplements-drugs" },
+      { id: "manage-injections", label: "Injections", categoryId: "injections", optionId: "manage-injections", route: "/settings/injections/manage-injections" },
+      { id: "vaccines", label: "Immunization", categoryId: "immunization", optionId: "vaccines", route: "/settings/immunization/vaccines" },
+    ],
+  },
+  {
+    id: "billing-inventory",
+    title: "Billing & Inventory",
+    iconName: "IndianRupee",
+    defaultRoute: "/settings/billing/billing-settings",
+    categoryIds: ["billing", "inventory"],
+    tabs: [
+      { id: "billing-settings", label: "Billing Settings", categoryId: "billing", optionId: "billing-settings", route: "/settings/billing/billing-settings" },
+      { id: "fee-schedule", label: "Fee Schedules", categoryId: "billing", optionId: "fee-schedule", route: "/settings/billing/fee-schedule" },
+      { id: "manage-inventory", label: "Inventory & Vaccines", categoryId: "inventory", optionId: "manage-inventory", route: "/settings/inventory/manage-inventory" },
+    ],
+  },
+  {
+    id: "communication-tasks",
+    title: "Communication & Tasks",
+    iconName: "MessageSquare",
+    defaultRoute: "/settings/message/my-preferences",
+    categoryIds: ["message", "charm-telehealth", "charm-connect", "charm-assist", "task", "directory"],
+    tabs: [
+      { id: "my-preferences", label: "Message", categoryId: "message", optionId: "my-preferences", route: "/settings/message/my-preferences" },
+      { id: "video-settings", label: "TeleHealth", categoryId: "charm-telehealth", optionId: "video-settings", route: "/settings/charm-telehealth/video-settings" },
+      { id: "task-preferences", label: "Task Preferences", categoryId: "task", optionId: "my-preferences", route: "/settings/task/my-preferences" },
+      { id: "contacts", label: "Directory", categoryId: "directory", optionId: "contacts", route: "/settings/directory/contacts" },
+    ],
+  },
+  {
+    id: "account-security",
+    title: "Account & Security",
+    iconName: "ShieldCheck",
+    defaultRoute: "/settings/account/my-profile",
+    categoryIds: ["account", "security"],
+    tabs: [
+      { id: "my-profile", label: "My Profile", categoryId: "account", optionId: "my-profile", route: "/settings/account/my-profile" },
+      { id: "change-password", label: "Password", categoryId: "account", optionId: "change-password", route: "/settings/account/change-password" },
+      { id: "mfa", label: "MFA Security", categoryId: "security", optionId: "mfa", route: "/settings/security/mfa" },
+      { id: "audit-trails", label: "Audit Trails", categoryId: "security", optionId: "audit-trails", route: "/settings/security/audit-trails" },
+      { id: "active-sessions", label: "Active Sessions", categoryId: "security", optionId: "active-sessions", route: "/settings/security/active-sessions" },
+    ],
+  },
+];
+
+export function getSectionForCategory(categoryId?: string): SettingsSection {
+  if (!categoryId) return SETTINGS_SECTIONS[0];
+  const found = SETTINGS_SECTIONS.find((s) => s.categoryIds.includes(categoryId));
+  return found || SETTINGS_SECTIONS[0];
+}

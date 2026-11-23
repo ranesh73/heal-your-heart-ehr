@@ -78,6 +78,7 @@ export function IndividualSettingPage({
 
     return (
       <SettingsLayout
+        currentCategoryId="facility"
         activeTab={activeOptionId}
         onTabChange={handleTabChange}
       >
@@ -129,6 +130,7 @@ export function IndividualSettingPage({
 
     return (
       <SettingsLayout
+        currentCategoryId="calendar"
         activeTab={activeOptionId}
         onTabChange={handleTabChange}
         tabs={calendarTabs}
@@ -150,6 +152,7 @@ export function IndividualSettingPage({
 
     return (
       <SettingsLayout
+        currentCategoryId="inventory"
         activeTab={activeOptionId}
         onTabChange={handleTabChange}
         tabs={inventoryTabs}
@@ -169,6 +172,7 @@ export function IndividualSettingPage({
 
     return (
       <SettingsLayout
+        currentCategoryId="injections"
         activeTab={activeOptionId}
         onTabChange={handleTabChange}
         tabs={injectionTabs}
@@ -181,11 +185,17 @@ export function IndividualSettingPage({
   // Dedicated Templates Module (Integrated Horizontal Templates)
   if (categoryId === "templates") {
     return (
-      <TemplatesModule
-        initialTab={activeOptionId}
-        onNavigateTab={handleTabChange}
-        onBackToDashboard={() => navigate("/settings")}
-      />
+      <SettingsLayout
+        currentCategoryId="templates"
+        activeTab={activeOptionId}
+        onTabChange={handleTabChange}
+      >
+        <TemplatesModule
+          initialTab={activeOptionId}
+          onNavigateTab={handleTabChange}
+          onBackToDashboard={() => navigate("/settings")}
+        />
+      </SettingsLayout>
     );
   }
 
@@ -199,6 +209,7 @@ export function IndividualSettingPage({
 
     return (
       <SettingsLayout
+        currentCategoryId="rx"
         activeTab={activeOptionId}
         onTabChange={handleTabChange}
         tabs={rxTabs}
@@ -229,6 +240,7 @@ export function IndividualSettingPage({
 
     return (
       <SettingsLayout
+        currentCategoryId="immunization"
         activeTab={activeOptionId}
         onTabChange={handleTabChange}
         tabs={immunizationTabs}
@@ -248,6 +260,7 @@ export function IndividualSettingPage({
 
     return (
       <SettingsLayout
+        currentCategoryId="message"
         activeTab={activeOptionId}
         onTabChange={handleTabChange}
         tabs={messageTabs}
@@ -267,6 +280,7 @@ export function IndividualSettingPage({
 
     return (
       <SettingsLayout
+        currentCategoryId="task"
         activeTab={activeOptionId}
         onTabChange={handleTabChange}
         tabs={taskTabs}
@@ -286,6 +300,7 @@ export function IndividualSettingPage({
 
     return (
       <SettingsLayout
+        currentCategoryId="billing"
         activeTab={activeOptionId}
         onTabChange={handleTabChange}
         tabs={billingTabs}
@@ -310,6 +325,7 @@ export function IndividualSettingPage({
 
     return (
       <SettingsLayout
+        currentCategoryId="patient-recall"
         activeTab={activeOptionId}
         onTabChange={handleTabChange}
         tabs={recallTabs}
@@ -329,6 +345,7 @@ export function IndividualSettingPage({
 
     return (
       <SettingsLayout
+        currentCategoryId="phr-settings"
         activeTab={activeOptionId}
         onTabChange={handleTabChange}
         tabs={phrTabs}
@@ -354,6 +371,7 @@ export function IndividualSettingPage({
 
   return (
     <SettingsLayout
+      currentCategoryId={categoryId}
       activeTab={activeOptionId}
       onTabChange={handleTabChange}
       tabs={categoryTabs}

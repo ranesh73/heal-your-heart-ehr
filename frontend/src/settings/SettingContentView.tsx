@@ -219,7 +219,7 @@ export function SettingContentView({
           {option.id === "facility-list" && (
             <button
               type="button"
-              className="charm-btn-orange-new"
+              className="charm-btn-orange-new bg-[#0B6E75] hover:bg-[#09595F] text-white font-medium text-xs px-3.5 py-1.5 rounded-lg flex items-center gap-1.5 transition-colors shadow-2xs"
               onClick={() => navigate("/settings/facility/facility-list")}
             >
               <Plus size={15} />
@@ -230,7 +230,7 @@ export function SettingContentView({
           {option.id === "facility-members" && (
             <button
               type="button"
-              className="charm-btn-orange-new"
+              className="charm-btn-orange-new bg-[#0B6E75] hover:bg-[#09595F] text-white font-medium text-xs px-3.5 py-1.5 rounded-lg flex items-center gap-1.5 transition-colors shadow-2xs"
               onClick={() => navigate("/settings/facility/facility-members")}
             >
               <Plus size={15} />
@@ -241,7 +241,7 @@ export function SettingContentView({
           {option.id === "facility-resources" && (
             <button
               type="button"
-              className="charm-btn-orange-new"
+              className="charm-btn-orange-new bg-[#0B6E75] hover:bg-[#09595F] text-white font-medium text-xs px-3.5 py-1.5 rounded-lg flex items-center gap-1.5 transition-colors shadow-2xs"
               onClick={() => navigate("/settings/facility/facility-resources")}
             >
               <Plus size={15} />
@@ -252,7 +252,7 @@ export function SettingContentView({
           {option.id === "procedure-codes" && (
             <button
               type="button"
-              className="charm-btn-orange-new"
+              className="charm-btn-orange-new bg-[#0B6E75] hover:bg-[#09595F] text-white font-medium text-xs px-3.5 py-1.5 rounded-lg flex items-center gap-1.5 transition-colors shadow-2xs"
               onClick={() => navigate("/settings/billing/procedure-codes")}
             >
               <Plus size={15} />
