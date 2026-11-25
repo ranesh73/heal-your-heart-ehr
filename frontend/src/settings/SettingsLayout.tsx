@@ -10,7 +10,7 @@ import {
   IndianRupee,
   MessageSquare,
   ShieldCheck,
-  ChevronRight,
+  ArrowLeft,
 } from "lucide-react";
 import { navigate } from "../api";
 import {
@@ -66,13 +66,8 @@ export function SettingsLayout({
     return getSectionForCategory(currentCategoryId);
   }, [currentCategoryId]);
 
-  // Determine tabs to display
-  const displayTabs = useMemo(() => {
-    if (tabs && tabs.length > 0) {
-      return tabs;
-    }
-    return activeSection.tabs;
-  }, [tabs, activeSection]);
+  // Determine tabs to display from canonical 8-section tab list
+  const displayTabs = activeSection.tabs;
 
   // Search results
   const searchResults = useMemo(() => {
@@ -93,46 +88,68 @@ export function SettingsLayout({
     navigate(`/settings/${opt.categoryId}/${opt.id}`);
   };
 
-  const currentTabId = activeTab || displayTabs[0]?.id;
+  const currentTabId = useMemo(() => {
+    if (activeTab) {
+      const match = displayTabs.find(
+        (t) => t.id === activeTab || t.optionId === activeTab
+      );
+      if (match) return match.id;
+    }
+    if (currentCategoryId) {
+      const match = displayTabs.find((t) => t.categoryId === currentCategoryId);
+      if (match) return match.id;
+    }
+    return displayTabs[0]?.id;
+  }, [displayTabs, activeTab, currentCategoryId]);
 
   return (
-    <div className="flex h-[calc(100vh-56px)] w-full overflow-hidden bg-[#F7F9FA]">
+    <div className="flex -mx-[42px] -my-[35px] w-[calc(100%+84px)] h-[calc(100vh-56px)] overflow-hidden bg-[#F7F9FA]">
       {/* =========================================================================
-          LEFT SETTINGS SIDEBAR (w-64 shrink-0 overflow-y-auto border-r border-slate-200)
+          LEFT SETTINGS SIDEBAR (264px shrink-0 overflow-y-auto border-r border-slate-200)
          ========================================================================= */}
       <aside
         aria-label="Settings Navigation"
-        className="w-64 shrink-0 h-full overflow-y-auto border-r border-slate-200 bg-white p-3 flex flex-col select-none"
+        className="w-[264px] shrink-0 h-full overflow-y-auto border-r border-slate-200 bg-white p-4 flex flex-col select-none"
       >
+        {/* Back to Homepage Button */}
+        <button
+          type="button"
+          onClick={() => navigate("/home")}
+          className="w-full mb-3.5 h-9 px-3 rounded-xl border border-slate-200 bg-slate-50/80 hover:bg-[#EFF8F7] hover:border-[#0B6E75]/40 text-slate-700 hover:text-[#0B6E75] text-[13px] font-semibold flex items-center gap-2 transition-colors cursor-pointer shrink-0"
+        >
+          <ArrowLeft size={15} />
+          <span>Back to Home</span>
+        </button>
+
         {/* Compact Sidebar Search */}
-        <div className="relative mb-3 shrink-0">
+        <div className="relative mb-4 shrink-0">
           <Search
             size={14}
-            className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none"
+            className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none"
           />
           <input
             type="text"
             placeholder="Search settings..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-8 pr-7 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs text-slate-800 placeholder-slate-400 focus:bg-white focus:outline-none focus:ring-1 focus:ring-[#0B6E75] focus:border-[#0B6E75] transition"
+            className="w-full pl-8 pr-7 py-2 bg-slate-50 border border-slate-200 rounded-xl text-[13px] text-slate-800 placeholder-slate-400 focus:bg-white focus:outline-none focus:ring-1 focus:ring-[#0B6E75] focus:border-[#0B6E75] transition"
           />
           {searchQuery && (
             <button
               type="button"
               title="Clear search"
               onClick={() => setSearchQuery("")}
-              className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-0.5"
+              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-0.5"
             >
-              <X size={12} />
+              <X size={13} />
             </button>
           )}
 
           {/* Quick Search Results Dropdown */}
           {searchQuery.trim().length > 0 && (
-            <div className="absolute left-0 right-0 top-full mt-1 bg-white border border-slate-200 rounded-lg shadow-lg z-50 max-h-72 overflow-y-auto divide-y divide-slate-100">
+            <div className="absolute left-0 right-0 top-full mt-1.5 bg-white border border-slate-200 rounded-xl shadow-lg z-50 max-h-72 overflow-y-auto divide-y divide-slate-100">
               {searchResults.length === 0 ? (
-                <div className="p-3 text-center text-xs text-slate-500">
+                <div className="p-3 text-center text-[12.5px] text-slate-500">
                   No matching settings found.
                 </div>
               ) : (
@@ -141,17 +158,17 @@ export function SettingsLayout({
                     key={`${opt.categoryId}-${opt.id}`}
                     type="button"
                     onClick={() => handleSelectSearchResult(opt)}
-                    className="w-full text-left p-2.5 hover:bg-[#EFF8F7] transition-colors flex flex-col"
+                    className="w-full text-left p-2.5 hover:bg-[#EFF8F7] transition-colors flex flex-col cursor-pointer"
                   >
-                    <div className="flex items-center justify-between">
-                      <span className="font-semibold text-xs text-slate-800">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="font-semibold text-[12.5px] text-slate-800 truncate">
                         {opt.name}
                       </span>
-                      <span className="text-[10px] text-slate-400 uppercase font-mono">
+                      <span className="text-[10.5px] text-slate-400 uppercase font-mono shrink-0">
                         {opt.categoryName}
                       </span>
                     </div>
-                    <span className="text-[11px] text-slate-500 truncate mt-0.5">
+                    <span className="text-[11.5px] text-slate-500 truncate mt-0.5">
                       {opt.description}
                     </span>
                   </button>
@@ -163,7 +180,7 @@ export function SettingsLayout({
 
         {/* 8 Clean Settings Sections (No numeric count badges) */}
         <div className="space-y-1 flex-1">
-          <div className="px-2 py-1 text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+          <div className="px-2.5 py-1 text-[11px] font-bold text-slate-400 uppercase tracking-wider">
             Settings Workspace
           </div>
           {SETTINGS_SECTIONS.map((sec) => {
@@ -175,19 +192,19 @@ export function SettingsLayout({
                 key={sec.id}
                 type="button"
                 onClick={() => navigate(sec.defaultRoute)}
-                className={`w-full flex items-center gap-3 px-3 py-2 text-xs font-medium rounded-lg text-left transition-colors relative ${isActive
+                className={`w-full flex items-center gap-3 px-3 py-2.5 text-[13px] font-medium rounded-xl text-left transition-colors relative cursor-pointer ${isActive
                   ? "bg-[#EFF8F7] text-[#0B6E75] font-semibold shadow-2xs"
                   : "text-slate-600 hover:text-slate-900 hover:bg-slate-50"
                   }`}
               >
                 {isActive && (
                   <span
-                    className="absolute left-0 top-1.5 bottom-1.5 w-[3px] rounded-r bg-[#0B6E75]"
+                    className="absolute left-0 top-2 bottom-2 w-[3px] rounded-r bg-[#0B6E75]"
                     aria-hidden="true"
                   />
                 )}
                 <Icon
-                  size={16}
+                  size={17}
                   className={`shrink-0 ${isActive ? "text-[#0B6E75]" : "text-slate-400"
                     }`}
                 />
@@ -199,21 +216,24 @@ export function SettingsLayout({
       </aside>
 
       {/* =========================================================================
-          RIGHT CONTENT PANE (flex-1 min-w-0 overflow-y-auto p-6 bg-[#F7F9FA])
+          RIGHT CONTENT PANE (flex-1 min-w-0 overflow-y-auto px-8 py-6 bg-[#F7F9FA])
          ========================================================================= */}
-      <main className="flex-1 min-w-0 h-full overflow-y-auto p-6 bg-[#F7F9FA] flex flex-col">
+      <section
+        aria-label="Settings Content Pane"
+        className="flex-1 min-w-0 h-full overflow-y-auto px-8 py-6 bg-[#F7F9FA] flex flex-col"
+      >
         {/* Section Title Header */}
         <div className="mb-4 shrink-0">
-          <h1 className="text-xl font-bold text-slate-900 tracking-tight">
+          <h1 className="text-[22px] font-bold text-slate-900 tracking-tight leading-tight">
             {title || activeSection.title}
           </h1>
-          <p className="text-xs text-slate-500 mt-1">
+          <p className="text-[13px] text-slate-500 mt-1">
             Configure {activeSection.title.toLowerCase()} preferences, policies, and parameters.
           </p>
         </div>
 
         {/* Horizontal Sub-Tabs (Clean underline tabs, no horizontal scrollbar clutter) */}
-        <div className="border-b border-slate-200 mb-6 flex items-center gap-6 overflow-x-auto shrink-0 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
+        <div className="border-b border-slate-200 mb-5 flex items-center gap-6 overflow-x-auto shrink-0 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
           {displayTabs.map((tab) => {
             const isActive = currentTabId === tab.id;
             return (
@@ -221,21 +241,20 @@ export function SettingsLayout({
                 key={tab.id}
                 type="button"
                 onClick={() => {
-                  if (onTabChange) {
-                    onTabChange(tab.id);
-                  }
                   if (tab.route) {
                     navigate(tab.route);
+                  } else if (onTabChange) {
+                    onTabChange(tab.id);
                   }
                 }}
-                className={`pb-3 text-xs font-medium transition-colors relative whitespace-nowrap flex items-center gap-1.5 cursor-pointer ${isActive
+                className={`pb-3 text-[13px] font-medium transition-colors relative whitespace-nowrap flex items-center gap-1.5 cursor-pointer ${isActive
                   ? "text-[#0B6E75] font-semibold"
                   : "text-slate-500 hover:text-slate-800"
                   }`}
               >
                 <span>{tab.label}</span>
                 {tab.badge && (
-                  <span className="text-[10px] px-1.5 py-0.2 rounded bg-teal-50 text-teal-700 border border-teal-200 font-semibold">
+                  <span className="text-[10.5px] px-1.5 py-0.5 rounded bg-teal-50 text-teal-700 border border-teal-200 font-semibold">
                     {tab.badge}
                   </span>
                 )}
@@ -248,10 +267,10 @@ export function SettingsLayout({
         </div>
 
         {/* Active Settings Content Card */}
-        <div className="bg-white border border-slate-200 rounded-xl p-6 shadow-2xs flex-1 min-h-0">
+        <div className="bg-white border border-slate-200/90 rounded-2xl p-6 shadow-[0_1px_3px_rgba(15,23,42,0.04)] flex-1 min-h-0">
           {children}
         </div>
-      </main>
+      </section>
     </div>
   );
 }

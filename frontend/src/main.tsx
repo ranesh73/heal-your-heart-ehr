@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useSyncExternalStore } from "react";
+import React, { useState, useEffect, useRef, useSyncExternalStore } from "react";
 import { createRoot } from "react-dom/client";
 import {
   QueryClient,
@@ -121,6 +121,7 @@ import {
 } from "./settings";
 import { DASHBOARD_ICONS } from "./DashboardIcons";
 import { HealYourHeartLogo } from "./HealYourHeartLogo";
+import { BootLoader } from "./Loaders";
 import { LandingPage } from "./LandingPage";
 import { LoginPage } from "./LoginPage";
 import { SignUpPage } from "./SignUpPage";
@@ -407,6 +408,29 @@ function Workspace() {
   const [waffleOpen, setWaffleOpen] = useState(false);
   const [moreMenuOpen, setMoreMenuOpen] = useState(false);
   const [activeBranch, setActiveBranch] = useState(branch);
+  const [isSigningInBoot, setIsSigningInBoot] = useState(false);
+  const signInTimerRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (signInTimerRef.current !== null) {
+        window.clearTimeout(signInTimerRef.current);
+      }
+    };
+  }, []);
+
+  const handleLoginSuccess = async () => {
+    setIsSigningInBoot(true);
+    if (signInTimerRef.current !== null) {
+      window.clearTimeout(signInTimerRef.current);
+    }
+    signInTimerRef.current = window.setTimeout(() => {
+      setIsSigningInBoot(false);
+      signInTimerRef.current = null;
+    }, 1600);
+    await qc.refetchQueries({ queryKey: ["me"] });
+    navigate("/home");
+  };
 
   const notify = (text: string) => {
     setToast(text);
@@ -494,15 +518,11 @@ function Workspace() {
   if (cleanPath === "/" || cleanPath === "") {
     return <LandingPage />;
   }
+  if (isSigningInBoot) {
+    return <BootLoader />;
+  }
   if (cleanPath === "/login") {
-    return (
-      <LoginPage
-        onLoginSuccess={async () => {
-          await qc.refetchQueries({ queryKey: ["me"] });
-          navigate("/home");
-        }}
-      />
-    );
+    return <LoginPage onLoginSuccess={handleLoginSuccess} />;
   }
   if (cleanPath === "/signup") {
     return <SignUpPage />;
@@ -514,18 +534,11 @@ function Workspace() {
     return <PatientPhrApp path={cleanPath} />;
   }
 
-  if (me.isLoading) return <Loading />;
+  if (me.isLoading) return <BootLoader message="Checking clinical session" />;
   if (!logged)
-    return (
-      <LoginPage
-        onLoginSuccess={async () => {
-          await qc.refetchQueries({ queryKey: ["me"] });
-          navigate("/home");
-        }}
-      />
-    );
+    return <LoginPage onLoginSuccess={handleLoginSuccess} />;
   if (patients.isLoading || staff.isLoading || metadata.isLoading)
-    return <Loading />;
+    return <BootLoader />;
   const error =
     patients.error || staff.error || resources.error || metadata.error;
   if (error)

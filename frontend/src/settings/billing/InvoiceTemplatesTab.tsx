@@ -78,7 +78,7 @@ export function InvoiceTemplatesTab() {
               display: "inline-flex",
               alignItems: "center",
               gap: 6,
-              background: "#f59e0b",
+              background: "#0B6E75",
               color: "#ffffff",
               border: "none",
               borderRadius: 4,

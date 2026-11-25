@@ -5,6 +5,7 @@ import { X, Plus, LoaderCircle, Inbox, ChevronRight } from "lucide-react";
 import { clsx } from "clsx";
 import { twMerge } from "tailwind-merge";
 import { Field, Row, label } from "./api";
+import { LiveEcgLoader } from "./Loaders";
 
 export const cn = (...v: Parameters<typeof clsx>) => twMerge(clsx(v));
 export function Button({
@@ -46,12 +47,8 @@ export function Empty({
     </div>
   );
 }
-export function Loading() {
-  return (
-    <div className="loading">
-      <LoaderCircle className="spin" size={20} /> Loading workspace…
-    </div>
-  );
+export function Loading({ label = "Loading clinical view…" }: { label?: string }) {
+  return <LiveEcgLoader label={label} />;
 }
 export function ErrorBox({ error }: { error: unknown }) {
   return error ? (

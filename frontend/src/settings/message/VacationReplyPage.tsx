@@ -261,7 +261,7 @@ export function VacationReplyPage() {
             disabled={saving}
             style={{
               padding: "7px 24px",
-              background: "#ea580c",
+              background: "#0B6E75",
               color: "#ffffff",
               border: "none",
               borderRadius: 4,

@@ -164,7 +164,7 @@ export function VaccinesPage({ onAddNew }: VaccinesPageProps) {
               alignItems: "center",
               gap: 6,
               padding: "7px 16px",
-              background: "#ea580c",
+              background: "#0B6E75",
               color: "#ffffff",
               border: "none",
               borderRadius: 4,

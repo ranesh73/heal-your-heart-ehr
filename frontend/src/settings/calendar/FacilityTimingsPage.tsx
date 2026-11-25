@@ -442,11 +442,11 @@ export function FacilityTimingsPage() {
             onClick={handleSaveTimezone}
             disabled={savingTz}
             style={{
-              background: "#ea8b0d",
+              background: "#0B6E75",
               color: "#ffffff",
               border: "none",
-              borderRadius: "3px",
-              padding: "5px 18px",
+              borderRadius: "6px",
+              padding: "6px 18px",
               fontSize: "13px",
               fontWeight: 600,
               cursor: savingTz ? "wait" : "pointer",
@@ -738,7 +738,7 @@ export function FacilityTimingsPage() {
                         width: "15px",
                         height: "15px",
                         cursor: "pointer",
-                        accentColor: "#ea8b0d",
+                        accentColor: "#0B6E75",
                       }}
                     />
                     <label
@@ -771,11 +771,11 @@ export function FacilityTimingsPage() {
               onClick={handleSaveTimings}
               disabled={savingHours}
               style={{
-                background: "#ea8b0d",
+                background: "#0B6E75",
                 color: "#ffffff",
                 border: "none",
-                borderRadius: "3px",
-                padding: "6px 20px",
+                borderRadius: "6px",
+                padding: "7px 20px",
                 fontSize: "13px",
                 fontWeight: 600,
                 cursor: savingHours ? "wait" : "pointer",

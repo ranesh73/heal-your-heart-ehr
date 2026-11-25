@@ -1,0 +1,346 @@
+/* ===== Heal Your Heart EHR — Boot & In-App Loaders ===== */
+
+/* Full-screen Login / Workspace Boot Loader (Doctor pushing ECG cart) */
+.hyh-boot-screen {
+  min-height: 100vh;
+  width: 100%;
+  display: grid;
+  place-items: center;
+  background: #f7f9fa;
+  padding: 24px;
+}
+
+.hyh-boot-loader {
+  --ceil: #f7fafa;
+  --lamp: #ffffff;
+  --lamp-glow: #ccfbf1;
+  --wall: #eff7f6;
+  --wain: #d6ebe8;
+  --rail: #8cc2bc;
+  --door: #add5d2;
+  --door-edge: #6ca6a1;
+  --sky: #d9f2f7;
+  --floor: #e2ecec;
+  --seam: #cad9d9;
+  --guide: #0b6e75;
+  --shadow: rgba(15, 23, 42, 0.14);
+  --coat: #ffffff;
+  --coat-edge: #cbd5e1;
+  --scrub: #0b6e75;
+  --skin: #c88767;
+  --hair: #1e293b;
+  --mattress: #0f766e;
+  --steel: #64748b;
+  --machine: #f8fafc;
+  --screen: #082326;
+  --screen-line: #2dd4bf;
+  --paper: #fff5f5;
+  --ink: #0f172a;
+  --text: #0b6e75;
+  --panel-edge: #cbd5e1;
+
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  padding: 24px;
+  font-family: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+
+.hyh-boot-brand {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #0b6e75;
+  opacity: 0.85;
+}
+
+.hyh-boot-loader svg {
+  width: min(400px, 92vw);
+  height: auto;
+  display: block;
+}
+
+.hyh-boot-status {
+  font-size: 13.5px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: var(--text);
+  min-height: 1.4em;
+  text-align: center;
+}
+
+.hyh-dots span {
+  animation: hyh-dot 1.4s infinite both;
+}
+.hyh-dots span:nth-child(2) {
+  animation-delay: 0.2s;
+}
+.hyh-dots span:nth-child(3) {
+  animation-delay: 0.4s;
+}
+
+.hyh-boot-loader svg * {
+  transform-box: view-box;
+}
+.hyh-far {
+  animation: hyh-run120 2s linear infinite;
+}
+.hyh-lights {
+  animation: hyh-run48 0.8s linear infinite;
+}
+.hyh-tiles {
+  animation: hyh-run24 0.24s linear infinite;
+}
+.hyh-stripe {
+  animation: hyh-dashrun 0.3s linear infinite;
+}
+.hyh-bob {
+  animation: hyh-bob 0.24s ease-in-out infinite;
+}
+.hyh-rig {
+  animation: hyh-bump 0.24s ease-in-out infinite;
+  animation-delay: -0.08s;
+}
+.hyh-leg {
+  transform-origin: 56px 64px;
+  animation: hyh-stride 0.48s ease-in-out infinite alternate;
+}
+.hyh-leg.hyh-back {
+  animation-delay: -0.48s;
+}
+.hyh-tail {
+  transform-origin: 56px 54px;
+  animation: hyh-flap 0.24s ease-in-out infinite alternate;
+}
+.hyh-wheel-a {
+  transform-origin: 104px 83px;
+  animation: hyh-spin 0.45s linear infinite;
+}
+.hyh-wheel-b {
+  transform-origin: 160px 83px;
+  animation: hyh-spin 0.45s linear infinite;
+}
+.hyh-trace {
+  animation: hyh-sweep 1.2s linear infinite;
+}
+.hyh-pulse {
+  transform-origin: 136px 41px;
+  animation: hyh-beat 1.2s ease-out infinite;
+}
+.hyh-knob {
+  transform-origin: 149px 44px;
+  animation: hyh-beat 1.2s ease-out infinite;
+}
+.hyh-flag {
+  transform-origin: 157px 54px;
+  animation: hyh-flutter 0.3s ease-in-out infinite alternate;
+}
+.hyh-bag {
+  transform-origin: 165px 16px;
+  animation: hyh-swing 0.48s ease-in-out infinite alternate;
+}
+.hyh-dome {
+  animation: hyh-dome 0.8s steps(1) infinite;
+}
+.hyh-halo {
+  animation: hyh-halo 0.8s linear infinite;
+}
+
+@keyframes hyh-run120 {
+  to {
+    transform: translateX(-120px);
+  }
+}
+@keyframes hyh-run48 {
+  to {
+    transform: translateX(-48px);
+  }
+}
+@keyframes hyh-run24 {
+  to {
+    transform: translateX(-24px);
+  }
+}
+@keyframes hyh-dashrun {
+  to {
+    stroke-dashoffset: -30;
+  }
+}
+@keyframes hyh-bob {
+  50% {
+    transform: translateY(-2.5px);
+  }
+}
+@keyframes hyh-bump {
+  50% {
+    transform: translateY(-1px);
+  }
+}
+@keyframes hyh-stride {
+  from {
+    transform: rotate(-24deg);
+  }
+  to {
+    transform: rotate(22deg);
+  }
+}
+@keyframes hyh-flap {
+  from {
+    transform: rotate(-4deg);
+  }
+  to {
+    transform: rotate(8deg);
+  }
+}
+@keyframes hyh-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@keyframes hyh-sweep {
+  from {
+    stroke-dashoffset: 100;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+@keyframes hyh-beat {
+  0% {
+    transform: scale(1.7);
+  }
+  30%,
+  100% {
+    transform: scale(1);
+  }
+}
+@keyframes hyh-flutter {
+  from {
+    transform: rotate(-7deg);
+  }
+  to {
+    transform: rotate(7deg);
+  }
+}
+@keyframes hyh-swing {
+  from {
+    transform: rotate(-3deg);
+  }
+  to {
+    transform: rotate(3deg);
+  }
+}
+@keyframes hyh-dot {
+  0%,
+  80%,
+  100% {
+    opacity: 0;
+  }
+  40% {
+    opacity: 1;
+  }
+}
+@keyframes hyh-dome {
+  0% {
+    fill: #b83b4a;
+  }
+  50% {
+    fill: #0b6e75;
+  }
+}
+@keyframes hyh-halo {
+  0% {
+    fill: #b83b4a;
+    opacity: 0.45;
+  }
+  22% {
+    opacity: 0.05;
+  }
+  49.9% {
+    fill: #b83b4a;
+    opacity: 0.45;
+  }
+  50% {
+    fill: #0b6e75;
+    opacity: 0.45;
+  }
+  72% {
+    opacity: 0.05;
+  }
+  99.9% {
+    fill: #0b6e75;
+    opacity: 0.45;
+  }
+  100% {
+    fill: #b83b4a;
+    opacity: 0.45;
+  }
+}
+
+/* In-App Live ECG Trace Loader (for inner pages, patient charts, modules) */
+.hyh-ecg-loader {
+  min-height: 160px;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 24px 16px;
+}
+
+.hyh-ecg-svg {
+  width: 168px;
+  height: 52px;
+  overflow: visible;
+  display: block;
+}
+
+.hyh-ecg-ghost {
+  fill: none;
+  stroke: rgba(11, 110, 117, 0.16);
+  stroke-width: 2.2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.hyh-ecg-line {
+  fill: none;
+  stroke: #0b6e75;
+  stroke-width: 2.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-dasharray: 85 180;
+  animation: hyh-ecg-draw 1.35s linear infinite;
+  filter: drop-shadow(0 0 4px rgba(20, 184, 166, 0.32));
+}
+
+.hyh-ecg-label {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: #5c7377;
+  letter-spacing: 0.01em;
+}
+
+@keyframes hyh-ecg-draw {
+  from {
+    stroke-dashoffset: 265;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hyh-boot-loader svg *,
+  .hyh-dots span,
+  .hyh-ecg-line {
+    animation: none !important;
+  }
+  .hyh-trace,
+  .hyh-ecg-line {
+    stroke-dasharray: none;
+  }
+}

@@ -265,17 +265,6 @@ export function SettingContentView({
               <Check size={14} /> Saved automatically
             </span>
           )}
-
-          {option.fields && option.fields.length > 0 && (
-            <button
-              type="button"
-              className="charm-btn-primary-action"
-              onClick={handleSave}
-            >
-              <Save size={14} />
-              <span>Save Changes</span>
-            </button>
-          )}
         </div>
       </div>
 
@@ -635,7 +624,7 @@ export function SettingContentView({
             <div className="charm-form-actions-footer">
               <button
                 type="button"
-                className="charm-btn-primary-action"
+                className="inline-flex items-center gap-1.5 bg-[#0B6E75] hover:bg-[#09595F] text-white text-xs font-semibold px-4 py-2 rounded-lg shadow-2xs transition-colors cursor-pointer"
                 onClick={handleSave}
               >
                 <Save size={14} />

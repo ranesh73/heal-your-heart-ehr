@@ -179,7 +179,7 @@ export function FeeSchedulesTab() {
             disabled={settingsSaving}
             style={{
               padding: "7px 22px",
-              background: "#f59e0b",
+              background: "#0B6E75",
               color: "#ffffff",
               border: "none",
               borderRadius: 4,
@@ -228,7 +228,7 @@ export function FeeSchedulesTab() {
                 display: "flex",
                 alignItems: "center",
                 gap: 6,
-                background: "#f59e0b",
+                background: "#0B6E75",
                 color: "#ffffff",
                 border: "none",
                 padding: "7px 16px",

@@ -431,7 +431,7 @@ export function VaccineChartBuilder({
               onClick={handleSave}
               style={{
                 padding: "8px 20px",
-                background: "#ea580c",
+                background: "#0B6E75",
                 color: "#ffffff",
                 border: "none",
                 borderRadius: 4,

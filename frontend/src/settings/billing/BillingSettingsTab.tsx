@@ -714,7 +714,7 @@ export function BillingSettingsTab() {
                 disabled={savingSettings}
                 style={{
                   padding: "7px 24px",
-                  background: "#f59e0b",
+                  background: "#0B6E75",
                   color: "#ffffff",
                   border: "none",
                   borderRadius: 4,
@@ -748,7 +748,7 @@ export function BillingSettingsTab() {
               display: "flex",
               alignItems: "center",
               gap: 6,
-              background: "#f59e0b",
+              background: "#0B6E75",
               color: "#ffffff",
               border: "none",
               padding: "6px 14px",
@@ -804,7 +804,7 @@ export function BillingSettingsTab() {
               display: "flex",
               alignItems: "center",
               gap: 6,
-              background: "#f59e0b",
+              background: "#0B6E75",
               color: "#ffffff",
               border: "none",
               padding: "6px 14px",
@@ -867,7 +867,7 @@ export function BillingSettingsTab() {
                 display: "flex",
                 alignItems: "center",
                 gap: 6,
-                background: "#f59e0b",
+                background: "#0B6E75",
                 color: "#ffffff",
                 border: "none",
                 padding: "6px 14px",
@@ -940,7 +940,7 @@ export function BillingSettingsTab() {
               </button>
               <button
                 type="submit"
-                style={{ padding: "6px 18px", border: "none", background: "#f59e0b", color: "#ffffff", fontWeight: 600, borderRadius: 4, cursor: "pointer" }}
+                style={{ padding: "6px 18px", border: "none", background: "#0B6E75", color: "#ffffff", fontWeight: 600, borderRadius: 4, cursor: "pointer" }}
               >
                 Add
               </button>
@@ -976,7 +976,7 @@ export function BillingSettingsTab() {
               </button>
               <button
                 type="submit"
-                style={{ padding: "6px 18px", border: "none", background: "#f59e0b", color: "#ffffff", fontWeight: 600, borderRadius: 4, cursor: "pointer" }}
+                style={{ padding: "6px 18px", border: "none", background: "#0B6E75", color: "#ffffff", fontWeight: 600, borderRadius: 4, cursor: "pointer" }}
               >
                 Add
               </button>
@@ -1027,7 +1027,7 @@ export function BillingSettingsTab() {
               </button>
               <button
                 type="submit"
-                style={{ padding: "6px 18px", border: "none", background: "#f59e0b", color: "#ffffff", fontWeight: 600, borderRadius: 4, cursor: "pointer" }}
+                style={{ padding: "6px 18px", border: "none", background: "#0B6E75", color: "#ffffff", fontWeight: 600, borderRadius: 4, cursor: "pointer" }}
               >
                 Add
               </button>

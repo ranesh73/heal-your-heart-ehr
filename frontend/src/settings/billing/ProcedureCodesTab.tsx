@@ -227,7 +227,7 @@ export function ProcedureCodesTab() {
               display: "flex",
               alignItems: "center",
               gap: 6,
-              background: "#f59e0b",
+              background: "#0B6E75",
               color: "#ffffff",
               border: "none",
               padding: "7px 16px",
@@ -565,7 +565,7 @@ export function ProcedureCodesTab() {
               </button>
               <button
                 type="submit"
-                style={{ padding: "7px 20px", borderRadius: 4, border: "none", background: "#f59e0b", color: "#ffffff", fontWeight: 600, cursor: "pointer" }}
+                style={{ padding: "7px 20px", borderRadius: 4, border: "none", background: "#0B6E75", color: "#ffffff", fontWeight: 600, cursor: "pointer" }}
               >
                 {editingItem ? "Update" : "Add"}
               </button>

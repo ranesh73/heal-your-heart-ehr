@@ -556,7 +556,7 @@ export function AddBillingPackagePage({ onBack, onSaved, packageId }: AddBilling
             disabled={saving}
             style={{
               padding: "8px 24px",
-              background: "#f59e0b",
+              background: "#0B6E75",
               color: "#ffffff",
               border: "none",
               borderRadius: 4,

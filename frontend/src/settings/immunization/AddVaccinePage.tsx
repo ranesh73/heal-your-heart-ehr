@@ -367,7 +367,7 @@ export function AddVaccinePage({ onBack, onSuccess }: AddVaccinePageProps) {
             disabled={saving}
             style={{
               padding: "8px 22px",
-              background: "#ea580c",
+              background: "#0B6E75",
               color: "#ffffff",
               border: "none",
               borderRadius: 6,

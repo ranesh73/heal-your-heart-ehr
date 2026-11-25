@@ -209,7 +209,7 @@ export function AddFeeSchedulePage({ onBack, onSaved, scheduleId }: AddFeeSchedu
             disabled={saving}
             style={{
               padding: "7px 22px",
-              background: "#f59e0b",
+              background: "#0B6E75",
               color: "#ffffff",
               border: "none",
               borderRadius: 4,
@@ -548,7 +548,7 @@ export function AddFeeSchedulePage({ onBack, onSaved, scheduleId }: AddFeeSchedu
           type="button"
           onClick={handleSave}
           disabled={saving}
-          style={{ padding: "7px 22px", background: "#f59e0b", color: "#ffffff", border: "none", borderRadius: 4, fontSize: 13, fontWeight: 600, cursor: "pointer" }}
+          style={{ padding: "7px 22px", background: "#0B6E75", color: "#ffffff", border: "none", borderRadius: 4, fontSize: 13, fontWeight: 600, cursor: "pointer" }}
         >
           {saving ? "Saving..." : scheduleId ? "Save" : "Add"}
         </button>

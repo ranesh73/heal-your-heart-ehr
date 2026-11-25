@@ -122,40 +122,24 @@ export function IndividualSettingPage({
         break;
     }
 
-    const calendarTabs = category.options.map((opt) => ({
-      id: opt.id,
-      label: opt.name,
-      badge: opt.badge,
-    }));
-
     return (
       <SettingsLayout
         currentCategoryId="calendar"
         activeTab={activeOptionId}
         onTabChange={handleTabChange}
-        tabs={calendarTabs}
       >
-        <div style={{ maxWidth: 1180, margin: "0 auto", padding: "20px 24px" }}>
-          {content}
-        </div>
+        {content}
       </SettingsLayout>
     );
   }
 
   // Specialized Inventory Subpages (3 Horizontal Tabs per Part B)
   if (categoryId === "inventory") {
-    const inventoryTabs = category.options.map((opt) => ({
-      id: opt.id,
-      label: opt.name,
-      badge: opt.badge,
-    }));
-
     return (
       <SettingsLayout
         currentCategoryId="inventory"
         activeTab={activeOptionId}
         onTabChange={handleTabChange}
-        tabs={inventoryTabs}
       >
         <InventorySettingsPage activeOptionId={activeOptionId} />
       </SettingsLayout>
@@ -164,18 +148,11 @@ export function IndividualSettingPage({
 
   // Specialized Manage Injections Subpage (Part D & E)
   if (categoryId === "injections" && activeOptionId === "manage-injections") {
-    const injectionTabs = category.options.map((opt) => ({
-      id: opt.id,
-      label: opt.name,
-      badge: opt.badge,
-    }));
-
     return (
       <SettingsLayout
         currentCategoryId="injections"
         activeTab={activeOptionId}
         onTabChange={handleTabChange}
-        tabs={injectionTabs}
       >
         <ManageInjectionsPage />
       </SettingsLayout>
@@ -201,49 +178,33 @@ export function IndividualSettingPage({
 
   // Specialized Rx Subpages (Manage Supplements and Drugs)
   if (categoryId === "rx") {
-    const rxTabs = category.options.map((opt) => ({
-      id: opt.id,
-      label: opt.name,
-      badge: opt.badge,
-    }));
-
     return (
       <SettingsLayout
         currentCategoryId="rx"
         activeTab={activeOptionId}
         onTabChange={handleTabChange}
-        tabs={rxTabs}
       >
-        <div style={{ maxWidth: 1180, margin: "0 auto", padding: "20px 24px" }}>
-          {activeOptionId === "manage-supplements-drugs" ? (
-            <ManageSupplementsDrugsPage />
-          ) : (
-            <SettingContentView
-              category={category}
-              option={category.options.find((o) => o.id === activeOptionId) || category.options[0]}
-              onSelectOption={(o) => navigate(`/settings/${categoryId}/${o.id}`)}
-              onBack={() => navigate("/settings")}
-            />
-          )}
-        </div>
+        {activeOptionId === "manage-supplements-drugs" ? (
+          <ManageSupplementsDrugsPage />
+        ) : (
+          <SettingContentView
+            category={category}
+            option={category.options.find((o) => o.id === activeOptionId) || category.options[0]}
+            onSelectOption={(o) => navigate(`/settings/${categoryId}/${o.id}`)}
+            onBack={() => navigate("/settings")}
+          />
+        )}
       </SettingsLayout>
     );
   }
 
   // Specialized Immunization Subpages (Vaccines, VIS, Vaccine Chart)
   if (categoryId === "immunization") {
-    const immunizationTabs = category.options.map((opt) => ({
-      id: opt.id,
-      label: opt.name,
-      badge: opt.badge,
-    }));
-
     return (
       <SettingsLayout
         currentCategoryId="immunization"
         activeTab={activeOptionId}
         onTabChange={handleTabChange}
-        tabs={immunizationTabs}
       >
         <ImmunizationSettingsPage activeOptionId={activeOptionId} />
       </SettingsLayout>
@@ -252,18 +213,11 @@ export function IndividualSettingPage({
 
   // Specialized Message Subpages (Signature, Vacation Reply, My Preferences)
   if (categoryId === "message") {
-    const messageTabs = category.options.map((opt) => ({
-      id: opt.id,
-      label: opt.name,
-      badge: opt.badge,
-    }));
-
     return (
       <SettingsLayout
         currentCategoryId="message"
         activeTab={activeOptionId}
         onTabChange={handleTabChange}
-        tabs={messageTabs}
       >
         <MessageSettingsPage activeOptionId={activeOptionId} />
       </SettingsLayout>
@@ -272,18 +226,11 @@ export function IndividualSettingPage({
 
   // Specialized Task Subpages (My Preferences)
   if (categoryId === "task") {
-    const taskTabs = category.options.map((opt) => ({
-      id: opt.id,
-      label: opt.name,
-      badge: opt.badge,
-    }));
-
     return (
       <SettingsLayout
         currentCategoryId="task"
         activeTab={activeOptionId}
         onTabChange={handleTabChange}
-        tabs={taskTabs}
       >
         <TaskPreferencesPage />
       </SettingsLayout>
@@ -292,43 +239,27 @@ export function IndividualSettingPage({
 
   // Specialized Billing Subpages (All 9 CharmHealth Tabs)
   if (categoryId === "billing") {
-    const billingTabs = category.options.map((opt) => ({
-      id: opt.id,
-      label: opt.name,
-      badge: opt.badge,
-    }));
-
     return (
       <SettingsLayout
         currentCategoryId="billing"
         activeTab={activeOptionId}
         onTabChange={handleTabChange}
-        tabs={billingTabs}
       >
-        <div style={{ maxWidth: 1180, margin: "0 auto", padding: "20px 24px" }}>
-          <BillingSettingsPage
-            activeOptionId={activeOptionId}
-            onTabChange={handleTabChange}
-          />
-        </div>
+        <BillingSettingsPage
+          activeOptionId={activeOptionId}
+          onTabChange={handleTabChange}
+        />
       </SettingsLayout>
     );
   }
 
   // Specialized Patient Recall Subpages (Recall Types | Recall Status | Recall Preferences)
   if (categoryId === "patient-recall") {
-    const recallTabs = category.options.map((opt) => ({
-      id: opt.id,
-      label: opt.name,
-      badge: opt.badge,
-    }));
-
     return (
       <SettingsLayout
         currentCategoryId="patient-recall"
         activeTab={activeOptionId}
         onTabChange={handleTabChange}
-        tabs={recallTabs}
       >
         <PatientRecallSettingsPage activeOptionId={activeOptionId} />
       </SettingsLayout>
@@ -337,25 +268,16 @@ export function IndividualSettingPage({
 
   // Specialized PHR Settings Subpages (Preferences, Share Clinical Data, Embed, Custom App, Useful Info)
   if (categoryId === "phr-settings") {
-    const phrTabs = category.options.map((opt) => ({
-      id: opt.id,
-      label: opt.name,
-      badge: opt.badge,
-    }));
-
     return (
       <SettingsLayout
         currentCategoryId="phr-settings"
         activeTab={activeOptionId}
         onTabChange={handleTabChange}
-        tabs={phrTabs}
       >
-        <div style={{ maxWidth: 1180, margin: "0 auto", padding: "20px 24px" }}>
-          <PhrSettingsPage
-            activeOptionId={activeOptionId}
-            onTabChange={handleTabChange}
-          />
-        </div>
+        <PhrSettingsPage
+          activeOptionId={activeOptionId}
+          onTabChange={handleTabChange}
+        />
       </SettingsLayout>
     );
   }
@@ -363,18 +285,11 @@ export function IndividualSettingPage({
   // Other Categories: Render Dedicated Individual Subpage
   const currentOption = category.options.find((o) => o.id === activeOptionId) || category.options[0];
 
-  const categoryTabs = category.options.map((opt) => ({
-    id: opt.id,
-    label: opt.name,
-    badge: opt.badge,
-  }));
-
   return (
     <SettingsLayout
       currentCategoryId={categoryId}
       activeTab={activeOptionId}
       onTabChange={handleTabChange}
-      tabs={categoryTabs}
     >
       <div className="charm-settings-inner-container">
         {currentOption ? (

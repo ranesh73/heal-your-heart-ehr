@@ -244,7 +244,7 @@ export function ManageInjectionsPage() {
             onClick={handleOpenAddModal}
             className="charm-btn-orange-new"
             style={{
-              background: "#f59e0b",
+              background: "#0B6E75",
               color: "#ffffff",
               border: "none",
               borderRadius: 4,
