@@ -286,18 +286,18 @@ export function PhrSettingsPage({ activeOptionId, onTabChange }: PhrSettingsPage
     );
   }
 
-  // Common Orange Save Button style
-  const orangeSaveBtn = (
+  // Clinical Teal Save Button style
+  const tealSaveBtn = (
     <button
       type="button"
       onClick={savePreferences}
       disabled={saving}
       style={{
-        background: "#FF9800",
+        background: "#0B6E75",
         color: "#FFFFFF",
         border: "none",
         borderRadius: 4,
-        padding: "5px 16px",
+        padding: "6px 18px",
         fontSize: 13,
         fontWeight: 600,
         cursor: "pointer",
@@ -344,7 +344,7 @@ export function PhrSettingsPage({ activeOptionId, onTabChange }: PhrSettingsPage
       {/* =========================================================================
           TAB 1: PREFERENCES (Exact match to WhatsApp Image 2026-11-21 at 1.55.48 PM (4).jpeg & media_1795252465054_76dd5977.png)
          ========================================================================= */}
-      {activeOptionId === "phr-preferences" && (
+      {(activeOptionId === "preferences" || activeOptionId === "phr-preferences" || !activeOptionId) && (
         <div style={{ display: "flex", flexDirection: "column", gap: 28 }}>
           {/* Section 1: PHR Modules */}
           <div>
@@ -439,7 +439,7 @@ export function PhrSettingsPage({ activeOptionId, onTabChange }: PhrSettingsPage
               </label>
             </div>
 
-            {orangeSaveBtn}
+            {tealSaveBtn}
           </div>
 
           {/* Section 2: Messages / Documents */}
@@ -565,7 +565,7 @@ export function PhrSettingsPage({ activeOptionId, onTabChange }: PhrSettingsPage
               </div>
             </div>
 
-            {orangeSaveBtn}
+            {tealSaveBtn}
           </div>
 
           {/* Section 3: Patient Message Preferences */}
@@ -723,7 +723,7 @@ export function PhrSettingsPage({ activeOptionId, onTabChange }: PhrSettingsPage
               </div>
             </div>
 
-            {orangeSaveBtn}
+            {tealSaveBtn}
           </div>
 
           {/* Section 4: Patient Shared Data */}
@@ -762,7 +762,7 @@ export function PhrSettingsPage({ activeOptionId, onTabChange }: PhrSettingsPage
               </div>
             </div>
 
-            {orangeSaveBtn}
+            {tealSaveBtn}
           </div>
 
           {/* Section 5: Refills */}
@@ -831,7 +831,7 @@ export function PhrSettingsPage({ activeOptionId, onTabChange }: PhrSettingsPage
               </div>
             </div>
 
-            {orangeSaveBtn}
+            {tealSaveBtn}
           </div>
 
           {/* Section 6: Practice Preferences */}
@@ -866,7 +866,7 @@ export function PhrSettingsPage({ activeOptionId, onTabChange }: PhrSettingsPage
               </div>
             </div>
 
-            {orangeSaveBtn}
+            {tealSaveBtn}
           </div>
         </div>
       )}
@@ -1010,7 +1010,7 @@ export function PhrSettingsPage({ activeOptionId, onTabChange }: PhrSettingsPage
               onClick={saveShareClinicalData}
               disabled={saving}
               style={{
-                background: "#FF9800",
+                background: "#0B6E75",
                 color: "#FFFFFF",
                 border: "none",
                 borderRadius: 4,
@@ -1165,7 +1165,7 @@ export function PhrSettingsPage({ activeOptionId, onTabChange }: PhrSettingsPage
               style={{
                 borderLeft: "1px solid #E0D9C8",
                 paddingLeft: 20,
-                minWidth: 240,
+                minWidth: 260,
                 fontSize: 12,
                 color: "#333333",
               }}
@@ -1173,14 +1173,14 @@ export function PhrSettingsPage({ activeOptionId, onTabChange }: PhrSettingsPage
               <div style={{ fontWeight: 700, marginBottom: 4 }}>Annual Subscription Charges</div>
               <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 2 }}>
                 <span>1st Year</span>
-                <span>: $ 500</span>
+                <span className="font-semibold text-slate-800">: ₹ 39,999 / yr</span>
               </div>
               <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
                 <span>Subsequent Year(s)</span>
-                <span>: $ 250</span>
+                <span className="font-semibold text-slate-800">: ₹ 19,999 / yr</span>
               </div>
               <div style={{ fontSize: 11, color: "#666666", marginTop: 4 }}>
-                Unlimited Patient Downloads
+                Unlimited Patient Downloads · iOS &amp; Android
               </div>
             </div>
           </div>
@@ -1195,8 +1195,8 @@ export function PhrSettingsPage({ activeOptionId, onTabChange }: PhrSettingsPage
                 style={{
                   background: "none",
                   border: "none",
-                  borderBottom: customAppSubTab === tab ? "2px solid #FF9800" : "2px solid transparent",
-                  color: customAppSubTab === tab ? "#FF9800" : "#666666",
+                  borderBottom: customAppSubTab === tab ? "2px solid #0B6E75" : "2px solid transparent",
+                  color: customAppSubTab === tab ? "#0B6E75" : "#666666",
                   fontSize: 13,
                   fontWeight: customAppSubTab === tab ? 700 : 500,
                   padding: "6px 4px",
@@ -1242,24 +1242,25 @@ export function PhrSettingsPage({ activeOptionId, onTabChange }: PhrSettingsPage
 
               {/* Bottom Note */}
               <div style={{ fontSize: 12, color: "#555555", marginTop: 24, marginBottom: 16 }}>
-                A dummy patient will be created in your account as part of this process. This is required by Apple/Google, as part of their approval process.
+                A verified test patient profile will be provisioned in your clinical workspace for Apple App Store and Google Play health compliance verification.
               </div>
 
-              {/* Teal Buttons SAVE & SUBMIT */}
+              {/* Clinical Teal Buttons SAVE & SUBMIT */}
               <div style={{ display: "flex", gap: 12 }}>
                 <button
                   type="button"
                   onClick={saveCustomApp}
                   disabled={saving}
                   style={{
-                    background: "#00ACC1",
+                    background: "#0B6E75",
                     color: "#FFFFFF",
                     border: "none",
-                    borderRadius: 3,
+                    borderRadius: 4,
                     padding: "7px 24px",
                     fontSize: 13,
                     fontWeight: 700,
                     cursor: "pointer",
+                    boxShadow: "0 1px 2px rgba(0,0,0,0.1)",
                   }}
                 >
                   SAVE
@@ -1271,14 +1272,15 @@ export function PhrSettingsPage({ activeOptionId, onTabChange }: PhrSettingsPage
                     alert("Application submitted for AppStore review packaging!");
                   }}
                   style={{
-                    background: "#00ACC1",
+                    background: "#0B6E75",
                     color: "#FFFFFF",
                     border: "none",
-                    borderRadius: 3,
+                    borderRadius: 4,
                     padding: "7px 24px",
                     fontSize: 13,
                     fontWeight: 700,
                     cursor: "pointer",
+                    boxShadow: "0 1px 2px rgba(0,0,0,0.1)",
                   }}
                 >
                   SUBMIT

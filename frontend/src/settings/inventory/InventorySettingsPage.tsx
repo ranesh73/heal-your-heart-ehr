@@ -199,7 +199,7 @@ export function InventorySettingsPage({ activeOptionId }: InventorySettingsPageP
             onClick={handleSave}
             disabled={saving}
             style={{
-              background: "#00838f",
+              background: "#0B6E75",
               color: "#ffffff",
               border: "none",
               borderRadius: 4,
@@ -231,7 +231,7 @@ export function InventorySettingsPage({ activeOptionId }: InventorySettingsPageP
           {/* ========================================================================= */}
           {/* TAB 1: INVENTORY AND VACCINE SETTINGS                                     */}
           {/* ========================================================================= */}
-          {activeOptionId === "inventory-vaccine-settings" && (
+          {(activeOptionId === "inventory-vaccine-settings" || activeOptionId === "manage-inventory" || !activeOptionId) && (
             <div style={{ background: "#ffffff", border: "1px solid #e2e8f0", borderRadius: 6, padding: "20px 24px" }}>
               <p style={{ fontSize: 13, color: "#64748b", marginTop: 0, marginBottom: 24 }}>
                 Stock threshold alerts, batch tracking, expiry notices (EECP treatment kits, ECG electrodes).
@@ -640,7 +640,7 @@ export function InventorySettingsPage({ activeOptionId }: InventorySettingsPageP
                               <td style={{ padding: "8px 12px", fontWeight: 600, color: "#1e293b" }}>
                                 {req.source_facility_name || "Central Store"}
                               </td>
-                              <td style={{ padding: "8px 12px", fontWeight: 600, color: "#00838f" }}>
+                              <td style={{ padding: "8px 12px", fontWeight: 600, color: "#0B6E75" }}>
                                 {req.destination_facility_name || "Branch Clinic"}
                               </td>
                               <td style={{ padding: "8px 12px" }}>
@@ -844,7 +844,7 @@ export function InventorySettingsPage({ activeOptionId }: InventorySettingsPageP
                   setTab2Data({ ...tab2Data, enableMultiStore: true });
                   setMultiStoreWarningOpen(false);
                 }}
-                style={{ background: "#00838f", color: "#ffffff", border: "none", borderRadius: 4, padding: "7px 16px", fontSize: 13, fontWeight: 600, cursor: "pointer" }}
+                style={{ background: "#0B6E75", color: "#ffffff", border: "none", borderRadius: 4, padding: "7px 16px", fontSize: 13, fontWeight: 600, cursor: "pointer" }}
               >
                 Confirm &amp; Enable Multi-Store
               </button>
@@ -950,7 +950,7 @@ export function InventorySettingsPage({ activeOptionId }: InventorySettingsPageP
                 </button>
                 <button
                   type="submit"
-                  style={{ background: "#00838f", color: "#ffffff", border: "none", borderRadius: 4, padding: "7px 16px", fontSize: 13, fontWeight: 600, cursor: "pointer" }}
+                  style={{ background: "#0B6E75", color: "#ffffff", border: "none", borderRadius: 4, padding: "7px 16px", fontSize: 13, fontWeight: 600, cursor: "pointer" }}
                 >
                   Submit Requisition
                 </button>

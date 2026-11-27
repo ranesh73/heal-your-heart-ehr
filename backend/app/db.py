@@ -47,6 +47,34 @@ def init_db():
     log = logging.getLogger('ehr')
     m.Base.metadata.create_all(bind=engine)
 
+    if engine.dialect.name == 'sqlite' and SNAPSHOT.exists():
+        try:
+            # Ensure templates and related clinical tables are synced from master snapshot
+            src_conn = sqlite3.connect(SNAPSHOT)
+            src_cur = src_conn.cursor()
+            dst_conn = sqlite3.connect(DB_FILE)
+            dst_cur = dst_conn.cursor()
+            
+            dst_tables = {r[0] for r in dst_cur.execute("SELECT name FROM sqlite_master WHERE type='table'")}
+            template_tables = [
+                'templates', 'template_sections', 'template_components',
+                'template_options', 'template_relationships', 'template_permissions',
+                'template_responses'
+            ]
+            for t in template_tables:
+                if t not in dst_tables:
+                    create_sql = src_cur.execute(f"SELECT sql FROM sqlite_master WHERE name='{t}'").fetchone()[0]
+                    dst_cur.execute(create_sql)
+                    rows = src_cur.execute(f"SELECT * FROM {t}").fetchall()
+                    if rows:
+                        placeholders = ",".join(["?"] * len(rows[0]))
+                        dst_cur.executemany(f"INSERT INTO {t} VALUES ({placeholders})", rows)
+            dst_conn.commit()
+            src_conn.close()
+            dst_conn.close()
+        except Exception as e:
+            log.warning("SQLite template table sync check skipped: %s", e)
+
     if engine.dialect.name != 'sqlite':
         try:
             with engine.begin() as conn:

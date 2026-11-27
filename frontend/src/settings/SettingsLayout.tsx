@@ -1,7 +1,5 @@
-import React, { useState, useMemo } from "react";
+import React, { useMemo } from "react";
 import {
-  Search,
-  X,
   Building2,
   CalendarDays,
   UserCheck,
@@ -10,9 +8,9 @@ import {
   IndianRupee,
   MessageSquare,
   ShieldCheck,
-  ArrowLeft,
 } from "lucide-react";
 import { navigate } from "../api";
+import { AnimatedArrowButton } from "../AnimatedArrowButton";
 import {
   SETTINGS_SECTIONS,
   getSectionForCategory,
@@ -59,8 +57,6 @@ export function SettingsLayout({
   title,
   children,
 }: SettingsLayoutProps) {
-  const [searchQuery, setSearchQuery] = useState("");
-
   // Determine current active section
   const activeSection: SettingsSection = useMemo(() => {
     return getSectionForCategory(currentCategoryId);
@@ -68,25 +64,6 @@ export function SettingsLayout({
 
   // Determine tabs to display from canonical 8-section tab list
   const displayTabs = activeSection.tabs;
-
-  // Search results
-  const searchResults = useMemo(() => {
-    const q = searchQuery.trim().toLowerCase();
-    if (!q) return [];
-    return ALL_SETTING_OPTIONS.filter((opt) => {
-      return (
-        opt.name.toLowerCase().includes(q) ||
-        opt.categoryName.toLowerCase().includes(q) ||
-        opt.description.toLowerCase().includes(q) ||
-        opt.keywords.some((k) => k.toLowerCase().includes(q))
-      );
-    }).slice(0, 8);
-  }, [searchQuery]);
-
-  const handleSelectSearchResult = (opt: SettingOption) => {
-    setSearchQuery("");
-    navigate(`/settings/${opt.categoryId}/${opt.id}`);
-  };
 
   const currentTabId = useMemo(() => {
     if (activeTab) {
@@ -111,71 +88,14 @@ export function SettingsLayout({
         aria-label="Settings Navigation"
         className="w-[264px] shrink-0 h-full overflow-y-auto border-r border-slate-200 bg-white p-4 flex flex-col select-none"
       >
-        {/* Back to Homepage Button */}
-        <button
-          type="button"
-          onClick={() => navigate("/home")}
-          className="w-full mb-3.5 h-9 px-3 rounded-xl border border-slate-200 bg-slate-50/80 hover:bg-[#EFF8F7] hover:border-[#0B6E75]/40 text-slate-700 hover:text-[#0B6E75] text-[13px] font-semibold flex items-center gap-2 transition-colors cursor-pointer shrink-0"
-        >
-          <ArrowLeft size={15} />
-          <span>Back to Home</span>
-        </button>
-
-        {/* Compact Sidebar Search */}
-        <div className="relative mb-4 shrink-0">
-          <Search
-            size={14}
-            className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none"
+        {/* Back to Homepage Button (Clean, no weird outer rectangular box) */}
+        <div className="mb-4 px-1 pt-1">
+          <AnimatedArrowButton
+            direction="left"
+            size="sm"
+            label="Back to Home"
+            onClick={() => navigate("/home")}
           />
-          <input
-            type="text"
-            placeholder="Search settings..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-8 pr-7 py-2 bg-slate-50 border border-slate-200 rounded-xl text-[13px] text-slate-800 placeholder-slate-400 focus:bg-white focus:outline-none focus:ring-1 focus:ring-[#0B6E75] focus:border-[#0B6E75] transition"
-          />
-          {searchQuery && (
-            <button
-              type="button"
-              title="Clear search"
-              onClick={() => setSearchQuery("")}
-              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-0.5"
-            >
-              <X size={13} />
-            </button>
-          )}
-
-          {/* Quick Search Results Dropdown */}
-          {searchQuery.trim().length > 0 && (
-            <div className="absolute left-0 right-0 top-full mt-1.5 bg-white border border-slate-200 rounded-xl shadow-lg z-50 max-h-72 overflow-y-auto divide-y divide-slate-100">
-              {searchResults.length === 0 ? (
-                <div className="p-3 text-center text-[12.5px] text-slate-500">
-                  No matching settings found.
-                </div>
-              ) : (
-                searchResults.map((opt) => (
-                  <button
-                    key={`${opt.categoryId}-${opt.id}`}
-                    type="button"
-                    onClick={() => handleSelectSearchResult(opt)}
-                    className="w-full text-left p-2.5 hover:bg-[#EFF8F7] transition-colors flex flex-col cursor-pointer"
-                  >
-                    <div className="flex items-center justify-between gap-2">
-                      <span className="font-semibold text-[12.5px] text-slate-800 truncate">
-                        {opt.name}
-                      </span>
-                      <span className="text-[10.5px] text-slate-400 uppercase font-mono shrink-0">
-                        {opt.categoryName}
-                      </span>
-                    </div>
-                    <span className="text-[11.5px] text-slate-500 truncate mt-0.5">
-                      {opt.description}
-                    </span>
-                  </button>
-                ))
-              )}
-            </div>
-          )}
         </div>
 
         {/* 8 Clean Settings Sections (No numeric count badges) */}

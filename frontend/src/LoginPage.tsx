@@ -1,7 +1,20 @@
 import React, { useState } from "react";
-import { Eye, EyeOff, Lock, User, LogIn, ArrowLeft, ShieldCheck, Mail, Phone, AlertCircle, CheckCircle2 } from "lucide-react";
+import {
+  Eye,
+  EyeOff,
+  Lock,
+  User,
+  LogIn,
+  ArrowLeft,
+  KeyRound,
+  Sparkles,
+  AlertCircle,
+  CheckCircle2,
+} from "lucide-react";
 import { api, setSession, navigate } from "./api";
 import { HealYourHeartLogo } from "./HealYourHeartLogo";
+import { AnimatedArrowButton } from "./AnimatedArrowButton";
+import "./uiverseLogin.css";
 
 interface LoginPageProps {
   onLoginSuccess?: () => void;
@@ -82,7 +95,6 @@ export function LoginPage({ onLoginSuccess }: LoginPageProps) {
     setLoading(true);
 
     try {
-      // For OTP login: in this system, OTP verification can be checked, then logged in
       const res = await api("/auth/login", "POST", {
         email: identifier.trim(),
         password: password || "password123",
@@ -102,124 +114,50 @@ export function LoginPage({ onLoginSuccess }: LoginPageProps) {
   };
 
   return (
-    <div
-      style={{
-        minHeight: "100vh",
-        backgroundColor: "#f1f5f9",
-        display: "flex",
-        flexDirection: "column",
-        justifyContent: "space-between",
-        fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
-      }}
-    >
+    <div className="hyh-login-page">
       {/* Top Navbar */}
-      <header
-        style={{
-          padding: "16px 24px",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          backgroundColor: "#ffffff",
-          borderBottom: "1px solid #e2e8f0",
-        }}
-      >
+      <header className="hyh-login-header">
         <HealYourHeartLogo size="sm" clickable={true} />
-        <button
-          type="button"
+        <AnimatedArrowButton
+          label="Back to Website"
+          direction="left"
+          size="sm"
           onClick={() => navigate("/")}
-          style={{
-            backgroundColor: "transparent",
-            color: "#64748b",
-            border: "none",
-            display: "inline-flex",
-            alignItems: "center",
-            gap: 6,
-            fontSize: "14px",
-            fontWeight: 600,
-            cursor: "pointer",
-          }}
-        >
-          <ArrowLeft size={16} />
-          <span>Back to Website</span>
-        </button>
+        />
       </header>
 
-      {/* Main Content Card */}
-      <main
-        style={{
-          flex: 1,
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          padding: "16px",
-        }}
-      >
-        <div
-          data-testid="login-card"
-          style={{
-            backgroundColor: "#ffffff",
-            width: "100%",
-            maxWidth: "460px",
-            borderRadius: "16px",
-            boxShadow: "0 10px 25px -5px rgba(0, 0, 0, 0.08), 0 8px 10px -6px rgba(0, 0, 0, 0.04)",
-            border: "1px solid #e2e8f0",
-            padding: "24px 28px",
-          }}
-        >
+      {/* Main Content Card (Uiverse elevated clinical card) */}
+      <main className="hyh-login-main">
+        <div data-testid="login-card" className="hyh-login-card">
+          <div className="hyh-login-card-accent" />
+
           {/* Card Brand Header */}
-          <div style={{ textAlign: "center", marginBottom: "16px" }}>
+          <div className="hyh-login-brand-header">
             <div style={{ display: "inline-block", marginBottom: "8px" }}>
               <img
                 src="/images/hyh_logo.png"
                 alt="Heal Your Heart Logo"
-                style={{ height: "40px", width: "auto", objectFit: "contain" }}
+                style={{ height: "42px", width: "auto", objectFit: "contain" }}
               />
             </div>
-            <h2
-              style={{
-                fontSize: "20px",
-                fontWeight: 800,
-                color: "#0f172a",
-                margin: "0 0 4px 0",
-              }}
-            >
-              Sign In to Heal Your Heart EHR
-            </h2>
-            <p style={{ fontSize: "13px", color: "#64748b", margin: 0 }}>
+            <h2 className="hyh-login-title">Sign In to Heal Your Heart EHR</h2>
+            <p className="hyh-login-subtitle">
               Authorized Clinical &amp; Administrative Practice Portal
             </p>
           </div>
 
-          {/* Mode Switcher: Password vs OTP */}
-          <div
-            style={{
-              display: "flex",
-              backgroundColor: "#f1f5f9",
-              borderRadius: "8px",
-              padding: "4px",
-              marginBottom: "20px",
-            }}
-          >
+          {/* Uiverse-inspired Segmented Mode Switcher */}
+          <div className="hyh-login-seg">
             <button
               type="button"
               onClick={() => {
                 setLoginMode("password");
                 setError(null);
               }}
-              style={{
-                flex: 1,
-                border: "none",
-                borderRadius: "6px",
-                padding: "8px",
-                fontSize: "13px",
-                fontWeight: loginMode === "password" ? 700 : 500,
-                backgroundColor: loginMode === "password" ? "#ffffff" : "transparent",
-                color: loginMode === "password" ? "#0f766e" : "#64748b",
-                boxShadow: loginMode === "password" ? "0 1px 3px rgba(0,0,0,0.1)" : "none",
-                cursor: "pointer",
-              }}
+              className={`hyh-login-seg-btn ${loginMode === "password" ? "active" : ""}`}
             >
-              Password Login
+              <Lock size={14} />
+              <span>Password Login</span>
             </button>
             <button
               type="button"
@@ -227,20 +165,10 @@ export function LoginPage({ onLoginSuccess }: LoginPageProps) {
                 setLoginMode("otp");
                 setError(null);
               }}
-              style={{
-                flex: 1,
-                border: "none",
-                borderRadius: "6px",
-                padding: "8px",
-                fontSize: "13px",
-                fontWeight: loginMode === "otp" ? 700 : 500,
-                backgroundColor: loginMode === "otp" ? "#ffffff" : "transparent",
-                color: loginMode === "otp" ? "#0f766e" : "#64748b",
-                boxShadow: loginMode === "otp" ? "0 1px 3px rgba(0,0,0,0.1)" : "none",
-                cursor: "pointer",
-              }}
+              className={`hyh-login-seg-btn ${loginMode === "otp" ? "active" : ""}`}
             >
-              Sign In with OTP
+              <KeyRound size={14} />
+              <span>Sign In with OTP</span>
             </button>
           </div>
 
@@ -251,8 +179,8 @@ export function LoginPage({ onLoginSuccess }: LoginPageProps) {
               style={{
                 backgroundColor: "#fef2f2",
                 border: "1px solid #fecaca",
-                borderRadius: "8px",
-                padding: "12px",
+                borderRadius: "10px",
+                padding: "12px 14px",
                 marginBottom: "20px",
                 display: "flex",
                 alignItems: "flex-start",
@@ -272,8 +200,8 @@ export function LoginPage({ onLoginSuccess }: LoginPageProps) {
               style={{
                 backgroundColor: "#f0fdfa",
                 border: "1px solid #99f6e4",
-                borderRadius: "8px",
-                padding: "12px",
+                borderRadius: "10px",
+                padding: "12px 14px",
                 marginBottom: "20px",
                 display: "flex",
                 alignItems: "flex-start",
@@ -297,142 +225,82 @@ export function LoginPage({ onLoginSuccess }: LoginPageProps) {
           {/* PASSWORD LOGIN FORM */}
           {loginMode === "password" ? (
             <form onSubmit={handlePasswordLogin}>
-              <div style={{ marginBottom: "16px" }}>
-                <label
+              {/* Uiverse: kamehame-ha/lovely-fly-87 Floating Notch Input for Identifier */}
+              <div className="hyh-input-group">
+                <span className="hyh-floating-label">Email or Mobile Number</span>
+                <input
+                  type="text"
+                  data-testid="login-identifier-input"
+                  aria-label="Staff email"
+                  required
+                  value={identifier}
+                  onChange={(e) => setIdentifier(e.target.value)}
+                  placeholder="doctor@demo.local or 9003078282"
+                  className="hyh-input-box"
+                />
+                <User size={16} className="hyh-input-icon" />
+              </div>
+
+              {/* Uiverse: Floating Notch Input for Password */}
+              <div className="hyh-input-group" style={{ marginBottom: "8px" }}>
+                <span className="hyh-floating-label">Password</span>
+                <input
+                  type={showPassword ? "text" : "password"}
+                  data-testid="login-password-input"
+                  aria-label="Password"
+                  required
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="••••••••••••"
+                  className="hyh-input-box"
+                  style={{ paddingRight: "40px" }}
+                />
+                <Lock size={16} className="hyh-input-icon" />
+                <button
+                  type="button"
+                  data-testid="toggle-password-visibility"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="hyh-input-toggle"
+                  aria-label={showPassword ? "Hide password" : "Show password"}
+                >
+                  {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                </button>
+              </div>
+
+              <div
+                style={{
+                  display: "flex",
+                  justifyContent: "flex-end",
+                  marginBottom: "20px",
+                }}
+              >
+                <button
+                  type="button"
+                  onClick={() => navigate("/forgot-password")}
                   style={{
-                    display: "block",
-                    fontSize: "13px",
+                    backgroundColor: "transparent",
+                    border: "none",
+                    color: "#0b6e75",
+                    fontSize: "12.5px",
                     fontWeight: 600,
-                    color: "#334155",
-                    marginBottom: "6px",
+                    cursor: "pointer",
+                    padding: 0,
                   }}
                 >
-                  Email or Mobile Number
-                </label>
-                <div style={{ position: "relative" }}>
-                  <input
-                    type="text"
-                    data-testid="login-identifier-input"
-                    aria-label="Staff email"
-                    required
-                    value={identifier}
-                    onChange={(e) => setIdentifier(e.target.value)}
-                    placeholder="e.g. doctor@demo.local or 9003078282"
-                    style={{
-                      width: "100%",
-                      boxSizing: "border-box",
-                      padding: "10px 14px 10px 36px",
-                      borderRadius: "8px",
-                      border: "1px solid #cbd5e1",
-                      fontSize: "14px",
-                      outline: "none",
-                    }}
-                  />
-                  <User
-                    size={16}
-                    color="#94a3b8"
-                    style={{ position: "absolute", left: "12px", top: "13px" }}
-                  />
-                </div>
+                  Forgot Password?
+                </button>
               </div>
 
-              <div style={{ marginBottom: "20px" }}>
-                <div
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "space-between",
-                    marginBottom: "6px",
-                  }}
-                >
-                  <label style={{ fontSize: "13px", fontWeight: 600, color: "#334155" }}>
-                    Password
-                  </label>
-                  <button
-                    type="button"
-                    onClick={() => navigate("/forgot-password")}
-                    style={{
-                      backgroundColor: "transparent",
-                      border: "none",
-                      color: "#0d9488",
-                      fontSize: "12px",
-                      fontWeight: 600,
-                      cursor: "pointer",
-                      padding: 0,
-                    }}
-                  >
-                    Forgot Password?
-                  </button>
-                </div>
-                <div style={{ position: "relative" }}>
-                  <input
-                    type={showPassword ? "text" : "password"}
-                    data-testid="login-password-input"
-                    aria-label="Password"
-                    required
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    placeholder="Enter your password"
-                    style={{
-                      width: "100%",
-                      boxSizing: "border-box",
-                      padding: "10px 40px 10px 36px",
-                      borderRadius: "8px",
-                      border: "1px solid #cbd5e1",
-                      fontSize: "14px",
-                      outline: "none",
-                    }}
-                  />
-                  <Lock
-                    size={16}
-                    color="#94a3b8"
-                    style={{ position: "absolute", left: "12px", top: "13px" }}
-                  />
-                  <button
-                    type="button"
-                    data-testid="toggle-password-visibility"
-                    onClick={() => setShowPassword(!showPassword)}
-                    style={{
-                      position: "absolute",
-                      right: "12px",
-                      top: "11px",
-                      backgroundColor: "transparent",
-                      border: "none",
-                      color: "#94a3b8",
-                      cursor: "pointer",
-                      padding: 0,
-                    }}
-                  >
-                    {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
-                  </button>
-                </div>
-              </div>
-
+              {/* Uiverse-inspired Submit Button */}
               <button
                 type="submit"
                 data-testid="login-submit-btn"
                 aria-label="Sign in to workspace"
                 disabled={loading}
-                style={{
-                  width: "100%",
-                  backgroundColor: "#0d9488",
-                  color: "#ffffff",
-                  border: "none",
-                  borderRadius: "8px",
-                  padding: "12px",
-                  fontSize: "15px",
-                  fontWeight: 700,
-                  cursor: loading ? "not-allowed" : "pointer",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  gap: "8px",
-                  boxShadow: "0 2px 4px rgba(13, 148, 136, 0.2)",
-                  opacity: loading ? 0.7 : 1,
-                }}
+                className="hyh-login-btn"
               >
                 <LogIn size={18} />
-                <span>{loading ? "Verifying Credentials…" : "Sign In"}</span>
+                <span>{loading ? "Verifying Credentials…" : "Sign In to Workspace"}</span>
               </button>
             </form>
           ) : (
@@ -440,67 +308,31 @@ export function LoginPage({ onLoginSuccess }: LoginPageProps) {
             <div>
               {otpStep === "request" ? (
                 <form onSubmit={handleRequestOtp}>
-                  <div style={{ marginBottom: "20px" }}>
-                    <label
-                      style={{
-                        display: "block",
-                        fontSize: "13px",
-                        fontWeight: 600,
-                        color: "#334155",
-                        marginBottom: "6px",
-                      }}
-                    >
-                      Registered Email or Mobile Number
-                    </label>
+                  <div className="hyh-input-group" style={{ marginBottom: "20px" }}>
+                    <span className="hyh-floating-label">Registered Email or Mobile Number</span>
                     <input
                       type="text"
                       required
                       value={identifier}
                       onChange={(e) => setIdentifier(e.target.value)}
-                      placeholder="e.g. doctor@demo.local or 9840123456"
-                      style={{
-                        width: "100%",
-                        boxSizing: "border-box",
-                        padding: "10px 14px",
-                        borderRadius: "8px",
-                        border: "1px solid #cbd5e1",
-                        fontSize: "14px",
-                        outline: "none",
-                      }}
+                      placeholder="doctor@demo.local or 9840123456"
+                      className="hyh-input-box"
                     />
+                    <User size={16} className="hyh-input-icon" />
                   </div>
                   <button
                     type="submit"
                     disabled={loading}
-                    style={{
-                      width: "100%",
-                      backgroundColor: "#0d9488",
-                      color: "#ffffff",
-                      border: "none",
-                      borderRadius: "8px",
-                      padding: "12px",
-                      fontSize: "15px",
-                      fontWeight: 700,
-                      cursor: loading ? "not-allowed" : "pointer",
-                    }}
+                    className="hyh-login-btn"
                   >
-                    {loading ? "Sending Code…" : "Send Verification OTP"}
+                    <KeyRound size={18} />
+                    <span>{loading ? "Sending Code…" : "Send Verification OTP"}</span>
                   </button>
                 </form>
               ) : (
                 <form onSubmit={handleVerifyOtpLogin}>
-                  <div style={{ marginBottom: "20px" }}>
-                    <label
-                      style={{
-                        display: "block",
-                        fontSize: "13px",
-                        fontWeight: 600,
-                        color: "#334155",
-                        marginBottom: "6px",
-                      }}
-                    >
-                      Enter 6-Digit Verification Code
-                    </label>
+                  <div className="hyh-input-group" style={{ marginBottom: "20px" }}>
+                    <span className="hyh-floating-label">Enter 6-Digit Verification Code</span>
                     <input
                       type="text"
                       required
@@ -508,37 +340,24 @@ export function LoginPage({ onLoginSuccess }: LoginPageProps) {
                       value={otpCode}
                       onChange={(e) => setOtpCode(e.target.value)}
                       placeholder="123456"
+                      className="hyh-input-box"
                       style={{
-                        width: "100%",
-                        boxSizing: "border-box",
-                        padding: "10px 14px",
-                        borderRadius: "8px",
-                        border: "1px solid #cbd5e1",
+                        paddingLeft: "14px",
                         fontSize: "18px",
-                        letterSpacing: "4px",
+                        letterSpacing: "5px",
                         textAlign: "center",
                         fontWeight: 700,
-                        outline: "none",
                       }}
                     />
                   </div>
                   <button
                     type="submit"
                     disabled={loading}
-                    style={{
-                      width: "100%",
-                      backgroundColor: "#0d9488",
-                      color: "#ffffff",
-                      border: "none",
-                      borderRadius: "8px",
-                      padding: "12px",
-                      fontSize: "15px",
-                      fontWeight: 700,
-                      cursor: loading ? "not-allowed" : "pointer",
-                      marginBottom: "12px",
-                    }}
+                    className="hyh-login-btn"
+                    style={{ marginBottom: "12px" }}
                   >
-                    {loading ? "Verifying Code…" : "Verify & Sign In"}
+                    <LogIn size={18} />
+                    <span>{loading ? "Verifying Code…" : "Verify & Sign In"}</span>
                   </button>
                   <button
                     type="button"
@@ -546,10 +365,11 @@ export function LoginPage({ onLoginSuccess }: LoginPageProps) {
                     style={{
                       width: "100%",
                       backgroundColor: "transparent",
-                      color: "#64748b",
+                      color: "#5c7377",
                       border: "none",
                       fontSize: "13px",
                       cursor: "pointer",
+                      padding: "6px",
                     }}
                   >
                     ← Change Email or Mobile
@@ -562,23 +382,28 @@ export function LoginPage({ onLoginSuccess }: LoginPageProps) {
           {/* Quick Demo Role Selector */}
           <div
             style={{
-              marginTop: "28px",
+              marginTop: "26px",
               paddingTop: "20px",
-              borderTop: "1px solid #f1f5f9",
+              borderTop: "1px solid #edf5f5",
             }}
           >
             <div
               style={{
-                fontSize: "12px",
+                fontSize: "11.5px",
                 fontWeight: 700,
-                color: "#64748b",
+                color: "#5c7377",
                 textTransform: "uppercase",
-                letterSpacing: "0.05em",
+                letterSpacing: "0.06em",
                 marginBottom: "10px",
                 textAlign: "center",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: "6px",
               }}
             >
-              Quick Demo Staff Access
+              <Sparkles size={13} color="#0b6e75" />
+              <span>Quick Demo Staff Access</span>
             </div>
             <div
               style={{
@@ -587,41 +412,34 @@ export function LoginPage({ onLoginSuccess }: LoginPageProps) {
                 gap: "8px",
               }}
             >
-              {quickRoles.map((r) => (
-                <button
-                  key={r.label}
-                  type="button"
-                  data-testid={`demo-login-${r.label.toLowerCase()}`}
-                  onClick={() => {
-                    setIdentifier(r.id);
-                    setPassword(r.pass);
-                    setError(null);
-                  }}
-                  style={{
-                    backgroundColor: identifier === r.id ? "#ccfbf1" : "#f8fafc",
-                    border: identifier === r.id ? "1px solid #0d9488" : "1px solid #e2e8f0",
-                    color: identifier === r.id ? "#0f766e" : "#475569",
-                    padding: "6px 4px",
-                    borderRadius: "6px",
-                    fontSize: "11px",
-                    fontWeight: 600,
-                    cursor: "pointer",
-                    transition: "all 0.15s ease",
-                  }}
-                >
-                  {r.label}
-                </button>
-              ))}
+              {quickRoles.map((r) => {
+                const isSelected = identifier === r.id;
+                return (
+                  <button
+                    key={r.label}
+                    type="button"
+                    data-testid={`demo-login-${r.label.toLowerCase()}`}
+                    onClick={() => {
+                      setIdentifier(r.id);
+                      setPassword(r.pass);
+                      setError(null);
+                    }}
+                    className={`hyh-role-chip ${isSelected ? "active" : ""}`}
+                  >
+                    <span>{r.label}</span>
+                  </button>
+                );
+              })}
             </div>
           </div>
 
           {/* Footer Card Link: Don't have an account? */}
           <div
             style={{
-              marginTop: "24px",
+              marginTop: "22px",
               textAlign: "center",
               fontSize: "13px",
-              color: "#64748b",
+              color: "#5c7377",
             }}
           >
             Don't have staff credentials?{" "}
@@ -632,7 +450,7 @@ export function LoginPage({ onLoginSuccess }: LoginPageProps) {
               style={{
                 backgroundColor: "transparent",
                 border: "none",
-                color: "#0d9488",
+                color: "#0b6e75",
                 fontWeight: 700,
                 cursor: "pointer",
                 padding: 0,
@@ -645,14 +463,7 @@ export function LoginPage({ onLoginSuccess }: LoginPageProps) {
       </main>
 
       {/* Enterprise Footer Note */}
-      <footer
-        style={{
-          padding: "16px 24px",
-          textAlign: "center",
-          fontSize: "12px",
-          color: "#94a3b8",
-        }}
-      >
+      <footer className="hyh-login-footer">
         © {new Date().getFullYear()} Heal Your Heart · Vaso-Meditech Private Limited. Secure Practice Portal.
       </footer>
     </div>

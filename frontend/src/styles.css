@@ -17728,7 +17728,7 @@ textarea.charm-input {
   padding: 7px 14px;
   border: 0;
   border-radius: 4px;
-  background: #f59e0b;
+  background: #0B6E75;
   color: #fff;
   font-size: 13px;
   font-weight: 600;
@@ -17736,7 +17736,7 @@ textarea.charm-input {
 }
 
 .ct-btn-orange:hover {
-  background: #d97706;
+  background: #09595F;
 }
 
 .ct-btn-orange:disabled {

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useMemo } from "react";
 import {
   Users,
   CalendarDays,
@@ -45,6 +45,7 @@ import { KeyboardShortcutsModal } from "./settings/KeyboardShortcutsModal";
 import { HelpModal } from "./settings/HelpModal";
 import { AddonsModal } from "./settings/AddonsModal";
 import { ReferFriendModal } from "./settings/ReferFriendModal";
+import { ALL_SETTING_OPTIONS, SettingOption } from "./settings/settingsData";
 import "./uiverseTopbar.css";
 
 export interface NavItemConfig {
@@ -164,6 +165,7 @@ export function AppShell({
   const [addonsModalOpen, setAddonsModalOpen] = useState(false);
   const [referFriendModalOpen, setReferFriendModalOpen] = useState(false);
   const [paletteQuery, setPaletteQuery] = useState("");
+  const [settingsSearchQuery, setSettingsSearchQuery] = useState("");
 
   const userMenuRef = useRef<HTMLDivElement>(null);
   const branchMenuRef = useRef<HTMLDivElement>(null);
@@ -269,6 +271,17 @@ export function AppShell({
     : allModules;
 
   const isSettingsMode = activePage === "settings" || activePage === "templates";
+
+  const filteredSettingsOptions = useMemo(() => {
+    if (!settingsSearchQuery.trim()) return [];
+    const q = settingsSearchQuery.toLowerCase().trim();
+    return ALL_SETTING_OPTIONS.filter(
+      (opt) =>
+        opt.name.toLowerCase().includes(q) ||
+        opt.description.toLowerCase().includes(q) ||
+        opt.categoryName.toLowerCase().includes(q)
+    ).slice(0, 10);
+  }, [settingsSearchQuery]);
 
   return (
     <div className="flex flex-col h-screen w-screen overflow-hidden bg-[var(--color-bg-canvas,#F7F9FA)] text-[var(--color-text-primary,#0F172A)] font-sans">
@@ -378,76 +391,154 @@ export function AppShell({
             </div>
           </div>
 
-          {/* Center Area: Uiverse Wave-Label Patient Search Bar */}
+          {/* Center Area: Context-Aware Search (Settings search on /settings, Patient search elsewhere) */}
           <div className="flex-1 max-w-md mx-auto relative">
-            {/*
-              From Uiverse.io by liyaxu123 - https://uiverse.io/liyaxu123/warm-eel-62
-              MIT License, Copyright (c) liyaxu123 (????)
-            */}
-            <div className="hyh-uiverse-search">
-              <Search
-                size={14}
-                className="absolute left-1 bottom-[9px] text-slate-400 pointer-events-none"
-              />
-              <input
-                type="text"
-                required
-                aria-label="Find a patient"
-                value={search}
-                onChange={(e) => onSearchChange(e.target.value)}
-              />
-              <label>
-                {"Search".split("").map((ch, idx) => (
-                  <span key={idx} style={{ transitionDelay: `${idx * 50}ms` }}>
-                    {ch}
-                  </span>
-                ))}
-              </label>
-              {search.length > 0 && (
-                <button
-                  type="button"
-                  title="Clear search"
-                  onClick={() => onSearchChange("")}
-                  className="absolute right-0 bottom-[7px] text-[#94A3B8] hover:text-[#0F172A] p-1 cursor-pointer"
-                >
-                  <X size={13} />
-                </button>
-              )}
-            </div>
+            {isSettingsMode ? (
+              /* Dedicated Settings Search Bar on Top */
+              <>
+                <div className="hyh-uiverse-search">
+                  <Search
+                    size={14}
+                    className="absolute left-1 bottom-[9px] text-slate-400 pointer-events-none"
+                  />
+                  <input
+                    type="text"
+                    required
+                    aria-label="Search settings options"
+                    value={settingsSearchQuery}
+                    onChange={(e) => setSettingsSearchQuery(e.target.value)}
+                  />
+                  <label>
+                    {"Search settings...".split("").map((ch, idx) => (
+                      <span key={idx} style={{ transitionDelay: `${idx * 25}ms` }}>
+                        {ch}
+                      </span>
+                    ))}
+                  </label>
+                  {settingsSearchQuery.length > 0 && (
+                    <button
+                      type="button"
+                      title="Clear search"
+                      onClick={() => setSettingsSearchQuery("")}
+                      className="absolute right-0 bottom-[7px] text-[#94A3B8] hover:text-[#0F172A] p-1 cursor-pointer"
+                    >
+                      <X size={13} />
+                    </button>
+                  )}
+                </div>
 
-            {/* Inline search dropdown directly anchored below search box */}
-            {search.length > 1 && (
-              <div className="charm-search-dropdown-anchored absolute left-0 right-0 top-full mt-1 bg-white border border-[#CBD5E1] rounded-lg shadow-lg z-50 max-h-72 overflow-y-auto divide-y divide-[#F1F5F9]">
-                {searchResults.data?.items.map((p: Row) => (
-                  <button
-                    key={p.id}
-                    type="button"
-                    className="w-full text-left px-3.5 py-2.5 hover:bg-[#F8FAFC] flex items-center justify-between group transition-colors"
-                    onClick={() => {
-                      onSelectPatient(p.id);
-                      onSearchChange("");
-                    }}
-                  >
-                    <div>
-                      <div className="font-semibold text-xs text-[#0F172A] group-hover:text-[var(--color-primary-clinical,#0B6E75)]">
-                        {p.name || `${p.first_name || ""} ${p.last_name || ""}`.trim()}
+                {/* Inline settings search dropdown anchored below topbar */}
+                {settingsSearchQuery.trim().length > 0 && (
+                  <div className="charm-search-dropdown-anchored absolute left-0 right-0 top-full mt-1 bg-white border border-[#CBD5E1] rounded-xl shadow-xl z-50 max-h-72 overflow-y-auto divide-y divide-[#F1F5F9]">
+                    {filteredSettingsOptions.length === 0 ? (
+                      <div className="p-3 text-center text-xs text-[#64748B]">
+                        No settings matching "{settingsSearchQuery}"
                       </div>
-                      <div className="text-[11px] text-[#64748B] font-mono">
-                        MRN: {p.mrn} · Phone: {p.phone || "None"}
-                      </div>
-                    </div>
-                    <ArrowUpRight
-                      size={14}
-                      className="text-[#94A3B8] group-hover:text-[var(--color-primary-clinical,#0B6E75)]"
-                    />
-                  </button>
-                ))}
-                {searchResults.data?.items.length === 0 && !searchResults.isLoading && (
-                  <div className="p-3 text-center text-xs text-[#64748B]">
-                    No patients matching "{search}"
+                    ) : (
+                      filteredSettingsOptions.map((opt) => (
+                        <button
+                          key={`${opt.categoryId}-${opt.id}`}
+                          type="button"
+                          className="w-full text-left px-3.5 py-2.5 hover:bg-[#EFF8F7] flex items-center justify-between group transition-colors cursor-pointer"
+                          onClick={() => {
+                            navigate(`/settings/${opt.categoryId}/${opt.id}`);
+                            setSettingsSearchQuery("");
+                          }}
+                        >
+                          <div className="min-w-0 pr-2">
+                            <div className="font-semibold text-xs text-[#0F172A] group-hover:text-[var(--color-primary-clinical,#0B6E75)] flex items-center gap-1.5">
+                              <span className="truncate">{opt.name}</span>
+                              <span className="text-[10px] text-slate-400 font-mono uppercase bg-slate-100 px-1.5 py-0.5 rounded">
+                                {opt.categoryName}
+                              </span>
+                            </div>
+                            <div className="text-[11px] text-[#64748B] truncate mt-0.5">
+                              {opt.description}
+                            </div>
+                          </div>
+                          <ArrowUpRight
+                            size={14}
+                            className="text-[#94A3B8] group-hover:text-[var(--color-primary-clinical,#0B6E75)] shrink-0"
+                          />
+                        </button>
+                      ))
+                    )}
                   </div>
                 )}
-              </div>
+              </>
+            ) : (
+              /* Global Patient Search Bar */
+              <>
+                {/*
+                  From Uiverse.io by liyaxu123 - https://uiverse.io/liyaxu123/warm-eel-62
+                  MIT License, Copyright (c) liyaxu123 (????)
+                */}
+                <div className="hyh-uiverse-search">
+                  <Search
+                    size={14}
+                    className="absolute left-1 bottom-[9px] text-slate-400 pointer-events-none"
+                  />
+                  <input
+                    type="text"
+                    required
+                    aria-label="Find a patient"
+                    value={search}
+                    onChange={(e) => onSearchChange(e.target.value)}
+                  />
+                  <label>
+                    {"Search".split("").map((ch, idx) => (
+                      <span key={idx} style={{ transitionDelay: `${idx * 50}ms` }}>
+                        {ch}
+                      </span>
+                    ))}
+                  </label>
+                  {search.length > 0 && (
+                    <button
+                      type="button"
+                      title="Clear search"
+                      onClick={() => onSearchChange("")}
+                      className="absolute right-0 bottom-[7px] text-[#94A3B8] hover:text-[#0F172A] p-1 cursor-pointer"
+                    >
+                      <X size={13} />
+                    </button>
+                  )}
+                </div>
+
+                {/* Inline search dropdown directly anchored below search box */}
+                {search.length > 1 && (
+                  <div className="charm-search-dropdown-anchored absolute left-0 right-0 top-full mt-1 bg-white border border-[#CBD5E1] rounded-lg shadow-lg z-50 max-h-72 overflow-y-auto divide-y divide-[#F1F5F9]">
+                    {searchResults.data?.items.map((p: Row) => (
+                      <button
+                        key={p.id}
+                        type="button"
+                        className="w-full text-left px-3.5 py-2.5 hover:bg-[#F8FAFC] flex items-center justify-between group transition-colors"
+                        onClick={() => {
+                          onSelectPatient(p.id);
+                          onSearchChange("");
+                        }}
+                      >
+                        <div>
+                          <div className="font-semibold text-xs text-[#0F172A] group-hover:text-[var(--color-primary-clinical,#0B6E75)]">
+                            {p.name || `${p.first_name || ""} ${p.last_name || ""}`.trim()}
+                          </div>
+                          <div className="text-[11px] text-[#64748B] font-mono">
+                            MRN: {p.mrn} · Phone: {p.phone || "None"}
+                          </div>
+                        </div>
+                        <ArrowUpRight
+                          size={14}
+                          className="text-[#94A3B8] group-hover:text-[var(--color-primary-clinical,#0B6E75)]"
+                        />
+                      </button>
+                    ))}
+                    {searchResults.data?.items.length === 0 && !searchResults.isLoading && (
+                      <div className="p-3 text-center text-xs text-[#64748B]">
+                        No patients matching "{search}"
+                      </div>
+                    )}
+                  </div>
+                )}
+              </>
             )}
           </div>
 

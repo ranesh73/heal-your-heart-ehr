@@ -203,10 +203,9 @@ export function SettingContentView({
       {/* 2. Action Bar with Context Subtitle & Primary Button */}
       <div className="charm-settings-subhead-strip">
         <div className="charm-settings-practice-title">
-          <span>Practice Name : </span>
-          <strong>Heal Your Heart</strong>
+          <span className="text-slate-800 font-semibold text-[13px]">{option.name}</span>
           <span className="text-slate-400 mx-2">·</span>
-          <span className="text-slate-600 text-[13px]">{category.name} &gt; {option.name}</span>
+          <span className="text-slate-500 text-[12.5px]">{category.name}</span>
         </div>
 
         <div className="flex items-center gap-2">

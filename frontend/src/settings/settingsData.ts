@@ -1539,7 +1539,7 @@ export const SETTINGS_SECTIONS: SettingsSection[] = [
     tabs: [
       { id: "billing-settings", label: "Billing Settings", categoryId: "billing", optionId: "billing-settings", route: "/settings/billing/billing-settings" },
       { id: "fee-schedule", label: "Fee Schedules", categoryId: "billing", optionId: "fee-schedule", route: "/settings/billing/fee-schedule" },
-      { id: "manage-inventory", label: "Inventory & Vaccines", categoryId: "inventory", optionId: "manage-inventory", route: "/settings/inventory/manage-inventory" },
+      { id: "inventory-vaccine-settings", label: "Inventory & Vaccines", categoryId: "inventory", optionId: "inventory-vaccine-settings", route: "/settings/inventory/inventory-vaccine-settings" },
     ],
   },
   {

@@ -121,7 +121,7 @@ export function WebEmbedPage() {
           type="button"
           onClick={handleOpenAdd}
           style={{
-            backgroundColor: "#d97706",
+            backgroundColor: "#0B6E75",
             color: "#ffffff",
             display: "flex",
             alignItems: "center",
@@ -446,7 +446,7 @@ export function WebEmbedPage() {
                   <button
                     type="submit"
                     style={{
-                      backgroundColor: "#d97706",
+                      backgroundColor: "#0B6E75",
                       color: "#fff",
                       border: "none",
                       padding: "8px 24px",

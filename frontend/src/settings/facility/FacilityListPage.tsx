@@ -61,16 +61,11 @@ export function FacilityListPage() {
 
   return (
     <div className="charm-facility-list-view">
-      {/* Top Practice Name and New Facility Button */}
-      <div className="charm-facility-header-strip">
-        <div className="charm-practice-name-label">
-          <span className="charm-label-dim">Practice Name : </span>
-          <span className="charm-practice-name-bold">Heal Your Heart</span>
-        </div>
-
+      {/* Action Bar with New Facility Button */}
+      <div className="flex justify-end items-center mb-4">
         <button
           type="button"
-          className="charm-btn-orange bg-[#0B6E75] hover:bg-[#09595F] text-white font-medium text-xs px-3.5 py-1.5 rounded-lg flex items-center gap-1.5 transition-colors shadow-2xs"
+          className="charm-btn-orange bg-[#0B6E75] hover:bg-[#09595F] text-white font-medium text-xs px-3.5 py-1.5 rounded-lg flex items-center gap-1.5 transition-colors shadow-2xs cursor-pointer"
           onClick={() => setIsAddingNew(true)}
         >
           <Plus size={15} />

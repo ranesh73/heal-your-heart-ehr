@@ -1,0 +1,165 @@
+/* From Uiverse.io by karthik092726122003 - https://uiverse.io/karthik092726122003/clever-crab-26
+   MIT License, Copyright (c) karthik092726122003
+   Adapted for Heal Your Heart EHR with clinical teal palette and compact scalable sizes. */
+
+.hyh-arrow-btn-wrapper {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  user-select: none;
+  background: transparent;
+  border: none;
+  padding: 0;
+  color: #5c7377;
+  font-family: inherit;
+  font-size: 13.5px;
+  font-weight: 600;
+  transition: color 0.2s ease;
+}
+
+.hyh-arrow-btn-wrapper:hover {
+  color: #0b6e75;
+}
+
+/* Base circular button */
+.hyh-arrow-btn {
+  display: block;
+  position: relative;
+  width: var(--hyh-arrow-size, 36px);
+  height: var(--hyh-arrow-size, 36px);
+  margin: 0;
+  overflow: hidden;
+  outline: none;
+  background-color: #ffffff;
+  cursor: pointer;
+  border: 0;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+/* Resting subtle ring */
+.hyh-arrow-btn::before {
+  content: "";
+  position: absolute;
+  border-radius: 50%;
+  inset: 2px;
+  border: 1.5px solid #cbd5e1;
+  pointer-events: none;
+  z-index: 1;
+  transition:
+    opacity 0.35s cubic-bezier(0.77, 0, 0.175, 1) 40ms,
+    transform 0.4s cubic-bezier(0.455, 0.03, 0.515, 0.955) 40ms;
+}
+
+/* Hover clinical teal ring */
+.hyh-arrow-btn::after {
+  content: "";
+  position: absolute;
+  border-radius: 50%;
+  inset: 2px;
+  border: 2px solid #0b6e75;
+  pointer-events: none;
+  z-index: 1;
+  transform: scale(1.25);
+  transition:
+    opacity 0.35s cubic-bezier(0.165, 0.84, 0.44, 1),
+    transform 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  opacity: 0;
+}
+
+.hyh-arrow-btn:hover::before,
+.hyh-arrow-btn:focus-visible::before,
+.hyh-arrow-btn-wrapper:hover .hyh-arrow-btn::before,
+.group:hover .hyh-arrow-btn::before {
+  opacity: 0;
+  transform: scale(0.75);
+}
+
+.hyh-arrow-btn:hover::after,
+.hyh-arrow-btn:focus-visible::after,
+.hyh-arrow-btn-wrapper:hover .hyh-arrow-btn::after,
+.group:hover .hyh-arrow-btn::after {
+  opacity: 1;
+  transform: scale(1);
+}
+
+/* Conveyor arrow track */
+.hyh-arrow-box {
+  display: flex;
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 100%;
+  align-items: center;
+  z-index: 2;
+  transition: transform 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.hyh-arrow-elem {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--hyh-arrow-size, 36px);
+  height: var(--hyh-arrow-size, 36px);
+  flex-shrink: 0;
+}
+
+.hyh-arrow-icon {
+  width: 16px;
+  height: 16px;
+  fill: #475569;
+  transition: fill 0.2s ease;
+}
+
+.hyh-arrow-btn:hover .hyh-arrow-icon,
+.hyh-arrow-btn:focus-visible .hyh-arrow-icon,
+.hyh-arrow-btn-wrapper:hover .hyh-arrow-icon,
+.group:hover .hyh-arrow-icon {
+  fill: #0b6e75;
+}
+
+/* Left sliding trigger */
+.hyh-arrow-btn.dir-left:hover .hyh-arrow-box,
+.hyh-arrow-btn.dir-left:focus-visible .hyh-arrow-box,
+.hyh-arrow-btn-wrapper:hover .hyh-arrow-btn.dir-left .hyh-arrow-box,
+.group:hover .hyh-arrow-btn.dir-left .hyh-arrow-box {
+  transform: translateX(calc(-1 * var(--hyh-arrow-size, 36px)));
+}
+
+/* Right sliding trigger */
+.hyh-arrow-btn.dir-right .hyh-arrow-icon {
+  transform: rotate(180deg);
+}
+
+.hyh-arrow-btn.dir-right:hover .hyh-arrow-box,
+.hyh-arrow-btn.dir-right:focus-visible .hyh-arrow-box,
+.hyh-arrow-btn-wrapper:hover .hyh-arrow-btn.dir-right .hyh-arrow-box,
+.group:hover .hyh-arrow-btn.dir-right .hyh-arrow-box {
+  transform: translateX(calc(-1 * var(--hyh-arrow-size, 36px)));
+}
+
+/* Size variants */
+.hyh-arrow-btn.size-sm {
+  --hyh-arrow-size: 30px;
+}
+.hyh-arrow-btn.size-sm .hyh-arrow-icon {
+  width: 14px;
+  height: 14px;
+}
+
+.hyh-arrow-btn.size-md {
+  --hyh-arrow-size: 36px;
+}
+.hyh-arrow-btn.size-md .hyh-arrow-icon {
+  width: 16px;
+  height: 16px;
+}
+
+.hyh-arrow-btn.size-lg {
+  --hyh-arrow-size: 44px;
+}
+.hyh-arrow-btn.size-lg .hyh-arrow-icon {
+  width: 19px;
+  height: 19px;
+}

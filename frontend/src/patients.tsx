@@ -1,5 +1,6 @@
 import { useEffect, useState, useRef } from "react";
 import { CharmChartNotesGlobal } from "./charmChartNotesGlobal";
+import { AnimatedArrowButton } from "./AnimatedArrowButton";
 import { AddPatientView } from "./patientRegistration";
 import { ImportPatientsModal } from "./patientImport";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -418,15 +419,13 @@ export function PatientHeader({
     <div className="charm-patient-banner patient-header">
       {/* 1. Left: Profile Block matching CharmHealth */}
       <div className="charm-patient-profile-block">
-        <button
-          type="button"
-          className="charm-back-btn"
-          onClick={() => navigate("/patients")}
+        <AnimatedArrowButton
+          direction="left"
+          size="sm"
           title="Back to Patient Directory"
           aria-label="Back to Patient Directory"
-        >
-          <ArrowLeft size={16} />
-        </button>
+          onClick={() => navigate("/patients")}
+        />
 
         <div className="charm-banner-avatar">
           {p.photo_url ? (
